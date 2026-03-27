@@ -1,0 +1,20 @@
+{
+  "name": "@eco-globe/backend",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "convex dev",
+    "deploy": "convex deploy",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf node_modules .convex"
+  },
+  "dependencies": {
+    "@convex-dev/better-auth": "^0.10.0",
+    "better-auth": "1.4.9",
+    "convex": "^1.21.0"
+  },
+  "devDependencies": {
+    "@eco-globe/typescript-config": "workspace:*",
+    "typescript": "^5.8.2"
+  }
+}

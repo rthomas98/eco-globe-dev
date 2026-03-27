@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "EcoGlobe",
+    "slug": "eco-globe",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "eco-globe",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ecoglobe.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.ecoglobe.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": ["expo-router"]
+  }
+}

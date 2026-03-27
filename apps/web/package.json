@@ -1,0 +1,36 @@
+{
+  "name": "@eco-globe/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf .next .turbo node_modules"
+  },
+  "dependencies": {
+    "@convex-dev/better-auth": "^0.10.0",
+    "@eco-globe/shared": "workspace:*",
+    "@eco-globe/ui": "workspace:*",
+    "better-auth": ">=1.4.9 <1.5.0",
+    "convex": "^1.21.0",
+    "convex-helpers": "^0.1.114",
+    "lucide-react": "^0.475.0",
+    "next": "^15.3.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@eco-globe/eslint-config": "workspace:*",
+    "@eco-globe/typescript-config": "workspace:*",
+    "@tailwindcss/postcss": "^4.1.4",
+    "@types/node": "^22.14.1",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.1.4",
+    "typescript": "^5.8.2"
+  }
+}

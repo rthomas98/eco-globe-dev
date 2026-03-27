@@ -1,0 +1,15 @@
+{
+  "extends": "@eco-globe/typescript-config/base.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "verbatimModuleSyntax": false,
+    "allowJs": true
+  },
+  "include": ["convex"],
+  "exclude": ["node_modules"]
+}
