@@ -11,8 +11,13 @@ const popularSearches = [
 export function HeroSection() {
   return (
     <section className="relative flex h-[768px] w-full items-center justify-center overflow-hidden">
-      {/* Background image placeholder */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/75 to-black/90" />
+      {/* Background image */}
+      <img
+        src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1920&q=80"
+        alt="Aerial view of farmland"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-[1440px] items-center justify-center px-[135px]">
         <div className="flex max-w-[1030px] flex-col items-center gap-16 text-center">
@@ -45,7 +50,7 @@ export function HeroSection() {
                 </div>
               </div>
             </div>
-            <Button variant="primary" size="md">
+            <Button variant="primary" size="md" className="h-12 px-8">
               Search
             </Button>
           </div>

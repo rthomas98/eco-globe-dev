@@ -2,8 +2,14 @@ import { Button } from "@eco-globe/ui";
 
 export function CTABannerSection() {
   return (
-    <section className="bg-neutral-800 py-[120px]">
-      <div className="mx-auto max-w-[1440px] px-[135px]">
+    <section className="relative overflow-hidden bg-neutral-800 py-[120px]">
+      <img
+        src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1920&q=80"
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover opacity-20"
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-neutral-900/90 via-neutral-900/80 to-neutral-900/70" />
+      <div className="relative z-10 mx-auto max-w-[1440px] px-[135px]">
         <div className="mx-auto max-w-[870px]">
           <div className="flex flex-col gap-12">
             <div className="flex flex-col gap-6 text-white">

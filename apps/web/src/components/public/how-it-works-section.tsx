@@ -48,7 +48,13 @@ export function HowItWorksSection() {
               ))}
             </div>
           </div>
-          <div className="min-h-[500px] flex-1 overflow-hidden rounded-2xl bg-neutral-200" />
+          <div className="min-h-[500px] flex-1 overflow-hidden rounded-2xl">
+            <img
+              src="https://images.unsplash.com/photo-1494412574643-ff11b0a5eb19?w=800&q=80"
+              alt="Aerial view of a shipping port with logistics operations"
+              className="h-full w-full object-cover"
+            />
+          </div>
         </div>
       </div>
     </section>

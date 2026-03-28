@@ -20,7 +20,13 @@ export function BuyersSellersSection() {
                 Become a Buyer
               </Button>
             </div>
-            <div className="h-[320px] overflow-hidden rounded-2xl bg-neutral-300" />
+            <div className="h-[320px] overflow-hidden rounded-2xl">
+              <img
+                src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800&q=80"
+                alt="Business professionals shaking hands"
+                className="h-full w-full object-cover"
+              />
+            </div>
           </div>
 
           {/* For Sellers */}
@@ -38,7 +44,13 @@ export function BuyersSellersSection() {
                 Become a Seller
               </Button>
             </div>
-            <div className="h-[320px] overflow-hidden rounded-2xl bg-neutral-300" />
+            <div className="h-[320px] overflow-hidden rounded-2xl">
+              <img
+                src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=800&q=80"
+                alt="Agricultural grain silos"
+                className="h-full w-full object-cover"
+              />
+            </div>
           </div>
         </div>
       </div>

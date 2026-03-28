@@ -7,6 +7,7 @@ interface Listing {
   price: string;
   currency: string;
   unit: string;
+  image: string;
 }
 
 const listings: Listing[] = [
@@ -17,6 +18,7 @@ const listings: Listing[] = [
     price: "$48",
     currency: "$",
     unit: "/ton",
+    image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=400&q=80",
   },
   {
     title: "Scrap Polymer Blend with Impurities",
@@ -25,6 +27,7 @@ const listings: Listing[] = [
     price: "\u20AC60",
     currency: "\u20AC",
     unit: "/ton",
+    image: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=400&q=80",
   },
   {
     title: "High-Quality Recycled Pyrolysis Pitch",
@@ -33,6 +36,7 @@ const listings: Listing[] = [
     price: "$300",
     currency: "$",
     unit: "/ton",
+    image: "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=400&q=80",
   },
   {
     title: "Harvested and Baled Corn Stover",
@@ -41,6 +45,7 @@ const listings: Listing[] = [
     price: "$42",
     currency: "$",
     unit: "/ton",
+    image: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400&q=80",
   },
   {
     title: "Premium Recycled Polyester Fiber",
@@ -49,6 +54,7 @@ const listings: Listing[] = [
     price: "\u20AC200",
     currency: "\u20AC",
     unit: "/ton",
+    image: "https://images.unsplash.com/photo-1513828583688-c52646db42da?w=400&q=80",
   },
   {
     title: "High-Carbon Activated Hidrochar",
@@ -57,6 +63,7 @@ const listings: Listing[] = [
     price: "\u20AC75",
     currency: "\u20AC",
     unit: "/ton",
+    image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&q=80",
   },
   {
     title: "Heat Treated Recycled Pallets",
@@ -65,6 +72,7 @@ const listings: Listing[] = [
     price: "$55",
     currency: "$",
     unit: "/ton",
+    image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&q=80",
   },
   {
     title: "Sustainably Sourced Biochar",
@@ -73,13 +81,20 @@ const listings: Listing[] = [
     price: "$55",
     currency: "$",
     unit: "/ton",
+    image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&q=80",
   },
 ];
 
 function ListingCard({ listing }: { listing: Listing }) {
   return (
     <div className="flex cursor-pointer flex-col gap-3">
-      <div className="h-[240px] overflow-hidden rounded-xl bg-neutral-200 transition-transform duration-300 hover:scale-[1.02]" />
+      <div className="h-[240px] overflow-hidden rounded-xl">
+        <img
+          src={listing.image}
+          alt={listing.title}
+          className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.02]"
+        />
+      </div>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <p className="text-base font-medium leading-6 text-neutral-900">
