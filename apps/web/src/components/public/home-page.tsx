@@ -1,12 +1,23 @@
-import { APP_NAME } from "@eco-globe/shared";
+import { Header } from "./header";
+import { HeroSection } from "./hero-section";
+import { CategoriesSection } from "./categories-section";
+import { FeaturedListingsSection } from "./featured-listings-section";
+import { BuyersSellersSection } from "./buyers-sellers-section";
+import { HowItWorksSection } from "./how-it-works-section";
+import { CTABannerSection } from "./cta-banner-section";
+import { Footer } from "./footer";
 
 export function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center">
-      <h1 className="text-4xl font-bold">{APP_NAME}</h1>
-      <p className="mt-4 text-lg text-gray-600">
-        Feedstock Marketplace
-      </p>
+    <main className="min-h-screen bg-white">
+      <Header transparent />
+      <HeroSection />
+      <CategoriesSection />
+      <FeaturedListingsSection />
+      <BuyersSellersSection />
+      <HowItWorksSection />
+      <CTABannerSection />
+      <Footer />
     </main>
   );
 }

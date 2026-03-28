@@ -1,4 +1,3 @@
-// Shared UI components for EcoGlobe
-// shadcn/ui components will be added here as needed
-
 export { cn } from "./utils";
+export { Button, buttonVariants, type ButtonProps } from "./button";
+export { Badge } from "./badge";
