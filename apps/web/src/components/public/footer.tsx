@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const footerColumns = [
   {
@@ -53,9 +54,14 @@ export function Footer() {
           <div className="flex gap-[30px]">
             {/* Logo and social */}
             <div className="flex w-[270px] shrink-0 flex-col gap-12">
-              <Link href="/" className="text-2xl font-bold">
-                <span className="text-white">eco</span>
-                <span className="text-green-400">globe</span>
+              <Link href="/">
+                <Image
+                  src="/logo.svg"
+                  alt="EcoGlobe"
+                  width={165}
+                  height={48}
+                  className="brightness-0 invert"
+                />
               </Link>
               <div className="flex gap-6">
                 {/* LinkedIn */}

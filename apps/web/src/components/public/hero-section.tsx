@@ -13,11 +13,11 @@ export function HeroSection() {
     <section className="relative flex h-[768px] w-full items-center justify-center overflow-hidden">
       {/* Background image */}
       <img
-        src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1920&q=80"
-        alt="Aerial view of farmland"
+        src="/hero.jpg"
+        alt="EcoGlobe industrial facility"
         className="absolute inset-0 h-full w-full object-cover"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/60 to-black/40" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-[1440px] items-center justify-center px-[135px]">
         <div className="flex max-w-[1030px] flex-col items-center gap-16 text-center">

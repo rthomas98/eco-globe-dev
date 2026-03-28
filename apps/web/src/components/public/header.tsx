@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@eco-globe/ui";
 
 const navLinks = [
@@ -16,11 +17,15 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
     >
       <div className="mx-auto max-w-[1440px] px-[135px]">
         <div className="flex h-20 items-center justify-between">
-          <Link href="/" className="text-2xl font-bold">
-            <span className={transparent ? "text-white" : "text-neutral-900"}>
-              eco
-            </span>
-            <span className="text-green-400">globe</span>
+          <Link href="/" className="shrink-0">
+            <Image
+              src="/logo.svg"
+              alt="EcoGlobe"
+              width={120}
+              height={35}
+              className={transparent ? "brightness-0 invert" : ""}
+              priority
+            />
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex">
