@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@eco-globe/ui";
@@ -11,9 +14,27 @@ const navLinks = [
 ];
 
 export function Header({ transparent = false }: { transparent?: boolean }) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!transparent) return;
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [transparent]);
+
+  const isLight = transparent && !scrolled;
+
   return (
     <header
-      className={`w-full ${transparent ? "absolute top-0 left-0 z-50" : "bg-white"}`}
+      className={`fixed top-0 left-0 z-50 w-full transition-all duration-300 ${
+        scrolled
+          ? "bg-neutral-900/95 backdrop-blur-md shadow-lg"
+          : transparent
+            ? "bg-transparent"
+            : "bg-white shadow-sm"
+      }`}
     >
       <div className="mx-auto max-w-[1440px] px-[135px]">
         <div className="flex h-20 items-center justify-between">
@@ -23,7 +44,11 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
               alt="EcoGlobe"
               width={120}
               height={35}
-              className={transparent ? "brightness-0 invert" : ""}
+              className={
+                isLight || scrolled
+                  ? "brightness-0 invert"
+                  : ""
+              }
               priority
             />
           </Link>
@@ -33,7 +58,9 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`text-base font-medium ${transparent ? "text-white" : "text-neutral-800"} transition-colors hover:opacity-80`}
+                className={`text-base font-medium transition-colors hover:opacity-80 ${
+                  isLight || scrolled ? "text-white" : "text-neutral-800"
+                }`}
               >
                 {link.label}
               </Link>
@@ -44,11 +71,14 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
             <Button
               variant="ghost"
               size="md"
-              className={transparent ? "text-white" : "text-neutral-900"}
+              className={isLight || scrolled ? "text-white" : "text-neutral-900"}
             >
               Login
             </Button>
-            <Button variant={transparent ? "outline-white" : "secondary"} size="md">
+            <Button
+              variant={isLight || scrolled ? "outline-white" : "secondary"}
+              size="md"
+            >
               Sign Up
             </Button>
           </div>
