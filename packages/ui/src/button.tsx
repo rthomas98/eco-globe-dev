@@ -13,9 +13,9 @@ const buttonVariants = cva(
         white: "bg-white text-neutral-900",
       },
       size: {
-        sm: "px-5 py-2.5 text-sm leading-5 gap-2",
-        md: "px-6 py-3 text-base leading-6 gap-3",
-        lg: "px-7 py-3.5 text-lg leading-7 gap-3",
+        sm: "h-8 px-4 text-sm leading-5 gap-2",
+        md: "h-10 px-6 text-base leading-6 gap-3",
+        lg: "h-14 px-7 text-lg leading-7 gap-3",
       },
     },
     defaultVariants: {
