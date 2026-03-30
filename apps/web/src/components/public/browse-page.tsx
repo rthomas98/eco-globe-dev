@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import { Button, Badge } from "@eco-globe/ui";
 import { ListingMap } from "./listing-map";
+import { SearchBar } from "./search-bar";
 import { FiltersPanel, defaultFilters, type FilterState } from "./filters-panel";
 
 const listings = [
@@ -102,22 +103,7 @@ export function BrowsePage() {
         </Link>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-full bg-white px-1 py-1" style={{ border: "1px solid #E0E0E0" }}>
-            <input
-              type="text"
-              defaultValue="Plastic"
-              className="w-40 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-neutral-500"
-            />
-            <div className="h-5 w-px bg-neutral-300" />
-            <input
-              type="text"
-              defaultValue="100 mi · Louisiana"
-              className="w-48 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-neutral-500"
-            />
-            <button className="flex size-9 items-center justify-center rounded-full bg-neutral-900 text-white">
-              <Search className="size-4" />
-            </button>
-          </div>
+          <SearchBar />
 
           <button
             onClick={() => setFiltersOpen(true)}
