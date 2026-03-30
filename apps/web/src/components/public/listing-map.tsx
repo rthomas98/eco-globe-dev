@@ -72,7 +72,7 @@ export function ListingMap() {
 
     const mapInstance = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/light-v11",
+      style: "mapbox://styles/mapbox/streets-v12",
       center: [-91.15, 30.45],
       zoom: 8.5,
     });
