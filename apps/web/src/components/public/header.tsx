@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Menu, Search } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 
 const navLinks = [
@@ -24,13 +25,13 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, [transparent]);
 
-  const isLight = transparent && !scrolled;
+  const isHero = transparent && !scrolled;
 
   return (
     <header
       className={`fixed top-0 left-0 z-50 w-full transition-all duration-300 ${
         scrolled
-          ? "bg-neutral-900/95 backdrop-blur-md shadow-lg"
+          ? "bg-white shadow-sm"
           : transparent
             ? "bg-transparent"
             : "bg-white shadow-sm"
@@ -38,45 +39,68 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
     >
       <div className="mx-auto max-w-[1440px] px-[135px]">
         <div className="flex h-20 items-center justify-between">
-          <Link href="/" className="shrink-0">
-            <Image
-              src="/logo.svg"
-              alt="EcoGlobe"
-              width={120}
-              height={35}
-              className={
-                isLight || scrolled
-                  ? "brightness-0 invert"
-                  : ""
-              }
-              priority
-            />
-          </Link>
+          {/* Left: Logo + hamburger (when scrolled) */}
+          <div className="flex items-center gap-4">
+            <Link href="/" className="shrink-0">
+              <Image
+                src="/logo.svg"
+                alt="EcoGlobe"
+                width={120}
+                height={35}
+                className={isHero ? "brightness-0 invert" : "invert"}
+                priority
+              />
+            </Link>
+            {scrolled && (
+              <button className="flex size-9 items-center justify-center rounded-lg text-neutral-700 hover:bg-neutral-100" style={{ border: "1px solid #E0E0E0" }}>
+                <Menu className="size-4" />
+              </button>
+            )}
+          </div>
 
-          <nav className="hidden items-center gap-8 md:flex">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`text-base font-medium transition-colors hover:opacity-80 ${
-                  isLight || scrolled ? "text-white" : "text-neutral-800"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+          {/* Center: Nav links (hero) or Search bar (scrolled) */}
+          {isHero ? (
+            <nav className="hidden items-center gap-8 md:flex">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-base font-medium text-white transition-colors hover:opacity-80"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          ) : scrolled ? (
+            <div className="flex items-center rounded-full px-1 py-1" style={{ border: "1px solid #E0E0E0" }}>
+              <input
+                type="text"
+                placeholder="Feedstocks"
+                className="w-32 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
+              />
+              <div className="h-4 w-px bg-neutral-300" />
+              <input
+                type="text"
+                placeholder="Location"
+                className="w-28 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
+              />
+              <button className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-white">
+                <Search className="size-3.5" />
+              </button>
+            </div>
+          ) : null}
 
+          {/* Right: Login/Sign Up */}
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="md"
-              className={isLight || scrolled ? "text-white" : "text-neutral-900"}
+              className={isHero ? "text-white" : "text-neutral-900"}
             >
               Login
             </Button>
             <Button
-              variant={isLight || scrolled ? "outline-white" : "secondary"}
+              variant={isHero ? "outline-white" : "secondary"}
               size="md"
             >
               Sign Up
