@@ -19,12 +19,12 @@ const product = {
   minOrder: 2,
   shipping: 50,
   images: [
-    "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80",
-    "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=800&q=80",
-    "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&q=80",
-    "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=800&q=80",
-    "https://images.unsplash.com/photo-1513828583688-c52646db42da?w=800&q=80",
-    "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&q=80",
+    "/images/product/main.png",
+    "/images/product/thumb-1.png",
+    "/images/product/thumb-2.png",
+    "/images/product/thumb-3.png",
+    "/images/product/thumb-4.png",
+    "/images/product/thumb-5.png",
   ],
   specs: [
     { label: "Storage Type", value: "In dry place" },
