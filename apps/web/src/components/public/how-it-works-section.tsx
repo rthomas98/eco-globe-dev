@@ -23,7 +23,7 @@ export function HowItWorksSection() {
     <section className="relative overflow-hidden pb-[220px] pt-[120px]">
       {/* Background facility image - positioned bottom-right */}
       <img
-        src="/images/facility-bg.png"
+        src="/images/facility.png"
         alt=""
         className="pointer-events-none absolute bottom-0 right-0 w-[70%] object-cover object-right-bottom"
       />
