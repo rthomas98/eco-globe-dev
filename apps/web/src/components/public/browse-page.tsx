@@ -84,12 +84,12 @@ export function BrowsePage() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Search header */}
-      <header className="flex h-16 items-center gap-4 bg-white px-6" style={{ borderBottom: "1px solid #E0E0E0" }}>
-        <Link href="/" className="shrink-0">
-          <Image src="/logo.svg" alt="EcoGlobe" width={100} height={28} priority />
+      <header className="flex h-16 items-center justify-between bg-white px-6" style={{ borderBottom: "1px solid #E0E0E0" }}>
+        <Link href="/" className="mr-4 shrink-0">
+          <img src="/logo.svg" alt="EcoGlobe" width={100} height={28} className="invert" />
         </Link>
 
-        <div className="mx-auto flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2">
+        <div className="flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2">
           <input
             type="text"
             placeholder="Feedstocks"
