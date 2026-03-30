@@ -6,6 +6,8 @@ import { SlidersHorizontal, Heart, Share2, ArrowRight, Minus, Plus, ChevronRight
 import { Button, Badge } from "@eco-globe/ui";
 import { SearchBar } from "./search-bar";
 import { Footer } from "./footer";
+import { CartButton } from "@/components/cart/cart-panel";
+import { useCart } from "@/components/cart/cart-context";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -67,9 +69,23 @@ export function ProductDetailPage() {
   const [qty, setQty] = useState(3);
   const [selectedImg, setSelectedImg] = useState(0);
   const [showFullOverview, setShowFullOverview] = useState(false);
+  const { addItem } = useCart();
 
   const itemSubtotal = product.price * qty;
   const subtotal = itemSubtotal + product.shipping;
+
+  const handleAddToCart = () => {
+    addItem({
+      id: "wood-sawdust-1",
+      title: product.title,
+      location: product.location,
+      price: product.price,
+      unit: "/ton",
+      moq: product.minOrder,
+      image: product.images[0],
+      quantity: qty,
+    });
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -86,6 +102,7 @@ export function ProductDetailPage() {
           </button>
         </div>
         <div className="flex items-center gap-4">
+          <CartButton />
           <Link href="/login" className="text-base font-bold text-neutral-900">Login</Link>
           <Button variant="secondary" size="md">Sign Up</Button>
         </div>
@@ -260,9 +277,12 @@ export function ProductDetailPage() {
                 <span className="text-neutral-900">${subtotal.toFixed(2)}</span>
               </div>
 
-              <Button variant="primary" size="lg" className="w-full">
-                Buy Now
+              <Button variant="primary" size="lg" className="w-full" onClick={handleAddToCart}>
+                Add to Cart
               </Button>
+              <button className="mt-2 w-full text-center text-sm font-medium text-neutral-700 underline">
+                Buy Now
+              </button>
             </div>
 
             {/* Know more card */}

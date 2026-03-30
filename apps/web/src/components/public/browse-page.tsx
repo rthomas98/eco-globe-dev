@@ -6,6 +6,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { Button, Badge } from "@eco-globe/ui";
 import { ListingMap } from "./listing-map";
 import { SearchBar } from "./search-bar";
+import { CartButton } from "@/components/cart/cart-panel";
 import { FiltersPanel, defaultFilters, type FilterState } from "./filters-panel";
 
 const listings = [
@@ -121,6 +122,7 @@ export function BrowsePage() {
         </div>
 
         <div className="flex items-center gap-4">
+          <CartButton />
           <Link href="/login" className="text-base font-bold text-neutral-900">Login</Link>
           <Button variant="secondary" size="md">Sign Up</Button>
         </div>
