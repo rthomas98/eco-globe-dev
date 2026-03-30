@@ -117,20 +117,20 @@ export function FiltersPanel({
   const toggleArray = (arr: string[], val: string) =>
     arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val];
 
+  if (!open) return null;
+
   return (
     <>
       {/* Backdrop */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black/20 transition-opacity"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Panel */}
       <div
-        className="fixed right-0 top-0 z-50 flex h-full w-[420px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out"
-        style={{ transform: open ? "translateX(0)" : "translateX(100%)" }}
+        className="fixed inset-0 z-40"
+        onClick={onClose}
+      />
+
+      {/* Dropdown card - positioned below header */}
+      <div
+        className="absolute left-1/2 top-[64px] z-50 flex max-h-[calc(100vh-80px)] w-[480px] -translate-x-1/4 flex-col overflow-hidden rounded-2xl bg-white"
+        style={{ boxShadow: "0 16px 48px -8px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid #E0E0E0" }}>
