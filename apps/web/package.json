@@ -18,6 +18,7 @@
     "convex": "^1.21.0",
     "convex-helpers": "^0.1.114",
     "lucide-react": "^0.475.0",
+    "mapbox-gl": "^3.20.0",
     "next": "^15.3.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
@@ -26,6 +27,7 @@
     "@eco-globe/eslint-config": "workspace:*",
     "@eco-globe/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.4",
+    "@types/mapbox-gl": "^3.5.0",
     "@types/node": "^22.14.1",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

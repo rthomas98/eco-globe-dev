@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { Button, Badge } from "@eco-globe/ui";
+import { ListingMap } from "./listing-map";
 
 const listings = [
   {
@@ -78,32 +79,6 @@ function ListingCard({ listing }: { listing: (typeof listings)[0] }) {
   );
 }
 
-function MapPlaceholder() {
-  return (
-    <div className="relative h-full w-full overflow-hidden rounded-xl bg-neutral-200">
-      <div className="absolute inset-0 flex items-center justify-center text-neutral-500">
-        <div className="text-center">
-          <svg className="mx-auto mb-2 size-12 text-neutral-400" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-          </svg>
-          <p className="text-sm font-medium">Map View</p>
-          <p className="text-xs text-neutral-400">Interactive map coming soon</p>
-        </div>
-      </div>
-      {/* Sample tooltip */}
-      <div className="absolute left-1/2 top-1/3 -translate-x-1/2 rounded-lg bg-white p-4 shadow-lg" style={{ width: 220 }}>
-        <p className="text-sm font-semibold text-neutral-900">Corn Stover</p>
-        <p className="text-xs text-neutral-700">Monroe, LA · Delivery in 48 hours</p>
-        <div className="mt-1 flex gap-1">
-          <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-700">MOQ: 3 tons</span>
-          <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-700">300 kg CO₂e</span>
-        </div>
-        <p className="mt-2 text-sm font-semibold text-neutral-900">$42 <span className="text-xs font-normal text-neutral-500">/ ton</span></p>
-      </div>
-    </div>
-  );
-}
 
 export function BrowsePage() {
   return (
@@ -156,7 +131,7 @@ export function BrowsePage() {
 
         {/* Map panel */}
         <div className="w-[45%] p-2">
-          <MapPlaceholder />
+          <ListingMap />
         </div>
       </div>
     </div>
