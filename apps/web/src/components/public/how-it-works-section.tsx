@@ -20,12 +20,12 @@ const steps = [
 
 export function HowItWorksSection() {
   return (
-    <section className="relative overflow-hidden py-[120px]">
+    <section className="relative overflow-hidden pb-[220px] pt-[120px]">
       {/* Background facility image - positioned bottom-right */}
       <img
-        src="/images/facility.png"
+        src="/images/facility-bg.png"
         alt=""
-        className="pointer-events-none absolute bottom-0 right-0 w-[65%] object-contain object-right-bottom"
+        className="pointer-events-none absolute bottom-0 right-0 w-[70%] object-cover object-right-bottom"
       />
       {/* Fade overlay so text stays readable */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-40% via-white/80 via-55% to-transparent" />
