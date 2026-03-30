@@ -79,15 +79,47 @@ export function ListingMap() {
 
     mapInstance.addControl(new mapboxgl.NavigationControl(), "top-right");
 
+    mapInstance.on("load", () => {
+      // Add search radius circle
+      mapInstance.addSource("radius", {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [-91.05, 30.42],
+          },
+          properties: {},
+        },
+      });
+
+      // Radius fill (subtle)
+      mapInstance.addLayer({
+        id: "radius-fill",
+        type: "circle",
+        source: "radius",
+        paint: {
+          "circle-radius": {
+            stops: [[6, 40], [8, 120], [9, 240], [10, 480]],
+            base: 2,
+          },
+          "circle-color": "rgba(0, 0, 0, 0.03)",
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "rgba(0, 0, 0, 0.15)",
+        },
+      });
+    });
+
+    // Add listing markers (green with white dot, matching Figma)
     mapListings.forEach((listing) => {
       const el = document.createElement("div");
       el.style.cssText =
-        "width:28px;height:28px;border-radius:50%;background:#090909;border:2px solid white;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);";
+        "width:24px;height:24px;border-radius:50%;background:#378853;border:2.5px solid white;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.25);";
 
       const popup = new mapboxgl.Popup({
-        offset: 20,
+        offset: 16,
         closeButton: false,
-        maxWidth: "240px",
+        maxWidth: "260px",
       }).setDOMContent(buildPopupContent(listing));
 
       new mapboxgl.Marker(el)

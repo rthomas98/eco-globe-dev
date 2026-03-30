@@ -89,31 +89,33 @@ export function BrowsePage() {
           <img src="/logo.svg" alt="EcoGlobe" width={100} height={28} className="invert" />
         </Link>
 
-        <div className="flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2">
-          <input
-            type="text"
-            placeholder="Feedstocks"
-            className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-500"
-          />
-          <div className="h-5 w-px bg-neutral-300" />
-          <input
-            type="text"
-            placeholder="Location"
-            className="w-28 bg-transparent text-sm outline-none placeholder:text-neutral-500"
-          />
-          <button className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-white">
-            <Search className="size-4" />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center rounded-full bg-white px-1 py-1" style={{ border: "1px solid #E0E0E0" }}>
+            <input
+              type="text"
+              defaultValue="Plastic"
+              className="w-40 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-neutral-500"
+            />
+            <div className="h-5 w-px bg-neutral-300" />
+            <input
+              type="text"
+              defaultValue="100 mi · Louisiana"
+              className="w-48 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-neutral-500"
+            />
+            <button className="flex size-9 items-center justify-center rounded-full bg-neutral-900 text-white">
+              <Search className="size-4" />
+            </button>
+          </div>
+
+          <button className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900" style={{ border: "1px solid #E0E0E0" }}>
+            <SlidersHorizontal className="size-4" />
+            Filters
           </button>
         </div>
 
-        <button className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-900" style={{ border: "1px solid #E0E0E0" }}>
-          <SlidersHorizontal className="size-4" />
-          Filters
-        </button>
-
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="text-sm font-bold text-neutral-900">Login</Link>
-          <Button variant="primary" size="sm">Sign Up</Button>
+        <div className="flex items-center gap-4">
+          <Link href="/login" className="text-base font-bold text-neutral-900">Login</Link>
+          <Button variant="secondary" size="md">Sign Up</Button>
         </div>
       </header>
 
@@ -121,7 +123,9 @@ export function BrowsePage() {
       <div className="flex flex-1">
         {/* Listings panel */}
         <div className="w-[55%] overflow-y-auto p-6">
-          <p className="mb-6 text-sm font-medium text-neutral-700">127 listings</p>
+          <p className="mb-6 text-sm text-neutral-900">
+            Result for <span className="font-semibold">&quot;Plastic&quot;</span> 20 listings
+          </p>
           <div className="grid grid-cols-2 gap-6">
             {listings.map((listing) => (
               <ListingCard key={listing.title} listing={listing} />
