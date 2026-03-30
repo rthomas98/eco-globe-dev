@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 
 const navLinks = [
@@ -51,11 +51,6 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
                 priority
               />
             </Link>
-            {scrolled && (
-              <button className="flex size-9 items-center justify-center rounded-lg text-neutral-700 hover:bg-neutral-100" style={{ border: "1px solid #E0E0E0" }}>
-                <Menu className="size-4" />
-              </button>
-            )}
           </div>
 
           {/* Center: Nav links (hero) or Search bar (scrolled) */}
