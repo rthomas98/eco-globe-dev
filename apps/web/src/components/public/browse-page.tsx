@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { Button, Badge } from "@eco-globe/ui";
 import { ListingMap } from "./listing-map";
+import { FiltersPanel, defaultFilters, type FilterState } from "./filters-panel";
 
 const listings = [
   {
@@ -81,6 +82,17 @@ function ListingCard({ listing }: { listing: (typeof listings)[0] }) {
 
 
 export function BrowsePage() {
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+
+  const activeFilterCount =
+    filters.categories.length +
+    (filters.priceMin || filters.priceMax ? 1 : 0) +
+    (filters.qtyMin || filters.qtyMax ? 1 : 0) +
+    filters.carbon.length +
+    (filters.carbonDataOnly ? 1 : 0) +
+    filters.grades.length;
+
   return (
     <div className="flex min-h-screen flex-col">
       {/* Search header */}
@@ -107,9 +119,18 @@ export function BrowsePage() {
             </button>
           </div>
 
-          <button className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900" style={{ border: "1px solid #E0E0E0" }}>
+          <button
+            onClick={() => setFiltersOpen(true)}
+            className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900"
+            style={{ border: "1px solid #E0E0E0" }}
+          >
             <SlidersHorizontal className="size-4" />
             Filters
+            {activeFilterCount > 0 && (
+              <span className="flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: "#378853" }}>
+                {activeFilterCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -138,6 +159,16 @@ export function BrowsePage() {
           <ListingMap />
         </div>
       </div>
+
+      {/* Filters panel */}
+      <FiltersPanel
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        onReset={() => setFilters(defaultFilters)}
+        listingCount={listings.length}
+      />
     </div>
   );
 }
