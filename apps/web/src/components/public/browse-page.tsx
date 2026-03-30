@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { SlidersHorizontal } from "lucide-react";
 import { Button, Badge } from "@eco-globe/ui";
 import { ListingMap } from "./listing-map";
@@ -84,8 +85,20 @@ function ListingCard({ listing }: { listing: (typeof listings)[0] }) {
 
 
 export function BrowsePage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlQuery = searchParams.get("q") || "";
+  const urlLocation = searchParams.get("location") || "";
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
+
+  const handleSearch = (query: string, location: string) => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (location) params.set("location", location);
+    router.push(`/browse${params.toString() ? `?${params}` : ""}`);
+  };
 
   const activeFilterCount =
     filters.categories.length +
@@ -104,7 +117,11 @@ export function BrowsePage() {
         </Link>
 
         <div className="flex items-center gap-3">
-          <SearchBar />
+          <SearchBar
+            initialQuery={urlQuery}
+            initialLocation={urlLocation}
+            onSearch={(q, loc) => handleSearch(q, loc)}
+          />
 
           <button
             onClick={() => setFiltersOpen(true)}
@@ -133,7 +150,11 @@ export function BrowsePage() {
         {/* Listings panel */}
         <div className="w-[55%] overflow-y-auto p-6">
           <p className="mb-6 text-sm text-neutral-900">
-            Result for <span className="font-semibold">&quot;Plastic&quot;</span> 20 listings
+            {urlQuery ? (
+              <>Result for <span className="font-semibold">&quot;{urlQuery}&quot;</span> {listings.length} listings</>
+            ) : (
+              <>{listings.length} listings</>
+            )}
           </p>
           <div className="grid grid-cols-2 gap-6">
             {listings.map((listing) => (

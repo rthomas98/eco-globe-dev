@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 
@@ -9,9 +13,24 @@ const popularSearches = [
 ];
 
 export function HeroSection() {
+  const [query, setQuery] = useState("");
+  const [location, setLocation] = useState("");
+  const router = useRouter();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (location) params.set("location", location);
+    router.push(`/browse${params.toString() ? `?${params}` : ""}`);
+  };
+
+  const handleTagClick = (tag: string) => {
+    router.push(`/browse?q=${encodeURIComponent(tag)}`);
+  };
+
   return (
     <section className="relative flex h-[768px] w-full items-center justify-center overflow-hidden">
-      {/* Background image */}
       <img
         src="/hero.jpg"
         alt="EcoGlobe industrial facility"
@@ -27,47 +46,50 @@ export function HeroSection() {
             locally and transparently.
           </h1>
 
-          {/* Search bar */}
-          <div className="flex w-full items-center rounded-full bg-white py-3 pl-6 pr-3">
+          <form onSubmit={handleSearch} className="flex w-full items-center rounded-full bg-white py-3 pl-6 pr-3">
             <div className="flex flex-1 items-center gap-6">
               <Search className="size-6 shrink-0 text-neutral-800" />
               <div className="flex flex-1 gap-6">
-                <div className="flex flex-1 flex-col gap-1 border-r border-neutral-300 pr-4">
-                  <span className="text-left text-sm text-neutral-800">
-                    Feedstocks
-                  </span>
-                  <span className="text-left text-base text-neutral-500">
-                    Search feedstocks
-                  </span>
+                <div className="flex flex-1 flex-col gap-1 pr-4" style={{ borderRight: "1px solid #E0E0E0" }}>
+                  <label className="text-left text-sm text-neutral-800">Feedstocks</label>
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search feedstocks"
+                    className="bg-transparent text-left text-base text-neutral-900 outline-none placeholder:text-neutral-500"
+                  />
                 </div>
                 <div className="flex flex-1 flex-col gap-1 pr-4">
-                  <span className="text-left text-sm text-neutral-800">
-                    Location
-                  </span>
-                  <span className="text-left text-base text-neutral-500">
-                    Near me
-                  </span>
+                  <label className="text-left text-sm text-neutral-800">Location</label>
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Near me"
+                    className="bg-transparent text-left text-base text-neutral-900 outline-none placeholder:text-neutral-500"
+                  />
                 </div>
               </div>
             </div>
-            <Button variant="primary" size="md" className="h-12 px-8">
+            <Button variant="primary" size="md" className="h-12 px-8" type="submit">
               Search
             </Button>
-          </div>
+          </form>
 
-          {/* Popular searches */}
           <div className="flex flex-col items-center gap-4">
             <span className="text-sm font-semibold text-white">
               Popular Searches
             </span>
             <div className="flex gap-3">
               {popularSearches.map((tag) => (
-                <span
+                <button
                   key={tag}
-                  className="rounded-full border border-white/40 bg-neutral-900/30 px-3 py-1 text-base text-white"
+                  onClick={() => handleTagClick(tag)}
+                  className="rounded-full border border-white/40 bg-neutral-900/30 px-3 py-1 text-base text-white transition-colors hover:bg-white/20"
                 >
                   {tag}
-                </span>
+                </button>
               ))}
             </div>
           </div>

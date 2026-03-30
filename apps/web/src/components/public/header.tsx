@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 
@@ -16,6 +17,9 @@ const navLinks = [
 
 export function Header({ transparent = false }: { transparent?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
+  const [headerQuery, setHeaderQuery] = useState("");
+  const [headerLocation, setHeaderLocation] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     if (!transparent) return;
@@ -26,6 +30,14 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
   }, [transparent]);
 
   const isHero = transparent && !scrolled;
+
+  const handleHeaderSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (headerQuery) params.set("q", headerQuery);
+    if (headerLocation) params.set("location", headerLocation);
+    router.push(`/browse${params.toString() ? `?${params}` : ""}`);
+  };
 
   return (
     <header
@@ -39,7 +51,6 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
     >
       <div className="mx-auto max-w-[1440px] px-[135px]">
         <div className="flex h-20 items-center justify-between">
-          {/* Left: Logo + hamburger (when scrolled) */}
           <div className="flex items-center gap-4">
             <Link href="/" className="shrink-0">
               <Image
@@ -53,7 +64,6 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
             </Link>
           </div>
 
-          {/* Center: Nav links (hero) or Search bar (scrolled) */}
           {isHero ? (
             <nav className="hidden items-center gap-8 md:flex">
               {navLinks.map((link) => (
@@ -67,25 +77,28 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
               ))}
             </nav>
           ) : scrolled ? (
-            <div className="flex items-center rounded-full px-1 py-1" style={{ border: "1px solid #E0E0E0" }}>
+            <form onSubmit={handleHeaderSearch} className="flex items-center rounded-full px-1 py-1" style={{ border: "1px solid #E0E0E0" }}>
               <input
                 type="text"
+                value={headerQuery}
+                onChange={(e) => setHeaderQuery(e.target.value)}
                 placeholder="Feedstocks"
                 className="w-32 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
               />
               <div className="h-4 w-px bg-neutral-300" />
               <input
                 type="text"
+                value={headerLocation}
+                onChange={(e) => setHeaderLocation(e.target.value)}
                 placeholder="Location"
                 className="w-28 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
               />
-              <button className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-white">
+              <button type="submit" className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-white">
                 <Search className="size-3.5" />
               </button>
-            </div>
+            </form>
           ) : null}
 
-          {/* Right: Login/Sign Up */}
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
