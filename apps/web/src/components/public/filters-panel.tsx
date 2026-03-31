@@ -129,7 +129,7 @@ export function FiltersPanel({
 
       {/* Dropdown card - positioned below header */}
       <div
-        className="absolute left-1/2 top-[64px] z-50 flex max-h-[calc(100vh-80px)] w-[480px] -translate-x-1/4 flex-col overflow-hidden rounded-2xl bg-white"
+        className="absolute left-4 right-4 sm:left-1/2 sm:right-auto top-[64px] z-50 flex max-h-[calc(100vh-80px)] w-[calc(100vw-2rem)] sm:w-[480px] sm:-translate-x-1/4 flex-col overflow-hidden rounded-2xl bg-white"
         style={{ boxShadow: "0 16px 48px -8px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)" }}
       >
         {/* Header */}

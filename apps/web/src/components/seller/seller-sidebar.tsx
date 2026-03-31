@@ -12,11 +12,11 @@ const navItems = [
   { label: "Reports", href: "/seller/reports", icon: BarChart3 },
 ];
 
-export function SellerSidebar() {
+export function SellerSidebar({ className }: { className?: string }) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-screen w-[240px] shrink-0 flex-col bg-white" style={{ borderRight: "1px solid #E0E0E0" }}>
+    <aside className={`flex h-screen w-[240px] shrink-0 flex-col bg-white ${className ?? ""}`} style={{ borderRight: "1px solid #E0E0E0" }}>
       {/* Logo */}
       <div className="flex h-16 items-center px-6">
         <Link href="/">

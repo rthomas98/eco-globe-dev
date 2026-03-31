@@ -23,13 +23,13 @@ function FooterSection({ title, links }: { title: string; links: string[] }) {
 
 export function Footer() {
   return (
-    <footer className="bg-neutral-900 pt-[120px] pb-[60px]">
-      <div className="mx-auto max-w-[1440px] px-[135px]">
-        <div className="flex flex-col gap-[60px]">
+    <footer className="bg-neutral-900 py-16 lg:pt-[120px] lg:pb-[60px]">
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
+        <div className="flex flex-col gap-8 lg:gap-[60px]">
           {/* Main content */}
-          <div className="flex gap-[60px]">
+          <div className="flex flex-col md:flex-row gap-8 lg:gap-[60px]">
             {/* Logo and social */}
-            <div className="flex w-[240px] shrink-0 flex-col gap-12">
+            <div className="flex w-full md:w-[240px] shrink-0 flex-col gap-12">
               <Link href="/">
                 <Image
                   src="/logo.svg"
@@ -59,9 +59,9 @@ export function Footer() {
             </div>
 
             {/* Link columns - 2 row layout matching Figma */}
-            <div className="flex flex-1 flex-col gap-[60px]">
+            <div className="flex flex-1 flex-col gap-8 lg:gap-[60px]">
               {/* Row 1: Buyers, Company, Other services */}
-              <div className="grid grid-cols-3 gap-x-[60px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-x-[60px]">
                 <FooterSection
                   title="Buyers"
                   links={[
@@ -88,7 +88,7 @@ export function Footer() {
               </div>
 
               {/* Row 2: Sellers, Legal */}
-              <div className="grid grid-cols-3 gap-x-[60px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-x-[60px]">
                 <FooterSection
                   title="Sellers"
                   links={[
@@ -114,7 +114,7 @@ export function Footer() {
 
           <div className="h-px w-full bg-neutral-700" />
 
-          <div className="flex items-center justify-between text-sm text-neutral-500">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-neutral-500">
             <p>&copy; 2026 EcoGlobe All rights reserved.</p>
             <p>From Louisiana to the World</p>
           </div>

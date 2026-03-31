@@ -26,7 +26,7 @@ export function ForgotPasswordPage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <h1 className="text-[32px] font-bold leading-10 text-neutral-900">
+          <h1 className="text-2xl sm:text-[32px] font-bold leading-10 text-neutral-900">
             Forgot password?
           </h1>
           <p className="text-base text-neutral-700">

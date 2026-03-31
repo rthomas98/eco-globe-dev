@@ -39,7 +39,7 @@ export function CartPanel() {
       <div className="fixed inset-0 z-50 bg-black/20" onClick={() => setIsOpen(false)} />
 
       {/* Panel */}
-      <div className="fixed right-0 top-0 z-50 flex h-full w-[420px] flex-col bg-white shadow-2xl">
+      <div className="fixed right-0 top-0 z-50 flex h-full w-full flex-col bg-white shadow-2xl sm:w-[420px]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid #E0E0E0" }}>
           <div className="flex items-center gap-3">
@@ -77,7 +77,7 @@ export function CartPanel() {
             <div className="divide-y divide-neutral-100">
               {items.map((item) => (
                 <div key={item.id} className="flex gap-4 px-6 py-5">
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-20">
                     <img src={item.image} alt={item.title} className="h-full w-full object-cover" />
                   </div>
                   <div className="flex flex-1 flex-col">
@@ -119,7 +119,7 @@ export function CartPanel() {
 
         {/* Footer */}
         {items.length > 0 && (
-          <div className="px-6 pb-6 pt-4" style={{ borderTop: "1px solid #E0E0E0" }}>
+          <div className="px-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4" style={{ borderTop: "1px solid #E0E0E0" }}>
             <div className="mb-4 flex flex-col gap-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-neutral-700">Subtotal</span>

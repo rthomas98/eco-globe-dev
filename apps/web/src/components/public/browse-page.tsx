@@ -111,12 +111,12 @@ export function BrowsePage() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Search header */}
-      <header className="flex h-16 items-center justify-between bg-white px-6" style={{ borderBottom: "1px solid #E0E0E0" }}>
+      <header className="flex h-16 items-center justify-between bg-white px-4 sm:px-6" style={{ borderBottom: "1px solid #E0E0E0" }}>
         <Link href="/" className="mr-4 shrink-0">
           <img src="/logo.svg" alt="EcoGlobe" width={100} height={28} className="invert" />
         </Link>
 
-        <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-3">
           <SearchBar
             initialQuery={urlQuery}
             initialLocation={urlLocation}
@@ -140,15 +140,15 @@ export function BrowsePage() {
 
         <div className="flex items-center gap-4">
           <CartButton />
-          <Link href="/login" className="text-base font-bold text-neutral-900">Login</Link>
-          <Button variant="secondary" size="md">Sign Up</Button>
+          <Link href="/login" className="hidden sm:inline text-base font-bold text-neutral-900">Login</Link>
+          <Button variant="secondary" size="md" className="hidden sm:inline-flex">Sign Up</Button>
         </div>
       </header>
 
       {/* Content */}
-      <div className="flex flex-1">
+      <div className="flex flex-col lg:flex-row flex-1">
         {/* Listings panel */}
-        <div className="w-[55%] overflow-y-auto p-6">
+        <div className="w-full lg:w-[55%] overflow-y-auto p-6">
           <p className="mb-6 text-sm text-neutral-900">
             {urlQuery ? (
               <>Result for <span className="font-semibold">&quot;{urlQuery}&quot;</span> {listings.length} listings</>
@@ -156,7 +156,7 @@ export function BrowsePage() {
               <>{listings.length} listings</>
             )}
           </p>
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {listings.map((listing) => (
               <ListingCard key={listing.title} listing={listing} />
             ))}
@@ -164,7 +164,7 @@ export function BrowsePage() {
         </div>
 
         {/* Map panel */}
-        <div className="w-[45%] p-2">
+        <div className="hidden lg:block lg:w-[45%] p-2">
           <ListingMap />
         </div>
       </div>

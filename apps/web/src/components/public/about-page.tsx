@@ -8,10 +8,10 @@ export function AboutPage() {
       <Header />
 
       {/* Hero - no dark overlay, clean editorial layout */}
-      <section className="pt-32 pb-16">
-        <div className="mx-auto max-w-[1440px] px-[135px]">
-          <div className="flex items-start gap-16">
-            <h1 className="max-w-[400px] text-5xl font-bold leading-tight text-neutral-900">
+      <section className="pt-24 lg:pt-32 pb-16">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
+          <div className="flex flex-col lg:flex-row items-start gap-8 lg:gap-16">
+            <h1 className="max-w-[400px] text-2xl sm:text-4xl lg:text-5xl font-bold leading-tight text-neutral-900">
               Building a More Transparent Global Supply Chain
             </h1>
             <p className="max-w-[450px] pt-4 text-base leading-7 text-neutral-700">
@@ -22,19 +22,19 @@ export function AboutPage() {
       </section>
 
       {/* Full-width image */}
-      <section className="px-[135px]">
+      <section className="px-4 sm:px-8 lg:px-[135px]">
         <div className="mx-auto max-w-[1440px]">
-          <div className="h-[400px] overflow-hidden rounded-2xl">
+          <div className="h-[250px] sm:h-[350px] lg:h-[400px] overflow-hidden rounded-2xl">
             <img src="/images/hero-aerial.png" alt="EcoGlobe facility aerial view" className="h-full w-full object-cover" />
           </div>
         </div>
       </section>
 
       {/* Mission */}
-      <section className="py-[100px]">
-        <div className="mx-auto max-w-[1440px] px-[135px]">
-          <div className="flex gap-16">
-            <h2 className="w-[300px] shrink-0 text-4xl font-bold text-neutral-900">Our mission</h2>
+      <section className="py-12 lg:py-[100px]">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-16">
+            <h2 className="w-full lg:w-[300px] shrink-0 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Our mission</h2>
             <div className="flex flex-col gap-6">
               <p className="text-base leading-7 text-neutral-700">
                 EcoGlobe delivers secure, scalable feedstock solutions tailored to industrial demands.

@@ -116,17 +116,17 @@ function ListingCard({ listing }: { listing: Listing }) {
 
 export function FeaturedListingsSection() {
   return (
-    <section className="py-[120px]">
-      <div className="mx-auto max-w-[1440px] px-[135px]">
-        <div className="mb-[60px] flex items-center justify-between">
-          <h2 className="text-5xl font-bold text-heading">
+    <section className="py-16 lg:py-[120px]">
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
+        <div className="mb-8 lg:mb-[60px] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-heading">
             Featured Listings
           </h2>
           <Button variant="secondary" size="md">
             View All Listings
           </Button>
         </div>
-        <div className="grid grid-cols-4 gap-x-[30px] gap-y-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-x-[30px] lg:gap-y-10">
           {listings.map((listing) => (
             <ListingCard key={listing.title} listing={listing} />
           ))}

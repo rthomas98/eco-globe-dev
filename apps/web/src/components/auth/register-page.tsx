@@ -19,7 +19,7 @@ export function RegisterPage() {
   return (
     <AuthLayout cardWidth="max-w-[800px]">
       <div className="flex flex-col gap-10">
-        <h1 className="text-[32px] font-bold leading-10 text-neutral-900">
+        <h1 className="text-2xl sm:text-[32px] font-bold leading-10 text-neutral-900">
           Create Account
         </h1>
 
@@ -50,7 +50,7 @@ export function RegisterPage() {
         </div>
 
         <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Input
               label="First Name"
               id="firstName"

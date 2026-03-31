@@ -24,11 +24,11 @@ export function BuyersPage() {
       <Header transparent />
 
       {/* Hero */}
-      <section className="relative flex h-[500px] items-center justify-center overflow-hidden">
+      <section className="relative flex h-[350px] sm:h-[400px] lg:h-[500px] items-center justify-center overflow-hidden">
         <img src="/images/hero-about.png" alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/60 to-black/40" />
-        <div className="relative z-10 text-center">
-          <h1 className="mb-6 text-5xl font-bold leading-tight text-white">
+        <div className="relative z-10 text-center px-4">
+          <h1 className="mb-6 text-2xl sm:text-4xl lg:text-5xl font-bold leading-tight text-white">
             Source Verified Sustainable<br />Suppliers with Confidence
           </h1>
           <p className="mb-8 max-w-[600px] text-lg text-white/80">
@@ -39,12 +39,12 @@ export function BuyersPage() {
       </section>
 
       {/* Why Buy on EcoGlobe */}
-      <section className="py-[120px]">
-        <div className="mx-auto flex max-w-[1440px] gap-16 px-[135px]">
-          <div className="h-[420px] w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100" />
+      <section className="py-16 lg:py-[120px]">
+        <div className="mx-auto flex flex-col lg:flex-row max-w-[1440px] gap-8 lg:gap-16 px-4 sm:px-8 lg:px-[135px]">
+          <div className="h-[250px] sm:h-[350px] lg:h-[420px] w-full lg:w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100" />
           <div>
             <p className="mb-2 text-sm font-medium uppercase tracking-wider" style={{ color: "#96794A" }}>Why Buy on Ecoglobe</p>
-            <h2 className="mb-10 text-4xl font-bold text-neutral-900">Designed for<br />Responsible Sourcing<br />Teams</h2>
+            <h2 className="mb-10 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Designed for<br />Responsible Sourcing<br />Teams</h2>
             <div className="flex flex-col gap-8">
               {whyBuyFeatures.map((f) => (
                 <div key={f.title} className="flex gap-4">
@@ -61,11 +61,11 @@ export function BuyersPage() {
       </section>
 
       {/* How it Works */}
-      <section className="bg-neutral-100 py-[120px]">
-        <div className="mx-auto flex max-w-[1440px] gap-16 px-[135px]">
+      <section className="bg-neutral-100 py-16 lg:py-[120px]">
+        <div className="mx-auto flex flex-col lg:flex-row max-w-[1440px] gap-8 lg:gap-16 px-4 sm:px-8 lg:px-[135px]">
           <div>
             <p className="mb-2 text-sm font-medium uppercase tracking-wider" style={{ color: "#96794A" }}>How It Works</p>
-            <h2 className="mb-10 text-4xl font-bold text-neutral-900">Find the Right Supplier<br />in a Few Steps</h2>
+            <h2 className="mb-10 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Find the Right Supplier<br />in a Few Steps</h2>
             <div className="flex flex-col gap-8">
               {howItWorksSteps.map((s) => (
                 <div key={s.title} className="flex gap-4">
@@ -78,16 +78,16 @@ export function BuyersPage() {
               ))}
             </div>
           </div>
-          <div className="h-[420px] w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-200" />
+          <div className="h-[250px] sm:h-[350px] lg:h-[420px] w-full lg:w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-200" />
         </div>
       </section>
 
       {/* Sustainability */}
-      <section className="py-[100px]">
-        <div className="mx-auto flex max-w-[1440px] items-center gap-16 px-[135px]">
-          <div className="h-[300px] w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100" />
+      <section className="py-12 lg:py-12 lg:py-[100px]">
+        <div className="mx-auto flex flex-col lg:flex-row max-w-[1440px] items-center gap-8 lg:gap-16 px-4 sm:px-8 lg:px-[135px]">
+          <div className="h-[250px] sm:h-[300px] w-full lg:w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100" />
           <div>
-            <h2 className="mb-6 text-4xl font-bold text-neutral-900">Sustainability You<br />Can Prove</h2>
+            <h2 className="mb-6 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Sustainability You<br />Can Prove</h2>
             <p className="text-base leading-7 text-neutral-700">
               Every supplier on Ecoglobe goes through a structured verification process, we will have certifier companies that assure our process. Sustainability claims are reviewed, documented, and made visible — so you can source with confidence.
             </p>

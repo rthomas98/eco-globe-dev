@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { Search, Menu, X } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 
 const navLinks = [
@@ -19,6 +19,7 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [headerQuery, setHeaderQuery] = useState("");
   const [headerLocation, setHeaderLocation] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -49,7 +50,7 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
             : "bg-white shadow-sm"
       }`}
     >
-      <div className="mx-auto max-w-[1440px] px-[135px]">
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
         <div className="flex h-20 items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/" className="shrink-0">
@@ -77,13 +78,13 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
               ))}
             </nav>
           ) : scrolled ? (
-            <form onSubmit={handleHeaderSearch} className="flex items-center rounded-full px-1 py-1" style={{ border: "1px solid #E0E0E0" }}>
+            <form onSubmit={handleHeaderSearch} className="hidden items-center rounded-full px-1 py-1 md:flex" style={{ border: "1px solid #E0E0E0" }}>
               <input
                 type="text"
                 value={headerQuery}
                 onChange={(e) => setHeaderQuery(e.target.value)}
                 placeholder="Feedstocks"
-                className="w-32 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
+                className="w-20 sm:w-32 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
               />
               <div className="h-4 w-px bg-neutral-300" />
               <input
@@ -91,7 +92,7 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
                 value={headerLocation}
                 onChange={(e) => setHeaderLocation(e.target.value)}
                 placeholder="Location"
-                className="w-28 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
+                className="w-20 sm:w-32 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
               />
               <button type="submit" className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-white">
                 <Search className="size-3.5" />
@@ -112,22 +113,62 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
           )}
 
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="md"
-              className={isHero ? "text-white" : "text-neutral-900"}
+            <div className="hidden md:flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="md"
+                className={isHero ? "text-white" : "text-neutral-900"}
+              >
+                Login
+              </Button>
+              <Button
+                variant={isHero ? "outline-white" : "secondary"}
+                size="md"
+              >
+                Sign Up
+              </Button>
+            </div>
+            <button
+              className="md:hidden flex items-center justify-center"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
             >
-              Login
-            </Button>
-            <Button
-              variant={isHero ? "outline-white" : "secondary"}
-              size="md"
-            >
-              Sign Up
-            </Button>
+              {mobileMenuOpen ? (
+                <X className={`size-6 ${isHero ? "text-white" : "text-neutral-900"}`} />
+              ) : (
+                <Menu className={`size-6 ${isHero ? "text-white" : "text-neutral-900"}`} />
+              )}
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile menu overlay */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white shadow-lg">
+          <div className="px-4 py-6 flex flex-col gap-4">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-base font-medium text-neutral-800 py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {link.label}
+              </Link>
+            ))}
+            <div className="h-px w-full bg-neutral-200" />
+            <div className="flex flex-col gap-3 pt-2">
+              <Button variant="ghost" size="md" className="text-neutral-900 w-full">
+                Login
+              </Button>
+              <Button variant="secondary" size="md" className="w-full">
+                Sign Up
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

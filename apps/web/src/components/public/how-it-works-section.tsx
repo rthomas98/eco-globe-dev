@@ -20,19 +20,19 @@ const steps = [
 
 export function HowItWorksSection() {
   return (
-    <section className="relative overflow-hidden pb-[220px] pt-[120px]">
+    <section className="relative overflow-hidden pb-16 lg:pb-[220px] py-16 lg:pt-[120px]">
       {/* Background facility image - positioned bottom-right */}
       <img
         src="/images/facility.png"
         alt=""
-        className="pointer-events-none absolute bottom-0 right-0 w-[70%] object-cover object-right-bottom"
+        className="pointer-events-none absolute bottom-0 right-0 w-[70%] object-cover object-right-bottom hidden md:block"
       />
       {/* Fade overlay so text stays readable */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white from-40% via-white/80 via-55% to-transparent" />
 
-      <div className="relative z-10 mx-auto max-w-[1440px] px-[135px]">
-        <div className="max-w-[608px]">
-          <h2 className="mb-16 text-5xl font-bold text-heading">
+      <div className="relative z-10 mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
+        <div className="max-w-full lg:max-w-[608px]">
+          <h2 className="mb-8 lg:mb-16 text-2xl sm:text-4xl lg:text-5xl font-bold text-heading">
             A simple flow built for heavy industry
           </h2>
           <div className="flex flex-col gap-10">
@@ -44,10 +44,10 @@ export function HowItWorksSection() {
                     {step.number}
                   </div>
                   <div className="flex flex-col gap-4">
-                    <h3 className="text-[28px] font-medium leading-9 text-neutral-900">
+                    <h3 className="text-xl sm:text-2xl lg:text-[28px] font-medium leading-7 sm:leading-9 text-neutral-900">
                       {step.title}
                     </h3>
-                    <p className="text-lg leading-7 text-neutral-800">
+                    <p className="text-base lg:text-lg leading-7 text-neutral-800">
                       {step.description}
                     </p>
                   </div>

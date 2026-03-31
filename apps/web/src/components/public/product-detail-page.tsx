@@ -109,7 +109,7 @@ export function ProductDetailPage() {
       </header>
 
       {/* Content */}
-      <div className="mx-auto w-full max-w-[1440px] px-[135px] py-8">
+      <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-8 lg:px-[135px] py-8">
         {/* Breadcrumb */}
         <div className="mb-6 flex items-center gap-2 text-sm text-neutral-500">
           <Link href="/browse" className="hover:text-neutral-900">Browse</Link>
@@ -117,11 +117,11 @@ export function ProductDetailPage() {
           <span className="text-neutral-900">Product details</span>
         </div>
 
-        <div className="flex gap-10">
+        <div className="flex flex-col lg:flex-row gap-10">
           {/* Left column */}
-          <div className="flex-1">
+          <div className="flex-1 order-2 lg:order-1">
             {/* Title */}
-            <h1 className="mb-3 text-3xl font-bold text-neutral-900">{product.title}</h1>
+            <h1 className="mb-3 text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">{product.title}</h1>
             <div className="mb-6 flex items-center gap-2">
               <span className="text-sm text-neutral-700">{product.location}</span>
               <span className="text-neutral-400">·</span>
@@ -132,7 +132,7 @@ export function ProductDetailPage() {
             </div>
 
             {/* Main image */}
-            <div className="relative mb-4 h-[400px] overflow-hidden rounded-2xl">
+            <div className="relative mb-4 h-[250px] sm:h-[350px] lg:h-[400px] overflow-hidden rounded-2xl">
               <img src={product.images[selectedImg]} alt={product.title} className="h-full w-full object-cover" />
               <button className="absolute right-4 top-4 flex size-10 items-center justify-center rounded-full bg-white/90 shadow-md">
                 <Share2 className="size-4 text-neutral-700" />
@@ -143,7 +143,7 @@ export function ProductDetailPage() {
             </div>
 
             {/* Thumbnails */}
-            <div className="mb-10 flex gap-3">
+            <div className="mb-10 flex gap-3 overflow-x-auto flex-nowrap">
               {product.images.map((img, i) => (
                 <button
                   key={i}
@@ -242,9 +242,9 @@ export function ProductDetailPage() {
           </div>
 
           {/* Right sidebar - Price card */}
-          <div className="w-[300px] shrink-0">
+          <div className="w-full lg:w-[300px] shrink-0 order-first lg:order-none">
             <div className="sticky top-8 rounded-xl bg-white p-6" style={{ border: "1px solid #E0E0E0" }}>
-              <p className="text-3xl font-bold text-neutral-900">${product.price}</p>
+              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">${product.price}</p>
               <p className="mb-4 text-sm text-neutral-700" style={{ borderBottom: "1px solid #F0F0F0", paddingBottom: "16px" }}>
                 Minimum order quantity: {product.minOrder} tons
               </p>

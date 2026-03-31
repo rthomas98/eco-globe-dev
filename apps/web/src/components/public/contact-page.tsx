@@ -30,11 +30,11 @@ export function ContactPage() {
     <main className="min-h-screen bg-white">
       <Header />
 
-      <section className="pt-32 pb-[120px]">
-        <div className="mx-auto flex max-w-[1440px] gap-16 px-[135px]">
+      <section className="pt-24 lg:pt-32 pb-16 lg:pb-[120px]">
+        <div className="mx-auto flex flex-col lg:flex-row max-w-[1440px] gap-8 lg:gap-16 px-4 sm:px-8 lg:px-[135px]">
           {/* Left - Contact info */}
-          <div className="w-[340px] shrink-0">
-            <h1 className="mb-4 text-4xl font-bold text-neutral-900">Get in Touch</h1>
+          <div className="w-full lg:w-[340px] shrink-0">
+            <h1 className="mb-4 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Get in Touch</h1>
             <p className="mb-12 text-base leading-7 text-neutral-700">
               Have a question about us? Our team is here to help and will get back to you as soon as possible.
             </p>
@@ -67,7 +67,7 @@ export function ContactPage() {
 
               <form className="flex flex-col gap-6">
                 {/* Row 1: Name + Email */}
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-neutral-900">Name</label>
                     <input
@@ -89,7 +89,7 @@ export function ContactPage() {
                 </div>
 
                 {/* Row 2: Company + Job title */}
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-neutral-900">Company</label>
                     <input

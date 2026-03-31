@@ -64,7 +64,7 @@ export function SearchBar({
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => { setActiveDropdown("feedstock"); setRadiusOpen(false); }}
           placeholder="Feedstocks"
-          className="w-44 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-neutral-500"
+          className="w-28 sm:w-44 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-neutral-500"
         />
         <div className="h-5 w-px bg-neutral-300" />
         <input
@@ -73,7 +73,7 @@ export function SearchBar({
           onChange={(e) => setLocation(e.target.value)}
           onFocus={() => { setActiveDropdown("location"); setRadiusOpen(false); }}
           placeholder="Location"
-          className="w-48 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-neutral-500"
+          className="w-24 sm:w-48 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-neutral-500"
         />
         <button
           onClick={handleSearch}
@@ -86,7 +86,7 @@ export function SearchBar({
       {/* Feedstock dropdown */}
       {activeDropdown === "feedstock" && (
         <div
-          className="absolute left-0 top-[calc(100%+8px)] z-50 w-[380px] rounded-xl bg-white py-3"
+          className="absolute left-0 top-[calc(100%+8px)] z-50 w-[calc(100vw-2rem)] sm:w-[380px] rounded-xl bg-white py-3"
           style={{ boxShadow: "0 8px 32px -4px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)" }}
         >
           <p className="px-5 pb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">
@@ -123,7 +123,7 @@ export function SearchBar({
       {/* Location dropdown */}
       {activeDropdown === "location" && (
         <div
-          className="absolute right-12 top-[calc(100%+8px)] z-50 w-[380px] rounded-xl bg-white py-3"
+          className="absolute left-0 sm:left-0 top-[calc(100%+8px)] z-50 w-[calc(100vw-2rem)] sm:w-[380px] rounded-xl bg-white py-3"
           style={{ boxShadow: "0 8px 32px -4px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)" }}
         >
           {/* Radius selector */}

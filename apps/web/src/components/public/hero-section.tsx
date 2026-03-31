@@ -30,7 +30,7 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative flex h-[768px] w-full items-center justify-center overflow-hidden">
+    <section className="relative flex h-[500px] sm:h-[600px] lg:h-[768px] w-full items-center justify-center overflow-hidden">
       <img
         src="/hero.jpg"
         alt="EcoGlobe industrial facility"
@@ -38,19 +38,19 @@ export function HeroSection() {
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/60 to-black/40" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-[1440px] items-center justify-center px-[135px]">
-        <div className="flex max-w-[1030px] flex-col items-center gap-16 text-center">
-          <h1 className="text-[64px] font-bold leading-tight text-white">
+      <div className="relative z-10 mx-auto flex w-full max-w-[1440px] items-center justify-center px-4 sm:px-8 lg:px-[135px]">
+        <div className="flex max-w-[1030px] w-full flex-col items-center gap-8 lg:gap-16 text-center">
+          <h1 className="text-3xl sm:text-5xl lg:text-[64px] font-bold leading-tight text-white">
             Buy verified feedstocks,
             <br />
             locally and transparently.
           </h1>
 
-          <form onSubmit={handleSearch} className="flex w-full items-center rounded-full bg-white py-3 pl-6 pr-3">
-            <div className="flex flex-1 items-center gap-6">
-              <Search className="size-6 shrink-0 text-neutral-800" />
-              <div className="flex flex-1 gap-6">
-                <div className="flex flex-1 flex-col gap-1 pr-4" style={{ borderRight: "1px solid #E0E0E0" }}>
+          <form onSubmit={handleSearch} className="flex w-full flex-col md:flex-row items-center rounded-3xl md:rounded-full bg-white py-3 px-4 md:pl-6 md:pr-3 gap-3 md:gap-0">
+            <div className="flex w-full flex-1 flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-6">
+              <Search className="size-6 shrink-0 text-neutral-800 hidden md:block" />
+              <div className="flex w-full flex-1 flex-col md:flex-row gap-3 md:gap-6">
+                <div className="flex flex-1 flex-col gap-1 md:pr-4 md:border-r md:border-neutral-200">
                   <label className="text-left text-sm text-neutral-800">Feedstocks</label>
                   <input
                     type="text"
@@ -60,7 +60,7 @@ export function HeroSection() {
                     className="bg-transparent text-left text-base text-neutral-900 outline-none placeholder:text-neutral-500"
                   />
                 </div>
-                <div className="flex flex-1 flex-col gap-1 pr-4">
+                <div className="flex flex-1 flex-col gap-1 md:pr-4">
                   <label className="text-left text-sm text-neutral-800">Location</label>
                   <input
                     type="text"
@@ -72,7 +72,7 @@ export function HeroSection() {
                 </div>
               </div>
             </div>
-            <Button variant="primary" size="md" className="h-12 px-8" type="submit">
+            <Button variant="primary" size="md" className="h-12 px-8 w-full md:w-auto" type="submit">
               Search
             </Button>
           </form>
@@ -81,7 +81,7 @@ export function HeroSection() {
             <span className="text-sm font-semibold text-white">
               Popular Searches
             </span>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
               {popularSearches.map((tag) => (
                 <button
                   key={tag}

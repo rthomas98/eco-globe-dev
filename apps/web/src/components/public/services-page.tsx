@@ -47,26 +47,26 @@ export function ServicesPage() {
       <Header transparent />
 
       {/* Hero */}
-      <section className="relative flex h-[500px] items-center justify-center overflow-hidden">
+      <section className="relative flex h-[350px] sm:h-[400px] lg:h-[500px] items-center justify-center overflow-hidden">
         <img src="/hero.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/60 to-black/40" />
-        <div className="relative z-10 text-center">
-          <h1 className="mb-6 text-5xl font-bold leading-tight text-white">
+        <div className="relative z-10 text-center px-4">
+          <h1 className="mb-6 text-2xl sm:text-4xl lg:text-5xl font-bold leading-tight text-white">
             Two Ways to Transform Your<br />Waste Into Value
           </h1>
           <p className="mb-8 text-lg text-white/80">
-            Whether you need guidance to get started or are ready to trade independently,<br />EcoGlobe meets you where you are.
+            Whether you need guidance to get started or are ready to trade independently,<br className="hidden sm:inline" />EcoGlobe meets you where you are.
           </p>
           <Button variant="white" size="lg">Get Started</Button>
         </div>
       </section>
 
       {/* Two paths */}
-      <section className="py-[120px]">
-        <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-10 px-[135px]">
+      <section className="py-16 lg:py-[120px]">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-1 lg:grid-cols-2 gap-10 px-4 sm:px-8 lg:px-[135px]">
           {/* Consulting */}
           <div className="flex flex-col gap-8 rounded-2xl bg-white p-10" style={{ border: "1px solid #E0E0E0" }}>
-            <h2 className="text-3xl font-bold text-neutral-900">Consulting Services</h2>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">Consulting Services</h2>
             <p className="text-base text-neutral-700">Companies new to circular economy, those with complex waste streams, or those needing validation before committing.</p>
             <div className="h-[240px] rounded-xl bg-neutral-100" />
             <div>
@@ -89,7 +89,7 @@ export function ServicesPage() {
 
           {/* Marketplace */}
           <div className="flex flex-col gap-8 rounded-2xl bg-white p-10" style={{ border: "1px solid #E0E0E0" }}>
-            <h2 className="text-3xl font-bold text-neutral-900">Marketplace Access</h2>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">Marketplace Access</h2>
             <p className="text-base text-neutral-700">Companies who know what feedstocks they need, experienced traders, or those ready to transact independently.</p>
             <div className="h-[240px] rounded-xl bg-neutral-100" />
             <div>
@@ -113,13 +113,13 @@ export function ServicesPage() {
       </section>
 
       {/* Decision guide */}
-      <section className="bg-neutral-100 py-[100px]">
-        <div className="mx-auto max-w-[1440px] px-[135px]">
+      <section className="bg-neutral-100 py-12 lg:py-[100px]">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 text-4xl font-bold text-neutral-900">Not Sure Which Path Is<br />Right for You?</h2>
+            <h2 className="mb-4 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Not Sure Which Path Is<br />Right for You?</h2>
             <p className="text-base text-neutral-700">Include a simple decision guide below the two pathways to help users self-select:</p>
           </div>
-          <div className="grid grid-cols-2 gap-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16">
             <div>
               <h3 className="mb-6 text-lg font-bold text-neutral-900">Choose Consulting if...</h3>
               <ul className="flex flex-col gap-3">
@@ -141,10 +141,10 @@ export function ServicesPage() {
       </section>
 
       {/* Why EcoGlobe */}
-      <section className="py-[120px]">
-        <div className="mx-auto flex max-w-[1440px] gap-16 px-[135px]">
+      <section className="py-16 lg:py-[120px]">
+        <div className="mx-auto flex flex-col lg:flex-row max-w-[1440px] gap-8 lg:gap-16 px-4 sm:px-8 lg:px-[135px]">
           <div className="flex-1">
-            <h2 className="mb-4 text-4xl font-bold text-neutral-900">Why EcoGlobe?</h2>
+            <h2 className="mb-4 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Why EcoGlobe?</h2>
             <p className="mb-10 text-base text-neutral-700">Include a simple decision guide below the two pathways to help users self-select:</p>
             <div className="flex flex-col gap-6">
               {whyEcoGlobe.map((item) => (
@@ -155,7 +155,7 @@ export function ServicesPage() {
               ))}
             </div>
           </div>
-          <div className="h-[350px] w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100" />
+          <div className="h-[250px] sm:h-[350px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100" />
         </div>
       </section>
 

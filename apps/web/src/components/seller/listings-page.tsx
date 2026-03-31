@@ -32,36 +32,39 @@ export function ListingsPage() {
     <SellerLayout title="Listings">
       <div className="flex flex-col gap-6">
         {/* Header row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2" style={{ border: "1px solid #E0E0E0" }}>
               <Search className="size-4 text-neutral-500" />
               <input
                 type="text"
                 placeholder="Search listings..."
-                className="w-48 bg-transparent text-sm outline-none placeholder:text-neutral-500"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-500 sm:w-48"
               />
             </div>
-            <div className="flex rounded-lg" style={{ border: "1px solid #E0E0E0" }}>
-              <button className="flex items-center gap-1 bg-neutral-900 px-3 py-2 text-xs font-medium text-white first:rounded-l-lg">
-                <List className="size-3.5" /> List View
-              </button>
-              <button className="flex items-center gap-1 bg-white px-3 py-2 text-xs font-medium text-neutral-700 last:rounded-r-lg">
-                <LayoutGrid className="size-3.5" /> Card View
+            <div className="flex items-center gap-3">
+              <div className="flex rounded-lg" style={{ border: "1px solid #E0E0E0" }}>
+                <button className="flex items-center gap-1 bg-neutral-900 px-3 py-2 text-xs font-medium text-white first:rounded-l-lg">
+                  <List className="size-3.5" /> List View
+                </button>
+                <button className="flex items-center gap-1 bg-white px-3 py-2 text-xs font-medium text-neutral-700 last:rounded-r-lg">
+                  <LayoutGrid className="size-3.5" /> Card View
+                </button>
+              </div>
+              <button className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-neutral-700" style={{ border: "1px solid #E0E0E0" }}>
+                <SlidersHorizontal className="size-3.5" /> Filters
               </button>
             </div>
-            <button className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-neutral-700" style={{ border: "1px solid #E0E0E0" }}>
-              <SlidersHorizontal className="size-3.5" /> Filters
-            </button>
           </div>
-          <Button variant="primary" size="md">
+          <Button variant="primary" size="md" className="w-full sm:w-auto">
             Add Listing
           </Button>
         </div>
 
         {/* Table */}
         <div className="overflow-hidden rounded-xl bg-white" style={{ border: "1px solid #E0E0E0" }}>
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="text-left text-xs font-medium uppercase tracking-wider text-neutral-500" style={{ borderBottom: "1px solid #E0E0E0" }}>
                 <th className="px-4 py-3">Listing Name</th>
@@ -89,6 +92,7 @@ export function ListingsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </SellerLayout>
