@@ -97,7 +97,19 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
                 <Search className="size-3.5" />
               </button>
             </form>
-          ) : null}
+          ) : (
+            <nav className="hidden items-center gap-8 md:flex">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-base font-medium text-neutral-800 transition-colors hover:opacity-80"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          )}
 
           <div className="flex items-center gap-3">
             <Button
