@@ -23,6 +23,12 @@ interface Listing {
   tags: string[];
   lng: number;
   lat: number;
+  category: string;
+  grade: "Standard" | "Great";
+  priceNum: number;
+  co2Num: number;
+  qtyNum: number;
+  hasCarbonData: boolean;
 }
 
 const listings: Listing[] = [
@@ -39,6 +45,12 @@ const listings: Listing[] = [
     tags: ["biomass", "certified", "low co2", "industrial by products"],
     lng: -91.2103,
     lat: 30.4524,
+    category: "Biomass & Wood",
+    grade: "Standard",
+    priceNum: 48,
+    co2Num: 300,
+    qtyNum: 15,
+    hasCarbonData: true,
   },
   {
     id: "polymer",
@@ -53,6 +65,12 @@ const listings: Listing[] = [
     tags: ["polymer", "industrial by products", "plastics"],
     lng: -91.2343,
     lat: 30.2893,
+    category: "Plastics",
+    grade: "Standard",
+    priceNum: 60,
+    co2Num: 300,
+    qtyNum: 25,
+    hasCarbonData: true,
   },
   {
     id: "pyrolysis",
@@ -67,6 +85,12 @@ const listings: Listing[] = [
     tags: ["pyrolysis", "certified feedstocks", "low co2 feedstocks"],
     lng: -91.1681,
     lat: 30.5883,
+    category: "Oils & Liquid Feedstocks",
+    grade: "Great",
+    priceNum: 300,
+    co2Num: 300,
+    qtyNum: 12,
+    hasCarbonData: true,
   },
   {
     id: "stover-walker",
@@ -81,6 +105,12 @@ const listings: Listing[] = [
     tags: ["biomass", "certified feedstocks", "low co2 feedstocks"],
     lng: -90.8612,
     lat: 30.4888,
+    category: "Biomass & Wood",
+    grade: "Standard",
+    priceNum: 42,
+    co2Num: 300,
+    qtyNum: 30,
+    hasCarbonData: true,
   },
   {
     id: "wood-pellets",
@@ -95,6 +125,12 @@ const listings: Listing[] = [
     tags: ["biomass", "certified feedstocks", "low co2 feedstocks"],
     lng: -92.0198,
     lat: 30.2241,
+    category: "Biomass & Wood",
+    grade: "Great",
+    priceNum: 120,
+    co2Num: 210,
+    qtyNum: 50,
+    hasCarbonData: true,
   },
   {
     id: "rice-husk",
@@ -109,6 +145,12 @@ const listings: Listing[] = [
     tags: ["biomass", "industrial by products", "low co2 feedstocks"],
     lng: -92.3746,
     lat: 30.2141,
+    category: "Biomass & Wood",
+    grade: "Standard",
+    priceNum: 28,
+    co2Num: 180,
+    qtyNum: 80,
+    hasCarbonData: true,
   },
   {
     id: "wood-chips",
@@ -123,6 +165,12 @@ const listings: Listing[] = [
     tags: ["biomass", "certified feedstocks"],
     lng: -91.1403,
     lat: 30.4515,
+    category: "Biomass & Wood",
+    grade: "Great",
+    priceNum: 95,
+    co2Num: 150,
+    qtyNum: 20,
+    hasCarbonData: true,
   },
   {
     id: "bio-ethanol",
@@ -137,6 +185,52 @@ const listings: Listing[] = [
     tags: ["low co2 feedstocks", "certified feedstocks", "biomass"],
     lng: -90.0715,
     lat: 29.9511,
+    category: "Oils & Liquid Feedstocks",
+    grade: "Great",
+    priceNum: 210,
+    co2Num: 95,
+    qtyNum: 40,
+    hasCarbonData: true,
+  },
+  {
+    id: "tire-crumb",
+    title: "Recycled Tire Crumb Rubber",
+    location: "Slidell, LA",
+    distance: "7.2 mi",
+    moq: "6 tons",
+    co2: "420 kg CO₂e",
+    price: "$180",
+    unit: "/ton",
+    image: "https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=400&q=80",
+    tags: ["rubber", "tire-derived", "industrial by products"],
+    lng: -89.7811,
+    lat: 30.2752,
+    category: "Rubber & Tire-Derived",
+    grade: "Standard",
+    priceNum: 180,
+    co2Num: 420,
+    qtyNum: 35,
+    hasCarbonData: true,
+  },
+  {
+    id: "used-cooking-oil",
+    title: "Refined Used Cooking Oil (UCO)",
+    location: "Houma, LA",
+    distance: "8.5 mi",
+    moq: "4 tons",
+    co2: "540 kg CO₂e",
+    price: "$650",
+    unit: "/ton",
+    image: "https://images.unsplash.com/photo-1568825928141-0faaa7b8fbe5?w=400&q=80",
+    tags: ["oils", "certified feedstocks"],
+    lng: -90.7195,
+    lat: 29.5958,
+    category: "Oils & Liquid Feedstocks",
+    grade: "Great",
+    priceNum: 650,
+    co2Num: 540,
+    qtyNum: 18,
+    hasCarbonData: true,
   },
 ];
 
@@ -204,11 +298,33 @@ export function BrowsePage() {
 
   const q = urlQuery.trim().toLowerCase();
   const loc = urlLocation.trim().toLowerCase();
+
+  const priceMin = filters.priceMin ? parseFloat(filters.priceMin) : null;
+  const priceMax = filters.priceMax ? parseFloat(filters.priceMax) : null;
+  const qtyMin = filters.qtyMin ? parseFloat(filters.qtyMin) : null;
+  const qtyMax = filters.qtyMax ? parseFloat(filters.qtyMax) : null;
+
+  const matchesCarbonBucket = (co2Num: number) =>
+    filters.carbon.some((bucket) => {
+      if (bucket.startsWith("Under 300")) return co2Num < 300;
+      if (bucket.startsWith("300")) return co2Num >= 300 && co2Num <= 500;
+      if (bucket.startsWith("500")) return co2Num > 500;
+      return false;
+    });
+
   const visibleListings = listings.filter((l) => {
     const haystack = `${l.title} ${l.tags.join(" ")}`.toLowerCase();
-    const matchesQuery = !q || haystack.includes(q);
-    const matchesLocation = !loc || l.location.toLowerCase().includes(loc);
-    return matchesQuery && matchesLocation;
+    if (q && !haystack.includes(q)) return false;
+    if (loc && !l.location.toLowerCase().includes(loc)) return false;
+    if (filters.categories.length > 0 && !filters.categories.includes(l.category)) return false;
+    if (filters.grades.length > 0 && !filters.grades.includes(l.grade)) return false;
+    if (priceMin !== null && l.priceNum < priceMin) return false;
+    if (priceMax !== null && l.priceNum > priceMax) return false;
+    if (qtyMin !== null && l.qtyNum < qtyMin) return false;
+    if (qtyMax !== null && l.qtyNum > qtyMax) return false;
+    if (filters.carbon.length > 0 && !matchesCarbonBucket(l.co2Num)) return false;
+    if (filters.carbonDataOnly && !l.hasCarbonData) return false;
+    return true;
   });
 
   const mapListings: MapListing[] = useMemo(
@@ -291,15 +407,16 @@ export function BrowsePage() {
                 <>{visibleListings.length} listings</>
               )}
             </p>
-            {(urlQuery || urlLocation) && (
+            {(urlQuery || urlLocation || activeFilterCount > 0) && (
               <button
                 onClick={() => {
                   setSelectedId(null);
+                  setFilters(defaultFilters);
                   router.push("/browse");
                 }}
                 className="text-sm font-medium text-neutral-900 underline"
               >
-                Clear search
+                Clear all
               </button>
             )}
           </div>
@@ -307,13 +424,17 @@ export function BrowsePage() {
             <div className="flex flex-col items-center gap-3 rounded-xl bg-neutral-50 py-16 text-center">
               <p className="text-base font-semibold text-neutral-900">No matches found</p>
               <p className="max-w-[360px] text-sm text-neutral-600">
-                Try a different keyword or clear the search to see all listings.
+                Try a different keyword, loosen the filters, or clear everything to see all listings.
               </p>
               <button
-                onClick={() => router.push("/browse")}
+                onClick={() => {
+                  setSelectedId(null);
+                  setFilters(defaultFilters);
+                  router.push("/browse");
+                }}
                 className="mt-2 rounded-full bg-neutral-900 px-5 py-2 text-sm font-medium text-white"
               >
-                Clear search
+                Clear all
               </button>
             </div>
           ) : (

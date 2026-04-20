@@ -56,23 +56,26 @@ function Checkbox({
   label: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3 text-sm text-neutral-900">
-      <div
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className="flex cursor-pointer items-center gap-3 text-left text-sm text-neutral-900"
+    >
+      <span
         className="flex size-5 shrink-0 items-center justify-center rounded"
         style={{
           border: checked ? "none" : "1.5px solid #BDBDBD",
           backgroundColor: checked ? "#378853" : "white",
         }}
-        onClick={() => onChange(!checked)}
       >
         {checked && (
           <svg className="size-3.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
           </svg>
         )}
-      </div>
+      </span>
       <span>{label}</span>
-    </label>
+    </button>
   );
 }
 
