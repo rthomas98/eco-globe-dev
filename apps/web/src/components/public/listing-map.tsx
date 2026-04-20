@@ -164,6 +164,15 @@ export function ListingMap({ listings, selectedId, onSelect }: ListingMapProps =
           essential: true,
         });
       }
+    } else if (data.length > 0) {
+      // Deselected: zoom back out to fit all visible listings
+      const bounds = new mapboxgl.LngLatBounds();
+      data.forEach((l) => bounds.extend([l.lng, l.lat]));
+      mapInstance.fitBounds(bounds, {
+        padding: 80,
+        maxZoom: 11,
+        duration: 700,
+      });
     }
   }, [selectedId, data]);
 
