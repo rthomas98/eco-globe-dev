@@ -76,7 +76,7 @@ function Checkbox({
   );
 }
 
-function PriceInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+function PriceInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center rounded-lg bg-white px-3 py-2.5" style={{ border: "1px solid #E0E0E0" }}>
       <span className="mr-2 text-sm text-neutral-500">$</span>
@@ -84,7 +84,7 @@ function PriceInput({ value, onChange, placeholder }: { value: string; onChange:
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
+
         className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400"
       />
     </div>
@@ -190,8 +190,8 @@ export function FiltersPanel({
               })}
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <PriceInput value={filters.priceMin} onChange={(v) => onChange({ ...filters, priceMin: v })} placeholder="Minimum" />
-              <PriceInput value={filters.priceMax} onChange={(v) => onChange({ ...filters, priceMax: v })} placeholder="Maximum" />
+              <PriceInput value={filters.priceMin} onChange={(v) => onChange({ ...filters, priceMin: v })} />
+              <PriceInput value={filters.priceMax} onChange={(v) => onChange({ ...filters, priceMax: v })} />
             </div>
           </div>
 
@@ -204,7 +204,7 @@ export function FiltersPanel({
                   type="text"
                   value={filters.qtyMin}
                   onChange={(e) => onChange({ ...filters, qtyMin: e.target.value })}
-                  placeholder="Minimum"
+
                   className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400"
                 />
               </div>
@@ -213,7 +213,7 @@ export function FiltersPanel({
                   type="text"
                   value={filters.qtyMax}
                   onChange={(e) => onChange({ ...filters, qtyMax: e.target.value })}
-                  placeholder="Maximum"
+
                   className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400"
                 />
               </div>

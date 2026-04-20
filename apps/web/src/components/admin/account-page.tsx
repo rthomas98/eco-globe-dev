@@ -120,13 +120,13 @@ function ProfileTab({ profile, onUpdate }: { profile: Profile; onUpdate: (p: Pro
       {editField === "phone" && (
         <EditModal title="Edit Phone Number" onClose={() => setEditField(null)} onSave={handleSave}>
           <Input label="Phone number" id="ph" value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <Input label="Password" id="pw" type="password" placeholder="Input field" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input label="Password" id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </EditModal>
       )}
       {editField === "email" && (
         <EditModal title="Edit Email Address" onClose={() => setEditField(null)} onSave={handleSave}>
           <Input label="Email address" id="em" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Input label="Password" id="pw" type="password" placeholder="Input field" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input label="Password" id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </EditModal>
       )}
       {editField === "jobTitle" && (
@@ -136,7 +136,7 @@ function ProfileTab({ profile, onUpdate }: { profile: Profile; onUpdate: (p: Pro
       )}
       {editField === "department" && (
         <EditModal title="Department" onClose={() => setEditField(null)} onSave={handleSave}>
-          <Input label="Department" id="dept" placeholder="Enter department" value={department} onChange={(e) => setDepartment(e.target.value)} />
+          <Input label="Department" id="dept" value={department} onChange={(e) => setDepartment(e.target.value)} />
         </EditModal>
       )}
     </div>

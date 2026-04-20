@@ -115,7 +115,7 @@ export function CategoriesPage() {
             <div className="absolute inset-0 bg-black/30" onClick={() => setShowAdd(false)} />
             <div className="relative z-10 w-full max-w-[460px] rounded-2xl bg-white p-8" style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
               <div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-bold text-neutral-900">Add Category</h2><button onClick={() => setShowAdd(false)} className="text-neutral-400"><X className="size-5" /></button></div>
-              <Input label="Category name" id="catName" placeholder="Enter category name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+              <Input label="Category name" id="catName" value={newName} onChange={(e) => setNewName(e.target.value)} />
               <div className="mt-5 flex justify-end gap-3"><Button variant="secondary" size="md" onClick={() => setShowAdd(false)}>Cancel</Button><Button variant="primary" size="md" onClick={addCategory}>Add Category</Button></div>
             </div>
           </div>
@@ -341,9 +341,9 @@ export function TransactionRulesPage() {
           <div className="relative z-10 w-full max-w-[560px] rounded-2xl bg-white p-8" style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
             <div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-bold text-neutral-900">Add Transaction Rule</h2><button onClick={() => setShowAdd(false)} className="text-neutral-400"><X className="size-5" /></button></div>
             <div className="flex flex-col gap-4">
-              <Input label="Rule name" id="rn" placeholder="e.g. High-value alert" value={newRule.name} onChange={(e) => setNewRule({ ...newRule, name: e.target.value })} />
-              <Input label="Condition" id="rc" placeholder="e.g. Amount > $100,000" value={newRule.condition} onChange={(e) => setNewRule({ ...newRule, condition: e.target.value })} />
-              <Input label="Action" id="ra" placeholder="e.g. Require admin approval" value={newRule.action} onChange={(e) => setNewRule({ ...newRule, action: e.target.value })} />
+              <Input label="Rule name" id="rn" value={newRule.name} onChange={(e) => setNewRule({ ...newRule, name: e.target.value })} />
+              <Input label="Condition" id="rc" value={newRule.condition} onChange={(e) => setNewRule({ ...newRule, condition: e.target.value })} />
+              <Input label="Action" id="ra" value={newRule.action} onChange={(e) => setNewRule({ ...newRule, action: e.target.value })} />
             </div>
             <div className="mt-5 flex justify-end gap-3"><Button variant="secondary" size="md" onClick={() => setShowAdd(false)}>Cancel</Button><Button variant="primary" size="md" onClick={addRule}>Add Rule</Button></div>
           </div>

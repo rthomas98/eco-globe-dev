@@ -90,14 +90,14 @@ function UserModal({ user, onSave, onClose }: { user?: SystemUser; onSave: (u: S
         </div>
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-4">
-            <Input label="First name" id="fn" placeholder="Input field" value={form.firstName} onChange={(e) => up("firstName", e.target.value)} />
-            <Input label="Last name" id="ln" placeholder="Input field" value={form.lastName} onChange={(e) => up("lastName", e.target.value)} />
+            <Input label="First name" id="fn" value={form.firstName} onChange={(e) => up("firstName", e.target.value)} />
+            <Input label="Last name" id="ln" value={form.lastName} onChange={(e) => up("lastName", e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Email" id="em" type="email" placeholder="Input field" value={form.email} onChange={(e) => up("email", e.target.value)} />
-            <Input label="Phone number" id="ph" type="tel" placeholder="Input field" value={form.phone} onChange={(e) => up("phone", e.target.value)} />
+            <Input label="Email" id="em" type="email" value={form.email} onChange={(e) => up("email", e.target.value)} />
+            <Input label="Phone number" id="ph" type="tel" value={form.phone} onChange={(e) => up("phone", e.target.value)} />
           </div>
-          <Input label="Address" id="addr" placeholder="Input field" value={form.address} onChange={(e) => up("address", e.target.value)} />
+          <Input label="Address" id="addr" value={form.address} onChange={(e) => up("address", e.target.value)} />
           <Select label="Role" id="role" options={[{ value: "", label: "-- Choose --" }, ...roleOptions]} value={form.role} onChange={(e) => up("role", e.target.value)} />
           <div className="flex items-center justify-between pt-2">
             <label className="flex items-center gap-2 text-sm font-medium text-neutral-900">
@@ -175,7 +175,7 @@ export function SettingsUsersPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{ border: "1px solid #F0F0F0" }}>
             <Search className="size-4 text-neutral-400" />
-            <input type="text" placeholder="Search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
           </div>
           <button className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700" style={{ border: "1px solid #F0F0F0" }}>
             <SlidersHorizontal className="size-4" /> Filters

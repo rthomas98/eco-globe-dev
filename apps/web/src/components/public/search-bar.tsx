@@ -63,7 +63,7 @@ export function SearchBar({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => { setActiveDropdown("feedstock"); setRadiusOpen(false); }}
-          placeholder="Feedstocks"
+
           className="w-28 sm:w-44 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-neutral-500"
         />
         <div className="h-5 w-px bg-neutral-300" />
@@ -72,7 +72,7 @@ export function SearchBar({
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           onFocus={() => { setActiveDropdown("location"); setRadiusOpen(false); }}
-          placeholder="Location"
+
           className="w-24 sm:w-48 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-neutral-500"
         />
         <button

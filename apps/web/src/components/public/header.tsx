@@ -83,7 +83,7 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
                 type="text"
                 value={headerQuery}
                 onChange={(e) => setHeaderQuery(e.target.value)}
-                placeholder="Feedstocks"
+
                 className="w-20 sm:w-32 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
               />
               <div className="h-4 w-px bg-neutral-300" />
@@ -91,7 +91,7 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
                 type="text"
                 value={headerLocation}
                 onChange={(e) => setHeaderLocation(e.target.value)}
-                placeholder="Location"
+
                 className="w-20 sm:w-32 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
               />
               <button type="submit" className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-white">

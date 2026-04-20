@@ -2,18 +2,33 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button, Input } from "@eco-globe/ui";
 import { AuthLayout } from "./auth-layout";
 
 export function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
+
+  const handleLogin = () => {
+    const e = email.toLowerCase();
+    const dest = e.includes("seller")
+      ? "/seller/listings"
+      : e.includes("buyer")
+        ? "/browse"
+        : "/admin/dashboard";
+    router.push(dest);
+  };
 
   return (
     <AuthLayout
       footerContent={
         <p className="text-sm text-neutral-500">
           Having issues logging in? Please,{" "}
-          <Link href="/contact" className="font-medium text-neutral-900 underline">
+          <Link
+            href="/contact"
+            className="font-medium text-neutral-900 underline"
+          >
             contact our team here
           </Link>
         </p>
@@ -29,22 +44,21 @@ export function LoginPage() {
             label="Email Address"
             id="email"
             type="email"
-            placeholder="Input field"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <Input
-            label="Password"
-            id="password"
-            type="password"
-            placeholder="Input field"
-          />
+          <Input label="Password" id="password" type="password" />
           <Link
             href="/forgot-password"
             className="text-left text-sm font-medium text-neutral-900 underline"
           >
             Forgot Password?
           </Link>
+          <p className="text-xs text-neutral-500">
+            Demo: any email logs you in. Put <strong>seller</strong> or{" "}
+            <strong>buyer</strong> in the email to go to those portals;
+            otherwise you&apos;ll land on the Admin dashboard.
+          </p>
         </div>
 
         <Button
@@ -52,7 +66,10 @@ export function LoginPage() {
           size="lg"
           className="w-full"
           disabled={!email.trim()}
-          style={!email.trim() ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
+          style={
+            !email.trim() ? { opacity: 0.4, cursor: "not-allowed" } : undefined
+          }
+          onClick={handleLogin}
         >
           Login
         </Button>

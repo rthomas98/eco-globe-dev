@@ -137,7 +137,7 @@ export function SalesReportPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
         <h1 className="text-2xl font-bold text-neutral-900">Sales Reports</h1>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{ border: "1px solid #F0F0F0" }}><Search className="size-4 text-neutral-400" /><input type="text" placeholder="Search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" /></div>
+          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{ border: "1px solid #F0F0F0" }}><Search className="size-4 text-neutral-400" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" /></div>
           <DateRangeDropdown value={dateRange} onChange={setDateRange} />
           <ExportDropdown filename="sales-report" columns={[{key:"id",label:"Order ID"},{key:"buyer",label:"Buyer"},{key:"seller",label:"Seller"},{key:"product",label:"Product"},{key:"qty",label:"Qty"},{key:"grossAmount",label:"Amount"},{key:"status",label:"Status"}]} data={filtered} />
         </div>
@@ -199,7 +199,7 @@ export function ProductsReportPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
         <h1 className="text-2xl font-bold text-neutral-900">Product Performance</h1>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{border:"1px solid #F0F0F0"}}><Search className="size-4 text-neutral-400"/><input type="text" placeholder="Search" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"/></div>
+          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{border:"1px solid #F0F0F0"}}><Search className="size-4 text-neutral-400"/><input type="text" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"/></div>
           <DateRangeDropdown value={dateRange} onChange={setDateRange}/>
           <ExportDropdown filename="product-report" columns={[{key:"id",label:"Listing ID"},{key:"name",label:"Product"},{key:"seller",label:"Seller"},{key:"category",label:"Category"},{key:"price",label:"Price"},{key:"qty",label:"Qty"},{key:"status",label:"Status"}]} data={filtered}/>
         </div>
@@ -261,7 +261,7 @@ export function EscrowReportPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
         <h1 className="text-2xl font-bold text-neutral-900">Escrow</h1>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{border:"1px solid #F0F0F0"}}><Search className="size-4 text-neutral-400"/><input type="text" placeholder="Search" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"/></div>
+          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{border:"1px solid #F0F0F0"}}><Search className="size-4 text-neutral-400"/><input type="text" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"/></div>
           <DateRangeDropdown value={dateRange} onChange={setDateRange}/>
           <ExportDropdown filename="escrow-report" columns={[{key:"escrowId",label:"Escrow ID"},{key:"txnId",label:"Transaction ID"},{key:"buyer",label:"Buyer"},{key:"seller",label:"Seller"},{key:"amount",label:"Amount"},{key:"status",label:"Status"}]} data={filtered}/>
         </div>
@@ -312,7 +312,7 @@ export function CarbonReportPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
         <h1 className="text-2xl font-bold text-neutral-900">Carbon</h1>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{border:"1px solid #F0F0F0"}}><Search className="size-4 text-neutral-400"/><input type="text" placeholder="Search" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"/></div>
+          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{border:"1px solid #F0F0F0"}}><Search className="size-4 text-neutral-400"/><input type="text" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"/></div>
           <MoreMenu
             filename="carbon-report"
             columns={[{key:"period",label:"Period"},{key:"product",label:"Product"},{key:"count",label:"Product Count"},{key:"totalQty",label:"Total qty (tons)"},{key:"avgFootprint",label:"Avg footprint (kg CO2e/ton)"},{key:"totalEmissions",label:"Total emissions (kg CO2e)"}]}

@@ -151,7 +151,7 @@ function EmailStep({
           label="Email Address"
           id="email"
           type="email"
-          placeholder="Input field"
+
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -284,7 +284,7 @@ function NewPasswordStep({ onConfirm }: { onConfirm: () => void }) {
             label={password ? "Password" : "New password"}
             id="newPassword"
             type="password"
-            placeholder="Enter password"
+
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -294,7 +294,7 @@ function NewPasswordStep({ onConfirm }: { onConfirm: () => void }) {
           label="Re-type new password"
           id="confirmNewPassword"
           type="password"
-          placeholder="Enter password"
+
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
         />

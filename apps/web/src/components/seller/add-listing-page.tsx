@@ -97,7 +97,7 @@ export function AddListingPage() {
         <StepLayout step={1} onBack={() => router.push("/seller/listings")} onNext={() => setStep(2)} onSave={handleSaveDraft}>
           <h1 className="mb-8 text-3xl font-bold text-neutral-900">Listing information</h1>
           <div className="flex flex-col gap-6">
-            <Input label="Listing name" id="name" placeholder="Input field" value={form.name} onChange={(e) => up("name", e.target.value)} />
+            <Input label="Listing name" id="name" value={form.name} onChange={(e) => up("name", e.target.value)} />
             <Select label="Listing category" id="cat" options={cats} value={form.category} onChange={(e) => up("category", e.target.value)} />
             <FileUpload images={form.images} onChange={(imgs) => up("images", imgs)} />
           </div>
@@ -108,16 +108,16 @@ export function AddListingPage() {
         <StepLayout step={2} onBack={() => setStep(1)} onNext={() => setStep(3)} onSave={handleSaveDraft}>
           <h1 className="mb-8 text-3xl font-bold text-neutral-900">Specifications</h1>
           <div className="flex flex-col gap-5">
-            <Input label="Material composition" id="mat" placeholder="Input field" value={form.material} onChange={(e) => up("material", e.target.value)} />
+            <Input label="Material composition" id="mat" value={form.material} onChange={(e) => up("material", e.target.value)} />
             <Select label="Listing type" id="lt" options={types} value={form.listingType} onChange={(e) => up("listingType", e.target.value)} />
             <Select label="Grade / purity" id="gr" options={grades} value={form.grade} onChange={(e) => up("grade", e.target.value)} />
-            <Input label="Color" id="color" placeholder="Input field" value={form.color} onChange={(e) => up("color", e.target.value)} />
-            <Input label="Shelf Life" id="sl" placeholder="Input field" value={form.shelfLife} onChange={(e) => up("shelfLife", e.target.value)} />
-            <Input label="Storage & handling" id="sh" placeholder="Input field" value={form.storage} onChange={(e) => up("storage", e.target.value)} />
-            <Input label="Package" id="pkg" placeholder="Input field" value={form.pkg} onChange={(e) => up("pkg", e.target.value)} />
-            <Input label="Weight" id="wt" placeholder="Input field" value={form.weight} onChange={(e) => up("weight", e.target.value)} />
-            <Input label="Usage" id="usg" placeholder="Input field" value={form.usage} onChange={(e) => up("usage", e.target.value)} />
-            <Input label="Place of Origin" id="poo" placeholder="Input field" value={form.origin} onChange={(e) => up("origin", e.target.value)} />
+            <Input label="Color" id="color" value={form.color} onChange={(e) => up("color", e.target.value)} />
+            <Input label="Shelf Life" id="sl" value={form.shelfLife} onChange={(e) => up("shelfLife", e.target.value)} />
+            <Input label="Storage & handling" id="sh" value={form.storage} onChange={(e) => up("storage", e.target.value)} />
+            <Input label="Package" id="pkg" value={form.pkg} onChange={(e) => up("pkg", e.target.value)} />
+            <Input label="Weight" id="wt" value={form.weight} onChange={(e) => up("weight", e.target.value)} />
+            <Input label="Usage" id="usg" value={form.usage} onChange={(e) => up("usage", e.target.value)} />
+            <Input label="Place of Origin" id="poo" value={form.origin} onChange={(e) => up("origin", e.target.value)} />
           </div>
         </StepLayout>
       )}
@@ -126,12 +126,12 @@ export function AddListingPage() {
         <StepLayout step={3} onBack={() => setStep(2)} onNext={() => setStep(4)} onSave={handleSaveDraft}>
           <h1 className="mb-8 text-3xl font-bold text-neutral-900">Pricing & Supply</h1>
           <div className="flex flex-col gap-6">
-            <Input label="Unit price" id="price" placeholder="Input field" value={form.price} onChange={(e) => up("price", e.target.value)} />
-            <Input label="MOQ" id="moq" placeholder="Input field" value={form.moq} onChange={(e) => up("moq", e.target.value)} />
+            <Input label="Unit price" id="price" value={form.price} onChange={(e) => up("price", e.target.value)} />
+            <Input label="MOQ" id="moq" value={form.moq} onChange={(e) => up("moq", e.target.value)} />
             <div>
               <label className="mb-1.5 block text-sm font-medium text-neutral-900">Quantity available</label>
               <div className="flex">
-                <input type="text" placeholder="Input field" value={form.qty} onChange={(e) => up("qty", e.target.value)} className="flex-1 rounded-l-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400" style={{ border: "1px solid #E0E0E0", borderRight: "none" }} />
+                <input type="text" value={form.qty} onChange={(e) => up("qty", e.target.value)} className="flex-1 rounded-l-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400" style={{ border: "1px solid #E0E0E0", borderRight: "none" }} />
                 <select value={form.unit} onChange={(e) => up("unit", e.target.value)} className="rounded-r-lg bg-neutral-50 px-3 py-3 text-sm outline-none" style={{ border: "1px solid #E0E0E0" }}>
                   <option value="lb">lb</option><option value="ton">ton</option><option value="kg">kg</option>
                 </select>
@@ -147,7 +147,7 @@ export function AddListingPage() {
           <div className="flex flex-col gap-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-neutral-900">Description text</label>
-              <textarea rows={6} placeholder="Enter your message..." value={form.description} onChange={(e) => up("description", e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none" style={{ border: "1px solid #E0E0E0" }} />
+              <textarea rows={6} value={form.description} onChange={(e) => up("description", e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none" style={{ border: "1px solid #E0E0E0" }} />
             </div>
             <AddBlockButton />
           </div>
@@ -178,7 +178,7 @@ export function AddListingPage() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-neutral-900">Sustainability Notes (Optional)</label>
-              <textarea rows={4} placeholder="Enter your message..." value={form.sustainNotes} onChange={(e) => up("sustainNotes", e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none" style={{ border: "1px solid #E0E0E0" }} />
+              <textarea rows={4} value={form.sustainNotes} onChange={(e) => up("sustainNotes", e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none" style={{ border: "1px solid #E0E0E0" }} />
             </div>
           </div>
         </StepLayout>
@@ -191,7 +191,7 @@ export function AddListingPage() {
             <label className="flex items-center gap-2 text-sm text-neutral-700">
               <input type="checkbox" checked={form.sameAsCompany} onChange={(e) => up("sameAsCompany", e.target.checked)} className="size-4 rounded accent-neutral-900" /> Same as company location
             </label>
-            <Input label="Origin location" id="ol" placeholder="Input field" value={form.originLocation} onChange={(e) => up("originLocation", e.target.value)} />
+            <Input label="Origin location" id="ol" value={form.originLocation} onChange={(e) => up("originLocation", e.target.value)} />
             <div className="h-[300px] overflow-hidden rounded-xl"><ListingMap /></div>
           </div>
         </StepLayout>
@@ -260,7 +260,7 @@ export function AddListingPage() {
                 <h2 className="mb-3 mt-8 text-lg font-bold text-neutral-900">Carbon Analytics Tool</h2>
                 <div className="rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
                   <div className="flex flex-col gap-4">
-                    <Input label="Your Address" id="addr" placeholder="enter address" />
+                    <Input label="Your Address" id="addr" />
                     <Select label="Transport Type" id="tt" options={[{ value: "", label: "-- Choose --" }, { value: "truck", label: "Truck" }, { value: "rail", label: "Rail" }, { value: "ship", label: "Ship" }]} />
                     <Button variant="primary" size="md">Calculate</Button>
                   </div>

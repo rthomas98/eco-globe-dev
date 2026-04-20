@@ -362,14 +362,14 @@ function AddBuyerDrawer({ onClose }: { onClose: () => void }) {
                   <Input
                     label="Company Name"
                     id="companyName"
-                    placeholder="Enter company name"
+
                     value={formData.companyName}
                     onChange={(e) => update("companyName", e.target.value)}
                   />
                   <Input
                     label="Contact Person"
                     id="contactPerson"
-                    placeholder="Full name of primary contact"
+
                     value={formData.contactPerson}
                     onChange={(e) => update("contactPerson", e.target.value)}
                   />
@@ -378,7 +378,7 @@ function AddBuyerDrawer({ onClose }: { onClose: () => void }) {
                       label="Business Email"
                       id="email"
                       type="email"
-                      placeholder="email@company.com"
+
                       value={formData.email}
                       onChange={(e) => update("email", e.target.value)}
                     />
@@ -386,7 +386,7 @@ function AddBuyerDrawer({ onClose }: { onClose: () => void }) {
                       label="Phone Number"
                       id="phone"
                       type="tel"
-                      placeholder="+1 (000) 000-0000"
+
                       value={formData.phone}
                       onChange={(e) => update("phone", e.target.value)}
                     />
@@ -401,7 +401,7 @@ function AddBuyerDrawer({ onClose }: { onClose: () => void }) {
                   <Input
                     label="Registration Number"
                     id="registrationNumber"
-                    placeholder="e.g. RG03760"
+
                     value={formData.registrationNumber}
                     onChange={(e) => update("registrationNumber", e.target.value)}
                   />
@@ -411,7 +411,7 @@ function AddBuyerDrawer({ onClose }: { onClose: () => void }) {
                   <Input
                     label="Street Address"
                     id="street"
-                    placeholder="2012 Rue Beauregard, STE 202"
+
                     value={formData.street}
                     onChange={(e) => update("street", e.target.value)}
                   />
@@ -419,14 +419,14 @@ function AddBuyerDrawer({ onClose }: { onClose: () => void }) {
                     <Input
                       label="City"
                       id="city"
-                      placeholder="Lafayette"
+
                       value={formData.city}
                       onChange={(e) => update("city", e.target.value)}
                     />
                     <Input
                       label="State"
                       id="state"
-                      placeholder="LA"
+
                       value={formData.state}
                       onChange={(e) => update("state", e.target.value)}
                     />
@@ -435,14 +435,14 @@ function AddBuyerDrawer({ onClose }: { onClose: () => void }) {
                     <Input
                       label="ZIP Code"
                       id="zipCode"
-                      placeholder="70508"
+
                       value={formData.zipCode}
                       onChange={(e) => update("zipCode", e.target.value)}
                     />
                     <Input
                       label="Country"
                       id="country"
-                      placeholder="United States"
+
                       value={formData.country}
                       onChange={(e) => update("country", e.target.value)}
                     />
@@ -453,7 +453,7 @@ function AddBuyerDrawer({ onClose }: { onClose: () => void }) {
                     </label>
                     <textarea
                       rows={4}
-                      placeholder="Any additional information about this buyer..."
+
                       value={formData.notes}
                       onChange={(e) => update("notes", e.target.value)}
                       className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none"
@@ -528,7 +528,7 @@ export function AdminBuyersPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{ border: "1px solid #F0F0F0" }}>
             <Search className="size-4 text-neutral-400" />
-            <input type="text" placeholder="Search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
           </div>
           <div className="relative">
             <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700" style={{ border: "1px solid #F0F0F0" }}>

@@ -176,7 +176,7 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
               type="date"
               className="w-full rounded-lg px-4 py-3 text-sm text-neutral-500 outline-none"
               style={{ border: "1px solid #E0E0E0" }}
-              placeholder="Input"
+
             />
           </div>
         </div>
@@ -372,7 +372,7 @@ export function SalesPage() {
             <Search className="size-4 text-neutral-400" />
             <input
               type="text"
-              placeholder="Search"
+
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"

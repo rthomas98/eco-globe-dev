@@ -69,14 +69,14 @@ export function RegisterPage() {
             <Input
               label="First Name"
               id="firstName"
-              placeholder="Input field"
+
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
             />
             <Input
               label="Last Name"
               id="lastName"
-              placeholder="Input field"
+
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
             />
@@ -85,7 +85,7 @@ export function RegisterPage() {
             label="Work email"
             id="email"
             type="email"
-            placeholder="Input field"
+
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -93,7 +93,7 @@ export function RegisterPage() {
             label="Password"
             id="password"
             type="password"
-            placeholder="Input field"
+
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -101,7 +101,7 @@ export function RegisterPage() {
             label="Confirm Password"
             id="confirmPassword"
             type="password"
-            placeholder="Input field"
+
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />

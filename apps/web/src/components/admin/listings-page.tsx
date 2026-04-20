@@ -126,7 +126,7 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
           <div className="flex gap-3">
             <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-2.5" style={{ border: "1px solid #E0E0E0" }}>
               <span className="text-sm text-neutral-400">$</span>
-              <input type="text" placeholder="Minimum" className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400" />
+              <input type="text" className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400" />
             </div>
             <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-2.5" style={{ border: "1px solid #E0E0E0" }}>
               <span className="text-sm text-neutral-400">$</span>
@@ -139,8 +139,8 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
         <div>
           <h4 className="mb-3 text-sm font-semibold text-neutral-900">Quantity Available</h4>
           <div className="flex gap-3">
-            <input type="text" placeholder="Minimum" className="flex-1 rounded-lg px-3 py-2.5 text-sm outline-none placeholder:text-neutral-400" style={{ border: "1px solid #E0E0E0" }} />
-            <input type="text" placeholder="Maximum" className="flex-1 rounded-lg px-3 py-2.5 text-sm outline-none placeholder:text-neutral-400" style={{ border: "1px solid #E0E0E0" }} />
+            <input type="text" className="flex-1 rounded-lg px-3 py-2.5 text-sm outline-none placeholder:text-neutral-400" style={{ border: "1px solid #E0E0E0" }} />
+            <input type="text" className="flex-1 rounded-lg px-3 py-2.5 text-sm outline-none placeholder:text-neutral-400" style={{ border: "1px solid #E0E0E0" }} />
           </div>
         </div>
 
@@ -308,7 +308,7 @@ export function AdminListingsPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{ border: "1px solid #F0F0F0" }}>
             <Search className="size-4 text-neutral-400" />
-            <input type="text" placeholder="Search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
           </div>
           <div className="relative">
             <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700" style={{ border: "1px solid #F0F0F0" }}>

@@ -72,7 +72,7 @@ export function ContactPage() {
                     <label className="text-sm font-medium text-neutral-900">Name</label>
                     <input
                       type="text"
-                      placeholder="Input field"
+
                       className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
                       style={{ border: "1px solid #E0E0E0" }}
                     />
@@ -81,7 +81,7 @@ export function ContactPage() {
                     <label className="text-sm font-medium text-neutral-900">Email address</label>
                     <input
                       type="email"
-                      placeholder="Input field"
+
                       className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
                       style={{ border: "1px solid #E0E0E0" }}
                     />
@@ -94,7 +94,7 @@ export function ContactPage() {
                     <label className="text-sm font-medium text-neutral-900">Company</label>
                     <input
                       type="text"
-                      placeholder="Input field"
+
                       className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
                       style={{ border: "1px solid #E0E0E0" }}
                     />
@@ -103,7 +103,7 @@ export function ContactPage() {
                     <label className="text-sm font-medium text-neutral-900">Job title</label>
                     <input
                       type="text"
-                      placeholder="Input field"
+
                       className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
                       style={{ border: "1px solid #E0E0E0" }}
                     />
@@ -115,7 +115,7 @@ export function ContactPage() {
                   <label className="text-sm font-medium text-neutral-900">Subject</label>
                   <input
                     type="text"
-                    placeholder="Input field"
+
                     className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
                     style={{ border: "1px solid #E0E0E0" }}
                   />
@@ -125,7 +125,7 @@ export function ContactPage() {
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium text-neutral-900">Message</label>
                   <textarea
-                    placeholder="Enter your message..."
+
                     rows={5}
                     className="w-full resize-y rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
                     style={{ border: "1px solid #E0E0E0" }}

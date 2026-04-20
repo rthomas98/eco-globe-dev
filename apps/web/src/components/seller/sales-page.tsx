@@ -77,7 +77,7 @@ function CreateQuoteModal({ onClose, onSend }: { onClose: () => void; onSend: ()
             <Select label="Estimated delivery time" id="edt" options={[{value:"",label:"-- Choose --"},{value:"3d",label:"3 days"},{value:"1w",label:"1 week"},{value:"2w",label:"2 weeks"}]} />
           </div>
         </div>
-        <div className="mb-6"><label className="mb-1.5 block text-sm font-medium text-neutral-900">Note to buyer</label><textarea rows={4} placeholder="Enter your message..." className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none" style={{border:"1px solid #E0E0E0"}} /></div>
+        <div className="mb-6"><label className="mb-1.5 block text-sm font-medium text-neutral-900">Note to buyer</label><textarea rows={4} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none" style={{border:"1px solid #E0E0E0"}} /></div>
         <div className="flex justify-end gap-3"><Button variant="secondary" size="md" onClick={onClose}>Cancel</Button><Button variant="primary" size="md" onClick={onSend}>Send Quote</Button></div>
       </div>
     </div>
@@ -231,7 +231,7 @@ export function SellerSalesPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
         <h1 className="text-2xl font-bold text-neutral-900">Sales</h1>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{border:"1px solid #F0F0F0"}}><Search className="size-4 text-neutral-400" /><input type="text" placeholder="Search" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" /></div>
+          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{border:"1px solid #F0F0F0"}}><Search className="size-4 text-neutral-400" /><input type="text" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" /></div>
           <button onClick={()=>setShowFilters(true)} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700" style={{border:"1px solid #F0F0F0"}}><SlidersHorizontal className="size-4" /> Filters</button>
         </div>
       </div>

@@ -98,12 +98,12 @@ function BusinessStep({ data, onChange, onBack, onNext }: {
           <h1 className="mb-2 text-3xl font-bold text-neutral-900">Tell us about your business</h1>
           <p className="mb-8 text-base text-neutral-500">This information helps buyers understand who you are.</p>
           <div className="flex flex-col gap-6">
-            <Input label="Company name" id="company" placeholder="Input field" value={data.company} onChange={(e) => onChange("company", e.target.value)} />
-            <Input label="What industry are you working on?" id="industry" placeholder="Input field" value={data.industry} onChange={(e) => onChange("industry", e.target.value)} />
-            <Input label="Address" id="address" placeholder="Input field" value={data.address} onChange={(e) => onChange("address", e.target.value)} />
+            <Input label="Company name" id="company" value={data.company} onChange={(e) => onChange("company", e.target.value)} />
+            <Input label="What industry are you working on?" id="industry" value={data.industry} onChange={(e) => onChange("industry", e.target.value)} />
+            <Input label="Address" id="address" value={data.address} onChange={(e) => onChange("address", e.target.value)} />
             <div>
               <label className="mb-1.5 block text-sm font-medium text-neutral-900">Website <span className="text-neutral-400">(optional)</span></label>
-              <input type="text" placeholder="Input field" value={data.website} onChange={(e) => onChange("website", e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400" style={{ border: "1px solid #E0E0E0" }} />
+              <input type="text" value={data.website} onChange={(e) => onChange("website", e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400" style={{ border: "1px solid #E0E0E0" }} />
             </div>
           </div>
         </div>
@@ -143,11 +143,11 @@ function ProductStep({ data, onChange, onBack, onNext }: {
           <p className="mb-8 text-base text-neutral-500">You can add detailed product information later.</p>
           <div className="flex flex-col gap-6">
             <Select label="What type of feedstock are you generating?" id="feedstockType" options={feedstockTypes} value={data.feedstockType} onChange={(e) => onChange("feedstockType", e.target.value)} />
-            <Input label="Could you tell us how this feedstock was generated?" id="generation" placeholder="Input field" value={data.generation} onChange={(e) => onChange("generation", e.target.value)} />
+            <Input label="Could you tell us how this feedstock was generated?" id="generation" value={data.generation} onChange={(e) => onChange("generation", e.target.value)} />
             <Select label="Any restrictions?" id="restrictions" options={restrictionOptions} value={data.restrictions} onChange={(e) => onChange("restrictions", e.target.value)} />
-            <Input label="How much feedstock will you generate per year?" id="annualVolume" placeholder="Input field" value={data.annualVolume} onChange={(e) => onChange("annualVolume", e.target.value)} />
-            <Input label="What are the specs of the feedstock" id="specs" placeholder="Input field" value={data.specs} onChange={(e) => onChange("specs", e.target.value)} />
-            <Input label="Something else that we should know?" id="notes" placeholder="Input field" value={data.notes} onChange={(e) => onChange("notes", e.target.value)} />
+            <Input label="How much feedstock will you generate per year?" id="annualVolume" value={data.annualVolume} onChange={(e) => onChange("annualVolume", e.target.value)} />
+            <Input label="What are the specs of the feedstock" id="specs" value={data.specs} onChange={(e) => onChange("specs", e.target.value)} />
+            <Input label="Something else that we should know?" id="notes" value={data.notes} onChange={(e) => onChange("notes", e.target.value)} />
           </div>
         </div>
       </div>

@@ -56,7 +56,7 @@ export function HeroSection() {
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search feedstocks"
+
                     className="bg-transparent text-left text-base text-neutral-900 outline-none placeholder:text-neutral-500"
                   />
                 </div>
@@ -66,7 +66,7 @@ export function HeroSection() {
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="Near me"
+
                     className="bg-transparent text-left text-base text-neutral-900 outline-none placeholder:text-neutral-500"
                   />
                 </div>

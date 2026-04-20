@@ -174,7 +174,7 @@ export function ListingsPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{ border: "1px solid #F0F0F0" }}>
             <Search className="size-4 text-neutral-400" />
-            <input type="text" placeholder="Search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
           </div>
           <div className="flex items-center gap-2 rounded-full px-3 py-2" style={{ border: "1px solid #F0F0F0" }}>
             <button onClick={() => setView(view === "list" ? "card" : "list")} className="flex items-center gap-2 text-sm font-medium text-neutral-700">

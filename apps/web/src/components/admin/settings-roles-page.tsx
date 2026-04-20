@@ -50,7 +50,7 @@ function AddRoleModal({ onSave, onClose }: { onSave: (r: Role) => void; onClose:
           <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900"><X className="size-5" /></button>
         </div>
         <div className="flex flex-col gap-5">
-          <Input label="Role name" id="roleName" placeholder="Input field" value={name} onChange={(e) => setName(e.target.value)} />
+          <Input label="Role name" id="roleName" value={name} onChange={(e) => setName(e.target.value)} />
           <div className="flex items-center justify-between pt-2">
             <label className="flex items-center gap-2 text-sm font-medium text-neutral-900">
               <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="size-4 rounded accent-neutral-900" /> Active
@@ -214,7 +214,7 @@ export function SettingsRolesPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{ border: "1px solid #F0F0F0" }}>
             <Search className="size-4 text-neutral-400" />
-            <input type="text" placeholder="Search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
           </div>
           <button className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700" style={{ border: "1px solid #F0F0F0" }}>
             <SlidersHorizontal className="size-4" /> Filters

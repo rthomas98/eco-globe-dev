@@ -211,7 +211,7 @@ export function ProductDetailPage() {
                 <label className="mb-2 block text-sm font-medium text-neutral-900">Your Address</label>
                 <input
                   type="text"
-                  placeholder="enter address"
+
                   className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
                   style={{ border: "1px solid #E0E0E0" }}
                 />
