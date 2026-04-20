@@ -60,7 +60,7 @@ function UserModal({ user, onSave, onClose }: { user?: SystemUser; onSave: (u: S
     phone: user?.phone ?? "",
     address: user?.address ?? "",
     role: user?.role ?? "",
-    active: user?.status === "Active" ?? true,
+    active: user?.status !== "Inactive",
   });
   const up = (k: string, v: string | boolean) => setForm((p) => ({ ...p, [k]: v }));
   const isValid = form.firstName.trim() && form.lastName.trim() && form.email.trim();

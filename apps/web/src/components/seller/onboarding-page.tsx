@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { X, Plus, Upload } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";
 
 type Step = "welcome" | "business" | "product" | "sustainability" | "success";

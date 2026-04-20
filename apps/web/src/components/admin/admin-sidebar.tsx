@@ -18,7 +18,6 @@ import {
   Bell,
   Info,
   MoreHorizontal,
-  X,
   Home,
   LogOut,
 } from "lucide-react";

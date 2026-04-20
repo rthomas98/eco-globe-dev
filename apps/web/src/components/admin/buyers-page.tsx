@@ -12,7 +12,6 @@ import {
   ChevronDown,
   X,
   DollarSign,
-  Users,
 } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";
 

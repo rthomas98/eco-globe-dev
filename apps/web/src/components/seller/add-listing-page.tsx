@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { X, Plus, Share2, Heart } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";

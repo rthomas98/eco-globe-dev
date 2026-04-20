@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, DollarSign, CheckCircle2, Settings2, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown, FileSpreadsheet, FileText, Printer, Share2, Copy, RefreshCw } from "lucide-react";
+import { Search, DollarSign, CheckCircle2, Settings2, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown, FileSpreadsheet, FileText, Printer, Copy, RefreshCw } from "lucide-react";
 import { LineChart } from "./line-chart";
 import { ExportDropdown } from "./export-dropdown";
 import { DateRangeDropdown } from "./date-range-dropdown";

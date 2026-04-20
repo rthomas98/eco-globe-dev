@@ -5,17 +5,17 @@ import { FileSpreadsheet, FileText, FileDown, Check } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 
 interface ExportDropdownProps {
-  data: Record<string, unknown>[];
+  data: readonly object[];
   filename: string;
   columns: { key: string; label: string }[];
 }
 
-function convertToCSV(data: Record<string, unknown>[], columns: { key: string; label: string }[]): string {
+function convertToCSV(data: readonly object[], columns: { key: string; label: string }[]): string {
   const header = columns.map((c) => c.label).join(",");
   const rows = data.map((row) =>
     columns
       .map((c) => {
-        const val = String(row[c.key] ?? "");
+        const val = String((row as Record<string, unknown>)[c.key] ?? "");
         return val.includes(",") ? `"${val}"` : val;
       })
       .join(",")

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Pencil, X, MoreHorizontal, ChevronDown, ChevronUp } from "lucide-react";
-import { Button, Input, Select } from "@eco-globe/ui";
+import { Trash2, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Button, Input } from "@eco-globe/ui";
 
 /* ═══════════════════════════════════════════
    SHARED HELPERS

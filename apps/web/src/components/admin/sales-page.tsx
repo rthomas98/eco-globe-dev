@@ -192,7 +192,7 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
 }
 
 /* ─── Order Detail Drawer ─── */
-function OrderDetailDrawer({ order, onClose }: { order: Order; onClose: () => void }) {
+function OrderDetailDrawer({ onClose }: { order: Order; onClose: () => void }) {
   const activityLog = [
     { event: "Order placed", date: "Oct 29, 2024 10:10 AM", active: true },
     { event: "Escrow funded", date: "Oct 29, 2024 10:10 AM", active: true },

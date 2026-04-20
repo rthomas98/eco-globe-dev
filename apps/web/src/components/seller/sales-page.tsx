@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Search, SlidersHorizontal, DollarSign, CheckCircle2, Clock, RefreshCw, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown, X, FileText, Download, Info } from "lucide-react";
-import { Button, Input, Select } from "@eco-globe/ui";
+import { Button, Select } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
 
 type Action = "Send quote" | "Mark ready" | "Upload BOL" | "Respond" | "View Detail";
