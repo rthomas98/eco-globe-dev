@@ -20,7 +20,7 @@ export function SellerSidebar({ className }: { className?: string }) {
       {/* Logo */}
       <div className="flex h-16 items-center px-6">
         <Link href="/">
-          <Image src="/logo.svg" alt="EcoGlobe" width={100} height={28} priority />
+          <Image src="/logo.svg" alt="EcoGlobe" width={100} height={28} className="invert" priority />
         </Link>
       </div>
 

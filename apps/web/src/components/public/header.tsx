@@ -114,19 +114,23 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
 
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="md"
-                className={isHero ? "text-white" : "text-neutral-900"}
-              >
-                Login
-              </Button>
-              <Button
-                variant={isHero ? "outline-white" : "secondary"}
-                size="md"
-              >
-                Sign Up
-              </Button>
+              <Link href="/login">
+                <Button
+                  variant="ghost"
+                  size="md"
+                  className={isHero ? "text-white" : "text-neutral-900"}
+                >
+                  Login
+                </Button>
+              </Link>
+              <Link href="/register">
+                <Button
+                  variant={isHero ? "outline-white" : "secondary"}
+                  size="md"
+                >
+                  Sign Up
+                </Button>
+              </Link>
             </div>
             <button
               className="md:hidden flex items-center justify-center"
@@ -159,12 +163,16 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
             ))}
             <div className="h-px w-full bg-neutral-200" />
             <div className="flex flex-col gap-3 pt-2">
-              <Button variant="ghost" size="md" className="text-neutral-900 w-full">
-                Login
-              </Button>
-              <Button variant="secondary" size="md" className="w-full">
-                Sign Up
-              </Button>
+              <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                <Button variant="ghost" size="md" className="text-neutral-900 w-full">
+                  Login
+                </Button>
+              </Link>
+              <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
+                <Button variant="secondary" size="md" className="w-full">
+                  Sign Up
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

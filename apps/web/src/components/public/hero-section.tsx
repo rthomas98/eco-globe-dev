@@ -30,7 +30,7 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative flex h-[500px] sm:h-[600px] lg:h-[768px] w-full items-center justify-center overflow-hidden">
+    <section className="relative flex h-[600px] sm:h-[600px] lg:h-[768px] w-full items-end sm:items-center justify-center overflow-hidden">
       <img
         src="/hero.jpg"
         alt="EcoGlobe industrial facility"
@@ -38,9 +38,9 @@ export function HeroSection() {
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/60 to-black/40" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-[1440px] items-center justify-center px-4 sm:px-8 lg:px-[135px]">
-        <div className="flex max-w-[1030px] w-full flex-col items-center gap-8 lg:gap-16 text-center">
-          <h1 className="text-3xl sm:text-5xl lg:text-[64px] font-bold leading-tight text-white">
+      <div className="relative z-10 mx-auto flex w-full max-w-[1440px] items-center justify-center px-4 pb-6 sm:pb-0 sm:px-8 lg:px-[135px]">
+        <div className="flex max-w-[1030px] w-full flex-col items-center gap-6 sm:gap-8 lg:gap-16 text-center">
+          <h1 className="text-2xl sm:text-5xl lg:text-[64px] font-bold leading-tight text-white">
             Buy verified feedstocks,
             <br />
             locally and transparently.

@@ -141,7 +141,9 @@ export function BrowsePage() {
         <div className="flex items-center gap-4">
           <CartButton />
           <Link href="/login" className="hidden sm:inline text-base font-bold text-neutral-900">Login</Link>
-          <Button variant="secondary" size="md" className="hidden sm:inline-flex">Sign Up</Button>
+          <Link href="/register" className="hidden sm:inline-flex">
+            <Button variant="secondary" size="md">Sign Up</Button>
+          </Link>
         </div>
       </header>
 

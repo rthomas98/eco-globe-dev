@@ -15,16 +15,31 @@ const companyTypes = [
 
 export function RegisterPage() {
   const [role, setRole] = useState<"buyer" | "seller">("buyer");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const isValid =
+    firstName.trim() &&
+    lastName.trim() &&
+    email.trim() &&
+    password.trim() &&
+    confirmPassword.trim();
 
   return (
-    <AuthLayout cardWidth="max-w-[800px]">
-      <div className="flex flex-col gap-10">
+    <AuthLayout cardWidth="max-w-[960px]">
+      <div className="flex flex-col gap-8">
         <h1 className="text-2xl sm:text-[32px] font-bold leading-10 text-neutral-900">
           Create Account
         </h1>
 
         {/* Role toggle */}
-        <div className="flex overflow-hidden rounded-lg" style={{ border: "1px solid #E0E0E0" }}>
+        <div
+          className="flex overflow-hidden rounded-lg"
+          style={{ border: "1px solid #E0E0E0" }}
+        >
           <button
             type="button"
             onClick={() => setRole("buyer")}
@@ -49,36 +64,46 @@ export function RegisterPage() {
           </button>
         </div>
 
-        <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="flex flex-col gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Input
               label="First Name"
               id="firstName"
-              placeholder="First name"
+              placeholder="Input field"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
             />
             <Input
               label="Last Name"
               id="lastName"
-              placeholder="Last name"
+              placeholder="Input field"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
             />
           </div>
           <Input
             label="Work email"
             id="email"
             type="email"
-            placeholder="Enter your work email"
+            placeholder="Input field"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
           <Input
             label="Password"
             id="password"
             type="password"
-            placeholder="Create a password"
+            placeholder="Input field"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
           />
           <Input
             label="Confirm Password"
             id="confirmPassword"
             type="password"
-            placeholder="Confirm your password"
+            placeholder="Input field"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
           />
           <Select
             label="Company Type"
@@ -87,7 +112,13 @@ export function RegisterPage() {
           />
         </div>
 
-        <Button variant="primary" size="lg" className="w-full">
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full"
+          disabled={!isValid}
+          style={!isValid ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
+        >
           Create {role === "buyer" ? "Buyer" : "Seller"} Account
         </Button>
 

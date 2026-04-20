@@ -306,8 +306,12 @@ export function ProductDetailPage() {
             </div>
           </div>
           <div className="flex gap-3">
-            <Button variant="secondary" size="md">Sign up</Button>
-            <Button variant="primary" size="md">Login</Button>
+            <Link href="/register">
+              <Button variant="secondary" size="md">Sign up</Button>
+            </Link>
+            <Link href="/login">
+              <Button variant="primary" size="md">Login</Button>
+            </Link>
           </div>
         </div>
       </div>
