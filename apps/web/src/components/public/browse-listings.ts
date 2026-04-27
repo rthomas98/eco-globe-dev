@@ -362,4 +362,5 @@ export const listings: Listing[] = RAW_LISTINGS.map((l) => ({
   frequency: l.frequency ?? "Monthly",
   availabilityFrom: l.availabilityFrom ?? "01/01/2026",
   availabilityTo: l.availabilityTo ?? "12/31/2026",
+  sdsUrl: l.sdsUrl ?? `/docs/${l.id}-sds.pdf`,
 }));
