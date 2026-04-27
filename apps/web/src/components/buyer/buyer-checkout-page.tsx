@@ -1036,7 +1036,7 @@ export function BuyerCheckoutPage() {
                     <Truck className="size-4 text-neutral-500" />
                     Shipping
                   </div>
-                  <div className="px-5 pt-5">
+                  <div className={`px-5 pt-5 ${shippingType ? "" : "pb-5"}`}>
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
