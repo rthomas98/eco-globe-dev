@@ -1,0 +1,365 @@
+export type Frequency =
+  | "One-time"
+  | "Weekly"
+  | "Monthly"
+  | "Quarterly"
+  | "Yearly";
+
+export type ListingState = "Solid" | "Liquid" | "Gas";
+
+export interface ListingSpec {
+  label: string;
+  value: string;
+}
+
+export interface Listing {
+  id: string;
+  title: string;
+  location: string;
+  distance: string;
+  moq: string;
+  co2: string;
+  price: string;
+  unit: string;
+  image: string;
+  tags: string[];
+  lng: number;
+  lat: number;
+  category: string;
+  grade: "Standard" | "Great";
+  priceNum: number;
+  co2Num: number;
+  qtyNum: number;
+  hasCarbonData: boolean;
+  // New: common-base attributes per product brief.
+  state: ListingState;
+  quality?: string;
+  composition?: string;
+  availabilityFrom?: string;
+  availabilityTo?: string;
+  frequency: Frequency;
+  additionalSpecs?: ListingSpec[];
+  sdsUrl?: string;
+  sellerFacilityId?: string;
+}
+
+type RawListing = Omit<Listing, "state" | "frequency"> &
+  Partial<Pick<Listing, "state" | "frequency">>;
+
+const STATE_OVERRIDES: Record<string, ListingState> = {
+  // Liquids
+  pyrolysis: "Liquid",
+  "bio-ethanol": "Liquid",
+  "used-cooking-oil": "Liquid",
+};
+
+const RAW_LISTINGS: RawListing[] = [
+  {
+    id: "bagasse",
+    title: "Shredded, Refined Sugar Bagasse",
+    location: "Port Allen, LA",
+    distance: "3 mi",
+    moq: "3 tons",
+    co2: "300 kg CO₂e",
+    price: "$48",
+    unit: "/ton",
+    image: "/products/generated/bagasse.png",
+    tags: ["biomass", "certified", "low co2", "industrial by products"],
+    lng: -91.2103,
+    lat: 30.4524,
+    category: "Biomass & Wood",
+    grade: "Standard",
+    priceNum: 48,
+    co2Num: 300,
+    qtyNum: 15,
+    hasCarbonData: true,
+  },
+  {
+    id: "polymer",
+    title: "Scrap Polymer Blend with Impurities",
+    location: "Plaquemine, LA",
+    distance: "3 mi",
+    moq: "3 tons",
+    co2: "300 kg CO₂e",
+    price: "€60",
+    unit: "/ton",
+    image: "/products/generated/polymer.png",
+    tags: ["polymer", "industrial by products", "plastics"],
+    lng: -91.2343,
+    lat: 30.2893,
+    category: "Plastics",
+    grade: "Standard",
+    priceNum: 60,
+    co2Num: 300,
+    qtyNum: 25,
+    hasCarbonData: true,
+  },
+  {
+    id: "pyrolysis",
+    title: "Pyrolysis Pitch",
+    location: "Baker, LA",
+    distance: "2.1 mi",
+    moq: "3 tons",
+    co2: "300 kg CO₂e",
+    price: "$300",
+    unit: "/ton",
+    image: "/products/generated/pyrolysis.png",
+    tags: ["pyrolysis", "certified feedstocks", "low co2 feedstocks"],
+    lng: -91.1681,
+    lat: 30.5883,
+    category: "Oils & Liquid Feedstocks",
+    grade: "Great",
+    priceNum: 300,
+    co2Num: 300,
+    qtyNum: 12,
+    hasCarbonData: true,
+  },
+  {
+    id: "stover-walker",
+    title: "Harvested and Baled Corn Stover",
+    location: "Walker, LA",
+    distance: "2.5 mi",
+    moq: "3 tons",
+    co2: "300 kg CO₂e",
+    price: "$42",
+    unit: "/ton",
+    image: "/products/generated/stover-walker.png",
+    tags: ["biomass", "certified feedstocks", "low co2 feedstocks"],
+    lng: -90.8612,
+    lat: 30.4888,
+    category: "Biomass & Wood",
+    grade: "Standard",
+    priceNum: 42,
+    co2Num: 300,
+    qtyNum: 30,
+    hasCarbonData: true,
+  },
+  {
+    id: "wood-pellets",
+    title: "Biomass Wood Pellets, Grade A",
+    location: "Lafayette, LA",
+    distance: "4.2 mi",
+    moq: "5 tons",
+    co2: "210 kg CO₂e",
+    price: "$120",
+    unit: "/ton",
+    image: "/products/generated/wood-pellets.png",
+    tags: ["biomass", "certified feedstocks", "low co2 feedstocks"],
+    lng: -92.0198,
+    lat: 30.2241,
+    category: "Biomass & Wood",
+    grade: "Great",
+    priceNum: 120,
+    co2Num: 210,
+    qtyNum: 50,
+    hasCarbonData: true,
+  },
+  {
+    id: "rice-husk",
+    title: "Industrial By-Product: Rice Husk",
+    location: "Crowley, LA",
+    distance: "5.8 mi",
+    moq: "10 tons",
+    co2: "180 kg CO₂e",
+    price: "$28",
+    unit: "/ton",
+    image: "/products/generated/rice-husk.png",
+    tags: ["biomass", "industrial by products", "low co2 feedstocks"],
+    lng: -92.3746,
+    lat: 30.2141,
+    category: "Biomass & Wood",
+    grade: "Standard",
+    priceNum: 28,
+    co2Num: 180,
+    qtyNum: 80,
+    hasCarbonData: true,
+  },
+  {
+    id: "wood-chips",
+    title: "Certified Organic Wood Chips",
+    location: "Baton Rouge, LA",
+    distance: "1.8 mi",
+    moq: "2 tons",
+    co2: "150 kg CO₂e",
+    price: "$95",
+    unit: "/ton",
+    image: "/products/generated/wood-chips.png",
+    tags: ["biomass", "certified feedstocks"],
+    lng: -91.1403,
+    lat: 30.4515,
+    category: "Biomass & Wood",
+    grade: "Great",
+    priceNum: 95,
+    co2Num: 150,
+    qtyNum: 20,
+    hasCarbonData: true,
+  },
+  {
+    id: "bio-ethanol",
+    title: "Low-CO₂ Bio-Ethanol Feedstock",
+    location: "New Orleans, LA",
+    distance: "6.4 mi",
+    moq: "8 tons",
+    co2: "95 kg CO₂e",
+    price: "$210",
+    unit: "/ton",
+    image: "/products/generated/bio-ethanol.png",
+    tags: ["low co2 feedstocks", "certified feedstocks", "biomass"],
+    lng: -90.0715,
+    lat: 29.9511,
+    category: "Oils & Liquid Feedstocks",
+    grade: "Great",
+    priceNum: 210,
+    co2Num: 95,
+    qtyNum: 40,
+    hasCarbonData: true,
+  },
+  {
+    id: "tire-crumb",
+    title: "Recycled Tire Crumb Rubber",
+    location: "Slidell, LA",
+    distance: "7.2 mi",
+    moq: "6 tons",
+    co2: "420 kg CO₂e",
+    price: "$180",
+    unit: "/ton",
+    image: "/products/generated/tire-crumb.png",
+    tags: ["rubber", "tire-derived", "industrial by products"],
+    lng: -89.7811,
+    lat: 30.2752,
+    category: "Rubber & Tire-Derived",
+    grade: "Standard",
+    priceNum: 180,
+    co2Num: 420,
+    qtyNum: 35,
+    hasCarbonData: true,
+  },
+  {
+    id: "used-cooking-oil",
+    title: "Refined Used Cooking Oil (UCO)",
+    location: "Houma, LA",
+    distance: "8.5 mi",
+    moq: "4 tons",
+    co2: "540 kg CO₂e",
+    price: "$650",
+    unit: "/ton",
+    image: "/products/generated/used-cooking-oil.png",
+    tags: ["oils", "certified feedstocks"],
+    lng: -90.7195,
+    lat: 29.5958,
+    category: "Oils & Liquid Feedstocks",
+    grade: "Great",
+    priceNum: 650,
+    co2Num: 540,
+    qtyNum: 18,
+    hasCarbonData: true,
+  },
+  {
+    id: "used-dry-transformer",
+    title: "Used Dry Transformer",
+    location: "Gonzales, LA",
+    distance: "5.4 mi",
+    moq: "1 unit",
+    co2: "—",
+    price: "€200",
+    unit: "/unit",
+    image: "/products/generated/used-dry-transformer.png",
+    tags: ["used products", "industrial by products"],
+    lng: -90.9203,
+    lat: 30.2399,
+    category: "Used products",
+    grade: "Standard",
+    priceNum: 200,
+    co2Num: 0,
+    qtyNum: 4,
+    hasCarbonData: false,
+  },
+  {
+    id: "hydrochar",
+    title: "Hydrochar",
+    location: "Sweden Pulp & Paper",
+    distance: "—",
+    moq: "2 tons",
+    co2: "120 kg CO₂e",
+    price: "€75",
+    unit: "/ton",
+    image: "/products/generated/hydrochar.png",
+    tags: ["industrial by products", "certified feedstocks", "low co2 feedstocks"],
+    lng: 18.0686,
+    lat: 59.3293,
+    category: "Industrial Byproducts",
+    grade: "Great",
+    priceNum: 75,
+    co2Num: 120,
+    qtyNum: 22,
+    hasCarbonData: true,
+  },
+  {
+    id: "used-pallets",
+    title: "Used Pallets",
+    location: "Denham Springs, LA",
+    distance: "2.3 mi",
+    moq: "1 tons",
+    co2: "—",
+    price: "$15",
+    unit: "/ton",
+    image: "/products/generated/used-pallets.png",
+    tags: ["used products"],
+    lng: -90.9559,
+    lat: 30.4844,
+    category: "Used products",
+    grade: "Standard",
+    priceNum: 15,
+    co2Num: 0,
+    qtyNum: 60,
+    hasCarbonData: false,
+  },
+  {
+    id: "biochar",
+    title: "Biochar",
+    location: "Zachary, LA",
+    distance: "3.7 mi",
+    moq: "3 tons",
+    co2: "85 kg CO₂e",
+    price: "$300",
+    unit: "/ton",
+    image: "/products/generated/biochar.png",
+    tags: ["biomass", "certified feedstocks", "low co2 feedstocks"],
+    lng: -91.1561,
+    lat: 30.6488,
+    category: "Biomass & Wood",
+    grade: "Great",
+    priceNum: 300,
+    co2Num: 85,
+    qtyNum: 28,
+    hasCarbonData: true,
+  },
+  {
+    id: "white-label",
+    title: "White Label",
+    location: "Lafayette, LA",
+    distance: "4.2 mi",
+    moq: "5 tons",
+    co2: "210 kg CO₂e",
+    price: "$120",
+    unit: "/ton",
+    image: "/products/generated/white-label.png",
+    tags: ["industrial by products", "certified feedstocks"],
+    lng: -92.0198,
+    lat: 30.2241,
+    category: "Industrial Byproducts",
+    grade: "Standard",
+    priceNum: 120,
+    co2Num: 210,
+    qtyNum: 40,
+    hasCarbonData: true,
+  },
+];
+
+export const listings: Listing[] = RAW_LISTINGS.map((l) => ({
+  ...l,
+  state: l.state ?? STATE_OVERRIDES[l.id] ?? "Solid",
+  frequency: l.frequency ?? "Monthly",
+  availabilityFrom: l.availabilityFrom ?? "01/01/2026",
+  availabilityTo: l.availabilityTo ?? "12/31/2026",
+}));

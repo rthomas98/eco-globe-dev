@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Input } from "@eco-globe/ui";
 import { AuthLayout } from "./auth-layout";
+import { buildDemoUser, writeDemoUser, type UserRole } from "@/lib/demo-user";
 
 export function LoginPage() {
   const router = useRouter();
@@ -12,11 +13,29 @@ export function LoginPage() {
 
   const handleLogin = () => {
     const e = email.toLowerCase();
-    const dest = e.includes("seller")
-      ? "/seller/listings"
+    const role: UserRole = e.includes("seller")
+      ? "seller"
       : e.includes("buyer")
-        ? "/browse"
-        : "/admin/dashboard";
+        ? "buyer"
+        : "admin";
+    writeDemoUser(buildDemoUser(role, { email }));
+    const dest =
+      role === "seller"
+        ? "/seller/listings"
+        : role === "buyer"
+          ? "/buyer/browse"
+          : "/admin/dashboard";
+    router.push(dest);
+  };
+
+  const loginAs = (role: UserRole) => {
+    writeDemoUser(buildDemoUser(role));
+    const dest =
+      role === "seller"
+        ? "/seller/listings"
+        : role === "buyer"
+          ? "/buyer/browse"
+          : "/admin/dashboard";
     router.push(dest);
   };
 
@@ -54,11 +73,6 @@ export function LoginPage() {
           >
             Forgot Password?
           </Link>
-          <p className="text-xs text-neutral-500">
-            Demo: any email logs you in. Put <strong>seller</strong> or{" "}
-            <strong>buyer</strong> in the email to go to those portals;
-            otherwise you&apos;ll land on the Admin dashboard.
-          </p>
         </div>
 
         <Button
@@ -73,6 +87,37 @@ export function LoginPage() {
         >
           Login
         </Button>
+
+        <div className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Demo Quick Login
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="secondary"
+              size="md"
+              className="flex-1"
+              onClick={() => loginAs("seller")}
+            >
+              Login as Seller
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              className="flex-1"
+              onClick={() => loginAs("buyer")}
+            >
+              Login as Buyer
+            </Button>
+          </div>
+          <button
+            type="button"
+            onClick={() => loginAs("admin")}
+            className="text-left text-xs text-neutral-500 underline hover:text-neutral-900"
+          >
+            Or login as Admin
+          </button>
+        </div>
 
         <p className="text-base text-neutral-900">
           Don&apos;t have an account?{" "}

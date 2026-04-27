@@ -10,26 +10,26 @@ interface NotifItem { label: string; email: boolean; mobile: boolean; inApp: boo
 interface Category { title: string; description: string; items: NotifItem[]; }
 
 const defaultCategories: Category[] = [
-  { title: "Category 1 here", description: "You will receive important informations orem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod", items: [
-    { label: "Example detail notification here", email: true, mobile: false, inApp: true },
-    { label: "Example detail notification here", email: true, mobile: true, inApp: false },
-    { label: "Example detail notification lorem ipsum dolor sit amet", email: false, mobile: true, inApp: false },
-    { label: "Lorem ipsum detail notification here", email: true, mobile: true, inApp: true },
-    { label: "Example detail notification here", email: true, mobile: false, inApp: false },
+  { title: "Marketplace activity", description: "Listing approvals, new sellers, dispute escalations, and other activity that needs admin eyes.", items: [
+    { label: "New listing pending approval", email: true, mobile: false, inApp: true },
+    { label: "Listing flagged by a buyer", email: true, mobile: true, inApp: false },
+    { label: "Seller verification documents uploaded", email: false, mobile: true, inApp: false },
+    { label: "SDS missing on an active listing", email: true, mobile: true, inApp: true },
+    { label: "Listing edits submitted for review", email: true, mobile: false, inApp: false },
   ]},
-  { title: "Category 2 here", description: "You will receive important informations orem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod", items: [
-    { label: "Example detail notification here", email: true, mobile: false, inApp: true },
-    { label: "Example detail notification here", email: true, mobile: true, inApp: false },
-    { label: "Example detail notification lorem ipsum dolor sit amet", email: false, mobile: true, inApp: false },
-    { label: "Lorem ipsum detail notification here", email: true, mobile: true, inApp: true },
-    { label: "Example detail notification here", email: true, mobile: false, inApp: false },
+  { title: "Payments & escrow", description: "Escrow events, refunds, and payouts that touch the marketplace ledger.", items: [
+    { label: "Escrow funded", email: true, mobile: false, inApp: true },
+    { label: "Escrow released to seller", email: true, mobile: true, inApp: false },
+    { label: "Refund issued", email: false, mobile: true, inApp: false },
+    { label: "Dispute opened on a transaction", email: true, mobile: true, inApp: true },
+    { label: "Payout failed or returned", email: true, mobile: false, inApp: false },
   ]},
-  { title: "Category 3 here", description: "You will receive important informations orem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod", items: [
-    { label: "Example detail notification here", email: true, mobile: false, inApp: true },
-    { label: "Example detail notification here", email: true, mobile: true, inApp: false },
-    { label: "Example detail notification lorem ipsum dolor sit amet", email: false, mobile: true, inApp: false },
-    { label: "Lorem ipsum detail notification here", email: true, mobile: true, inApp: true },
-    { label: "Example detail notification here", email: true, mobile: false, inApp: false },
+  { title: "Compliance & support", description: "Support tickets, compliance checks, and other items that need a human in the loop.", items: [
+    { label: "New support ticket from a buyer", email: true, mobile: false, inApp: true },
+    { label: "New support ticket from a seller", email: true, mobile: true, inApp: false },
+    { label: "Compliance check failed", email: false, mobile: true, inApp: false },
+    { label: "Account flagged for review", email: true, mobile: true, inApp: true },
+    { label: "Weekly compliance digest", email: true, mobile: false, inApp: false },
   ]},
 ];
 

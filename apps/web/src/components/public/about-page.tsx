@@ -12,10 +12,10 @@ export function AboutPage() {
         <div className="mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
           <div className="flex flex-col lg:flex-row items-start gap-8 lg:gap-16">
             <h1 className="max-w-[400px] text-2xl sm:text-4xl lg:text-5xl font-bold leading-tight text-neutral-900">
-              Building a More Transparent Global Supply Chain
+              Where Industrial Waste Becomes a Valued Resource
             </h1>
             <p className="max-w-[450px] pt-4 text-base leading-7 text-neutral-700">
-              Transparency is even more complicated at the end of life of the feedstocks than general trade. Waste management is a business that lacks of transparency regarless of the location.
+              Waste-streams or wasted industrial byproducts are undervalued, sent to the waste manager for expensive disposing costs. EcoGlobe changes that — turning what your operation discards into a measurable revenue stream, through a verified marketplace built for the circular economy.
             </p>
           </div>
         </div>
@@ -40,22 +40,60 @@ export function AboutPage() {
                 EcoGlobe delivers secure, scalable feedstock solutions tailored to industrial demands.
               </p>
               <p className="text-base leading-7 text-neutral-700">
-                We connect ecosystems to convert byproducts into valuable resources, reducing costs and emissions while enabling new business models and partnerships.
+                We connect ecosystems to convert byproducts into valuable resources, reducing costs and emissions while creating new revenue opportunities for businesses on both sides of the trade.
               </p>
 
               {/* Quote */}
               <div className="mt-4 flex gap-4" style={{ borderLeft: "3px solid #96794A", paddingLeft: "24px" }}>
                 <div>
                   <p className="text-base italic leading-7 text-neutral-900">
-                    &ldquo;We are committed to transparency, sustainability verification, and responsible sourcing — ensuring ethical trade practices and long-term value for businesses worldwide.&rdquo;
+                    &ldquo;We built EcoGlobe because wasted industrial byproducts deserve a real market. Our goal is simple: help suppliers generate revenue from what they discard, and give buyers verified sources they can build their operations around.&rdquo;
                   </p>
                   <p className="mt-4">
-                    <span className="text-sm font-bold text-neutral-900">John Doe</span>
-                    <span className="ml-2 text-sm text-neutral-500">Founder & CEO</span>
+                    <span className="text-sm font-bold text-neutral-900">Ana Sanz and Bea Roberts</span>
+                    <span className="ml-2 text-sm text-neutral-500">EcoGlobe&rsquo;s Co-Founders</span>
                   </p>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Team */}
+      <section className="bg-neutral-100 py-12 lg:py-[100px]">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
+          <div className="mb-10 flex flex-col gap-3">
+            <p className="text-sm font-medium uppercase tracking-wider" style={{ color: "#96794A" }}>
+              Meet the team
+            </p>
+            <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">
+              The people behind EcoGlobe
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            {[
+              { initial: "A", name: "Ana Sanz", title: "Co-Founder" },
+              { initial: "B", name: "Bea Roberts", title: "Co-Founder" },
+            ].map((member) => (
+              <div
+                key={member.name}
+                className="flex items-center gap-6 rounded-2xl bg-white p-8"
+                style={{ border: "1px solid #E0E0E0" }}
+              >
+                <div
+                  className="flex size-20 shrink-0 items-center justify-center rounded-full text-2xl font-bold text-neutral-700"
+                  style={{ backgroundColor: "#F5F5F5" }}
+                >
+                  {member.initial}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-neutral-900">{member.name}</h3>
+                  <p className="text-sm text-neutral-500">{member.title}</p>
+                  <p className="mt-2 text-sm text-neutral-700">Bio coming soon.</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

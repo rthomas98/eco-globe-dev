@@ -6,15 +6,15 @@ const steps = [
   },
   {
     number: 2,
-    title: "Compare compatible options",
+    title: "Match with compatible feedstocks",
     description:
-      "See distance, delivery time, and carbon impact instantly.",
+      "Our matching engine surfaces the feedstocks that fit your process — with distance, delivery time, and carbon impact shown side by side.",
   },
   {
     number: 3,
     title: "Execute with confidence",
     description:
-      "Logistics, tracking, and documentation are handled in one place.",
+      "Logistics, tracking, and reporting are handled in one place.",
   },
 ];
 
@@ -23,7 +23,7 @@ export function HowItWorksSection() {
     <section className="relative overflow-hidden pb-16 lg:pb-[220px] py-16 lg:pt-[120px]">
       {/* Background facility image - positioned bottom-right */}
       <img
-        src="/images/facility.png"
+        src="/images/home-how-it-works-facility.png"
         alt=""
         className="pointer-events-none absolute bottom-0 right-0 w-[70%] object-cover object-right-bottom hidden md:block"
       />

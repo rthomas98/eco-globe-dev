@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Bell, User, Menu, X } from "lucide-react";
+import { Search, User, Menu, X } from "lucide-react";
 import { SellerSidebar } from "./seller-sidebar";
 
 export function SellerLayout({
@@ -52,9 +52,6 @@ export function SellerLayout({
           <div className="flex items-center gap-4">
             <button className="text-neutral-500 hover:text-neutral-900">
               <Search className="size-5" />
-            </button>
-            <button className="text-neutral-500 hover:text-neutral-900">
-              <Bell className="size-5" />
             </button>
             <div className="flex size-8 items-center justify-center rounded-full bg-neutral-200">
               <User className="size-4 text-neutral-600" />

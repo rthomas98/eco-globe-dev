@@ -2,9 +2,13 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { X, Plus, Share2, Heart } from "lucide-react";
+import { X, Plus, Share2, Heart, FileText, Trash2 } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";
 import { ListingMap } from "../public/listing-map";
+import { useDemoUser } from "@/lib/demo-user";
+import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
+import { addCustomListing } from "@/lib/custom-listings";
+import type { Listing } from "@/components/public/browse-listings";
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 const TOTAL = 7;
@@ -72,6 +76,8 @@ function FileUpload({ images, onChange }: { images: string[]; onChange: (imgs: s
 
 export function AddListingPage() {
   const router = useRouter();
+  const user = useDemoUser();
+  const facilities = user?.facilities ?? [];
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState({
     name: "", category: "", images: [] as string[],
@@ -80,11 +86,80 @@ export function AddListingPage() {
     description: "",
     claims: [] as string[], certFiles: [] as File[], sustainNotes: "",
     sameAsCompany: false, originLocation: "",
+    // New common-base fields
+    quality: "",
+    composition: "",
+    frequency: "Monthly",
+    state: "Solid",
+    availabilityFrom: "",
+    availabilityTo: "",
+    additionalSpecs: [] as { label: string; value: string }[],
+    sdsFile: null as File | null,
+    sdsName: "",
+    facilityId: facilities[0]?.id ?? "",
   });
   const up = (k: string, v: unknown) => setForm((p) => ({ ...p, [k]: v }));
   const toggleClaim = (c: string) => up("claims", form.claims.includes(c) ? form.claims.filter((x) => x !== c) : [...form.claims, c]);
+  const addSpecRow = () =>
+    up("additionalSpecs", [...form.additionalSpecs, { label: "", value: "" }]);
+  const updateSpecRow = (i: number, key: "label" | "value", v: string) => {
+    const next = form.additionalSpecs.map((s, idx) =>
+      idx === i ? { ...s, [key]: v } : s,
+    );
+    up("additionalSpecs", next);
+  };
+  const removeSpecRow = (i: number) =>
+    up(
+      "additionalSpecs",
+      form.additionalSpecs.filter((_, idx) => idx !== i),
+    );
+  const handleSdsUpload = (file: File | null) => {
+    up("sdsFile", file);
+    up("sdsName", file?.name || "");
+  };
 
   const handleSaveDraft = () => router.push("/seller/listings");
+
+  const persistListing = () => {
+    const facility = facilities.find((f) => f.id === form.facilityId);
+    const qtyNum = parseFloat(form.qty || "0") || 1;
+    const priceNum = parseFloat(form.price || "0") || 0;
+    const id = `custom-${Date.now()}`;
+    const newListing: Listing = {
+      id,
+      title: form.name || "Untitled feedstock",
+      location: facility?.label
+        ? `${facility.label} — ${facility.address.split(",")[0] || ""}`.trim()
+        : form.originLocation || "Unknown location",
+      distance: "—",
+      moq: form.moq ? `${form.moq} ${form.unit === "lb" ? "lb" : "tons"}` : "1 ton",
+      co2: "— kg CO₂e",
+      price: form.price ? `$${form.price}` : "$0",
+      unit: form.unit === "lb" ? "/lb" : "/ton",
+      image: form.images[0] || "/products/wood-chips.png",
+      tags: [form.category || "feedstock"],
+      lng: facility?.lng ?? -91.1403,
+      lat: facility?.lat ?? 30.4515,
+      category: form.category || "Industrial Byproducts",
+      grade: "Standard",
+      priceNum,
+      co2Num: 0,
+      qtyNum,
+      hasCarbonData: false,
+      state: form.state as Listing["state"],
+      quality: form.quality || undefined,
+      composition: form.composition || form.material || undefined,
+      availabilityFrom: form.availabilityFrom || undefined,
+      availabilityTo: form.availabilityTo || undefined,
+      frequency: form.frequency as Listing["frequency"],
+      additionalSpecs:
+        form.additionalSpecs.length > 0 ? form.additionalSpecs : undefined,
+      sdsUrl: form.sdsName ? `#sds-${id}` : undefined,
+      sellerFacilityId: form.facilityId || undefined,
+    };
+    addCustomListing(newListing);
+    router.push("/seller/listings");
+  };
 
   const cats = [{ value: "", label: "-- Choose --" }, { value: "polymer", label: "Polymer" }, { value: "refinery", label: "Refinery" }, { value: "waste", label: "Waste" }, { value: "plactic", label: "Plactic" }];
   const types = [{ value: "", label: "-- Choose --" }, { value: "dried", label: "Dried" }, { value: "wet", label: "Wet" }, { value: "processed", label: "Processed" }];
@@ -108,16 +183,135 @@ export function AddListingPage() {
         <StepLayout step={2} onBack={() => setStep(1)} onNext={() => setStep(3)} onSave={handleSaveDraft}>
           <h1 className="mb-8 text-3xl font-bold text-neutral-900">Specifications</h1>
           <div className="flex flex-col gap-5">
-            <Input label="Material composition" id="mat" value={form.material} onChange={(e) => up("material", e.target.value)} />
-            <Select label="Listing type" id="lt" options={types} value={form.listingType} onChange={(e) => up("listingType", e.target.value)} />
-            <Select label="Grade / purity" id="gr" options={grades} value={form.grade} onChange={(e) => up("grade", e.target.value)} />
-            <Input label="Color" id="color" value={form.color} onChange={(e) => up("color", e.target.value)} />
-            <Input label="Shelf Life" id="sl" value={form.shelfLife} onChange={(e) => up("shelfLife", e.target.value)} />
-            <Input label="Storage & handling" id="sh" value={form.storage} onChange={(e) => up("storage", e.target.value)} />
-            <Input label="Package" id="pkg" value={form.pkg} onChange={(e) => up("pkg", e.target.value)} />
-            <Input label="Weight" id="wt" value={form.weight} onChange={(e) => up("weight", e.target.value)} />
-            <Input label="Usage" id="usg" value={form.usage} onChange={(e) => up("usage", e.target.value)} />
-            <Input label="Place of Origin" id="poo" value={form.origin} onChange={(e) => up("origin", e.target.value)} />
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-neutral-900">Quality</label>
+              <textarea
+                rows={3}
+                value={form.quality}
+                onChange={(e) => up("quality", e.target.value)}
+                placeholder="Describe purity, grade, or quality benchmarks"
+                className="w-full resize-none rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
+                style={{ border: "1px solid #E0E0E0" }}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-neutral-900">Composition</label>
+              <textarea
+                rows={3}
+                value={form.composition}
+                onChange={(e) => up("composition", e.target.value)}
+                placeholder="Material composition (e.g., C 60%, H 5%, O 20%)"
+                className="w-full resize-none rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
+                style={{ border: "1px solid #E0E0E0" }}
+              />
+            </div>
+            <Select
+              label="Feedstock state"
+              id="state"
+              options={[
+                { value: "Solid", label: "Solid" },
+                { value: "Liquid", label: "Liquid" },
+                { value: "Gas", label: "Gas" },
+              ]}
+              value={form.state}
+              onChange={(e) => up("state", e.target.value)}
+            />
+            <Select
+              label="Frequency"
+              id="freq"
+              options={[
+                { value: "One-time", label: "One-time" },
+                { value: "Weekly", label: "Weekly" },
+                { value: "Monthly", label: "Monthly" },
+                { value: "Quarterly", label: "Quarterly" },
+                { value: "Yearly", label: "Yearly" },
+              ]}
+              value={form.frequency}
+              onChange={(e) => up("frequency", e.target.value)}
+            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-neutral-900">Available from</label>
+                <input
+                  type="date"
+                  value={form.availabilityFrom}
+                  onChange={(e) => up("availabilityFrom", e.target.value)}
+                  className="w-full rounded-lg px-4 py-3 text-sm outline-none"
+                  style={{ border: "1px solid #E0E0E0" }}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-neutral-900">Available to</label>
+                <input
+                  type="date"
+                  value={form.availabilityTo}
+                  onChange={(e) => up("availabilityTo", e.target.value)}
+                  className="w-full rounded-lg px-4 py-3 text-sm outline-none"
+                  style={{ border: "1px solid #E0E0E0" }}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-neutral-900">Additional specs</label>
+              <p className="mb-3 text-xs text-neutral-500">
+                Add anything specific to this feedstock — sulfur %, moisture %, pellet dimension, etc.
+              </p>
+              <div className="flex flex-col gap-2">
+                {form.additionalSpecs.map((spec, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Label"
+                      value={spec.label}
+                      onChange={(e) => updateSpecRow(i, "label", e.target.value)}
+                      className="flex-1 rounded-lg px-3 py-2 text-sm outline-none placeholder:text-neutral-400"
+                      style={{ border: "1px solid #E0E0E0" }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Value"
+                      value={spec.value}
+                      onChange={(e) => updateSpecRow(i, "value", e.target.value)}
+                      className="flex-1 rounded-lg px-3 py-2 text-sm outline-none placeholder:text-neutral-400"
+                      style={{ border: "1px solid #E0E0E0" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeSpecRow(i)}
+                      aria-label="Remove spec"
+                      className="flex size-9 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addSpecRow}
+                  className="flex items-center gap-2 self-start text-sm font-semibold text-neutral-900 hover:underline"
+                >
+                  <Plus className="size-4" />
+                  Add spec
+                </button>
+              </div>
+            </div>
+            <details className="rounded-lg bg-neutral-50 p-4">
+              <summary className="cursor-pointer text-sm font-medium text-neutral-700">
+                Optional legacy fields (Listing type, Grade, Color, Shelf life, Storage, Package, Weight, Usage)
+              </summary>
+              <div className="mt-4 flex flex-col gap-4">
+                <Input label="Material composition (legacy)" id="mat" value={form.material} onChange={(e) => up("material", e.target.value)} />
+                <Select label="Listing type" id="lt" options={types} value={form.listingType} onChange={(e) => up("listingType", e.target.value)} />
+                <Select label="Grade / purity" id="gr" options={grades} value={form.grade} onChange={(e) => up("grade", e.target.value)} />
+                <Input label="Color" id="color" value={form.color} onChange={(e) => up("color", e.target.value)} />
+                <Input label="Shelf Life" id="sl" value={form.shelfLife} onChange={(e) => up("shelfLife", e.target.value)} />
+                <Input label="Storage & handling" id="sh" value={form.storage} onChange={(e) => up("storage", e.target.value)} />
+                <Input label="Package" id="pkg" value={form.pkg} onChange={(e) => up("pkg", e.target.value)} />
+                <Input label="Weight" id="wt" value={form.weight} onChange={(e) => up("weight", e.target.value)} />
+                <Input label="Usage" id="usg" value={form.usage} onChange={(e) => up("usage", e.target.value)} />
+                <Input label="Place of Origin (legacy)" id="poo" value={form.origin} onChange={(e) => up("origin", e.target.value)} />
+              </div>
+            </details>
           </div>
         </StepLayout>
       )}
@@ -180,18 +374,105 @@ export function AddListingPage() {
               <label className="mb-1.5 block text-sm font-medium text-neutral-900">Sustainability Notes (Optional)</label>
               <textarea rows={4} value={form.sustainNotes} onChange={(e) => up("sustainNotes", e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none" style={{ border: "1px solid #E0E0E0" }} />
             </div>
+            <div className="rounded-xl bg-amber-50 p-4" style={{ border: "1px solid #FDE68A" }}>
+              <p className="mb-1 flex items-center gap-2 text-sm font-bold text-neutral-900">
+                <FileText className="size-4" />
+                Safety Data Sheet (SDS) — required to transact
+              </p>
+              <p className="mb-3 text-xs text-neutral-700">
+                Buyers cannot purchase this feedstock until an SDS PDF is uploaded. EU REACH or equivalent local format.
+              </p>
+              {form.sdsName ? (
+                <div className="flex items-center gap-3 rounded-lg bg-white px-3 py-2" style={{ border: "1px solid #E0E0E0" }}>
+                  <FileText className="size-4 text-neutral-500" />
+                  <span className="flex-1 text-sm text-neutral-900">{form.sdsName}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSdsUpload(null)}
+                    aria-label="Remove SDS"
+                    className="text-neutral-500 hover:text-red-600"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-white py-3 text-sm font-medium text-neutral-900" style={{ border: "1px dashed #D0D0D0" }}>
+                  <Plus className="size-4" />
+                  Upload SDS (PDF)
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={(e) => handleSdsUpload(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              )}
+            </div>
           </div>
         </StepLayout>
       )}
 
       {step === 6 && (
         <StepLayout step={6} onBack={() => setStep(5)} onNext={() => setStep(7)} onSave={handleSaveDraft}>
-          <h1 className="mb-8 text-3xl font-bold text-neutral-900">Origin</h1>
+          <h1 className="mb-2 text-3xl font-bold text-neutral-900">Origin</h1>
+          <p className="mb-6 text-sm text-neutral-600">
+            Pick the facility this listing ships from. Each profile can have multiple sites — for example, Shell Norco and Shell Deer Park.
+          </p>
           <div className="flex flex-col gap-5">
-            <label className="flex items-center gap-2 text-sm text-neutral-700">
-              <input type="checkbox" checked={form.sameAsCompany} onChange={(e) => up("sameAsCompany", e.target.checked)} className="size-4 rounded accent-neutral-900" /> Same as company location
-            </label>
-            <Input label="Origin location" id="ol" value={form.originLocation} onChange={(e) => up("originLocation", e.target.value)} />
+            {facilities.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {facilities.map((f) => (
+                  <label
+                    key={f.id}
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl p-4 ${
+                      form.facilityId === f.id
+                        ? "border-neutral-900 bg-neutral-50"
+                        : "border-neutral-200 bg-white"
+                    }`}
+                    style={{
+                      border:
+                        form.facilityId === f.id
+                          ? "2px solid #090909"
+                          : "1px solid #E0E0E0",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="facility"
+                      checked={form.facilityId === f.id}
+                      onChange={() => up("facilityId", f.id)}
+                      className="mt-1 size-4 accent-neutral-900"
+                    />
+                    <div>
+                      <p className="text-sm font-bold text-neutral-900">{f.label}</p>
+                      <p className="text-xs text-neutral-500">{f.address}</p>
+                    </div>
+                  </label>
+                ))}
+                <label className="flex cursor-pointer items-center gap-2 self-start text-sm font-semibold text-neutral-900 hover:underline">
+                  <input
+                    type="radio"
+                    name="facility"
+                    checked={!form.facilityId}
+                    onChange={() => up("facilityId", "")}
+                    className="size-4 accent-neutral-900"
+                  />
+                  + Use a different address
+                </label>
+              </div>
+            ) : (
+              <p className="rounded-lg bg-neutral-50 p-3 text-sm text-neutral-700">
+                No facilities yet. Add one in your profile or enter an address below.
+              </p>
+            )}
+            {!form.facilityId && (
+              <Input
+                label="Origin location"
+                id="ol"
+                value={form.originLocation}
+                onChange={(e) => up("originLocation", e.target.value)}
+              />
+            )}
             <div className="h-[300px] overflow-hidden rounded-xl"><ListingMap /></div>
           </div>
         </StepLayout>
@@ -247,7 +528,7 @@ export function AddListingPage() {
                 </div>
 
                 <h2 className="mb-3 mt-8 text-lg font-bold text-neutral-900">Overview</h2>
-                <p className="text-sm leading-relaxed text-neutral-700">{form.description || "For a limited time only pick up a Caracal Car816 A2 piston rifle with 500 rounds of Federal soft point ammo! Just add the firearm to cart and the ammo case will automatically be applied to cart with discount!"}</p>
+                <p className="text-sm leading-relaxed text-neutral-700">{form.description || "Verified industrial feedstock with documented composition, certified origin, and full chain-of-custody from facility to delivery. Buyers receive an SDS, an availability window, and the option to run a transportation footprint estimate before committing."}</p>
                 <button className="mt-2 text-sm font-bold text-neutral-900 underline">Read More</button>
 
                 <h2 className="mb-3 mt-8 text-lg font-bold text-neutral-900">Seller</h2>
@@ -258,16 +539,15 @@ export function AddListingPage() {
                 <div className="h-[250px] overflow-hidden rounded-xl"><ListingMap /></div>
 
                 <h2 className="mb-3 mt-8 text-lg font-bold text-neutral-900">Carbon Analytics Tool</h2>
-                <div className="rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
-                  <div className="flex flex-col gap-4">
-                    <Input label="Your Address" id="addr" />
-                    <Select label="Transport Type" id="tt" options={[{ value: "", label: "-- Choose --" }, { value: "truck", label: "Truck" }, { value: "rail", label: "Rail" }, { value: "ship", label: "Ship" }]} />
-                    <Button variant="primary" size="md">Calculate</Button>
+                <div className="rounded-xl p-6" style={{ border: "1px solid #F0F0F0" }}>
+                  <p className="text-sm text-neutral-700">
+                    Buyers can run a full transportation-emissions estimate
+                    against this listing — distance, weight, transport mode,
+                    business-as-usual comparison, and recurrence.
+                  </p>
+                  <div className="mt-4">
+                    <CarbonCalculatorButton variant="primary" label="Open Carbon Calculator" />
                   </div>
-                </div>
-                <div className="mt-4 flex items-center justify-between rounded-xl bg-neutral-50 px-5 py-3">
-                  <span className="text-sm text-neutral-500">Was this tool helpful, give us your feedback here</span>
-                  <div className="flex gap-2"><button className="text-neutral-400">👍</button><button className="text-neutral-400">👎</button></div>
                 </div>
               </div>
             </div>
@@ -276,7 +556,7 @@ export function AddListingPage() {
             <div className="h-1 w-full bg-neutral-100"><div className="h-full bg-green-500" style={{ width: "100%" }} /></div>
             <div className="flex items-center justify-between px-6 py-4">
               <Button variant="secondary" size="md" onClick={() => setStep(6)}>Back</Button>
-              <Button variant="primary" size="md" onClick={() => router.push("/seller/listings")} className="min-w-[160px]">Add Listing</Button>
+              <Button variant="primary" size="md" onClick={persistListing} className="min-w-[160px]">Add Listing</Button>
               <div />
             </div>
           </div>

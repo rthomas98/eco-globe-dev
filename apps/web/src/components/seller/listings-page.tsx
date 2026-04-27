@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, LayoutGrid, List, SlidersHorizontal, Info, ChevronRight, MoreHorizontal, X, ChevronDown } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
 import { ListingMap } from "../public/listing-map";
+import { useCustomListings } from "@/lib/custom-listings";
 
 type ListingStatus = "Draft" | "Pending" | "Approved";
 type Sustainability = "Verified" | "Partial";
@@ -91,7 +92,7 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
               <section>
                 <h3 className="mb-4 text-lg font-semibold text-neutral-900">Description</h3>
                 <div className="rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
-                  <p className="text-sm leading-relaxed text-neutral-700">For a limited time only pick up a Caracal Car816 A2 piston rifle with 500 rounds of Federal soft point ammo! Just add the firearm to cart and the ammo case will automatically be applied to cart with discount!</p>
+                  <p className="text-sm leading-relaxed text-neutral-700">Verified industrial feedstock with documented composition, certified origin, and full chain-of-custody from facility to delivery. Buyers receive an SDS, an availability window, and the option to run a transportation footprint estimate before committing.</p>
                   <button className="mt-2 text-sm font-bold text-neutral-900 underline">Read More</button>
                 </div>
               </section>
@@ -163,9 +164,28 @@ export function ListingsPage() {
   const [view, setView] = useState<"list" | "card">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const customListings = useCustomListings();
 
-  const filtered = listings.filter((l) => !searchQuery.trim() || l.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  const pendingCount = listings.filter((l) => l.status === "Pending").length;
+  const merged = useMemo<Listing[]>(
+    () => [
+      ...customListings.map<Listing>((c) => ({
+        name: c.title,
+        id: `EG-${c.id.slice(-5).toUpperCase()}`,
+        category: c.category,
+        available: c.qtyNum,
+        price: `${c.price}${c.unit}`,
+        sustainability: "Verified",
+        status: "Pending",
+        location: c.location,
+        image: c.image,
+      })),
+      ...listings,
+    ],
+    [customListings],
+  );
+
+  const filtered = merged.filter((l) => !searchQuery.trim() || l.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const pendingCount = merged.filter((l) => l.status === "Pending").length;
 
   return (
     <SellerLayout title="Listings">

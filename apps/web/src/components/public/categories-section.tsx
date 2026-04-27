@@ -1,19 +1,19 @@
 const categories = [
   {
-    title: "Biomass and Agricultural byproducts",
-    image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80",
-  },
-  {
     title: "Industrial Byproducts",
-    image: "https://images.unsplash.com/photo-1513828583688-c52646db42da?w=800&q=80",
+    image: "/images/category-industrial-byproducts.png",
   },
   {
-    title: "Packaging, Used Plastics, Construction, metals, used goods",
-    image: "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&q=80",
+    title: "Low CO₂ feedstocks",
+    image: "/images/category-low-co2-feedstocks.png",
   },
   {
-    title: "Recovered and Upgraded Materials",
-    image: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=800&q=80",
+    title: "Certified Feedstocks",
+    image: "/images/category-certified-feedstocks.png",
+  },
+  {
+    title: "Used products",
+    image: "/images/category-used-products.png",
   },
 ];
 

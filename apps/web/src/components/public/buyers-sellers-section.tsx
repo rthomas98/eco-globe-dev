@@ -11,9 +11,7 @@ export function BuyersSellersSection() {
               <div className="flex flex-col gap-4">
                 <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-heading">For Buyers</h2>
                 <p className="max-w-[470px] text-base lg:text-lg leading-7 text-neutral-800">
-                  Find the exact feedstocks you need from local suppliers you can
-                  trust. EcoGlobe provides transparent sourcing and reliable
-                  delivery.
+                  EcoGlobe enables cheaper and more sustainable feedstock in a reliable way.
                 </p>
               </div>
               <Button variant="secondary" size="md" className="w-fit">
@@ -22,8 +20,8 @@ export function BuyersSellersSection() {
             </div>
             <div className="h-[220px] sm:h-[280px] lg:h-[320px] overflow-hidden rounded-2xl">
               <img
-                src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800&q=80"
-                alt="Business professionals shaking hands"
+                src="/images/home-buyers.png"
+                alt="Buyer-side feedstock sourcing review"
                 className="h-full w-full object-cover"
               />
             </div>
@@ -46,8 +44,8 @@ export function BuyersSellersSection() {
             </div>
             <div className="h-[220px] sm:h-[280px] lg:h-[320px] overflow-hidden rounded-2xl">
               <img
-                src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=800&q=80"
-                alt="Agricultural grain silos"
+                src="/images/home-sellers.png"
+                alt="Seller-side industrial materials yard"
                 className="h-full w-full object-cover"
               />
             </div>

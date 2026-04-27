@@ -24,9 +24,14 @@ function OnboardingLayout({ step, currentStep, children, onBack, onNext, onSkip,
         <Link href="/">
           <Image src="/logo.svg" alt="EcoGlobe" width={110} height={32} className="invert" priority />
         </Link>
-        {step !== "welcome" && (
-          <Link href="/" className="flex size-10 items-center justify-center rounded-full hover:bg-neutral-100">
-            <X className="size-5 text-neutral-500" />
+        {step !== "success" && (
+          <Link
+            href="/register"
+            aria-label="Cancel and return to register"
+            title="Cancel"
+            className="flex size-10 items-center justify-center rounded-full bg-neutral-100 hover:bg-neutral-200"
+          >
+            <X className="size-5 text-neutral-700" />
           </Link>
         )}
       </header>
