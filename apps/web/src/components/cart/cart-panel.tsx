@@ -1,6 +1,7 @@
 "use client";
 
 import { X, Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@eco-globe/ui";
 import { useCart } from "./cart-context";
 import Link from "next/link";
@@ -28,8 +29,14 @@ export function CartButton() {
 
 export function CartPanel() {
   const { items, removeItem, updateQuantity, subtotal, isOpen, setIsOpen } = useCart();
+  const router = useRouter();
   const shipping = items.length > 0 ? 50 : 0;
   const total = subtotal + shipping;
+
+  const handleCheckout = () => {
+    setIsOpen(false);
+    router.push("/buyer/checkout");
+  };
 
   if (!isOpen) return null;
 
@@ -134,7 +141,7 @@ export function CartPanel() {
                 <span className="text-neutral-900">${total.toFixed(2)}</span>
               </div>
             </div>
-            <Button variant="primary" size="lg" className="w-full">
+            <Button variant="primary" size="lg" className="w-full" onClick={handleCheckout}>
               Proceed to Checkout
             </Button>
             <button

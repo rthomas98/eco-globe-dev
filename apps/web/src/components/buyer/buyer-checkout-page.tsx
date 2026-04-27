@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useCart } from "@/components/cart/cart-context";
 import {
   Shield,
   Package,
@@ -61,7 +62,7 @@ interface BillingAddress {
   zip: string;
 }
 
-const product = {
+const fallbackProduct = {
   title: "Wood Sawdust Industrial High Quality",
   seller: "Shell Refinery Louisiana",
   qty: 20,
@@ -776,6 +777,16 @@ function PaymentPickerModal({
 
 export function BuyerCheckoutPage() {
   const router = useRouter();
+  const { items } = useCart();
+  const product = items[0]
+    ? {
+        title: items[0].title,
+        seller: items[0].location,
+        qty: items[0].quantity,
+        unitPrice: items[0].price,
+        image: items[0].image,
+      }
+    : fallbackProduct;
   const [step, setStep] = useState<Step>("shipping");
   const [shippingType, setShippingType] = useState<ShippingType>(null);
   const [pickup, setPickup] = useState<PickupData>({
