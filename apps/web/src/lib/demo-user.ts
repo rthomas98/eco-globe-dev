@@ -9,7 +9,7 @@ export type Industry =
   | "Petrochemical"
   | "Pulp & Paper"
   | "Carbon Black"
-  | "Agriculture"
+  | "Chemicals"
   | "Construction"
   | "Other";
 
@@ -82,13 +82,27 @@ const SHELL_FACILITIES: Facility[] = [
   },
 ];
 
-const CABOT_FACILITY: Facility[] = [
+const BUYER_FACILITIES: Facility[] = [
   {
-    id: "cabot-franklin",
-    label: "Cabot Franklin",
-    address: "Franklin, LA 70538",
-    lat: 29.7958,
-    lng: -91.5018,
+    id: "buyer-ashford",
+    label: "Ashford Houston",
+    address: "270 Dairy Ashford Rd, Houston, TX 77079",
+    lat: 29.7817,
+    lng: -95.6065,
+  },
+  {
+    id: "buyer-allen-parkway",
+    label: "Allen Parkway Houston",
+    address: "7777 Allen Parkway, Houston, TX 77019",
+    lat: 29.7609,
+    lng: -95.4010,
+  },
+  {
+    id: "buyer-huldy",
+    label: "Huldy Street Houston",
+    address: "5412 Huldy Street, Houston, TX 77019",
+    lat: 29.7406,
+    lng: -95.4195,
   },
 ];
 
@@ -106,7 +120,7 @@ const DEFAULT_PROFILE: Record<
     industry: "Carbon Black",
     companySize: "Big",
     userRole: "Sustainability Manager",
-    facilities: CABOT_FACILITY,
+    facilities: BUYER_FACILITIES,
   },
   admin: {
     industry: "Other",

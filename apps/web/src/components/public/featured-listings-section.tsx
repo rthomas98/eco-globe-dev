@@ -13,7 +13,7 @@ interface Listing {
 const listings: Listing[] = [
   {
     title: "Shredded, Refined Sugar Bagasse",
-    location: "Port Allen, LA",
+    location: "Port Allen, Louisiana",
     moq: "3 tons",
     price: "$48",
     currency: "$",
@@ -22,7 +22,7 @@ const listings: Listing[] = [
   },
   {
     title: "Scrap Polymer Blend with Impurities",
-    location: "Plaquemine, LA",
+    location: "Houston, Texas",
     moq: "2.5 tons",
     price: "€60",
     currency: "€",
@@ -31,16 +31,16 @@ const listings: Listing[] = [
   },
   {
     title: "Pyrolysis Pitch",
-    location: "Baker, LA",
+    location: "Cadiz, Spain",
     moq: "1 tons",
-    price: "$300",
+    price: "$400",
     currency: "$",
     unit: "/ton",
     image: "/products/generated/pyrolysis.png",
   },
   {
     title: "Harvested and Baled Corn Stover",
-    location: "Walker, LA",
+    location: "Rotterdam, Netherlands",
     moq: "10 tons",
     price: "$42",
     currency: "$",
@@ -49,16 +49,16 @@ const listings: Listing[] = [
   },
   {
     title: "Used Dry Transformer",
-    location: "Gonzales, LA",
+    location: "Houston, Texas",
     moq: "1 unit",
-    price: "€200",
-    currency: "€",
+    price: "$800",
+    currency: "$",
     unit: "/unit",
     image: "/products/generated/used-dry-transformer.png",
   },
   {
     title: "Hydrochar",
-    location: "Sweden Pulp & Paper manufacturer",
+    location: "Rotterdam, Netherlands",
     moq: "2 tons",
     price: "€75",
     currency: "€",
@@ -67,7 +67,7 @@ const listings: Listing[] = [
   },
   {
     title: "Used Pallets",
-    location: "Denham Springs, LA",
+    location: "Denham Springs, Louisiana",
     moq: "1 tons",
     price: "$15",
     currency: "$",
@@ -76,7 +76,7 @@ const listings: Listing[] = [
   },
   {
     title: "Biochar",
-    location: "Zachary, LA",
+    location: "Guadalajara, Mexico",
     moq: "3 tons",
     price: "$300",
     currency: "$",
@@ -85,7 +85,7 @@ const listings: Listing[] = [
   },
   {
     title: "White Label",
-    location: "Lafayette, LA",
+    location: "Jubail, Saudi Arabia",
     moq: "5 tons",
     price: "$120",
     currency: "$",

@@ -386,7 +386,7 @@ export function EscrowPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Seach"
+              placeholder="Search"
               className="w-[260px] rounded-full bg-white py-2.5 pl-11 pr-4 text-sm outline-none placeholder:text-neutral-400"
               style={{ border: "1px solid #E0E0E0" }}
             />

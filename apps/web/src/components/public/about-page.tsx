@@ -15,7 +15,7 @@ export function AboutPage() {
               Where Industrial Waste Becomes a Valued Resource
             </h1>
             <p className="max-w-[450px] pt-4 text-base leading-7 text-neutral-700">
-              Waste-streams or wasted industrial byproducts are undervalued, sent to the waste manager for expensive disposing costs. EcoGlobe changes that — turning what your operation discards into a measurable revenue stream, through a verified marketplace built for the circular economy.
+              Industrial byproducts and waste streams have long been undervalued, undertraded, and poorly matched. EcoGlobe changes that — turning what your operation discards into a measurable revenue stream, through a verified marketplace built for the circular economy.
             </p>
           </div>
         </div>
@@ -47,11 +47,11 @@ export function AboutPage() {
               <div className="mt-4 flex gap-4" style={{ borderLeft: "3px solid #96794A", paddingLeft: "24px" }}>
                 <div>
                   <p className="text-base italic leading-7 text-neutral-900">
-                    &ldquo;We built EcoGlobe because wasted industrial byproducts deserve a real market. Our goal is simple: help suppliers generate revenue from what they discard, and give buyers verified sources they can build their operations around.&rdquo;
+                    &ldquo;We built EcoGlobe because industrial byproducts deserve a real market. Our goal is simple: help suppliers generate revenue from what they discard, and give buyers verified sources they can build their operations around.&rdquo;
                   </p>
                   <p className="mt-4">
-                    <span className="text-sm font-bold text-neutral-900">Ana Sanz and Bea Roberts</span>
-                    <span className="ml-2 text-sm text-neutral-500">EcoGlobe&rsquo;s Co-Founders</span>
+                    <span className="text-sm font-bold text-neutral-900">Bea Roberts</span>
+                    <span className="ml-2 text-sm text-neutral-500">Co-Founder</span>
                   </p>
                 </div>
               </div>

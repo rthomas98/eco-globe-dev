@@ -26,7 +26,11 @@ export function BuyersPage() {
 
       {/* Hero */}
       <section className="relative flex h-[350px] sm:h-[400px] lg:h-[500px] items-center justify-center overflow-hidden">
-        <img src="/images/hero-about.png" alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
+        <img
+          src="/images/buyers-hero-marketplace.png"
+          alt="Buyer-side industrial sourcing environment"
+          className="absolute inset-0 h-full w-full object-cover object-top"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/60 to-black/40" />
         <div className="relative z-10 text-center px-4">
           <h1 className="mb-6 text-2xl sm:text-4xl lg:text-5xl font-bold leading-tight text-white">
@@ -46,14 +50,14 @@ export function BuyersPage() {
         <div className="mx-auto flex flex-col lg:flex-row max-w-[1440px] gap-8 lg:gap-16 px-4 sm:px-8 lg:px-[135px]">
           <div className="h-[250px] sm:h-[350px] lg:h-[420px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
             <img
-              src="/images/home-buyers.png"
-              alt="Buyer reviewing supplier credentials"
+              src="/images/buyers-why-buy.png"
+              alt="Verified supplier evaluation setup"
               className="h-full w-full object-cover"
             />
           </div>
           <div>
             <p className="mb-2 text-sm font-medium uppercase tracking-wider" style={{ color: "#96794A" }}>Why Buy on EcoGlobe</p>
-            <h2 className="mb-10 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Designed for<br />Responsible Sourcing<br />Teams</h2>
+            <h2 className="mb-10 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Designed for<br />Sustainable Sourcing<br />Teams</h2>
             <div className="flex flex-col gap-8">
               {whyBuyFeatures.map((f) => (
                 <div key={f.title} className="flex gap-4">
@@ -89,8 +93,8 @@ export function BuyersPage() {
           </div>
           <div className="h-[250px] sm:h-[350px] lg:h-[420px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-200">
             <img
-              src="/images/home-how-it-works-facility.png"
-              alt="Verified supplier facility"
+              src="/images/buyers-how-it-works.png"
+              alt="Buyer procurement workflow"
               className="h-full w-full object-cover"
             />
           </div>
@@ -102,8 +106,8 @@ export function BuyersPage() {
         <div className="mx-auto flex flex-col lg:flex-row max-w-[1440px] items-center gap-8 lg:gap-16 px-4 sm:px-8 lg:px-[135px]">
           <div className="h-[250px] sm:h-[300px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
             <img
-              src="/images/category-certified-feedstocks.png"
-              alt="Certified feedstock with documented sustainability"
+              src="/images/buyers-sustainability-proof.png"
+              alt="Traceability and sustainability verification setup"
               className="h-full w-full object-cover"
             />
           </div>

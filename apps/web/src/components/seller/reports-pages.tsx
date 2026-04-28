@@ -214,7 +214,7 @@ export function SellerSalesReportPage() {
               <Search className="size-4 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Seach"
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"
@@ -349,7 +349,7 @@ export function SellerProductsReportPage() {
               <Search className="size-4 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Seach"
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"
@@ -438,6 +438,16 @@ const carbonData = [
   { period: "Aug 2026", product: "Coconut Meal Animal Grade", count: 13, totalQty: 117, avgFootprint: 401, totalEmissions: 46917 },
 ];
 
+const cumulativeCarbon = carbonData.reduce<number[]>((acc, row, i) => {
+  const previous = i === 0 ? 0 : acc[i - 1];
+  return [...acc, previous + Math.round(row.totalEmissions * 0.18) / 1000];
+}, []);
+
+const cumulativeWaste = carbonData.reduce<number[]>((acc, row, i) => {
+  const previous = i === 0 ? 0 : acc[i - 1];
+  return [...acc, previous + row.totalQty];
+}, []);
+
 export function SellerCarbonReportPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -459,7 +469,7 @@ export function SellerCarbonReportPage() {
               <Search className="size-4 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Seach"
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"
@@ -478,6 +488,11 @@ export function SellerCarbonReportPage() {
               data={filtered}
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 px-6 pb-5 lg:grid-cols-2">
+          <CumulativeReportCard title="Cumulative CO2 reduction" unit="tons CO2e abated" values={cumulativeCarbon} />
+          <CumulativeReportCard title="Cumulative avoided waste" unit="tons diverted" values={cumulativeWaste} />
         </div>
 
         <div className="flex-1 overflow-x-auto px-6 pb-2">
@@ -522,5 +537,24 @@ export function SellerCarbonReportPage() {
         <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} />
       </div>
     </SellerLayout>
+  );
+}
+
+function CumulativeReportCard({ title, unit, values }: { title: string; unit: string; values: number[] }) {
+  const max = Math.max(...values, 1);
+  return (
+    <div className="rounded-xl bg-neutral-50 p-4" style={{ border: "1px solid #F0F0F0" }}>
+      <p className="text-sm font-bold text-neutral-900">{title}</p>
+      <p className="mb-3 text-xs text-neutral-500">{unit} by month</p>
+      <div className="flex h-28 items-end gap-1">
+        {values.map((value, i) => (
+          <div key={i} className="flex flex-1 flex-col items-center gap-1">
+            <div className="w-full rounded-t bg-green-700" style={{ height: `${Math.max(4, (value / max) * 100)}%` }} />
+            {i % 3 === 0 && <span className="text-[10px] text-neutral-400">M{i + 1}</span>}
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-xs font-semibold text-neutral-700">Total: {values[values.length - 1]?.toLocaleString()} {unit}</p>
+    </div>
   );
 }

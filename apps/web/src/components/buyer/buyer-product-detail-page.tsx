@@ -182,6 +182,12 @@ export function BuyerProductDetailPage() {
                 )}
               </div>
 
+              {/* Map */}
+              <h2 className="mb-4 text-xl font-bold text-neutral-900">Map</h2>
+              <div className="mb-10">
+                <SellerMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} />
+              </div>
+
               {/* Specifications */}
               <h2 className="mb-4 text-xl font-bold text-neutral-900">Specifications</h2>
               <div className="mb-10">
@@ -240,10 +246,6 @@ export function BuyerProductDetailPage() {
                   </p>
                 </div>
               </div>
-              <div className="mb-10">
-                <SellerMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} />
-              </div>
-
               {/* Carbon Analytics Tool */}
               <h2 className="mb-4 text-xl font-bold text-neutral-900">Carbon Analytics Tool</h2>
               <div className="mb-6 rounded-xl bg-neutral-50 p-6">

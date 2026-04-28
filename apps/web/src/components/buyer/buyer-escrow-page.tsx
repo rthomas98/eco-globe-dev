@@ -434,7 +434,7 @@ export function BuyerEscrowPage() {
               <Search className="size-4 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Seach"
+                placeholder="Search"
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);

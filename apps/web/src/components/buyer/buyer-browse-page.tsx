@@ -49,31 +49,21 @@ function ListingCard({
   );
 }
 
-function LocationPill({
-  value,
-  onClick,
-}: {
-  value: string;
-  onClick: () => void;
-}) {
+function LocationPill({ value }: { value: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900"
       style={{ border: "1px solid #E0E0E0" }}
     >
       <MapPin className="size-4 text-neutral-500" />
-      <span className={value ? "text-neutral-900" : "text-neutral-400"}>
-        {value || "Location"}
-      </span>
-    </button>
+      <span className="text-neutral-900">{value}</span>
+    </div>
   );
 }
 
 export function BuyerBrowsePage() {
   const [search, setSearch] = useState("");
-  const [location] = useState("Louisiana · 100 mi");
+  const [radius, setRadius] = useState("2");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -149,14 +139,28 @@ export function BuyerBrowsePage() {
               <Search className="size-4 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Seach"
+                placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-40 bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
               />
             </div>
 
-            <LocationPill value={location} onClick={() => { /* picker stub */ }} />
+            <LocationPill value={`Search radius: ${radius} mi`} />
+
+            <select
+              aria-label="Search radius"
+              value={radius}
+              onChange={(e) => setRadius(e.target.value)}
+              className="rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none"
+              style={{ border: "1px solid #E0E0E0" }}
+            >
+              <option value="2">2 mi</option>
+              <option value="10">10 mi</option>
+              <option value="50">50 mi</option>
+              <option value="100">100 mi</option>
+              <option value="500">500 mi</option>
+            </select>
 
             <button
               onClick={() => setFiltersOpen(true)}

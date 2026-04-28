@@ -934,7 +934,7 @@ export function BuyerOrdersPage() {
               <Search className="size-4 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Seach"
+                placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-40 bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400"

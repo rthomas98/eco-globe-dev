@@ -71,7 +71,7 @@ export function SellerCompanyPage() {
           </div>
           <InfoRow label="Company Name" value="Alo World" action={<EditLink />} />
           <InfoRow label="Company Registration Number" value="1234567890" action={<EditLink />} />
-          <InfoRow label="Industry Sector" value="Agriculture" action={<EditLink />} />
+          <InfoRow label="Industry Sector" value="Chemicals" action={<EditLink />} />
           <InfoRow label="Country" value="Louisiana" action={<EditLink />} />
           <div className="flex items-center justify-between gap-6 px-6 py-5">
             <span className="w-[260px] shrink-0 text-sm text-neutral-700">Business Address</span>

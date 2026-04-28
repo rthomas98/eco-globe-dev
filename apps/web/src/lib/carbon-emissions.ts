@@ -124,12 +124,12 @@ export function toMetricTons(value: number, unit: WeightUnit): number {
 
 export const RECURRENCE_OPTIONS = [
   { value: "one-time", label: "One-time", multiplier: 1 },
-  { value: "weekly", label: "Weekly", multiplier: 52 },
-  { value: "monthly", label: "Monthly", multiplier: 12 },
-  { value: "every-2-months", label: "Every 2 months", multiplier: 6 },
-  { value: "quarterly", label: "Quarterly", multiplier: 4 },
-  { value: "every-4-months", label: "Every 4 months", multiplier: 3 },
-  { value: "every-6-months", label: "Every 6 months", multiplier: 2 },
+  { value: "weekly", label: "Once a week", multiplier: 52 },
+  { value: "monthly", label: "Once a month", multiplier: 12 },
+  { value: "every-2-months", label: "Once every 2 months", multiplier: 6 },
+  { value: "quarterly", label: "Once every 3 months", multiplier: 4 },
+  { value: "every-4-months", label: "Once every 4 months", multiplier: 3 },
+  { value: "every-6-months", label: "Once every 6 months", multiplier: 2 },
 ] as const;
 
 export type Recurrence = (typeof RECURRENCE_OPTIONS)[number]["value"];

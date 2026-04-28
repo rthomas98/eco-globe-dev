@@ -136,6 +136,12 @@ interface Props {
   onClose: () => void;
 }
 
+const SHIPPING_ADDRESS_OPTIONS = [
+  "270 Dairy Ashford Rd, Houston, TX 77079",
+  "7777 Allen Parkway, Houston, TX 77019",
+  "5412 Huldy Street, Houston, TX 77019",
+];
+
 export function CarbonCalculatorModal({
   open,
   initialListingId,
@@ -153,6 +159,7 @@ export function CarbonCalculatorModal({
   const [activeIdx, setActiveIdx] = useState(0);
   const [step, setStep] = useState(0);
   const [bauTons, setBauTons] = useState<number | "">("");
+  const [targetTons, setTargetTons] = useState<number | "">(2.5);
   const [recurrence, setRecurrence] = useState<Recurrence>("one-time");
 
   // Reset when opened
@@ -163,6 +170,7 @@ export function CarbonCalculatorModal({
     setActiveIdx(0);
     setStep(0);
     setBauTons("");
+    setTargetTons(2.5);
     setRecurrence("one-time");
   }, [open, initial?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -350,6 +358,8 @@ export function CarbonCalculatorModal({
             {step === 3 && (
               <StepResult
                 active={active}
+                targetTons={targetTons}
+                setTargetTons={setTargetTons}
                 onRename={renameScenario}
               />
             )}
@@ -366,6 +376,7 @@ export function CarbonCalculatorModal({
                 recurrence={recurrence}
                 setRecurrence={setRecurrence}
                 recurrenceMul={recurrenceMul}
+                targetTons={targetTons}
               />
             )}
           </div>
@@ -444,6 +455,9 @@ function StepDistance({
         <p className="mt-1 text-sm text-neutral-600">
           Where are you shipping {listing.title} <span className="text-neutral-400">({listing.location})</span> to?
         </p>
+        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+          Selected feedstock is active on the map. If the preferred feedstock is not active, choose a different scenario from the left rail.
+        </p>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -507,6 +521,36 @@ function StepDistance({
             )}
           </div>
         )}
+
+        <div className="rounded-xl border border-neutral-200 bg-white p-4">
+          <p className="text-sm font-bold text-neutral-900">
+            Confirm shipping address
+          </p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Select one of the suggested Houston delivery addresses or enter a different address below.
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            {SHIPPING_ADDRESS_OPTIONS.map((address) => (
+              <button
+                key={address}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    distanceSource: "manual",
+                    manualAddress: address,
+                  })
+                }
+                className={`rounded-lg px-3 py-2 text-left text-sm ${
+                  active.manualAddress === address
+                    ? "bg-neutral-900 text-white"
+                    : "bg-neutral-50 text-neutral-800 hover:bg-neutral-100"
+                }`}
+              >
+                {address}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="rounded-xl border border-neutral-200 bg-white p-4">
           <label className="flex cursor-pointer items-start gap-3">
@@ -680,9 +724,13 @@ function StepTransport({
 
 function StepResult({
   active,
+  targetTons,
+  setTargetTons,
   onRename,
 }: {
   active: Scenario;
+  targetTons: number | "";
+  setTargetTons: (n: number | "") => void;
   onRename: (name: string) => void;
 }) {
   return (
@@ -734,6 +782,28 @@ function StepResult({
           className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-neutral-900/20"
         />
       </Field>
+
+      <Field label="Maximum carbon footprint target" hint="Used to compare the selected feedstock against your internal budget.">
+        <input
+          type="number"
+          min={0}
+          placeholder="e.g. 2.5"
+          value={targetTons === "" ? "" : targetTons}
+          onChange={(e) =>
+            setTargetTons(e.target.value === "" ? "" : parseFloat(e.target.value))
+          }
+          className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-neutral-900/20"
+        />
+      </Field>
+
+      {typeof targetTons === "number" && targetTons > 0 && (
+        <BarComparison
+          rows={[
+            { label: "Feedstock scenario", value: active.emissionTons, color: "#1F5F3A" },
+            { label: "User target", value: targetTons, color: "#D97706" },
+          ]}
+        />
+      )}
     </div>
   );
 }
@@ -823,12 +893,14 @@ function StepRecommend({
   recurrence,
   setRecurrence,
   recurrenceMul,
+  targetTons,
 }: {
   scenarios: Scenario[];
   bauTons: number | "";
   recurrence: Recurrence;
   setRecurrence: (r: Recurrence) => void;
   recurrenceMul: number;
+  targetTons: number | "";
 }) {
   const best = scenarios[0];
   const second = scenarios[1];
@@ -898,6 +970,12 @@ function StepRecommend({
         </select>
       </Field>
 
+      <CumulativeImpactChart
+        bestTons={best.emissionTons}
+        baselineTons={baseline}
+        recurrenceMul={recurrenceMul}
+      />
+
       {second && (
         <div className="rounded-xl bg-white p-4" style={{ border: "1px solid #F0F0F0" }}>
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -912,13 +990,88 @@ function StepRecommend({
 
       <div className="flex items-center justify-between rounded-xl bg-neutral-50 p-4">
         <div>
-          <p className="text-sm font-bold text-neutral-900">Download report</p>
-          <p className="text-xs text-neutral-500">PDF export coming soon.</p>
+          <p className="text-sm font-bold text-neutral-900">Create report</p>
+          <p className="text-xs text-neutral-500">
+            Includes assumptions, inputs, calculations, results, comparison, and recommendations.
+            {typeof targetTons === "number" ? ` Target: ${targetTons.toFixed(2)} t CO2eq.` : ""}
+          </p>
         </div>
-        <Button variant="secondary" size="sm" disabled style={{ opacity: 0.5, cursor: "not-allowed" }}>
-          Download report
+        <Button variant="secondary" size="sm">
+          Create report
         </Button>
       </div>
+    </div>
+  );
+}
+
+function CumulativeImpactChart({
+  bestTons,
+  baselineTons,
+  recurrenceMul,
+}: {
+  bestTons: number;
+  baselineTons: number | null;
+  recurrenceMul: number;
+}) {
+  const months = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12"];
+  const annualShipments = Math.max(1, recurrenceMul);
+  const monthlyShipments = annualShipments / 12;
+  const monthlyAvoided = baselineTons != null
+    ? Math.max(0, baselineTons - bestTons) * monthlyShipments
+    : Math.max(0.1, bestTons * 0.35) * monthlyShipments;
+  const monthlyWaste = Math.max(1, monthlyShipments * 22.5);
+  const carbonValues = months.map((_, i) => monthlyAvoided * (i + 1));
+  const wasteValues = months.map((_, i) => monthlyWaste * (i + 1));
+  const maxCarbon = Math.max(...carbonValues, 1);
+  const maxWaste = Math.max(...wasteValues, 1);
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <MiniCumulativeChart
+        title="Cumulative CO2 reduction"
+        unit="t CO2e abated"
+        values={carbonValues}
+        max={maxCarbon}
+      />
+      <MiniCumulativeChart
+        title="Cumulative avoided waste"
+        unit="tons diverted"
+        values={wasteValues}
+        max={maxWaste}
+      />
+    </div>
+  );
+}
+
+function MiniCumulativeChart({
+  title,
+  unit,
+  values,
+  max,
+}: {
+  title: string;
+  unit: string;
+  values: number[];
+  max: number;
+}) {
+  return (
+    <div className="rounded-xl bg-white p-4" style={{ border: "1px solid #F0F0F0" }}>
+      <p className="text-sm font-bold text-neutral-900">{title}</p>
+      <p className="mb-3 text-xs text-neutral-500">{unit} over the next 12 months</p>
+      <div className="flex h-32 items-end gap-1">
+        {values.map((value, i) => (
+          <div key={i} className="flex flex-1 flex-col items-center gap-1">
+            <div
+              className="w-full rounded-t bg-green-700"
+              style={{ height: `${Math.max(4, (value / max) * 100)}%` }}
+            />
+            {i % 3 === 0 && <span className="text-[10px] text-neutral-400">M{i + 1}</span>}
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-xs font-semibold text-neutral-700">
+        Total: {values[values.length - 1]?.toFixed(1)} {unit}
+      </p>
     </div>
   );
 }

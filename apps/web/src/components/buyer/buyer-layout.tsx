@@ -28,6 +28,7 @@ interface NavIcon {
 }
 
 const navIcons: NavIcon[] = [
+  { href: "/", icon: Home, label: "Home" },
   { href: "/buyer/browse", icon: Search, label: "Search" },
   { href: "/buyer/orders", icon: ShoppingCart, label: "My Orders" },
   {

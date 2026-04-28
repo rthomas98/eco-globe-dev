@@ -71,7 +71,13 @@ export function ServicesPage() {
           <div className="flex flex-col gap-8 rounded-2xl bg-white p-10" style={{ border: "1px solid #E0E0E0" }}>
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">Consulting Services</h2>
             <p className="text-base text-neutral-700">Companies new to circular economy, those with complex waste streams, or those ready to unlock new revenue. We assess your waste streams, identify which ones have real market value, and build the business strategy to turn them into income.</p>
-            <div className="h-[240px] rounded-xl bg-neutral-100" />
+            <div className="h-[240px] overflow-hidden rounded-xl bg-neutral-100">
+              <img
+                src="/images/services-consulting.png"
+                alt="Circular economy consulting for industrial waste streams"
+                className="h-full w-full object-cover"
+              />
+            </div>
             <div>
               <h3 className="mb-4 text-lg font-bold text-neutral-900">What We Do:</h3>
               <div className="flex flex-col gap-4">
@@ -96,7 +102,13 @@ export function ServicesPage() {
           <div className="flex flex-col gap-8 rounded-2xl bg-white p-10" style={{ border: "1px solid #E0E0E0" }}>
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">Marketplace Access</h2>
             <p className="text-base text-neutral-700">Companies who know what feedstocks they need, experienced traders, or those ready to transact independently.</p>
-            <div className="h-[240px] rounded-xl bg-neutral-100" />
+            <div className="h-[240px] overflow-hidden rounded-xl bg-neutral-100">
+              <img
+                src="/images/services-marketplace.png"
+                alt="Verified marketplace access for industrial feedstocks"
+                className="h-full w-full object-cover"
+              />
+            </div>
             <div>
               <h3 className="mb-4 text-lg font-bold text-neutral-900">What You Get:</h3>
               <div className="flex flex-col gap-4">
@@ -162,7 +174,13 @@ export function ServicesPage() {
               ))}
             </div>
           </div>
-          <div className="h-[250px] sm:h-[350px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100" />
+          <div className="h-[250px] sm:h-[350px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
+            <img
+              src="/images/services-marketplace.png"
+              alt="EcoGlobe marketplace operations"
+              className="h-full w-full object-cover"
+            />
+          </div>
         </div>
       </section>
 

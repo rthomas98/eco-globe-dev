@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, MapPin, CheckCircle } from "lucide-react";
+import { Mail, MapPin, PhoneCall, CheckCircle } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { Header } from "./header";
 import { CTABannerSection } from "./cta-banner-section";
@@ -12,6 +12,12 @@ const contactInfo = [
     icon: Mail,
     title: "Email Address",
     value: "info@ecoglobeworld.com",
+    color: "#96794A",
+  },
+  {
+    icon: PhoneCall,
+    title: "Phone",
+    value: "Available by appointment after inquiry",
     color: "#96794A",
   },
   {

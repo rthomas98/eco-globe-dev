@@ -49,6 +49,8 @@ function SectionCard({ title, children }: { title: string; children: React.React
 interface Category { id: string; name: string; subcategories: string[]; status: "Active" | "Inactive"; }
 
 const defaultCategories: Category[] = [
+  { id: "0", name: "Chemical Byproducts", subcategories: ["Epoxy Off-Spec", "Solvents", "Process Liquids"], status: "Active" },
+  { id: "00", name: "Refinery Byproducts", subcategories: ["Pyrolysis Pitch", "TAR", "Dark Viscous Liquids"], status: "Active" },
   { id: "1", name: "Plastics", subcategories: ["HDPE", "LDPE", "PET", "PVC", "Polypropylene"], status: "Active" },
   { id: "2", name: "Biomass & Wood", subcategories: ["Wood Chips", "Sawdust", "Bark", "Pellets"], status: "Active" },
   { id: "3", name: "Rubber & Tire-Derived", subcategories: ["Crumb Rubber", "Tire Chips", "Rubber Mulch"], status: "Active" },

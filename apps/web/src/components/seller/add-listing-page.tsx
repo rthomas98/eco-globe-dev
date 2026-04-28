@@ -161,7 +161,15 @@ export function AddListingPage() {
     router.push("/seller/listings");
   };
 
-  const cats = [{ value: "", label: "-- Choose --" }, { value: "polymer", label: "Polymer" }, { value: "refinery", label: "Refinery" }, { value: "waste", label: "Waste" }, { value: "plactic", label: "Plactic" }];
+  const cats = [
+    { value: "", label: "-- Choose --" },
+    { value: "chemical-byproducts", label: "Chemical Byproducts" },
+    { value: "refinery-byproducts", label: "Refinery Byproducts" },
+    { value: "polymer", label: "Polymer" },
+    { value: "refinery", label: "Refinery" },
+    { value: "waste", label: "Waste" },
+    { value: "plastic", label: "Plastic" },
+  ];
   const types = [{ value: "", label: "-- Choose --" }, { value: "dried", label: "Dried" }, { value: "wet", label: "Wet" }, { value: "processed", label: "Processed" }];
   const grades = [{ value: "", label: "-- Choose --" }, { value: "export", label: "Export Standard" }, { value: "premium", label: "Premium" }, { value: "standard", label: "Standard" }];
   const claims = ["Recycled Content", "Bio-based Material", "Waste-derived Feedstock", "Low-carbon Process", "Certified Sustainable", "Others"];
@@ -183,6 +191,15 @@ export function AddListingPage() {
         <StepLayout step={2} onBack={() => setStep(1)} onNext={() => setStep(3)} onSave={handleSaveDraft}>
           <h1 className="mb-8 text-3xl font-bold text-neutral-900">Specifications</h1>
           <div className="flex flex-col gap-5">
+            <div>
+              <p className="mb-2 text-sm font-medium text-neutral-900">Origin map preview</p>
+              <div className="h-[260px] overflow-hidden rounded-xl">
+                <ListingMap />
+              </div>
+              <p className="mt-2 text-xs text-neutral-500">
+                Confirm the feedstock origin before entering specifications.
+              </p>
+            </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-neutral-900">Quality</label>
               <textarea
@@ -222,7 +239,10 @@ export function AddListingPage() {
               options={[
                 { value: "One-time", label: "One-time" },
                 { value: "Weekly", label: "Weekly" },
+                { value: "Biweekly", label: "Biweekly" },
                 { value: "Monthly", label: "Monthly" },
+                { value: "Bimonthly", label: "Bimonthly" },
+                { value: "Twice a year", label: "Twice a year" },
                 { value: "Quarterly", label: "Quarterly" },
                 { value: "Yearly", label: "Yearly" },
               ]}

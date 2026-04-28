@@ -28,6 +28,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
+  { label: "Home", href: "/", icon: Home },
   { label: "Listings", href: "/seller/listings", icon: LayoutGrid },
   { label: "Sales", href: "/seller/sales", icon: TrendingUp },
   {

@@ -26,6 +26,8 @@ export const defaultFilters: FilterState = {
 };
 
 const categories = [
+  "Chemical Byproducts",
+  "Refinery Byproducts",
   "Plastics",
   "Rubber & Tire-Derived",
   "Oils & Liquid Feedstocks",

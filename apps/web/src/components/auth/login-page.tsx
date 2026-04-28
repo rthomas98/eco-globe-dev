@@ -28,17 +28,6 @@ export function LoginPage() {
     router.push(dest);
   };
 
-  const loginAs = (role: UserRole) => {
-    writeDemoUser(buildDemoUser(role));
-    const dest =
-      role === "seller"
-        ? "/seller/listings"
-        : role === "buyer"
-          ? "/buyer/browse"
-          : "/admin/dashboard";
-    router.push(dest);
-  };
-
   return (
     <AuthLayout
       footerContent={
@@ -87,37 +76,6 @@ export function LoginPage() {
         >
           Login
         </Button>
-
-        <div className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Demo Quick Login
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              variant="secondary"
-              size="md"
-              className="flex-1"
-              onClick={() => loginAs("seller")}
-            >
-              Login as Seller
-            </Button>
-            <Button
-              variant="secondary"
-              size="md"
-              className="flex-1"
-              onClick={() => loginAs("buyer")}
-            >
-              Login as Buyer
-            </Button>
-          </div>
-          <button
-            type="button"
-            onClick={() => loginAs("admin")}
-            className="text-left text-xs text-neutral-500 underline hover:text-neutral-900"
-          >
-            Or login as Admin
-          </button>
-        </div>
 
         <p className="text-base text-neutral-900">
           Don&apos;t have an account?{" "}

@@ -18,12 +18,12 @@ export interface MapListing {
 }
 
 const fallbackListings: MapListing[] = [
-  { id: "bagasse", title: "Shredded, Refined Sugar Bagasse", location: "Port Allen, LA", price: "$48", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -91.2103, lat: 30.4524 },
-  { id: "polymer", title: "Scrap Polymer Blend", location: "Plaquemine, LA", price: "€60", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -91.2343, lat: 30.2893 },
-  { id: "pyrolysis", title: "High-Quality Recycled Pyrolysis Pitch", location: "Baker, LA", price: "$300", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -91.1681, lat: 30.5883 },
-  { id: "stover-walker", title: "Harvested and Baled Corn Stover", location: "Walker, LA", price: "$42", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -90.8612, lat: 30.4888 },
-  { id: "stover-monroe", title: "Corn Stover", location: "Monroe, LA", price: "$42", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -92.1193, lat: 32.5093 },
-  { id: "polyester", title: "Premium Recycled Polyester Fiber", location: "Gonzales, LA", price: "€200", unit: "/ton", moq: "1.5 tons", co2: "250 kg CO₂e", lng: -90.9201, lat: 30.2388 },
+  { id: "bagasse", title: "Shredded, Refined Sugar Bagasse", location: "Port Allen, Louisiana", price: "$48", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -91.2103, lat: 30.4524 },
+  { id: "polymer", title: "Scrap Polymer Blend", location: "Houston, Texas", price: "€60", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -95.3698, lat: 29.7604 },
+  { id: "pyrolysis", title: "Pyrolysis Pitch", location: "Cadiz, Spain", price: "$400", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -6.2886, lat: 36.5271 },
+  { id: "tar", title: "TAR Dark Refinery Byproduct", location: "Cadiz, Spain", price: "$400", unit: "/ton", moq: "5 tons", co2: "360 kg CO₂e", lng: -6.2886, lat: 36.5271 },
+  { id: "used-cooking-oil", title: "Refined Used Cooking Oil (UCO)", location: "Rotterdam, Netherlands", price: "$550", unit: "/ton", moq: "4 tons", co2: "540 kg CO₂e", lng: 4.4777, lat: 51.9244 },
+  { id: "epoxy-offspec", title: "Epoxy Off-Spec", location: "Houston, Texas", price: "$800", unit: "/ton", moq: "2 tons", co2: "280 kg CO₂e", lng: -95.3698, lat: 29.7604 },
 ];
 
 function buildPopupContent(

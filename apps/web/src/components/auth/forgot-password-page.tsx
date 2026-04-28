@@ -217,7 +217,7 @@ function CodeStep({
           Enter the code
         </h1>
         <p className="text-base text-neutral-500">
-          Enter the code we sent to your email at
+          If an account exists, recovery instructions were sent to
           <br />
           <span className="font-semibold text-neutral-900">{email}</span>
         </p>
