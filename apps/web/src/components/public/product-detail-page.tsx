@@ -16,6 +16,8 @@ import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-but
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
+const FAVORITES_KEY = "ecoglobe.favoriteListings";
+
 function SellerMap({ lng, lat }: { lng: number; lat: number }) {
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const validToken = !!token && token !== "placeholder" && token.startsWith("pk.");
@@ -75,6 +77,11 @@ export function ProductDetailPage() {
   const [qty, setQty] = useState(3);
   const [selectedImg, setSelectedImg] = useState(0);
   const [showFullOverview, setShowFullOverview] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteStatus, setFavoriteStatus] = useState("");
+  const [shareStatus, setShareStatus] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  const [isSharePanelOpen, setIsSharePanelOpen] = useState(false);
   const { addItem } = useCart();
   const user = useDemoUser();
   const isMember = !!user;
@@ -92,7 +99,32 @@ export function ProductDetailPage() {
     setQty(product.minOrder);
     setSelectedImg(0);
     setShowFullOverview(false);
+    setShareStatus("");
+    setFavoriteStatus("");
+    setShareUrl("");
+    setIsSharePanelOpen(false);
   }, [product.id, product.minOrder]);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]") as string[];
+      setIsFavorite(saved.includes(product.id));
+    } catch {
+      setIsFavorite(false);
+    }
+  }, [product.id]);
+
+  useEffect(() => {
+    if (!shareStatus) return;
+    const timer = window.setTimeout(() => setShareStatus(""), 2500);
+    return () => window.clearTimeout(timer);
+  }, [shareStatus]);
+
+  useEffect(() => {
+    if (!favoriteStatus) return;
+    const timer = window.setTimeout(() => setFavoriteStatus(""), 2500);
+    return () => window.clearTimeout(timer);
+  }, [favoriteStatus]);
 
   const itemSubtotal = product.price * qty;
   const subtotal = itemSubtotal + product.shipping;
@@ -108,6 +140,47 @@ export function ProductDetailPage() {
       moq: product.minOrder,
       image: product.images[0],
       quantity: qty,
+    });
+  };
+
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    setShareUrl(shareUrl);
+    setIsSharePanelOpen(true);
+    setFavoriteStatus("");
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareStatus("Link copied");
+    } catch {
+      const input = document.createElement("input");
+      input.value = shareUrl;
+      input.setAttribute("readonly", "");
+      input.style.position = "fixed";
+      input.style.left = "-9999px";
+      document.body.appendChild(input);
+      input.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(input);
+      setShareStatus(copied ? "Link copied" : "Share link ready");
+    }
+  };
+
+  const handleFavorite = () => {
+    setShareStatus("");
+    setIsSharePanelOpen(false);
+    setIsFavorite((current) => {
+      const next = !current;
+      try {
+        const saved = JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]") as string[];
+        const updated = next
+          ? Array.from(new Set([...saved, product.id]))
+          : saved.filter((id) => id !== product.id);
+        localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+      } catch {
+        // Keep the visible state responsive even if storage is unavailable.
+      }
+      setFavoriteStatus(next ? "Added to favorites" : "Removed from favorites");
+      return next;
     });
   };
 
@@ -158,12 +231,74 @@ export function ProductDetailPage() {
             {/* Main image */}
             <div className="relative mb-4 h-[250px] sm:h-[350px] lg:h-[400px] overflow-hidden rounded-2xl">
               <img src={product.images[selectedImg]} alt={product.title} className="h-full w-full object-cover" />
-              <button className="absolute right-4 top-4 flex size-10 items-center justify-center rounded-full bg-white/90 shadow-md">
+              <button
+                type="button"
+                aria-label="Copy share link"
+                onClick={handleShare}
+                className="absolute right-4 top-4 flex size-10 items-center justify-center rounded-full bg-white/90 shadow-md transition hover:bg-white"
+              >
                 <Share2 className="size-4 text-neutral-700" />
               </button>
-              <button className="absolute right-4 top-16 flex size-10 items-center justify-center rounded-full bg-white/90 shadow-md">
-                <Heart className="size-4 text-neutral-700" />
+              <button
+                type="button"
+                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                aria-pressed={isFavorite}
+                onClick={handleFavorite}
+                className="absolute right-4 top-16 flex size-10 items-center justify-center rounded-full bg-white/90 shadow-md transition hover:bg-white"
+              >
+                <Heart
+                  className={`size-4 ${
+                    isFavorite ? "fill-red-500 text-red-500" : "text-neutral-700"
+                  }`}
+                />
               </button>
+              {favoriteStatus && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="absolute right-4 top-[112px] rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white shadow-lg"
+                >
+                  {favoriteStatus}
+                </div>
+              )}
+              {isSharePanelOpen && shareUrl && (
+                <div
+                  role="dialog"
+                  aria-label="Share listing"
+                  className="absolute right-4 top-[112px] w-[min(320px,calc(100%-2rem))] rounded-xl bg-white p-4 text-sm shadow-xl"
+                  style={{ border: "1px solid #E0E0E0" }}
+                >
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="font-semibold text-neutral-900">Share listing</p>
+                    <button
+                      type="button"
+                      onClick={() => setIsSharePanelOpen(false)}
+                      className="text-xs font-semibold text-neutral-500 hover:text-neutral-900"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <input
+                    readOnly
+                    aria-label="Share URL"
+                    value={shareUrl}
+                    onFocus={(event) => event.currentTarget.select()}
+                    className="mb-3 w-full rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-700 outline-none"
+                    style={{ border: "1px solid #E0E0E0" }}
+                  />
+                  {shareStatus && (
+                    <p role="status" aria-live="polite" className="mb-3 text-xs font-semibold text-green-700">
+                      {shareStatus}
+                    </p>
+                  )}
+                  <a
+                    href={`mailto:?subject=${encodeURIComponent(product.title)}&body=${encodeURIComponent(shareUrl)}`}
+                    className="inline-flex w-full items-center justify-center rounded-full bg-neutral-900 px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                  >
+                    Share by email
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Thumbnails */}
