@@ -468,8 +468,14 @@ export function ListingMap({
       markersRef.current.set(listing.id, { marker, popup, el });
     });
 
-    // Fit bounds to all markers when listings change (but not on first render with default view)
-    if (data.length > 0 && data.length !== fallbackListings.length) {
+    // Fit bounds to all markers when listings change. We skip the fit when a
+    // radius is active — the radius/origin effect runs its own fitBounds that
+    // includes the circle envelope, and the two were fighting each other.
+    if (
+      data.length > 0 &&
+      data.length !== fallbackListings.length &&
+      !(origin && radiusMiles && radiusMiles > 0)
+    ) {
       const bounds = buildBounds(data, origin);
       mapInstance.fitBounds(bounds, { padding: 80, maxZoom: 11, duration: 600 });
     }
@@ -514,6 +520,7 @@ export function ListingMap({
       const activeListing = activeId
         ? data.find((l) => l.id === activeId)
         : undefined;
+      const hasRouteLine = !!activeListing;
       if (activeListing) {
         const route: GeoJSON.Feature<GeoJSON.LineString> = {
           type: "Feature",
@@ -553,21 +560,41 @@ export function ListingMap({
           type: "fill",
           source: SOURCE_ID,
           paint: {
-            "fill-color": "#378853",
-            "fill-opacity": 0.12,
+            "fill-color": "#22C55E",
+            "fill-opacity": 0.22,
           },
         },
-        ROUTE_LINE_ID, // ensure radius fill goes UNDER the route line
+        // Insert the radius fill UNDER the route line when the route exists,
+        // otherwise let mapbox stack it on top normally.
+        hasRouteLine ? ROUTE_LINE_ID : undefined,
       );
       mapInstance.addLayer({
         id: OUTLINE_ID,
         type: "line",
         source: SOURCE_ID,
         paint: {
-          "line-color": "#1F5F3A",
-          "line-width": 2,
-          "line-dasharray": [2, 2],
+          "line-color": "#15803D",
+          "line-width": 3,
+          "line-dasharray": [3, 2],
         },
+      });
+
+      // Auto-zoom to fit the entire circle so the user can actually see it.
+      // The earlier bounds-fit only included origin + listings, which left
+      // the dashed outline outside the viewport at city zoom levels.
+      const dLat = radiusMiles / 69;
+      const dLng =
+        radiusMiles /
+        (69 * Math.max(0.1, Math.cos((origin.lat * Math.PI) / 180)));
+      const radiusBounds = new mapboxgl.LngLatBounds(
+        [origin.lng - dLng, origin.lat - dLat],
+        [origin.lng + dLng, origin.lat + dLat],
+      );
+      // Also include any listings already on the map.
+      data.forEach((l) => radiusBounds.extend([l.lng, l.lat]));
+      mapInstance.fitBounds(radiusBounds, {
+        padding: 60,
+        duration: 700,
       });
     };
 
@@ -606,8 +633,13 @@ export function ListingMap({
           essential: true,
         });
       }
-    } else if (data.length > 0) {
-      // Deselected: zoom back out to fit all visible listings AND the origin/radius envelope.
+    } else if (
+      data.length > 0 &&
+      !(origin && radiusMiles && radiusMiles > 0)
+    ) {
+      // Deselected: zoom back out to fit all visible listings.
+      // Skipped when a radius is active so we don't fight the radius effect's
+      // own fitBounds (which fits the circle envelope).
       const bounds = buildBounds(data, origin);
       mapInstance.fitBounds(bounds, {
         padding: 80,

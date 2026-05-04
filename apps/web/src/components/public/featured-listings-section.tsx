@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { Button, Badge } from "@eco-globe/ui";
 
 interface Listing {
+  id: string;
   title: string;
   location: string;
   moq: string;
@@ -12,6 +14,7 @@ interface Listing {
 
 const listings: Listing[] = [
   {
+    id: "bagasse",
     title: "Shredded, Refined Sugar Bagasse",
     location: "Port Allen, Louisiana",
     moq: "3 tons",
@@ -21,6 +24,7 @@ const listings: Listing[] = [
     image: "/products/generated/bagasse.png",
   },
   {
+    id: "polymer",
     title: "Scrap Polymer Blend with Impurities",
     location: "Houston, Texas",
     moq: "2.5 tons",
@@ -30,6 +34,7 @@ const listings: Listing[] = [
     image: "/products/generated/polymer.png",
   },
   {
+    id: "pyrolysis",
     title: "Pyrolysis Pitch",
     location: "Cadiz, Spain",
     moq: "1 tons",
@@ -39,6 +44,7 @@ const listings: Listing[] = [
     image: "/products/generated/pyrolysis.png",
   },
   {
+    id: "stover-walker",
     title: "Harvested and Baled Corn Stover",
     location: "Rotterdam, Netherlands",
     moq: "10 tons",
@@ -48,6 +54,7 @@ const listings: Listing[] = [
     image: "/products/generated/stover-walker.png",
   },
   {
+    id: "used-dry-transformer",
     title: "Used Dry Transformer",
     location: "Houston, Texas",
     moq: "1 unit",
@@ -57,6 +64,7 @@ const listings: Listing[] = [
     image: "/products/generated/used-dry-transformer.png",
   },
   {
+    id: "hydrochar",
     title: "Hydrochar",
     location: "Rotterdam, Netherlands",
     moq: "2 tons",
@@ -66,6 +74,7 @@ const listings: Listing[] = [
     image: "/products/generated/hydrochar.png",
   },
   {
+    id: "used-pallets",
     title: "Used Pallets",
     location: "Denham Springs, Louisiana",
     moq: "1 tons",
@@ -75,6 +84,7 @@ const listings: Listing[] = [
     image: "/products/generated/used-pallets.png",
   },
   {
+    id: "biochar",
     title: "Biochar",
     location: "Guadalajara, Mexico",
     moq: "3 tons",
@@ -84,6 +94,7 @@ const listings: Listing[] = [
     image: "/products/generated/biochar.png",
   },
   {
+    id: "white-label",
     title: "White Label",
     location: "Jubail, Saudi Arabia",
     moq: "5 tons",
@@ -96,17 +107,20 @@ const listings: Listing[] = [
 
 function ListingCard({ listing }: { listing: Listing }) {
   return (
-    <div className="flex cursor-pointer flex-col gap-3">
+    <Link
+      href={`/browse/${listing.id}`}
+      className="group flex flex-col gap-3"
+    >
       <div className="h-[240px] overflow-hidden rounded-xl">
         <img
           src={listing.image}
           alt={listing.title}
-          className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.02]"
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
         />
       </div>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <p className="text-base font-medium leading-6 text-neutral-900">
+          <p className="text-base font-medium leading-6 text-neutral-900 group-hover:underline">
             {listing.title}
           </p>
           <p className="text-sm text-neutral-800">{listing.location}</p>
@@ -119,7 +133,7 @@ function ListingCard({ listing }: { listing: Listing }) {
           <span className="text-sm text-neutral-700">{listing.unit}</span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -131,9 +145,11 @@ export function FeaturedListingsSection() {
           <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-heading">
             Featured Listings
           </h2>
-          <Button variant="secondary" size="md">
-            View All Listings
-          </Button>
+          <Link href="/browse">
+            <Button variant="secondary" size="md">
+              View All Listings
+            </Button>
+          </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-x-[30px] lg:gap-y-10">
           {listings.map((listing) => (
