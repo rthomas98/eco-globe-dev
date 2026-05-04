@@ -17,7 +17,7 @@ import {
 import { Button } from "@eco-globe/ui";
 import { useDemoUser, type Facility } from "@/lib/demo-user";
 import { listings as ALL_LISTINGS, type Listing } from "@/components/public/browse-listings";
-import { CarbonGauge, type GaugeMarker } from "./carbon-gauge";
+import { CarbonGauge } from "./carbon-gauge";
 import { ListingMap, type MapListing } from "@/components/public/listing-map";
 import { generateCarbonReport, type ReportScenario } from "./carbon-report";
 import {
