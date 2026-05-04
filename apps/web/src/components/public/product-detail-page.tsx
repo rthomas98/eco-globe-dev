@@ -1,53 +1,34 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { SlidersHorizontal, Heart, Share2, ArrowRight, Minus, Plus, ChevronRight, ThumbsUp, ThumbsDown, CheckCircle } from "lucide-react";
+import { useParams } from "next/navigation";
+import { SlidersHorizontal, Heart, Share2, ArrowRight, Minus, Plus, ChevronRight, ThumbsUp, ThumbsDown, CheckCircle, FileText, AlertTriangle, Lock } from "lucide-react";
 import { Button, Badge } from "@eco-globe/ui";
 import { SearchBar } from "./search-bar";
 import { Footer } from "./footer";
 import { CartButton } from "@/components/cart/cart-panel";
 import { useCart } from "@/components/cart/cart-context";
+import { getProductDetailById } from "./product-detail-data";
+import { listings as ALL_LISTINGS } from "./browse-listings";
+import { useDemoUser } from "@/lib/demo-user";
+import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-const product = {
-  title: "Wood Sawdust Industrial Grade A",
-  location: "Denham Springs, LA",
-  distance: "2.4 mi",
-  moq: "3 tons",
-  co2: "300 kg CO₂e",
-  price: 200,
-  minOrder: 2,
-  shipping: 50,
-  images: [
-    "/images/product/main.png",
-    "/images/product/thumb-1.png",
-    "/images/product/thumb-2.png",
-    "/images/product/thumb-3.png",
-    "/images/product/thumb-4.png",
-    "/images/product/thumb-5.png",
-  ],
-  specs: [
-    { label: "Storage Type", value: "In dry place" },
-    { label: "Specification", value: "Export Standard" },
-    { label: "Shelf Life", value: "12 months" },
-    { label: "Composition", value: "Rice Husk" },
-    { label: "Address", value: "Baton Rouge, United State" },
-    { label: "Manufacturer", value: "Baton Rouge" },
-  ],
-  overview: "For a limited time only pick up a Caracal Car816 A2 piston rifle with 500 rounds of Federal soft point ammo! Just add the firearm to cart and the ammo case will automatically be applied to cart with discount!\n\nThe CAR816 A2 is chambered in 5.56×45mm NATO. The short-stroke push rod gas piston design is controlled by a three-position gas valve. It's manufactured with the best materials such as a Carpenter 158 bolt housed in an anti-tilt carrier, 4150 CMV barrel and aircraft-grade aluminum.",
-  seller: { name: "Acme Corp", verified: true, location: "Denham Springs, LA", type: "Manufacture" },
-  sellerCoords: { lng: -90.96, lat: 30.49 },
-};
+const FAVORITES_KEY = "ecoglobe.favoriteListings";
 
 function SellerMap({ lng, lat }: { lng: number; lat: number }) {
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  const validToken = !!token && token !== "placeholder" && token.startsWith("pk.");
+
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
 
   useEffect(() => {
+    if (!validToken) return;
     if (!mapContainer.current || mapRef.current) return;
-    mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
+    mapboxgl.accessToken = token!;
     const m = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/streets-v12",
@@ -60,30 +41,146 @@ function SellerMap({ lng, lat }: { lng: number; lat: number }) {
     new mapboxgl.Marker(el).setLngLat([lng, lat]).addTo(m);
     mapRef.current = m;
     return () => { m.remove(); mapRef.current = null; };
-  }, [lng, lat]);
+  }, [lng, lat, validToken, token]);
+
+  if (!validToken) {
+    return (
+      <div
+        className="relative h-[280px] w-full overflow-hidden rounded-xl"
+        style={{ background: "linear-gradient(135deg, #E8F1ED 0%, #F4F8F2 50%, #E0EAE3 100%)" }}
+      >
+        <svg className="absolute inset-0 h-full w-full opacity-40" aria-hidden>
+          <defs>
+            <pattern id="grid-detail" width="48" height="48" patternUnits="userSpaceOnUse">
+              <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#C8D7CD" strokeWidth="0.5" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid-detail)" />
+        </svg>
+        <div
+          className="absolute left-1/2 top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{ background: "#378853", border: "2.5px solid white", boxShadow: "0 2px 6px rgba(0,0,0,0.25)" }}
+        />
+      </div>
+    );
+  }
 
   return <div ref={mapContainer} className="h-[280px] w-full rounded-xl" />;
 }
 
 export function ProductDetailPage() {
+  const params = useParams<{ id?: string }>();
+  const product = useMemo(
+    () => getProductDetailById(typeof params.id === "string" ? params.id : undefined),
+    [params.id],
+  );
   const [qty, setQty] = useState(3);
   const [selectedImg, setSelectedImg] = useState(0);
   const [showFullOverview, setShowFullOverview] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteStatus, setFavoriteStatus] = useState("");
+  const [shareStatus, setShareStatus] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  const [isSharePanelOpen, setIsSharePanelOpen] = useState(false);
   const { addItem } = useCart();
+  const user = useDemoUser();
+  const isMember = !!user;
+  const matchedListing = useMemo(
+    () =>
+      ALL_LISTINGS.find(
+        (l) => l.id === (typeof params.id === "string" ? params.id : ""),
+      ),
+    [params.id],
+  );
+  const hasSds = !!matchedListing?.sdsUrl;
+  const purchaseDisabled = !isMember || !hasSds;
+
+  useEffect(() => {
+    setQty(product.minOrder);
+    setSelectedImg(0);
+    setShowFullOverview(false);
+    setShareStatus("");
+    setFavoriteStatus("");
+    setShareUrl("");
+    setIsSharePanelOpen(false);
+  }, [product.id, product.minOrder]);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]") as string[];
+      setIsFavorite(saved.includes(product.id));
+    } catch {
+      setIsFavorite(false);
+    }
+  }, [product.id]);
+
+  useEffect(() => {
+    if (!shareStatus) return;
+    const timer = window.setTimeout(() => setShareStatus(""), 2500);
+    return () => window.clearTimeout(timer);
+  }, [shareStatus]);
+
+  useEffect(() => {
+    if (!favoriteStatus) return;
+    const timer = window.setTimeout(() => setFavoriteStatus(""), 2500);
+    return () => window.clearTimeout(timer);
+  }, [favoriteStatus]);
 
   const itemSubtotal = product.price * qty;
   const subtotal = itemSubtotal + product.shipping;
+  const formatMoney = (value: number) => `${product.currencySymbol}${value.toFixed(2)}`;
 
   const handleAddToCart = () => {
     addItem({
-      id: "wood-sawdust-1",
+      id: product.id,
       title: product.title,
       location: product.location,
       price: product.price,
-      unit: "/ton",
+      unit: product.unit,
       moq: product.minOrder,
       image: product.images[0],
       quantity: qty,
+    });
+  };
+
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    setShareUrl(shareUrl);
+    setIsSharePanelOpen(true);
+    setFavoriteStatus("");
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareStatus("Link copied");
+    } catch {
+      const input = document.createElement("input");
+      input.value = shareUrl;
+      input.setAttribute("readonly", "");
+      input.style.position = "fixed";
+      input.style.left = "-9999px";
+      document.body.appendChild(input);
+      input.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(input);
+      setShareStatus(copied ? "Link copied" : "Share link ready");
+    }
+  };
+
+  const handleFavorite = () => {
+    setShareStatus("");
+    setIsSharePanelOpen(false);
+    setIsFavorite((current) => {
+      const next = !current;
+      try {
+        const saved = JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]") as string[];
+        const updated = next
+          ? Array.from(new Set([...saved, product.id]))
+          : saved.filter((id) => id !== product.id);
+        localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+      } catch {
+        // Keep the visible state responsive even if storage is unavailable.
+      }
+      setFavoriteStatus(next ? "Added to favorites" : "Removed from favorites");
+      return next;
     });
   };
 
@@ -134,12 +231,74 @@ export function ProductDetailPage() {
             {/* Main image */}
             <div className="relative mb-4 h-[250px] sm:h-[350px] lg:h-[400px] overflow-hidden rounded-2xl">
               <img src={product.images[selectedImg]} alt={product.title} className="h-full w-full object-cover" />
-              <button className="absolute right-4 top-4 flex size-10 items-center justify-center rounded-full bg-white/90 shadow-md">
+              <button
+                type="button"
+                aria-label="Copy share link"
+                onClick={handleShare}
+                className="absolute right-4 top-4 flex size-10 items-center justify-center rounded-full bg-white/90 shadow-md transition hover:bg-white"
+              >
                 <Share2 className="size-4 text-neutral-700" />
               </button>
-              <button className="absolute right-4 top-16 flex size-10 items-center justify-center rounded-full bg-white/90 shadow-md">
-                <Heart className="size-4 text-neutral-700" />
+              <button
+                type="button"
+                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                aria-pressed={isFavorite}
+                onClick={handleFavorite}
+                className="absolute right-4 top-16 flex size-10 items-center justify-center rounded-full bg-white/90 shadow-md transition hover:bg-white"
+              >
+                <Heart
+                  className={`size-4 ${
+                    isFavorite ? "fill-red-500 text-red-500" : "text-neutral-700"
+                  }`}
+                />
               </button>
+              {favoriteStatus && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="absolute right-4 top-[112px] rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white shadow-lg"
+                >
+                  {favoriteStatus}
+                </div>
+              )}
+              {isSharePanelOpen && shareUrl && (
+                <div
+                  role="dialog"
+                  aria-label="Share listing"
+                  className="absolute right-4 top-[112px] w-[min(320px,calc(100%-2rem))] rounded-xl bg-white p-4 text-sm shadow-xl"
+                  style={{ border: "1px solid #E0E0E0" }}
+                >
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="font-semibold text-neutral-900">Share listing</p>
+                    <button
+                      type="button"
+                      onClick={() => setIsSharePanelOpen(false)}
+                      className="text-xs font-semibold text-neutral-500 hover:text-neutral-900"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <input
+                    readOnly
+                    aria-label="Share URL"
+                    value={shareUrl}
+                    onFocus={(event) => event.currentTarget.select()}
+                    className="mb-3 w-full rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-700 outline-none"
+                    style={{ border: "1px solid #E0E0E0" }}
+                  />
+                  {shareStatus && (
+                    <p role="status" aria-live="polite" className="mb-3 text-xs font-semibold text-green-700">
+                      {shareStatus}
+                    </p>
+                  )}
+                  <a
+                    href={`mailto:?subject=${encodeURIComponent(product.title)}&body=${encodeURIComponent(shareUrl)}`}
+                    className="inline-flex w-full items-center justify-center rounded-full bg-neutral-900 px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                  >
+                    Share by email
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Thumbnails */}
@@ -153,9 +312,17 @@ export function ProductDetailPage() {
                   <img src={img} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}
-              <button className="flex h-[72px] w-[80px] items-center justify-center rounded-lg bg-neutral-100">
-                <ArrowRight className="size-5 text-neutral-500" />
-              </button>
+              {product.images.length > 4 && (
+                <button className="flex h-[72px] w-[80px] items-center justify-center rounded-lg bg-neutral-100">
+                  <ArrowRight className="size-5 text-neutral-500" />
+                </button>
+              )}
+            </div>
+
+            {/* Map */}
+            <h2 className="mb-4 text-xl font-bold text-neutral-900">Map</h2>
+            <div className="mb-10">
+              <SellerMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} />
             </div>
 
             {/* Specifications */}
@@ -199,36 +366,28 @@ export function ProductDetailPage() {
               </div>
             </div>
 
-            {/* Seller map */}
-            <div className="mb-10">
-              <SellerMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} />
-            </div>
-
             {/* Carbon Analytics Tool */}
             <h2 className="mb-4 text-xl font-bold text-neutral-900">Carbon Analytics Tool</h2>
             <div className="mb-6 rounded-xl bg-neutral-50 p-6">
-              <div className="mb-4">
-                <label className="mb-2 block text-sm font-medium text-neutral-900">Your Address</label>
-                <input
-                  type="text"
-
-                  className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
-                  style={{ border: "1px solid #E0E0E0" }}
+              <p className="mb-4 text-sm text-neutral-700">
+                Estimate transportation footprint, compare scenarios, and see
+                annualized impact for {product.title}.
+              </p>
+              {isMember ? (
+                <CarbonCalculatorButton
+                  listingId={matchedListing?.id}
+                  variant="primary"
+                  label="Open Carbon Calculator"
                 />
-              </div>
-              <div className="mb-4">
-                <label className="mb-2 block text-sm font-medium text-neutral-900">Transport Type</label>
-                <select
-                  className="w-full appearance-none rounded-lg bg-white px-4 py-3 text-sm text-neutral-500 outline-none"
-                  style={{ border: "1px solid #E0E0E0" }}
+              ) : (
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-4 py-2 text-sm font-bold text-white hover:opacity-90"
                 >
-                  <option>-- Choose --</option>
-                  <option>Truck</option>
-                  <option>Rail</option>
-                  <option>Ship</option>
-                </select>
-              </div>
-              <Button variant="primary" size="md">Calculate</Button>
+                  <Lock className="size-3.5" />
+                  Sign in to use the Calculator
+                </Link>
+              )}
             </div>
 
             {/* Feedback */}
@@ -244,9 +403,9 @@ export function ProductDetailPage() {
           {/* Right sidebar - Price card */}
           <div className="w-full lg:w-[300px] shrink-0 order-first lg:order-none">
             <div className="sticky top-8 rounded-xl bg-white p-6" style={{ border: "1px solid #E0E0E0" }}>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">${product.price}</p>
+              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">{formatMoney(product.price)}</p>
               <p className="mb-4 text-sm text-neutral-700" style={{ borderBottom: "1px solid #F0F0F0", paddingBottom: "16px" }}>
-                Minimum order quantity: {product.minOrder} tons
+                Minimum order quantity: {product.minimumOrderLabel}
               </p>
 
               {/* Quantity stepper */}
@@ -266,24 +425,86 @@ export function ProductDetailPage() {
               {/* Pricing */}
               <div className="flex items-center justify-between py-1.5 text-sm">
                 <span className="text-neutral-700">Item subtotal</span>
-                <span className="text-neutral-900">${itemSubtotal.toFixed(2)}</span>
+                <span className="text-neutral-900">{formatMoney(itemSubtotal)}</span>
               </div>
               <div className="flex items-center justify-between py-1.5 text-sm" style={{ borderBottom: "1px solid #F0F0F0" }}>
                 <span className="text-neutral-700">Shipping total</span>
-                <span className="text-neutral-900">${product.shipping}</span>
+                <span className="text-neutral-900">{formatMoney(product.shipping)}</span>
               </div>
               <div className="flex items-center justify-between py-3 text-sm font-bold">
                 <span className="text-neutral-900">Subtotal</span>
-                <span className="text-neutral-900">${subtotal.toFixed(2)}</span>
+                <span className="text-neutral-900">{formatMoney(subtotal)}</span>
               </div>
 
-              <Button variant="primary" size="lg" className="w-full" onClick={handleAddToCart}>
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full"
+                onClick={handleAddToCart}
+                disabled={purchaseDisabled}
+                style={
+                  purchaseDisabled
+                    ? { opacity: 0.4, cursor: "not-allowed" }
+                    : undefined
+                }
+              >
                 Add to Cart
               </Button>
-              <button className="mt-2 w-full text-center text-sm font-medium text-neutral-700 underline">
+              {!isMember && (
+                <p className="mt-2 flex items-center justify-center gap-1 text-xs text-neutral-500">
+                  <Lock className="size-3" />
+                  <Link href="/login" className="font-medium text-neutral-900 underline">
+                    Sign in
+                  </Link>{" "}
+                  to purchase
+                </p>
+              )}
+              {isMember && !hasSds && (
+                <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+                  Seller hasn&apos;t uploaded the SDS yet — purchase blocked.
+                </p>
+              )}
+              <button
+                className="mt-2 w-full text-center text-sm font-medium text-neutral-700 underline"
+                disabled={purchaseDisabled}
+                style={
+                  purchaseDisabled
+                    ? { opacity: 0.4, cursor: "not-allowed" }
+                    : undefined
+                }
+              >
                 Buy Now
               </button>
             </div>
+
+            {/* Member tools — Carbon Calculator + SDS */}
+            {isMember && (
+              <div className="mt-4 flex flex-col gap-2 rounded-xl bg-white p-4" style={{ border: "1px solid #E0E0E0" }}>
+                <CarbonCalculatorButton
+                  listingId={matchedListing?.id}
+                  variant="primary"
+                  label="Open Carbon Calculator"
+                />
+                {hasSds ? (
+                  <a
+                    href={matchedListing?.sdsUrl}
+                    target="_blank"
+                    rel="noopener"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+                    style={{ border: "1px solid #E0E0E0" }}
+                  >
+                    <FileText className="size-4" />
+                    Download SDS
+                  </a>
+                ) : (
+                  <p className="flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+                    SDS pending — request from seller before purchase.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Know more card */}
             <div className="mt-4 flex items-center justify-between rounded-xl bg-neutral-50 p-5">
@@ -296,7 +517,8 @@ export function ProductDetailPage() {
           </div>
         </div>
 
-        {/* CTA Banner */}
+        {/* CTA Banner — only for anonymous visitors */}
+        {!isMember && (
         <div className="my-10 flex items-center justify-between rounded-2xl bg-neutral-50 px-10 py-8">
           <div className="flex items-center gap-4">
             <div className="flex size-12 items-center justify-center rounded-xl bg-blue-100 text-2xl">📋</div>
@@ -314,6 +536,7 @@ export function ProductDetailPage() {
             </Link>
           </div>
         </div>
+        )}
       </div>
 
       <Footer />

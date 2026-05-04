@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Search, Menu, X } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { HeaderUserMenu } from "@/components/auth/header-user-menu";
 
 const navLinks = [
   { label: "Services", href: "/services" },
@@ -83,7 +84,7 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
                 type="text"
                 value={headerQuery}
                 onChange={(e) => setHeaderQuery(e.target.value)}
-
+                placeholder="What"
                 className="w-20 sm:w-32 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
               />
               <div className="h-4 w-px bg-neutral-300" />
@@ -91,7 +92,7 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
                 type="text"
                 value={headerLocation}
                 onChange={(e) => setHeaderLocation(e.target.value)}
-
+                placeholder="Where"
                 className="w-20 sm:w-32 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-neutral-500"
               />
               <button type="submit" className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-white">
@@ -114,23 +115,7 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
 
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-3">
-              <Link href="/login">
-                <Button
-                  variant="ghost"
-                  size="md"
-                  className={isHero ? "text-white" : "text-neutral-900"}
-                >
-                  Login
-                </Button>
-              </Link>
-              <Link href="/register">
-                <Button
-                  variant={isHero ? "outline-white" : "secondary"}
-                  size="md"
-                >
-                  Sign Up
-                </Button>
-              </Link>
+              <HeaderUserMenu tone={isHero ? "light" : "dark"} />
             </div>
             <button
               className="md:hidden flex items-center justify-center"

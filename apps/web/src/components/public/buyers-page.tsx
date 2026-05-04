@@ -1,4 +1,5 @@
 import { Shield, Eye, TrendingDown, Handshake, UserPlus, Search, FileCheck, Link2 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@eco-globe/ui";
 import { Header } from "./header";
 import { CTABannerSection } from "./cta-banner-section";
@@ -25,26 +26,38 @@ export function BuyersPage() {
 
       {/* Hero */}
       <section className="relative flex h-[350px] sm:h-[400px] lg:h-[500px] items-center justify-center overflow-hidden">
-        <img src="/images/hero-about.png" alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
+        <img
+          src="/images/buyers-hero-marketplace.png"
+          alt="Buyer-side industrial sourcing environment"
+          className="absolute inset-0 h-full w-full object-cover object-top"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/60 to-black/40" />
         <div className="relative z-10 text-center px-4">
           <h1 className="mb-6 text-2xl sm:text-4xl lg:text-5xl font-bold leading-tight text-white">
-            Source Verified Sustainable<br />Suppliers with Confidence
+            Source Verified Suppliers.<br />Ready to Trade When You Are.
           </h1>
           <p className="mb-8 max-w-[600px] text-lg text-white/80">
-            Ecoglobe helps buyers discover and connect with verified suppliers through transparent sustainability data, structured verification, and streamlined sourcing tools.
+            EcoGlobe helps buyers discover and connect with verified suppliers through transparent sustainability data, structured verification, and streamlined sourcing tools.
           </p>
-          <Button variant="white" size="lg">Join as a Buyer</Button>
+          <Link href="/register">
+            <Button variant="white" size="lg">Join as a Buyer</Button>
+          </Link>
         </div>
       </section>
 
       {/* Why Buy on EcoGlobe */}
       <section className="py-16 lg:py-[120px]">
         <div className="mx-auto flex flex-col lg:flex-row max-w-[1440px] gap-8 lg:gap-16 px-4 sm:px-8 lg:px-[135px]">
-          <div className="h-[250px] sm:h-[350px] lg:h-[420px] w-full lg:w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100" />
+          <div className="h-[250px] sm:h-[350px] lg:h-[420px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
+            <img
+              src="/images/buyers-why-buy.png"
+              alt="Verified supplier evaluation setup"
+              className="h-full w-full object-cover"
+            />
+          </div>
           <div>
-            <p className="mb-2 text-sm font-medium uppercase tracking-wider" style={{ color: "#96794A" }}>Why Buy on Ecoglobe</p>
-            <h2 className="mb-10 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Designed for<br />Responsible Sourcing<br />Teams</h2>
+            <p className="mb-2 text-sm font-medium uppercase tracking-wider" style={{ color: "#96794A" }}>Why Buy on EcoGlobe</p>
+            <h2 className="mb-10 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Designed for<br />Sustainable Sourcing<br />Teams</h2>
             <div className="flex flex-col gap-8">
               {whyBuyFeatures.map((f) => (
                 <div key={f.title} className="flex gap-4">
@@ -78,18 +91,30 @@ export function BuyersPage() {
               ))}
             </div>
           </div>
-          <div className="h-[250px] sm:h-[350px] lg:h-[420px] w-full lg:w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-200" />
+          <div className="h-[250px] sm:h-[350px] lg:h-[420px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-200">
+            <img
+              src="/images/buyers-how-it-works.png"
+              alt="Buyer procurement workflow"
+              className="h-full w-full object-cover"
+            />
+          </div>
         </div>
       </section>
 
       {/* Sustainability */}
-      <section className="py-12 lg:py-12 lg:py-[100px]">
+      <section className="py-12 lg:py-[100px]">
         <div className="mx-auto flex flex-col lg:flex-row max-w-[1440px] items-center gap-8 lg:gap-16 px-4 sm:px-8 lg:px-[135px]">
-          <div className="h-[250px] sm:h-[300px] w-full lg:w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100" />
+          <div className="h-[250px] sm:h-[300px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
+            <img
+              src="/images/buyers-sustainability-proof.png"
+              alt="Traceability and sustainability verification setup"
+              className="h-full w-full object-cover"
+            />
+          </div>
           <div>
             <h2 className="mb-6 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Sustainability You<br />Can Prove</h2>
             <p className="text-base leading-7 text-neutral-700">
-              Every supplier on Ecoglobe goes through a structured verification process, we will have certifier companies that assure our process. Sustainability claims are reviewed, documented, and made visible — so you can source with confidence.
+              Every supplier on EcoGlobe goes through a structured verification process, we will have certifier companies that assure our process. Sustainability claims are reviewed, documented, and made visible — so you can source with confidence.
             </p>
           </div>
         </div>

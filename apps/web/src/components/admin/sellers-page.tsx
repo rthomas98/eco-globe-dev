@@ -193,10 +193,10 @@ function OverviewTab() {
 /* ─── Seller Detail: Products Tab ─── */
 function ProductsTab() {
   const products = [
-    { name: "Rice Husk Industrial Grade", category: "Plactic", price: "$400/ton", sustainability: "Verified", status: "Active" },
-    { name: "Rice Husk Industrial Grade", category: "Plactic", price: "$400/ton", sustainability: "Verified", status: "Active" },
-    { name: "Rice Husk Industrial Grade", category: "Plactic", price: "$400/ton", sustainability: "Verified", status: "Active" },
-    { name: "Rice Husk Industrial Grade", category: "Plactic", price: "$400/ton", sustainability: "Verified", status: "Active" },
+    { name: "Rice Husk Industrial Grade", category: "Plastic", price: "$400/ton", sustainability: "Verified", status: "Active" },
+    { name: "Rice Husk Industrial Grade", category: "Plastic", price: "$400/ton", sustainability: "Verified", status: "Active" },
+    { name: "Rice Husk Industrial Grade", category: "Plastic", price: "$400/ton", sustainability: "Verified", status: "Active" },
+    { name: "Rice Husk Industrial Grade", category: "Plastic", price: "$400/ton", sustainability: "Verified", status: "Active" },
   ];
   return (
     <table className="w-full">

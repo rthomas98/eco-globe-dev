@@ -1,20 +1,21 @@
 import { Globe, FlaskConical, TrendingUp, Shield, CheckCircle } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@eco-globe/ui";
 import { Header } from "./header";
 import { CTABannerSection } from "./cta-banner-section";
 import { Footer } from "./footer";
 
 const consultingFeatures = [
-  { icon: Globe, title: "Help you identify compatible feedstocks and buyers in your region" },
+  { icon: Globe, title: "Help you identify compatible feedstocks and buyers in your market" },
   { icon: FlaskConical, title: "Conduct pilot testing to validate technical and economic feasibility" },
   { icon: TrendingUp, title: "Support you through commercialization until you're marketplace-ready" },
   { icon: Shield, title: "Provide ongoing advisory as your business scales" },
 ];
 
 const marketplaceFeatures = [
-  { icon: Globe, title: "Instant access to vetted suppliers and buyers across Louisiana" },
-  { icon: Shield, title: "Integrated logistics, secure payments, and carbon tracking" },
-  { icon: TrendingUp, title: "Real-time analytics on pricing, availability, and market trends" },
+  { icon: Globe, title: "Instant access to vetted suppliers and buyers across our growing marketplace network" },
+  { icon: Shield, title: "Integrated logistics, secure payments with built-in escrow, and carbon tracking" },
+  { icon: TrendingUp, title: "Real-time analytics on pricing, availability, and market trends — with an interactive sourcing map to find the right match faster" },
   { icon: CheckCircle, title: "Premium tools for advanced forecasting and ESG reporting" },
 ];
 
@@ -57,7 +58,9 @@ export function ServicesPage() {
           <p className="mb-8 text-lg text-white/80">
             Whether you need guidance to get started or are ready to trade independently,<br className="hidden sm:inline" />EcoGlobe meets you where you are.
           </p>
-          <Button variant="white" size="lg">Get Started</Button>
+          <Link href="/register">
+            <Button variant="white" size="lg">Get Started</Button>
+          </Link>
         </div>
       </section>
 
@@ -67,8 +70,14 @@ export function ServicesPage() {
           {/* Consulting */}
           <div className="flex flex-col gap-8 rounded-2xl bg-white p-10" style={{ border: "1px solid #E0E0E0" }}>
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">Consulting Services</h2>
-            <p className="text-base text-neutral-700">Companies new to circular economy, those with complex waste streams, or those needing validation before committing.</p>
-            <div className="h-[240px] rounded-xl bg-neutral-100" />
+            <p className="text-base text-neutral-700">Companies new to circular economy, those with complex waste streams, or those ready to unlock new revenue. We assess your waste streams, identify which ones have real market value, and build the business strategy to turn them into income.</p>
+            <div className="h-[240px] overflow-hidden rounded-xl bg-neutral-100">
+              <img
+                src="/images/services-consulting.png"
+                alt="Circular economy consulting for industrial waste streams"
+                className="h-full w-full object-cover"
+              />
+            </div>
             <div>
               <h3 className="mb-4 text-lg font-bold text-neutral-900">What We Do:</h3>
               <div className="flex flex-col gap-4">
@@ -82,8 +91,10 @@ export function ServicesPage() {
             </div>
             <div>
               <h3 className="mb-2 text-base font-bold text-neutral-900">Our Approach:</h3>
-              <p className="mb-4 text-sm text-neutral-700">A structured 5-phase methodology that de-risks your transition to circular operations and ensures long-term success.</p>
-              <Button variant="primary" size="md">Schedule a Discovery Call</Button>
+              <p className="mb-4 text-sm text-neutral-700">A structured methodology that de-risks your transition to circular operations and ensures long-term success.</p>
+              <Link href="/contact">
+                <Button variant="primary" size="md">Schedule a Discovery Call</Button>
+              </Link>
             </div>
           </div>
 
@@ -91,7 +102,13 @@ export function ServicesPage() {
           <div className="flex flex-col gap-8 rounded-2xl bg-white p-10" style={{ border: "1px solid #E0E0E0" }}>
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">Marketplace Access</h2>
             <p className="text-base text-neutral-700">Companies who know what feedstocks they need, experienced traders, or those ready to transact independently.</p>
-            <div className="h-[240px] rounded-xl bg-neutral-100" />
+            <div className="h-[240px] overflow-hidden rounded-xl bg-neutral-100">
+              <img
+                src="/images/services-marketplace.png"
+                alt="Verified marketplace access for industrial feedstocks"
+                className="h-full w-full object-cover"
+              />
+            </div>
             <div>
               <h3 className="mb-4 text-lg font-bold text-neutral-900">What You Get:</h3>
               <div className="flex flex-col gap-4">
@@ -106,7 +123,9 @@ export function ServicesPage() {
             <div>
               <h3 className="mb-2 text-base font-bold text-neutral-900">Getting Started:</h3>
               <p className="mb-4 text-sm text-neutral-700">Create your account, build your profile, and start transacting — all in minutes.</p>
-              <Button variant="primary" size="md">Join the Marketplace</Button>
+              <Link href="/register">
+                <Button variant="primary" size="md">Join the Marketplace</Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -155,7 +174,13 @@ export function ServicesPage() {
               ))}
             </div>
           </div>
-          <div className="h-[250px] sm:h-[350px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100" />
+          <div className="h-[250px] sm:h-[350px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
+            <img
+              src="/images/services-marketplace.png"
+              alt="EcoGlobe marketplace operations"
+              className="h-full w-full object-cover"
+            />
+          </div>
         </div>
       </section>
 
