@@ -17,6 +17,9 @@ import {
 import { Button } from "@eco-globe/ui";
 import { useDemoUser, type Facility } from "@/lib/demo-user";
 import { listings as ALL_LISTINGS, type Listing } from "@/components/public/browse-listings";
+import { CarbonGauge, type GaugeMarker } from "./carbon-gauge";
+import { ListingMap, type MapListing } from "@/components/public/listing-map";
+import { generateCarbonReport, type ReportScenario } from "./carbon-report";
 import {
   computeEmissionTons,
   distanceMiles,
@@ -61,6 +64,13 @@ const STEPS = [
   "Compare",
   "Recommendation",
 ] as const;
+
+/** Round a distance up to the nearest standard radius bucket. */
+function roundUpToRadius(miles: number): number {
+  const buckets = [25, 50, 100, 200, 300, 500, 1000];
+  for (const b of buckets) if (miles <= b) return b;
+  return 1000;
+}
 
 function MODE_ICON(mode: TransportMode) {
   if (mode.includes("truck") || mode.includes("tanker") || mode.includes("wheeler"))
@@ -162,10 +172,15 @@ export function CarbonCalculatorModal({
   const [targetTons, setTargetTons] = useState<number | "">(2.5);
   const [recurrence, setRecurrence] = useState<Recurrence>("one-time");
 
-  // Reset when opened
+  // Reset when opened — also runs distance through updateScenario so miles
+  // is computed for the default facility right out of the gate.
   useEffect(() => {
     if (!open || !initial) return;
-    const first = newScenario(initial, facilities[0]);
+    const first = updateScenario(
+      newScenario(initial, facilities[0]),
+      initial,
+      facilities,
+    );
     setScenarios([first]);
     setActiveIdx(0);
     setStep(0);
@@ -173,6 +188,27 @@ export function CarbonCalculatorModal({
     setTargetTons(2.5);
     setRecurrence("one-time");
   }, [open, initial?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Backfill facility + miles once useDemoUser hydrates after the modal mounted
+  // (initial render returns null user, so facilities is [] on mount).
+  useEffect(() => {
+    if (!open || !initial || facilities.length === 0) return;
+    setScenarios((prev) =>
+      prev.map((s) => {
+        if (s.miles > 0 || s.distanceSource === "manual") return s;
+        const listing = ALL_LISTINGS.find((l) => l.id === s.listingId)!;
+        return updateScenario(
+          {
+            ...s,
+            distanceSource: "facility",
+            facilityId: s.facilityId ?? facilities[0].id,
+          },
+          listing,
+          facilities,
+        );
+      }),
+    );
+  }, [open, initial?.id, facilities]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return;
@@ -377,6 +413,8 @@ export function CarbonCalculatorModal({
                 setRecurrence={setRecurrence}
                 recurrenceMul={recurrenceMul}
                 targetTons={targetTons}
+                facilities={facilities}
+                user={user}
               />
             )}
           </div>
@@ -446,18 +484,94 @@ function StepDistance({
   facilities: Facility[];
   onChange: (patch: Partial<Scenario>) => void;
 }) {
+  const mapListing: MapListing = {
+    id: listing.id,
+    title: listing.title,
+    location: listing.location,
+    price: listing.price,
+    unit: listing.unit,
+    moq: listing.moq,
+    co2: listing.co2,
+    lng: listing.lng,
+    lat: listing.lat,
+    image: listing.image,
+  };
+
+  // Resolve buyer origin for the map: use the active scenario's selected facility,
+  // fall back to the first facility on file. Manual addresses don't have lat/lng,
+  // so the origin pin is hidden in that case.
+  const originFacility =
+    active.distanceSource === "facility" && active.facilityId
+      ? facilities.find((f) => f.id === active.facilityId)
+      : active.distanceSource === "profile"
+        ? facilities[0]
+        : undefined;
+
+  // Default radius slightly larger than the actual distance so the feedstock
+  // sits inside the circle when the user opens Step 1 — communicates "within
+  // your search radius".
+  const defaultRadius =
+    active.miles > 0 ? roundUpToRadius(active.miles) : 250;
+  const [radiusMiles, setRadiusMiles] = useState<number>(defaultRadius);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="text-2xl font-bold text-neutral-900">
-          Step 1 — Distance
+          Step 1 — Calculate Distance
         </h2>
         <p className="mt-1 text-sm text-neutral-600">
-          Where are you shipping {listing.title} <span className="text-neutral-400">({listing.location})</span> to?
+          Please check that your preferred feedstock —{" "}
+          <span className="font-medium text-neutral-900">{listing.title}</span>{" "}
+          <span className="text-neutral-400">({listing.location})</span> — is{" "}
+          <span className="font-semibold" style={{ color: "#B45309" }}>
+            active (yellow)
+          </span>{" "}
+          on the map. If not, choose another feedstock scenario from the left rail.
         </p>
-        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-          Selected feedstock is active on the map. If the preferred feedstock is not active, choose a different scenario from the left rail.
+        <p className="mt-2 text-sm text-neutral-600">
+          Confirm the shipping address from the list below, or enter a different
+          address manually.
         </p>
+      </div>
+
+      <div className="relative h-[260px] overflow-hidden rounded-xl">
+        {originFacility?.lat && originFacility?.lng && (
+          <div
+            className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs shadow"
+            style={{ border: "1px solid #E0E0E0" }}
+          >
+            <span className="font-semibold text-neutral-700">Search radius</span>
+            <select
+              value={radiusMiles}
+              onChange={(e) => setRadiusMiles(parseInt(e.target.value, 10))}
+              className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs outline-none"
+            >
+              <option value={0}>Off</option>
+              <option value={25}>25 mi</option>
+              <option value={50}>50 mi</option>
+              <option value={100}>100 mi</option>
+              <option value={200}>200 mi</option>
+              <option value={300}>300 mi</option>
+              <option value={500}>500 mi</option>
+              <option value={1000}>1,000 mi</option>
+            </select>
+          </div>
+        )}
+        <ListingMap
+          listings={[mapListing]}
+          activeId={listing.id}
+          origin={
+            originFacility?.lat && originFacility?.lng
+              ? {
+                  lng: originFacility.lng,
+                  lat: originFacility.lat,
+                  label: originFacility.label,
+                }
+              : undefined
+          }
+          radiusMiles={radiusMiles > 0 ? radiusMiles : undefined}
+        />
       </div>
 
       <div className="flex flex-col gap-3">
@@ -796,11 +910,24 @@ function StepResult({
         />
       </Field>
 
-      {typeof targetTons === "number" && targetTons > 0 && (
-        <BarComparison
-          rows={[
-            { label: "Feedstock scenario", value: active.emissionTons, color: "#1F5F3A" },
-            { label: "User target", value: targetTons, color: "#D97706" },
+      {active.emissionTons > 0 && (
+        <CarbonGauge
+          markers={[
+            {
+              label: active.name || "Feedstock 1",
+              value: active.emissionTons,
+              color: "#1F5F3A",
+            },
+            ...(typeof targetTons === "number" && targetTons > 0
+              ? [
+                  {
+                    label: "User target",
+                    value: targetTons,
+                    color: "#D97706",
+                    dashed: true,
+                  },
+                ]
+              : []),
           ]}
         />
       )}
@@ -842,10 +969,18 @@ function StepBau({
       </Field>
 
       {typeof bauTons === "number" && bauTons > 0 && (
-        <BarComparison
-          rows={[
-            { label: "This scenario", value: active.emissionTons, color: "#1F5F3A" },
-            { label: "Business as usual", value: bauTons, color: "#9E9E9E" },
+        <CarbonGauge
+          markers={[
+            {
+              label: active.name || "Feedstock 1",
+              value: active.emissionTons,
+              color: "#1F5F3A",
+            },
+            {
+              label: "Business as Usual",
+              value: bauTons,
+              color: "#525252",
+            },
           ]}
         />
       )}
@@ -871,15 +1006,21 @@ function StepCompare({
         </p>
       </div>
 
-      <BarComparison
-        rows={[
+      <CarbonGauge
+        markers={[
           ...(typeof bauTons === "number" && bauTons > 0
-            ? [{ label: "Business as usual", value: bauTons, color: "#9E9E9E" }]
+            ? [
+                {
+                  label: "Business as Usual",
+                  value: bauTons,
+                  color: "#525252",
+                },
+              ]
             : []),
           ...scenarios.map((s, i) => ({
-            label: s.name || `Scenario ${i + 1}`,
+            label: s.name || `Feedstock ${i + 1}`,
             value: s.emissionTons,
-            color: i === 0 ? "#1F5F3A" : "#378853",
+            color: i === 0 ? "#1F5F3A" : i === 1 ? "#378853" : "#84CC16",
           })),
         ]}
       />
@@ -894,6 +1035,8 @@ function StepRecommend({
   setRecurrence,
   recurrenceMul,
   targetTons,
+  facilities,
+  user,
 }: {
   scenarios: Scenario[];
   bauTons: number | "";
@@ -901,10 +1044,51 @@ function StepRecommend({
   setRecurrence: (r: Recurrence) => void;
   recurrenceMul: number;
   targetTons: number | "";
+  facilities: Facility[];
+  user: ReturnType<typeof useDemoUser>;
 }) {
   const best = scenarios[0];
   const second = scenarios[1];
   const baseline = typeof bauTons === "number" ? bauTons : null;
+
+  const handleCreateReport = () => {
+    const reportScenarios: ReportScenario[] = scenarios.map((s) => {
+      const listing = ALL_LISTINGS.find((l) => l.id === s.listingId)!;
+      const facility = s.facilityId
+        ? facilities.find((f) => f.id === s.facilityId)
+        : s.distanceSource === "profile"
+          ? facilities[0]
+          : undefined;
+      return {
+        name: s.name,
+        listing,
+        miles: s.miles,
+        metricTons: s.metricTons,
+        weightValue: s.weightValue,
+        weightUnit: s.weightUnit,
+        state: s.state,
+        mode: s.mode,
+        emissionTons: s.emissionTons,
+        facilityLabel: facility?.label
+          ? `${facility.label} — ${facility.address}`
+          : undefined,
+        manualAddress:
+          s.distanceSource === "manual" && s.manualAddress
+            ? s.manualAddress
+            : undefined,
+      };
+    });
+    generateCarbonReport({
+      scenarios: reportScenarios,
+      bauTons: typeof bauTons === "number" ? bauTons : null,
+      targetTons: typeof targetTons === "number" ? targetTons : null,
+      recurrence,
+      recurrenceMul,
+      buyerName: user?.name,
+      buyerEmail: user?.email,
+      facilities,
+    });
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -970,6 +1154,36 @@ function StepRecommend({
         </select>
       </Field>
 
+      <CarbonGauge
+        title="Estimated Transportation Carbon footprint (per shipment)"
+        markers={[
+          ...(baseline != null
+            ? [
+                {
+                  label: "Business as Usual",
+                  value: baseline,
+                  color: "#525252",
+                },
+              ]
+            : []),
+          ...(typeof targetTons === "number" && targetTons > 0
+            ? [
+                {
+                  label: "User target",
+                  value: targetTons,
+                  color: "#D97706",
+                  dashed: true,
+                },
+              ]
+            : []),
+          ...scenarios.map((s, i) => ({
+            label: s.name || `Feedstock ${i + 1}`,
+            value: s.emissionTons,
+            color: i === 0 ? "#1F5F3A" : i === 1 ? "#378853" : "#84CC16",
+          })),
+        ]}
+      />
+
       <CumulativeImpactChart
         bestTons={best.emissionTons}
         baselineTons={baseline}
@@ -996,7 +1210,7 @@ function StepRecommend({
             {typeof targetTons === "number" ? ` Target: ${targetTons.toFixed(2)} t CO2eq.` : ""}
           </p>
         </div>
-        <Button variant="secondary" size="sm">
+        <Button variant="secondary" size="sm" onClick={handleCreateReport}>
           Create report
         </Button>
       </div>
@@ -1060,12 +1274,22 @@ function MiniCumulativeChart({
       <p className="mb-3 text-xs text-neutral-500">{unit} over the next 12 months</p>
       <div className="flex h-32 items-end gap-1">
         {values.map((value, i) => (
-          <div key={i} className="flex flex-1 flex-col items-center gap-1">
+          <div
+            key={i}
+            className="flex h-full flex-1 items-end overflow-hidden rounded-t"
+            title={`M${i + 1}: ${value.toFixed(2)} ${unit}`}
+          >
             <div
               className="w-full rounded-t bg-green-700"
               style={{ height: `${Math.max(4, (value / max) * 100)}%` }}
             />
-            {i % 3 === 0 && <span className="text-[10px] text-neutral-400">M{i + 1}</span>}
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 flex gap-1 text-[10px] text-neutral-400">
+        {values.map((_, i) => (
+          <div key={i} className="flex-1 text-center">
+            {i % 3 === 0 ? `M${i + 1}` : ""}
           </div>
         ))}
       </div>
@@ -1076,33 +1300,3 @@ function MiniCumulativeChart({
   );
 }
 
-function BarComparison({
-  rows,
-}: {
-  rows: { label: string; value: number; color: string }[];
-}) {
-  const max = Math.max(0.01, ...rows.map((r) => r.value));
-  return (
-    <div className="flex flex-col gap-3">
-      {rows.map((r) => (
-        <div key={r.label} className="flex flex-col gap-1">
-          <div className="flex items-baseline justify-between text-xs">
-            <span className="text-neutral-700">{r.label}</span>
-            <span className="font-bold text-neutral-900">
-              {r.value.toFixed(2)} t CO₂eq
-            </span>
-          </div>
-          <div className="h-3 overflow-hidden rounded-full bg-neutral-100">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.max(2, (r.value / max) * 100)}%`,
-                background: r.color,
-              }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}

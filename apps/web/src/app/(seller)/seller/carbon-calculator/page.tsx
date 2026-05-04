@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { TrendingDown } from "lucide-react";
 import { Button } from "@eco-globe/ui";
-import { BuyerLayout } from "@/components/buyer/buyer-layout";
+import { SellerLayout } from "@/components/seller/seller-layout";
 import { CarbonCalculatorModal } from "@/components/buyer/carbon-calculator-modal";
 
 export default function Page() {
   const [open, setOpen] = useState(false);
 
   return (
-    <BuyerLayout>
+    <SellerLayout title="Carbon Calculator">
       <div className="flex h-full flex-col items-center justify-center bg-neutral-50 px-8 py-12 text-center">
         <div className="flex size-14 items-center justify-center rounded-full bg-neutral-900 text-white">
           <TrendingDown className="size-7" />
@@ -19,8 +19,9 @@ export default function Page() {
           Carbon Calculator
         </h1>
         <p className="mt-3 max-w-[520px] text-base text-neutral-600">
-          Compare transportation footprints across feedstocks. Run up to four
-          scenarios side by side and see your annualized impact instantly.
+          Estimate transportation footprints across feedstocks. Run up to four
+          scenarios side by side and see annualized impact instantly — useful
+          when pricing or describing your listings.
         </p>
         <Button
           variant="primary"
@@ -33,6 +34,6 @@ export default function Page() {
       </div>
 
       <CarbonCalculatorModal open={open} onClose={() => setOpen(false)} />
-    </BuyerLayout>
+    </SellerLayout>
   );
 }

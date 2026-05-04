@@ -150,20 +150,92 @@ interface ListingMapProps {
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   onView?: (id: string) => void;
+  /**
+   * Optional origin pin for radius circle (e.g. buyer facility, seller location).
+   * When set with `radiusMiles`, draws a circle and a contrasting pin at this location.
+   */
+  origin?: { lng: number; lat: number; label?: string };
+  /** Search radius in miles. Renders a circle around `origin`. */
+  radiusMiles?: number;
+  /**
+   * Listing ID to mark as the actively-displayed feedstock (yellow pin) and,
+   * when `origin` is set, draw a route line between origin and this listing.
+   */
+  activeId?: string;
 }
 
 function isValidToken(t: string | undefined): t is string {
   return !!t && t !== "placeholder" && t.startsWith("pk.");
 }
 
-function FallbackMap({ data, selectedId, onSelect, onView }: {
+/**
+ * Build the LngLatBounds we want the map to fit. Includes the listings and
+ * the optional origin pin. We DO NOT extend by the radius envelope — the
+ * radius circle is a reference overlay and can run past the viewport (mapbox
+ * clips it). Including the envelope made the demo zoom out to continent scale.
+ */
+function buildBounds(
+  data: MapListing[],
+  origin?: { lng: number; lat: number },
+): mapboxgl.LngLatBounds {
+  const bounds = new mapboxgl.LngLatBounds();
+  data.forEach((l) => bounds.extend([l.lng, l.lat]));
+  if (origin) bounds.extend([origin.lng, origin.lat]);
+  return bounds;
+}
+
+/**
+ * Approximate a circle as a 64-vertex polygon (GeoJSON) around an lng/lat center
+ * with a radius in miles. Good enough for marketplace radii — we're not
+ * doing geodesics for navigation.
+ */
+function circlePolygon(
+  lng: number,
+  lat: number,
+  radiusMiles: number,
+): GeoJSON.Feature<GeoJSON.Polygon> {
+  const points = 64;
+  const radiusKm = radiusMiles * 1.609344;
+  const earthRadiusKm = 6371;
+  const coords: [number, number][] = [];
+  for (let i = 0; i <= points; i++) {
+    const bearing = (i / points) * 2 * Math.PI;
+    const dByR = radiusKm / earthRadiusKm;
+    const lat1 = (lat * Math.PI) / 180;
+    const lng1 = (lng * Math.PI) / 180;
+    const lat2 = Math.asin(
+      Math.sin(lat1) * Math.cos(dByR) +
+        Math.cos(lat1) * Math.sin(dByR) * Math.cos(bearing),
+    );
+    const lng2 =
+      lng1 +
+      Math.atan2(
+        Math.sin(bearing) * Math.sin(dByR) * Math.cos(lat1),
+        Math.cos(dByR) - Math.sin(lat1) * Math.sin(lat2),
+      );
+    coords.push([(lng2 * 180) / Math.PI, (lat2 * 180) / Math.PI]);
+  }
+  return {
+    type: "Feature",
+    geometry: { type: "Polygon", coordinates: [coords] },
+    properties: {},
+  };
+}
+
+function FallbackMap({ data, selectedId, onSelect, onView, origin, radiusMiles }: {
   data: MapListing[];
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   onView?: (id: string) => void;
+  origin?: { lng: number; lat: number; label?: string };
+  radiusMiles?: number;
 }) {
   const lngs = data.map((d) => d.lng);
   const lats = data.map((d) => d.lat);
+  if (origin) {
+    lngs.push(origin.lng);
+    lats.push(origin.lat);
+  }
   const minLng = Math.min(...lngs);
   const maxLng = Math.max(...lngs);
   const minLat = Math.min(...lats);
@@ -172,6 +244,10 @@ function FallbackMap({ data, selectedId, onSelect, onView }: {
   const padY = (maxLat - minLat) * 0.15 || 0.3;
   const lngRange = (maxLng - minLng) + padX * 2 || 1;
   const latRange = (maxLat - minLat) + padY * 2 || 1;
+
+  // Approximate radius in % of viewport: ~69 mi per degree latitude.
+  const radiusDeg = radiusMiles ? radiusMiles / 69 : 0;
+  const radiusPctY = radiusDeg ? (radiusDeg / latRange) * 100 : 0;
 
   return (
     <div
@@ -190,6 +266,47 @@ function FallbackMap({ data, selectedId, onSelect, onView }: {
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
       </svg>
+
+      {/* Radius circle */}
+      {origin && radiusPctY > 0 && (() => {
+        const ox = ((origin.lng - minLng + padX) / lngRange) * 100;
+        const oy = (1 - (origin.lat - minLat + padY) / latRange) * 100;
+        return (
+          <div
+            className="pointer-events-none absolute z-0 rounded-full"
+            style={{
+              left: `${ox}%`,
+              top: `${oy}%`,
+              width: `${radiusPctY * 2}%`,
+              aspectRatio: "1 / 1",
+              transform: "translate(-50%, -50%)",
+              background: "rgba(55,136,83,0.12)",
+              border: "2px dashed #1F5F3A",
+            }}
+          />
+        );
+      })()}
+
+      {/* Origin pin */}
+      {origin && (() => {
+        const ox = ((origin.lng - minLng + padX) / lngRange) * 100;
+        const oy = (1 - (origin.lat - minLat + padY) / latRange) * 100;
+        return (
+          <div
+            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              left: `${ox}%`,
+              top: `${oy}%`,
+              width: 20,
+              height: 20,
+              background: "#1F2937",
+              border: "3px solid white",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+            }}
+            aria-label={origin.label ?? "Origin"}
+          />
+        );
+      })()}
 
       {/* Pins */}
       {data.map((listing) => {
@@ -273,7 +390,15 @@ function FallbackMap({ data, selectedId, onSelect, onView }: {
   );
 }
 
-export function ListingMap({ listings, selectedId, onSelect, onView }: ListingMapProps = {}) {
+export function ListingMap({
+  listings,
+  selectedId,
+  onSelect,
+  onView,
+  origin,
+  radiusMiles,
+  activeId,
+}: ListingMapProps = {}) {
   const data = listings && listings.length > 0 ? listings : fallbackListings;
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const validToken = isValidToken(token);
@@ -281,6 +406,7 @@ export function ListingMap({ listings, selectedId, onSelect, onView }: ListingMa
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<Map<string, { marker: mapboxgl.Marker; popup: mapboxgl.Popup; el: HTMLDivElement }>>(new globalThis.Map());
+  const originMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
   useEffect(() => {
     if (!validToken) return;
@@ -317,8 +443,11 @@ export function ListingMap({ listings, selectedId, onSelect, onView }: ListingMa
 
     data.forEach((listing) => {
       const el = document.createElement("div");
+      const isActive = listing.id === activeId;
+      const bg = isActive ? "#FFD600" : "#378853";
+      const border = isActive ? "#1F2937" : "white";
       el.style.cssText =
-        "width:24px;height:24px;border-radius:50%;background:#378853;border:2.5px solid white;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.25);transition:transform 150ms ease, background 150ms ease;";
+        `width:${isActive ? 28 : 24}px;height:${isActive ? 28 : 24}px;border-radius:50%;background:${bg};border:2.5px solid ${border};cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.25);transition:transform 150ms ease, background 150ms ease;`;
 
       const popup = new mapboxgl.Popup({
         offset: 16,
@@ -341,11 +470,113 @@ export function ListingMap({ listings, selectedId, onSelect, onView }: ListingMa
 
     // Fit bounds to all markers when listings change (but not on first render with default view)
     if (data.length > 0 && data.length !== fallbackListings.length) {
-      const bounds = new mapboxgl.LngLatBounds();
-      data.forEach((l) => bounds.extend([l.lng, l.lat]));
+      const bounds = buildBounds(data, origin);
       mapInstance.fitBounds(bounds, { padding: 80, maxZoom: 11, duration: 600 });
     }
-  }, [data, onSelect, onView, validToken]);
+  }, [data, onSelect, onView, validToken, origin, radiusMiles, activeId]);
+
+  // Sync origin pin + radius circle (mapbox path)
+  useEffect(() => {
+    if (!validToken) return;
+    const mapInstance = mapRef.current;
+    if (!mapInstance) return;
+
+    const SOURCE_ID = "radius-source";
+    const FILL_ID = "radius-fill";
+    const OUTLINE_ID = "radius-outline";
+    const ROUTE_SOURCE_ID = "route-source";
+    const ROUTE_LINE_ID = "route-line";
+
+    const apply = () => {
+      // Clean up existing
+      if (originMarkerRef.current) {
+        originMarkerRef.current.remove();
+        originMarkerRef.current = null;
+      }
+      [FILL_ID, OUTLINE_ID, ROUTE_LINE_ID].forEach((id) => {
+        if (mapInstance.getLayer(id)) mapInstance.removeLayer(id);
+      });
+      [SOURCE_ID, ROUTE_SOURCE_ID].forEach((id) => {
+        if (mapInstance.getSource(id)) mapInstance.removeSource(id);
+      });
+
+      if (!origin) return;
+
+      // Origin pin (distinct from listings)
+      const el = document.createElement("div");
+      el.style.cssText =
+        "width:22px;height:22px;border-radius:50%;background:#1F2937;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);";
+      originMarkerRef.current = new mapboxgl.Marker(el)
+        .setLngLat([origin.lng, origin.lat])
+        .addTo(mapInstance);
+
+      // Route line from origin to active feedstock
+      const activeListing = activeId
+        ? data.find((l) => l.id === activeId)
+        : undefined;
+      if (activeListing) {
+        const route: GeoJSON.Feature<GeoJSON.LineString> = {
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [origin.lng, origin.lat],
+              [activeListing.lng, activeListing.lat],
+            ],
+          },
+          properties: {},
+        };
+        mapInstance.addSource(ROUTE_SOURCE_ID, { type: "geojson", data: route });
+        mapInstance.addLayer({
+          id: ROUTE_LINE_ID,
+          type: "line",
+          source: ROUTE_SOURCE_ID,
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: {
+            "line-color": "#7C3AED",
+            "line-width": 4,
+            "line-opacity": 0.85,
+          },
+        });
+      }
+
+      if (!radiusMiles || radiusMiles <= 0) return;
+
+      const polygon = circlePolygon(origin.lng, origin.lat, radiusMiles);
+      mapInstance.addSource(SOURCE_ID, {
+        type: "geojson",
+        data: polygon,
+      });
+      mapInstance.addLayer(
+        {
+          id: FILL_ID,
+          type: "fill",
+          source: SOURCE_ID,
+          paint: {
+            "fill-color": "#378853",
+            "fill-opacity": 0.12,
+          },
+        },
+        ROUTE_LINE_ID, // ensure radius fill goes UNDER the route line
+      );
+      mapInstance.addLayer({
+        id: OUTLINE_ID,
+        type: "line",
+        source: SOURCE_ID,
+        paint: {
+          "line-color": "#1F5F3A",
+          "line-width": 2,
+          "line-dasharray": [2, 2],
+        },
+      });
+    };
+
+    if (mapInstance.isStyleLoaded()) {
+      apply();
+    } else {
+      mapInstance.once("load", apply);
+    }
+  }, [origin, radiusMiles, validToken, activeId, data]);
 
   // React to selection changes — fly to and highlight
   useEffect(() => {
@@ -376,16 +607,15 @@ export function ListingMap({ listings, selectedId, onSelect, onView }: ListingMa
         });
       }
     } else if (data.length > 0) {
-      // Deselected: zoom back out to fit all visible listings
-      const bounds = new mapboxgl.LngLatBounds();
-      data.forEach((l) => bounds.extend([l.lng, l.lat]));
+      // Deselected: zoom back out to fit all visible listings AND the origin/radius envelope.
+      const bounds = buildBounds(data, origin);
       mapInstance.fitBounds(bounds, {
         padding: 80,
         maxZoom: 11,
         duration: 700,
       });
     }
-  }, [selectedId, data, validToken]);
+  }, [selectedId, data, validToken, origin, radiusMiles]);
 
   if (!validToken) {
     return (
@@ -394,6 +624,8 @@ export function ListingMap({ listings, selectedId, onSelect, onView }: ListingMa
         selectedId={selectedId}
         onSelect={onSelect}
         onView={onView}
+        origin={origin}
+        radiusMiles={radiusMiles}
       />
     );
   }

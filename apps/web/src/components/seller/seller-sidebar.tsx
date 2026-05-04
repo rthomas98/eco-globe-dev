@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutGrid,
   TrendingUp,
+  TrendingDown,
   Receipt,
   BarChart3,
   Bell,
@@ -31,6 +32,11 @@ const navItems: NavItem[] = [
   { label: "Home", href: "/", icon: Home },
   { label: "Listings", href: "/seller/listings", icon: LayoutGrid },
   { label: "Sales", href: "/seller/sales", icon: TrendingUp },
+  {
+    label: "Carbon Calculator",
+    href: "/seller/carbon-calculator",
+    icon: TrendingDown,
+  },
   {
     label: "Accounting",
     href: "/seller/accounting",

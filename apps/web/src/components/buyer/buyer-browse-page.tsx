@@ -8,6 +8,7 @@ import { ListingMap, type MapListing } from "../public/listing-map";
 import { FiltersPanel, defaultFilters, type FilterState } from "../public/filters-panel";
 import { listings, type Listing } from "../public/browse-listings";
 import { BuyerLayout } from "./buyer-layout";
+import { useDemoUser } from "@/lib/demo-user";
 
 function ListingCard({
   listing,
@@ -62,6 +63,8 @@ function LocationPill({ value }: { value: string }) {
 }
 
 export function BuyerBrowsePage() {
+  const user = useDemoUser();
+  const originFacility = user?.facilities?.find((f) => f.lat && f.lng);
   const [search, setSearch] = useState("");
   const [radius, setRadius] = useState("2");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -234,6 +237,16 @@ export function BuyerBrowsePage() {
               onSelect={(id) =>
                 setSelectedId((curr) => (curr === id ? null : id))
               }
+              origin={
+                originFacility?.lat && originFacility?.lng
+                  ? {
+                      lng: originFacility.lng,
+                      lat: originFacility.lat,
+                      label: originFacility.label,
+                    }
+                  : undefined
+              }
+              radiusMiles={parseInt(radius, 10) || undefined}
             />
             <button
               type="button"

@@ -16,7 +16,6 @@ import {
   Building2,
   Home,
   LogOut,
-  TrendingDown,
 } from "lucide-react";
 import { NotificationsPanel } from "../seller/notifications-panel";
 
@@ -31,11 +30,6 @@ const navIcons: NavIcon[] = [
   { href: "/", icon: Home, label: "Home" },
   { href: "/buyer/browse", icon: Search, label: "Search" },
   { href: "/buyer/orders", icon: ShoppingCart, label: "My Orders" },
-  {
-    href: "/buyer/carbon-calculator",
-    icon: TrendingDown,
-    label: "Carbon Calculator",
-  },
   {
     href: "/buyer/accounting",
     icon: DollarSign,

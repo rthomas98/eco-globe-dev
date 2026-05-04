@@ -13,59 +13,49 @@ import { getProductDetailById } from "./product-detail-data";
 import { listings as ALL_LISTINGS } from "./browse-listings";
 import { useDemoUser } from "@/lib/demo-user";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { ListingMap } from "./listing-map";
 
 const FAVORITES_KEY = "ecoglobe.favoriteListings";
 
-function SellerMap({ lng, lat }: { lng: number; lat: number }) {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  const validToken = !!token && token !== "placeholder" && token.startsWith("pk.");
+function SellerMap({ lng, lat, title }: { lng: number; lat: number; title?: string }) {
+  const [radius, setRadius] = useState<number>(0);
+  const mapListing = {
+    id: "seller-location",
+    title: title ?? "Seller location",
+    location: "",
+    price: "",
+    unit: "",
+    moq: "",
+    co2: "",
+    lng,
+    lat,
+  };
 
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-
-  useEffect(() => {
-    if (!validToken) return;
-    if (!mapContainer.current || mapRef.current) return;
-    mapboxgl.accessToken = token!;
-    const m = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: [lng, lat],
-      zoom: 12,
-    });
-    m.addControl(new mapboxgl.NavigationControl(), "top-right");
-    const el = document.createElement("div");
-    el.style.cssText = "width:24px;height:24px;border-radius:50%;background:#378853;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25);";
-    new mapboxgl.Marker(el).setLngLat([lng, lat]).addTo(m);
-    mapRef.current = m;
-    return () => { m.remove(); mapRef.current = null; };
-  }, [lng, lat, validToken, token]);
-
-  if (!validToken) {
-    return (
-      <div
-        className="relative h-[280px] w-full overflow-hidden rounded-xl"
-        style={{ background: "linear-gradient(135deg, #E8F1ED 0%, #F4F8F2 50%, #E0EAE3 100%)" }}
-      >
-        <svg className="absolute inset-0 h-full w-full opacity-40" aria-hidden>
-          <defs>
-            <pattern id="grid-detail" width="48" height="48" patternUnits="userSpaceOnUse">
-              <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#C8D7CD" strokeWidth="0.5" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid-detail)" />
-        </svg>
-        <div
-          className="absolute left-1/2 top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{ background: "#378853", border: "2.5px solid white", boxShadow: "0 2px 6px rgba(0,0,0,0.25)" }}
-        />
+  return (
+    <div className="relative h-[280px] w-full">
+      <div className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs shadow"
+        style={{ border: "1px solid #E0E0E0" }}>
+        <span className="font-semibold text-neutral-700">Radius</span>
+        <select
+          value={radius}
+          onChange={(e) => setRadius(parseInt(e.target.value, 10))}
+          className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs outline-none"
+        >
+          <option value={0}>Off</option>
+          <option value={2}>2 mi</option>
+          <option value={5}>5 mi</option>
+          <option value={10}>10 mi</option>
+          <option value={25}>25 mi</option>
+          <option value={50}>50 mi</option>
+        </select>
       </div>
-    );
-  }
-
-  return <div ref={mapContainer} className="h-[280px] w-full rounded-xl" />;
+      <ListingMap
+        listings={[mapListing]}
+        origin={{ lng, lat, label: title }}
+        radiusMiles={radius > 0 ? radius : undefined}
+      />
+    </div>
+  );
 }
 
 export function ProductDetailPage() {

@@ -113,6 +113,8 @@ export function BrowsePage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [radiusMiles, setRadiusMiles] = useState<number>(0); // 0 = off
+  const originFacility = user?.facilities?.find((f) => f.lat && f.lng);
 
   const handleSearch = (query: string, location: string) => {
     const params = new URLSearchParams();
@@ -283,12 +285,44 @@ export function BrowsePage() {
         </div>
 
         {/* Map panel */}
-        <div className="hidden lg:block lg:w-[45%] h-full p-2">
+        <div className="relative hidden lg:block lg:w-[45%] h-full p-2">
+          {originFacility && (
+            <div
+              className="absolute right-4 top-4 z-10 flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs shadow"
+              style={{ border: "1px solid #E0E0E0" }}
+            >
+              <span className="font-semibold text-neutral-700">Search radius</span>
+              <select
+                value={radiusMiles}
+                onChange={(e) => setRadiusMiles(parseInt(e.target.value, 10))}
+                className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs outline-none"
+              >
+                <option value={0}>Off</option>
+                <option value={2}>2 mi</option>
+                <option value={5}>5 mi</option>
+                <option value={10}>10 mi</option>
+                <option value={25}>25 mi</option>
+                <option value={50}>50 mi</option>
+                <option value={100}>100 mi</option>
+                <option value={250}>250 mi</option>
+              </select>
+            </div>
+          )}
           <ListingMap
             listings={mapListings}
             selectedId={selectedId}
             onSelect={(id) => setSelectedId(id)}
             onView={(id) => router.push(`/browse/${id}`)}
+            origin={
+              originFacility?.lat && originFacility?.lng
+                ? {
+                    lng: originFacility.lng,
+                    lat: originFacility.lat,
+                    label: originFacility.label,
+                  }
+                : undefined
+            }
+            radiusMiles={radiusMiles > 0 ? radiusMiles : undefined}
           />
         </div>
       </div>
