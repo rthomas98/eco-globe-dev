@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Flag, Filter, Check, X, Eye } from "lucide-react";
-import { AdminLayout } from "./admin-layout";
 
 type ModStatus = "Pending" | "Flagged" | "Approved" | "Rejected";
 
@@ -33,7 +32,7 @@ export function AdminModerationPage() {
   const visible = items.filter((i) => filter === "All" || i.status === filter);
 
   return (
-    <AdminLayout>
+    <div className="flex-1 overflow-y-auto">
       <div className="px-8 py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -110,7 +109,7 @@ export function AdminModerationPage() {
           ))}
         </div>
       </div>
-    </AdminLayout>
+    </div>
   );
 }
 

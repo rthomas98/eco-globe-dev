@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Info, MoreHorizontal, Filter, CheckCheck, Settings } from "lucide-react";
-import { AdminLayout } from "./admin-layout";
 import {
   adminNotificationGroups,
   type AdminNotification,
@@ -57,7 +56,7 @@ export function AdminNotificationsPage() {
     .filter((i) => i.unread).length;
 
   return (
-    <AdminLayout>
+    <div className="flex-1 overflow-y-auto">
       <div className="px-8 pt-8 pb-16">
         {/* Heading */}
         <div className="mb-6 flex items-end justify-between gap-4">
@@ -154,7 +153,7 @@ export function AdminNotificationsPage() {
           ))}
         </div>
       </div>
-    </AdminLayout>
+    </div>
   );
 }
 

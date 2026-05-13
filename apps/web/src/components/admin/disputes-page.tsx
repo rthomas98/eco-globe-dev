@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Filter, ChevronRight } from "lucide-react";
-import { AdminLayout } from "./admin-layout";
 
 type DisputeStatus = "Open" | "Awaiting seller" | "Awaiting buyer" | "Under review" | "Resolved";
 type Severity = "High" | "Medium" | "Low";
@@ -47,7 +46,7 @@ export function AdminDisputesPage() {
   }, {});
 
   return (
-    <AdminLayout>
+    <div className="flex-1 overflow-y-auto">
       <div className="px-8 py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -144,7 +143,7 @@ export function AdminDisputesPage() {
           </table>
         </div>
       </div>
-    </AdminLayout>
+    </div>
   );
 }
 

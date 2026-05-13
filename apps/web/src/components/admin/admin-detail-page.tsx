@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { AdminLayout } from "./admin-layout";
 
 interface BreadcrumbItem {
   label: string;
@@ -25,9 +24,8 @@ export function AdminDetailPage({
   const back = breadcrumbs[breadcrumbs.length - 2];
 
   return (
-    <AdminLayout>
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-8 py-6">
+    <div className="flex-1 overflow-y-auto">
+      <div className="px-8 py-6">
           {back?.href && (
             <Link
               href={back.href}
@@ -60,10 +58,9 @@ export function AdminDetailPage({
             {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
           </div>
 
-          {children}
-        </div>
+        {children}
       </div>
-    </AdminLayout>
+    </div>
   );
 }
 

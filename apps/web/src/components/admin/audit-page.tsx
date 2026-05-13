@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { Search, Filter, Download } from "lucide-react";
 import { Button } from "@eco-globe/ui";
-import { AdminLayout } from "./admin-layout";
 
 type Severity = "Info" | "Warning" | "Critical";
 type Category = "All" | "Auth" | "Listings" | "Orders" | "Escrow" | "KYC" | "Settings";
@@ -49,7 +48,7 @@ export function AdminAuditPage() {
   });
 
   return (
-    <AdminLayout>
+    <div className="flex-1 overflow-y-auto">
       <div className="px-8 py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -146,7 +145,7 @@ export function AdminAuditPage() {
           )}
         </div>
       </div>
-    </AdminLayout>
+    </div>
   );
 }
 

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Shield, Check, X, FileText, Filter } from "lucide-react";
-import { AdminLayout } from "./admin-layout";
 
 type Stage = "Submitted" | "In review" | "Awaiting docs" | "Approved" | "Rejected";
 
@@ -33,7 +32,7 @@ export function AdminKycPage() {
   const visible = requests.filter((r) => filter === "All" || r.stage === filter);
 
   return (
-    <AdminLayout>
+    <div className="flex-1 overflow-y-auto">
       <div className="px-8 py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -112,7 +111,7 @@ export function AdminKycPage() {
           ))}
         </div>
       </div>
-    </AdminLayout>
+    </div>
   );
 }
 
