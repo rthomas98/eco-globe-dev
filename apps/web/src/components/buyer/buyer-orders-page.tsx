@@ -22,7 +22,7 @@ import {
   type OrderDetail,
 } from "./buyer-order-detail-panel";
 
-function buildOrderDetail(order: Order): OrderDetail {
+export function buildOrderDetail(order: Order): OrderDetail {
   const isQuoteAwaiting = order.status === "Quote awaiting approval";
   const isReadyForPickup = order.status === "Ready for pickup";
   const isPickup = order.shipping === "Pickup";
@@ -158,7 +158,7 @@ type Tab =
   | "Completed"
   | "Cancelled";
 
-interface Order {
+export interface Order {
   id: string;
   orderId: string;
   orderPlaced: string;
@@ -188,7 +188,7 @@ const ORDER_PRODUCT_IMAGES: Record<string, string> = {
   "Fish Meal Animal Grade": "/products/generated/fish-meal-animal-grade.png",
 };
 
-const orders: Order[] = [
+export const orders: Order[] = [
   {
     id: "1",
     orderId: "OD20411",

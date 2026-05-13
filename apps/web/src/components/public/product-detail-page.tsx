@@ -14,6 +14,7 @@ import { listings as ALL_LISTINGS } from "./browse-listings";
 import { useDemoUser } from "@/lib/demo-user";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
 import { ListingMap } from "./listing-map";
+import { HeaderUserMenu } from "@/components/auth/header-user-menu";
 
 const FAVORITES_KEY = "ecoglobe.favoriteListings";
 
@@ -190,8 +191,7 @@ export function ProductDetailPage() {
         </div>
         <div className="flex items-center gap-4">
           <CartButton />
-          <Link href="/login" className="text-base font-bold text-neutral-900">Login</Link>
-          <Button variant="secondary" size="md">Sign Up</Button>
+          <HeaderUserMenu />
         </div>
       </header>
 

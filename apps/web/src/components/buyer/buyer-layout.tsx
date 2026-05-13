@@ -16,6 +16,9 @@ import {
   Building2,
   Home,
   LogOut,
+  Heart,
+  FileQuestion,
+  User as UserIcon,
 } from "lucide-react";
 import { NotificationsPanel } from "../seller/notifications-panel";
 
@@ -30,6 +33,8 @@ const navIcons: NavIcon[] = [
   { href: "/", icon: Home, label: "Home" },
   { href: "/buyer/browse", icon: Search, label: "Search" },
   { href: "/buyer/orders", icon: ShoppingCart, label: "My Orders" },
+  { href: "/buyer/favorites", icon: Heart, label: "Saved" },
+  { href: "/buyer/rfq", icon: FileQuestion, label: "RFQs" },
   {
     href: "/buyer/accounting",
     icon: DollarSign,
@@ -40,6 +45,7 @@ const navIcons: NavIcon[] = [
       { href: "/buyer/accounting/bank-account", label: "Bank Account" },
     ],
   },
+  { href: "/buyer/account", icon: UserIcon, label: "Account" },
   { href: "/buyer/help", icon: HelpCircle, label: "Help" },
 ];
 

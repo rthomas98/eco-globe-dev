@@ -17,6 +17,8 @@ import {
   Building2,
   Home,
   LogOut,
+  AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { NotificationsPanel } from "./notifications-panel";
 
@@ -57,6 +59,8 @@ const navItems: NavItem[] = [
       { label: "Carbon", href: "/seller/reports/carbon" },
     ],
   },
+  { label: "Disputes", href: "/seller/disputes", icon: AlertTriangle },
+  { label: "Documents", href: "/seller/documents", icon: FileText },
 ];
 
 function UserMenu({ onClose, onLogout }: { onClose: () => void; onLogout: () => void }) {

@@ -20,6 +20,7 @@ import {
   MoreHorizontal,
   Home,
   LogOut,
+  Shield,
 } from "lucide-react";
 
 interface NavItem {
@@ -55,6 +56,17 @@ const navItems: NavItem[] = [
       { label: "Carbon", href: "/admin/reports/carbon" },
     ],
   },
+  {
+    label: "Operations",
+    href: "/admin/moderation",
+    icon: Shield,
+    children: [
+      { label: "Moderation", href: "/admin/moderation" },
+      { label: "KYC", href: "/admin/kyc" },
+      { label: "Disputes", href: "/admin/disputes" },
+      { label: "Audit log", href: "/admin/audit" },
+    ],
+  },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
@@ -87,7 +99,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-neutral-900">Notifications</h2>
             <div className="flex items-center gap-2">
-              <Link href="/admin/account" onClick={onClose} className="text-sm font-medium text-neutral-900">View All</Link>
+              <Link href="/admin/notifications" onClick={onClose} className="text-sm font-medium text-neutral-900">View All</Link>
               <div className="relative">
                 <button onClick={() => setShowMenu(!showMenu)} className="text-neutral-400 hover:text-neutral-700"><MoreHorizontal className="size-5" /></button>
                 {showMenu && (
