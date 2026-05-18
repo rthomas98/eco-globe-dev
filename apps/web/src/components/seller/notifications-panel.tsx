@@ -2,8 +2,16 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { MoreHorizontal } from "lucide-react";
-import { sellerNotifications, type NotificationGroup } from "./notifications-data";
+import { ChevronRight, MoreHorizontal } from "lucide-react";
+import {
+  sellerNotifications,
+  type NotificationGroup,
+  type SellerNotification,
+} from "./notifications-data";
+import {
+  NotificationDetailDrawer,
+  type NotificationPortal,
+} from "./notification-detail-drawer";
 
 const groupOrder: NotificationGroup[] = ["Earlier", "Last 7 days", "Last 30 days"];
 
@@ -18,7 +26,27 @@ export function NotificationsPanel({
 }: NotificationsPanelProps) {
   const [tab, setTab] = useState<"all" | "unread">("all");
   const [showMenu, setShowMenu] = useState(false);
+  const [selected, setSelected] = useState<SellerNotification | null>(null);
+  const [readIds, setReadIds] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
+  const portal: NotificationPortal = seeAllHref.startsWith("/buyer")
+    ? "buyer"
+    : "seller";
+  const settingsHref = portal === "buyer" ? "/buyer/account" : "/seller/account";
+
+  const isUnread = (notification: SellerNotification) =>
+    notification.unread && !readIds.includes(notification.id);
+
+  const openNotification = (notification: SellerNotification) => {
+    setSelected(notification);
+    if (notification.unread) {
+      setReadIds((current) =>
+        current.includes(notification.id)
+          ? current
+          : [...current, notification.id],
+      );
+    }
+  };
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -31,7 +59,7 @@ export function NotificationsPanel({
   }, [showMenu]);
 
   const visible =
-    tab === "unread" ? sellerNotifications.filter((n) => n.unread) : sellerNotifications;
+    tab === "unread" ? sellerNotifications.filter((n) => isUnread(n)) : sellerNotifications;
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -66,18 +94,25 @@ export function NotificationsPanel({
                       boxShadow: "0 8px 30px rgba(0,0,0,0.08)",
                     }}
                   >
-                    <button className="w-full px-4 py-2.5 text-left text-sm text-neutral-700 hover:bg-neutral-50">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReadIds(sellerNotifications.map((n) => n.id));
+                        setShowMenu(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                    >
                       Mark all as read
                     </button>
                     <Link
-                      href="/seller/notifications"
+                      href={seeAllHref}
                       onClick={onClose}
                       className="block w-full px-4 py-2.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
                     >
                       View all
                     </Link>
                     <Link
-                      href="/seller/account"
+                      href={settingsHref}
                       onClick={onClose}
                       className="block w-full px-4 py-2.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
                     >
@@ -115,13 +150,15 @@ export function NotificationsPanel({
               <div key={group} className="mb-2">
                 <h3 className="mb-1 mt-3 text-sm font-bold text-neutral-900">{group}</h3>
                 {items.map((n) => (
-                  <div
+                  <button
+                    type="button"
                     key={n.id}
-                    className="flex gap-3 py-3"
+                    onClick={() => openNotification(n)}
+                    className="flex w-full gap-3 py-3 text-left transition-colors hover:bg-neutral-50"
                     style={{ borderBottom: "1px solid #F8F8F8" }}
                   >
                     <div className="flex w-2 items-start pt-2">
-                      {n.unread && <span className="size-1.5 rounded-full bg-green-600" />}
+                      {isUnread(n) && <span className="size-1.5 rounded-full bg-green-600" />}
                     </div>
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-neutral-100">
                       <n.icon className="size-4 text-neutral-500" />
@@ -132,10 +169,8 @@ export function NotificationsPanel({
                         {n.source} &middot; {n.time}
                       </p>
                     </div>
-                    <button className="shrink-0 self-start pt-1 text-neutral-400 hover:text-neutral-700">
-                      <MoreHorizontal className="size-4" />
-                    </button>
-                  </div>
+                    <ChevronRight className="mt-2 size-4 shrink-0 text-neutral-300" />
+                  </button>
                 ))}
               </div>
             );
@@ -145,6 +180,12 @@ export function NotificationsPanel({
           )}
         </div>
       </div>
+      <NotificationDetailDrawer
+        notification={selected}
+        portal={portal}
+        read={selected ? !isUnread(selected) : true}
+        onClose={() => setSelected(null)}
+      />
     </div>
   );
 }

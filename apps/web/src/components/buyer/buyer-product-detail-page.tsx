@@ -303,9 +303,16 @@ export function BuyerProductDetailPage() {
                     >
                       <Minus className="size-4" />
                     </button>
-                    <span className="w-8 text-center text-sm font-semibold text-neutral-900">
-                      {qty}
-                    </span>
+                    <input
+                      aria-label="Quantity"
+                      type="number"
+                      min={product.minOrder}
+                      value={qty}
+                      onChange={(e) =>
+                        setQty(Math.max(product.minOrder, Number(e.target.value) || product.minOrder))
+                      }
+                      className="w-20 bg-transparent text-center text-sm font-semibold text-neutral-900 outline-none"
+                    />
                     <button
                       onClick={() => setQty(qty + 1)}
                       className="flex size-9 items-center justify-center text-neutral-700 hover:text-neutral-900"

@@ -367,7 +367,7 @@ function buildEscrowDetail(e: Escrow): EscrowDetail {
       amountHeld: released ? "$0" : e.amount,
       fundedDate: e.orderDate,
       orderId: "OD20411",
-      seller: "Shell Refinery Louisiana",
+      seller: "GulfStar Chemicals",
       shippingType: "Delivery",
     },
     documents: [
@@ -377,12 +377,12 @@ function buildEscrowDetail(e: Escrow): EscrowDetail {
     activity: [
       {
         label: "Buyer funded escrow",
-        date: "Oct 29, 2024 10:10 AM",
+        date: "May 18, 2026 10:10 AM",
         complete: true,
       },
       {
-        label: "Seller uploaded BOL",
-        date: "Oct 29, 2024 10:10 AM",
+        label: "Seller uploaded Bill of Lading (BOL)",
+        date: "May 18, 2026 10:15 AM",
         complete: true,
       },
       { label: "Buyer confirms delivery", complete: released },

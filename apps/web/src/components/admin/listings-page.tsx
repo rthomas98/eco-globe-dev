@@ -36,12 +36,12 @@ interface Listing {
 
 /* ─── Mock Data ─── */
 const listings: Listing[] = [
-  { id: "LS98766", product: "Bio-Based Polypropylene Gra...", category: "Plastic", seller: "EcoPlastics Inc.", pricePerTon: "$150.00", availableQty: "1800 ton", moq: "2 ton", grade: "Standard", carbonData: "Yes", createdDate: "02/15/2027", status: "Pending" },
+  { id: "LS98766", product: "Epoxy Off-Spec", category: "Chemicals", seller: "GulfStar Chemicals", pricePerTon: "$50.00", availableQty: "42 tons", moq: "2 tons", grade: "Standard", carbonData: "Yes", createdDate: "05/18/2026", status: "Pending" },
   { id: "LS98767", product: "Compostable Polylactic Acid", category: "Bioplastic", seller: "GreenCycle Solutions", pricePerTon: "$200.00", availableQty: "1200 ton", moq: "2 ton", grade: "Premium", carbonData: "Yes", createdDate: "03/01/2027", status: "Pending" },
   { id: "LS98768", product: "Recycled High-Density Polyet...", category: "Plastic", seller: "PureCycle Technologies", pricePerTon: "$90.00", availableQty: "2200 ton", moq: "2 ton", grade: "Standard", carbonData: "Yes", createdDate: "04/10/2027", status: "Pending" },
   { id: "LS98769", product: "Plant-Based Polyurethane", category: "Bioplastic", seller: "Renewable Materials Co.", pricePerTon: "$250.00", availableQty: "1500 ton", moq: "2 ton", grade: "Premium", carbonData: "Yes", createdDate: "05/20/2027", status: "Pending" },
   { id: "LS98770", product: "Biodegradable Polyvinyl Chlor...", category: "Plastic", seller: "EcoFriendly PVC Corp.", pricePerTon: "$180.00", availableQty: "2000 ton", moq: "2 ton", grade: "Standard", carbonData: "Yes", createdDate: "06/30/2027", status: "Active" },
-  { id: "LS98771", product: "Recycled Polypropylene", category: "Plastic", seller: "Park world", pricePerTon: "$120.00", availableQty: "1600 ton", moq: "2 ton", grade: "Standard", carbonData: "Yes", createdDate: "07/15/2027", status: "Active" },
+  { id: "LS98771", product: "Tar", category: "Chemicals", seller: "Park world", pricePerTon: "$50.00", availableQty: "1600 tons", moq: "2 tons", grade: "Standard", carbonData: "Yes", createdDate: "07/15/2027", status: "Active" },
   { id: "LS98772", product: "Natural Fiber Composite", category: "Composite", seller: "BioMaterials Group", pricePerTon: "$300.00", availableQty: "1000 ton", moq: "2 ton", grade: "Premium", carbonData: "Yes", createdDate: "08/05/2027", status: "Active" },
   { id: "LS98773", product: "Sustainable Wood Flour", category: "Wood", seller: "EcoWood Industries", pricePerTon: "$70.00", availableQty: "500 ton", moq: "2 ton", grade: "Standard", carbonData: "Yes", createdDate: "09/12/2027", status: "Active" },
   { id: "LS98774", product: "Recycled Nylon", category: "Fiber", seller: "Nylon Reclaim Co.", pricePerTon: "$220.00", availableQty: "900 ton", moq: "2 ton", grade: "Premium", carbonData: "Yes", createdDate: "10/20/2027", status: "Active" },
@@ -184,7 +184,7 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
         <div className="sticky top-0 z-10 flex items-center justify-between bg-white px-6 py-4" style={{ borderBottom: "1px solid #F0F0F0" }}>
           <div>
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold text-neutral-900">Wood Sawdust Industrial Grade A</h2>
+              <h2 className="text-xl font-bold text-neutral-900">{listing.product}</h2>
               <StatusBadge status={listing.status} />
             </div>
             <p className="text-sm text-neutral-500">{listing.id}</p>
@@ -201,10 +201,10 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
             <h3 className="mb-4 text-lg font-semibold text-neutral-900">Product Information</h3>
             <div className="grid grid-cols-2 gap-y-4 rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
               <div><p className="text-xs font-semibold text-neutral-500">Listing ID</p><p className="text-sm text-neutral-900">{listing.id}</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Product name</p><p className="text-sm text-neutral-900">Wood Sawdust Industrial Grade A</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Product name</p><p className="text-sm text-neutral-900">{listing.product}</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Price/ton</p><p className="text-sm text-neutral-900">{listing.pricePerTon}</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Available Qty</p><p className="text-sm text-neutral-900">{listing.availableQty}</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">MOQ</p><p className="text-sm text-neutral-900">3 ton</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">MOQ</p><p className="text-sm text-neutral-900">{listing.moq}</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Grade</p><p className="text-sm text-neutral-900">{listing.grade}</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Carbon Data</p><p className="text-sm text-neutral-900">300 kg CO₂e</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Created Date</p><p className="text-sm text-neutral-900">{listing.createdDate}</p></div>
@@ -216,7 +216,7 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
             <h3 className="mb-4 text-lg font-semibold text-neutral-900">Seller Info</h3>
             <div className="rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
               <div className="grid grid-cols-2 gap-y-4">
-                <div><p className="text-xs font-semibold text-neutral-500">Seller</p><p className="text-sm text-neutral-900">AgriCorp Solutions</p></div>
+                <div><p className="text-xs font-semibold text-neutral-500">Seller</p><p className="text-sm text-neutral-900">{listing.seller}</p></div>
                 <div><p className="text-xs font-semibold text-neutral-500">Contact person</p><p className="text-sm text-neutral-900">Will Smith</p></div>
                 <div><p className="text-xs font-semibold text-neutral-500">Phone number</p><p className="text-sm text-neutral-900">012345678910</p></div>
                 <div><p className="text-xs font-semibold text-neutral-500">Email</p><p className="text-sm text-neutral-900">example@mail.com</p></div>
@@ -244,7 +244,9 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
               <div><p className="text-xs font-semibold text-neutral-500">Storage Type</p><p className="text-sm text-neutral-900">In dry place</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Specification</p><p className="text-sm text-neutral-900">Export Standard</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Shelf Life</p><p className="text-sm text-neutral-900">12 months</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Composition</p><p className="text-sm text-neutral-900">Rice Husk</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Composition</p><p className="text-sm text-neutral-900">{listing.product}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Package</p><p className="text-sm text-neutral-900">{listing.product === "Epoxy Off-Spec" ? "42 gallons/Barrel" : "Bulk shipment"}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Usage</p><p className="text-sm text-neutral-900">Chemical Industry</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Address</p><p className="text-sm text-neutral-900">Denham Springs, LA</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Manufacturer</p><p className="text-sm text-neutral-900">Denham Springs, LA</p></div>
             </div>
@@ -255,7 +257,7 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
             <h3 className="mb-4 text-lg font-semibold text-neutral-900">Overview</h3>
             <div className="rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
               <p className="text-sm leading-relaxed text-neutral-700">
-                Premium quality wood sawdust sourced from sustainably managed forests. Ideal for industrial applications including biomass energy production, composite manufacturing, and agricultural bedding. Our sawdust meets export-grade standards with consistent particle size and low moisture content.
+                {listing.product} is an industrial chemical feedstock listing with corrected composition, packaging, transportation documentation, and buyer notes available for review before approval.
               </p>
               <button className="mt-2 text-sm font-semibold text-neutral-900 underline">Read More</button>
             </div>
@@ -273,7 +275,7 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
           <section>
             <h3 className="mb-4 text-lg font-semibold text-neutral-900">Documents</h3>
             <div className="flex flex-col gap-3">
-              {["Example Invoice data name.pdf", "Example Bill of lading data name.pdf", "Example Carbon certificate data name.pdf"].map((doc) => (
+              {["Example Invoice data name.pdf", "Transportation Bill of Lading.pdf", "Example Carbon certificate data name.pdf"].map((doc) => (
                 <div key={doc} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ border: "1px solid #F0F0F0" }}>
                   <div className="flex items-center gap-3">
                     <FileText className="size-5 text-neutral-400" />
@@ -285,6 +287,20 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
                   </div>
                 </div>
               ))}
+            </div>
+          </section>
+          <section>
+            <h3 className="mb-4 text-lg font-semibold text-neutral-900">Notes to buyer</h3>
+            <div className="rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
+              <textarea
+                rows={4}
+                placeholder="Add notes that will be visible to the buyer after review..."
+                className="w-full resize-none rounded-lg px-4 py-3 text-sm outline-none"
+                style={{ border: "1px solid #E0E0E0" }}
+              />
+              <Button variant="secondary" size="md" className="mt-3">
+                Save note to buyer
+              </Button>
             </div>
           </section>
         </div>

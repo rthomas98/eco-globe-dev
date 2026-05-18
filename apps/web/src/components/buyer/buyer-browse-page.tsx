@@ -7,6 +7,7 @@ import { Badge } from "@eco-globe/ui";
 import { ListingMap, type MapListing } from "../public/listing-map";
 import { FiltersPanel, defaultFilters, type FilterState } from "../public/filters-panel";
 import { listings, type Listing } from "../public/browse-listings";
+import { CarbonCalculatorButton } from "./carbon-calculator-button";
 import { BuyerLayout } from "./buyer-layout";
 
 function ListingCard({
@@ -19,33 +20,41 @@ function ListingCard({
   onSelect: () => void;
 }) {
   return (
-    <Link
-      href={`/buyer/browse/${listing.id}`}
+    <div
       onMouseEnter={onSelect}
       className={`group flex w-full flex-col rounded-xl p-2 text-left transition-colors ${
         selected ? "bg-neutral-100 ring-2 ring-neutral-900" : "hover:bg-neutral-50"
       }`}
     >
-      <div className="mb-3 h-[200px] w-full overflow-hidden rounded-xl">
-        <img
-          src={listing.image}
-          alt={listing.title}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+      <Link href={`/buyer/browse/${listing.id}`} className="block">
+        <div className="mb-3 h-[200px] w-full overflow-hidden rounded-xl">
+          <img
+            src={listing.image}
+            alt={listing.title}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        </div>
+        <h3 className="text-base font-medium text-neutral-900">{listing.title}</h3>
+        <p className="mt-1 text-sm text-neutral-700">
+          {listing.location} · {listing.distance}
+        </p>
+        <div className="mt-2 flex gap-2">
+          <Badge>MOQ: {listing.moq}</Badge>
+          <Badge>{listing.co2}</Badge>
+        </div>
+        <div className="mt-3 flex items-baseline gap-1">
+          <span className="text-lg font-semibold text-neutral-900">{listing.price}</span>
+          <span className="text-sm text-neutral-700">{listing.unit}</span>
+        </div>
+      </Link>
+      <div className="mt-3">
+        <CarbonCalculatorButton
+          listingId={listing.id}
+          variant="primary"
+          label="Open Carbon Calculator"
         />
       </div>
-      <h3 className="text-base font-medium text-neutral-900">{listing.title}</h3>
-      <p className="mt-1 text-sm text-neutral-700">
-        {listing.location} · {listing.distance}
-      </p>
-      <div className="mt-2 flex gap-2">
-        <Badge>MOQ: {listing.moq}</Badge>
-        <Badge>{listing.co2}</Badge>
-      </div>
-      <div className="mt-3 flex items-baseline gap-1">
-        <span className="text-lg font-semibold text-neutral-900">{listing.price}</span>
-        <span className="text-sm text-neutral-700">{listing.unit}</span>
-      </div>
-    </Link>
+    </div>
   );
 }
 

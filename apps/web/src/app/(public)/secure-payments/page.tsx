@@ -11,7 +11,7 @@ export default function Page() {
           heading: "How payment flows",
           body: [
             "Buyer approves the seller's quote and funds escrow with a saved bank account.",
-            "Seller receives the order confirmation, prepares the shipment, and uploads the BOL.",
+            "Seller receives the order confirmation, prepares the shipment, and uploads the Bill of Lading (BOL).",
             "Buyer confirms delivery once the material is verified — escrow releases automatically.",
             "If the buyer reports an issue, escrow stays on hold while EcoGlobe reviews.",
           ],

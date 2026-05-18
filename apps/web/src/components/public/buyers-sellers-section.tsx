@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@eco-globe/ui";
 
 export function BuyersSellersSection() {
@@ -14,9 +15,11 @@ export function BuyersSellersSection() {
                   EcoGlobe enables cheaper and more sustainable feedstock in a reliable way.
                 </p>
               </div>
-              <Button variant="secondary" size="md" className="w-fit">
-                Become a Buyer
-              </Button>
+              <Link href="/register" className="w-fit">
+                <Button variant="secondary" size="md">
+                  Become a Buyer
+                </Button>
+              </Link>
             </div>
             <div className="h-[220px] sm:h-[280px] lg:h-[320px] overflow-hidden rounded-2xl">
               <img
@@ -38,9 +41,11 @@ export function BuyersSellersSection() {
                   in need.
                 </p>
               </div>
-              <Button variant="secondary" size="md" className="w-fit">
-                Become a Seller
-              </Button>
+              <Link href="/register" className="w-fit">
+                <Button variant="secondary" size="md">
+                  Become a Seller
+                </Button>
+              </Link>
             </div>
             <div className="h-[220px] sm:h-[280px] lg:h-[320px] overflow-hidden rounded-2xl">
               <img

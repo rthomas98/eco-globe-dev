@@ -64,10 +64,18 @@ function buildOverview(listing: Listing) {
 }
 
 function buildSpecs(listing: Listing) {
+  const isChemical =
+    listing.category.includes("Chemical") || listing.category.includes("Refinery");
   return [
     { label: "Category", value: listing.category },
+    { label: "Material composition", value: listing.title },
     { label: "Marketplace grade", value: listing.grade },
     { label: "Minimum order", value: listing.moq },
+    {
+      label: "Package",
+      value: listing.id === "epoxy-offspec" ? "42 gallons/Barrel" : "Bulk shipment",
+    },
+    { label: "Usage", value: isChemical ? "Chemical Industry" : "Industrial reuse" },
     {
       label: "Carbon profile",
       value: listing.hasCarbonData ? listing.co2 : "Carbon data pending",
@@ -78,6 +86,7 @@ function buildSpecs(listing: Listing) {
 }
 
 function buildSellerName(listing: Listing) {
+  if (listing.location.includes("Houston")) return "GulfStar Chemicals";
   const [siteName] = listing.location.split(",");
   return `${siteName.trim()} Resource Co.`;
 }

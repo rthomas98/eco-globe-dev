@@ -193,15 +193,21 @@ export function ProductDetailPage() {
         </Link>
         <div className="flex items-center gap-3">
           <SearchBar />
-          <button className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900" style={{ border: "1px solid #E0E0E0" }}>
+          <Link
+            href="/browse"
+            className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900"
+            style={{ border: "1px solid #E0E0E0" }}
+          >
             <SlidersHorizontal className="size-4" />
             Filters
-          </button>
+          </Link>
         </div>
         <div className="flex items-center gap-4">
           <CartButton />
           <Link href="/login" className="text-base font-bold text-neutral-900">Login</Link>
-          <Button variant="secondary" size="md">Sign Up</Button>
+          <Link href="/register">
+            <Button variant="secondary" size="md">Sign Up</Button>
+          </Link>
         </div>
       </header>
 
@@ -415,7 +421,16 @@ export function ProductDetailPage() {
                   <button onClick={() => setQty(Math.max(product.minOrder, qty - 1))} className="flex size-9 items-center justify-center text-neutral-700 hover:text-neutral-900">
                     <Minus className="size-4" />
                   </button>
-                  <span className="w-8 text-center text-sm font-semibold text-neutral-900">{qty}</span>
+                  <input
+                    aria-label="Quantity"
+                    type="number"
+                    min={product.minOrder}
+                    value={qty}
+                    onChange={(e) =>
+                      setQty(Math.max(product.minOrder, Number(e.target.value) || product.minOrder))
+                    }
+                    className="w-16 bg-transparent text-center text-sm font-semibold text-neutral-900 outline-none"
+                  />
                   <button onClick={() => setQty(qty + 1)} className="flex size-9 items-center justify-center text-neutral-700 hover:text-neutral-900">
                     <Plus className="size-4" />
                   </button>

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, SlidersHorizontal } from "lucide-react";
+import { ChevronRight, SlidersHorizontal } from "lucide-react";
 import { BuyerLayout } from "./buyer-layout";
 import {
   sellerNotifications,
   type NotificationGroup,
+  type SellerNotification,
 } from "../seller/notifications-data";
+import { NotificationDetailDrawer } from "../seller/notification-detail-drawer";
 
 const groupOrder: NotificationGroup[] = [
   "Earlier",
@@ -16,10 +18,26 @@ const groupOrder: NotificationGroup[] = [
 
 export function BuyerNotificationsPage() {
   const [tab, setTab] = useState<"all" | "unread">("all");
+  const [selected, setSelected] = useState<SellerNotification | null>(null);
+  const [readIds, setReadIds] = useState<string[]>([]);
+
+  const isUnread = (notification: SellerNotification) =>
+    notification.unread && !readIds.includes(notification.id);
+
+  const openNotification = (notification: SellerNotification) => {
+    setSelected(notification);
+    if (notification.unread) {
+      setReadIds((current) =>
+        current.includes(notification.id)
+          ? current
+          : [...current, notification.id],
+      );
+    }
+  };
 
   const visible =
     tab === "unread"
-      ? sellerNotifications.filter((n) => n.unread)
+      ? sellerNotifications.filter((n) => isUnread(n))
       : sellerNotifications;
 
   return (
@@ -76,13 +94,15 @@ export function BuyerNotificationsPage() {
                       {group}
                     </h3>
                     {items.map((n) => (
-                      <div
+                      <button
+                        type="button"
                         key={n.id}
-                        className="flex items-start gap-4 py-4"
+                        onClick={() => openNotification(n)}
+                        className="flex w-full items-start gap-4 py-4 text-left transition-colors hover:bg-neutral-50"
                         style={{ borderBottom: "1px solid #F8F8F8" }}
                       >
                         <div className="flex w-2 items-start pt-3">
-                          {n.unread && (
+                          {isUnread(n) && (
                             <span className="size-1.5 rounded-full bg-green-600" />
                           )}
                         </div>
@@ -95,10 +115,8 @@ export function BuyerNotificationsPage() {
                             {n.source} · {n.time}
                           </p>
                         </div>
-                        <button className="shrink-0 pt-2 text-neutral-400 hover:text-neutral-700">
-                          <MoreHorizontal className="size-4" />
-                        </button>
-                      </div>
+                        <ChevronRight className="mt-3 size-4 shrink-0 text-neutral-300" />
+                      </button>
                     ))}
                   </div>
                 );
@@ -112,6 +130,12 @@ export function BuyerNotificationsPage() {
           </div>
         </div>
       </div>
+      <NotificationDetailDrawer
+        notification={selected}
+        portal="buyer"
+        read={selected ? !isUnread(selected) : true}
+        onClose={() => setSelected(null)}
+      />
     </BuyerLayout>
   );
 }

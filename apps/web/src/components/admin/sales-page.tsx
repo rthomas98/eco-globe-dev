@@ -194,8 +194,8 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
 /* ─── Order Detail Drawer ─── */
 function OrderDetailDrawer({ onClose }: { order: Order; onClose: () => void }) {
   const activityLog = [
-    { event: "Order placed", date: "Oct 29, 2024 10:10 AM", active: true },
-    { event: "Escrow funded", date: "Oct 29, 2024 10:10 AM", active: true },
+    { event: "Order placed", date: "May 18, 2026 10:10 AM", active: true },
+    { event: "Escrow funded", date: "May 18, 2026 10:15 AM", active: true },
     { event: "Seller marked ready for pickup", date: "", active: false },
     { event: "Pickup confirmed", date: "", active: false },
     { event: "Escrow released", date: "", active: false },
@@ -213,7 +213,7 @@ function OrderDetailDrawer({ onClose }: { order: Order; onClose: () => void }) {
               <h2 className="text-xl font-bold text-neutral-900">ID9870</h2>
               <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">Paid</span>
             </div>
-            <p className="text-sm text-neutral-500">03/22/2024, 11:15 AM</p>
+            <p className="text-sm text-neutral-500">May 18, 2026, 11:15 AM</p>
           </div>
           <div className="flex items-center gap-2">
             <button className="flex size-9 items-center justify-center rounded-full hover:bg-neutral-100">
@@ -231,7 +231,7 @@ function OrderDetailDrawer({ onClose }: { order: Order; onClose: () => void }) {
             <h3 className="mb-4 text-lg font-semibold text-neutral-900">Order info</h3>
             <div className="grid grid-cols-2 gap-y-4 rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
               <div><p className="text-xs font-semibold text-neutral-500">Order ID</p><p className="text-sm text-neutral-900">OD20411</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Order Placed</p><p className="text-sm text-neutral-900">Oct 24, 2024 10:10 AM</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Order Placed</p><p className="text-sm text-neutral-900">May 18, 2026 10:10 AM</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Buyer</p><p className="text-sm text-neutral-900">AgriCorp Solutions</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Status</p><p className="text-sm text-neutral-900">Quote awaiting approval</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Shipping</p><p className="text-sm text-neutral-900">Delivery</p></div>
@@ -245,8 +245,8 @@ function OrderDetailDrawer({ onClose }: { order: Order; onClose: () => void }) {
             <div className="flex items-center gap-4 rounded-xl p-4" style={{ border: "1px solid #F0F0F0" }}>
               <div className="size-12 shrink-0 rounded-lg bg-neutral-200" />
               <div>
-                <p className="text-sm font-medium text-neutral-900">Wood Sawdust Industrial High Quality</p>
-                <p className="text-sm text-neutral-500">$100.00 /tons</p>
+                <p className="text-sm font-medium text-neutral-900">Pyrolysis Pitch</p>
+                <p className="text-sm text-neutral-500">$50.00 /ton</p>
               </div>
             </div>
           </section>
@@ -259,7 +259,7 @@ function OrderDetailDrawer({ onClose }: { order: Order; onClose: () => void }) {
                 <div><p className="text-xs font-semibold text-neutral-500">Transaction ID</p><p className="text-sm text-neutral-900">TS93863</p></div>
                 <div><p className="text-xs font-semibold text-neutral-500">Escrow amount</p><p className="text-sm text-neutral-900">$2,500.00</p></div>
                 <div><p className="text-xs font-semibold text-neutral-500">Escrow status</p><p className="text-sm text-neutral-900">Funded</p></div>
-                <div><p className="text-xs font-semibold text-neutral-500">Release date</p><p className="text-sm text-neutral-900">Oct 28, 2024 10:10 AM</p></div>
+                <div><p className="text-xs font-semibold text-neutral-500">Release date</p><p className="text-sm text-neutral-900">May 20, 2026 10:10 AM</p></div>
               </div>
               <div className="mb-4 flex items-center gap-3 rounded-lg bg-neutral-50 px-4 py-3">
                 <span className="text-sm font-bold text-blue-600">VISA</span>

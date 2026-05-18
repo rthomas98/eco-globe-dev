@@ -20,10 +20,10 @@ export interface MapListing {
 const fallbackListings: MapListing[] = [
   { id: "bagasse", title: "Shredded, Refined Sugar Bagasse", location: "Port Allen, Louisiana", price: "$48", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -91.2103, lat: 30.4524 },
   { id: "polymer", title: "Scrap Polymer Blend", location: "Houston, Texas", price: "€60", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -95.3698, lat: 29.7604 },
-  { id: "pyrolysis", title: "Pyrolysis Pitch", location: "Cadiz, Spain", price: "$400", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -6.2886, lat: 36.5271 },
-  { id: "tar", title: "TAR Dark Refinery Byproduct", location: "Cadiz, Spain", price: "$400", unit: "/ton", moq: "5 tons", co2: "360 kg CO₂e", lng: -6.2886, lat: 36.5271 },
+  { id: "pyrolysis", title: "Pyrolysis Pitch", location: "Houston, Texas", price: "$50", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -95.3698, lat: 29.7604 },
+  { id: "tar", title: "Tar", location: "Houston, Texas", price: "$50", unit: "/ton", moq: "5 tons", co2: "360 kg CO₂e", lng: -95.3698, lat: 29.7604 },
   { id: "used-cooking-oil", title: "Refined Used Cooking Oil (UCO)", location: "Rotterdam, Netherlands", price: "$550", unit: "/ton", moq: "4 tons", co2: "540 kg CO₂e", lng: 4.4777, lat: 51.9244 },
-  { id: "epoxy-offspec", title: "Epoxy Off-Spec", location: "Houston, Texas", price: "$800", unit: "/ton", moq: "2 tons", co2: "280 kg CO₂e", lng: -95.3698, lat: 29.7604 },
+  { id: "epoxy-offspec", title: "Epoxy Off-Spec", location: "Houston, Texas", price: "$50", unit: "/ton", moq: "2 tons", co2: "280 kg CO₂e", lng: -95.3698, lat: 29.7604 },
 ];
 
 function buildPopupContent(
