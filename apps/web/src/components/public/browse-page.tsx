@@ -107,6 +107,7 @@ export function BrowsePage() {
   const router = useRouter();
   const urlQuery = searchParams.get("q") || "";
   const urlLocation = searchParams.get("location") || "";
+  const urlDistance = searchParams.get("distance") || "100 mi";
   const user = useDemoUser();
   const isMember = !!user;
 
@@ -114,10 +115,11 @@ export function BrowsePage() {
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const handleSearch = (query: string, location: string) => {
+  const handleSearch = (query: string, location: string, radius: string) => {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
     if (location) params.set("location", location);
+    if (radius) params.set("distance", radius);
     router.push(`/browse${params.toString() ? `?${params}` : ""}`);
   };
 
@@ -128,6 +130,7 @@ export function BrowsePage() {
   const priceMax = filters.priceMax ? parseFloat(filters.priceMax) : null;
   const qtyMin = filters.qtyMin ? parseFloat(filters.qtyMin) : null;
   const qtyMax = filters.qtyMax ? parseFloat(filters.qtyMax) : null;
+  const radiusMax = parseFloat(urlDistance);
 
   const matchesCarbonBucket = (co2Num: number) =>
     filters.carbon.some((bucket) => {
@@ -146,6 +149,14 @@ export function BrowsePage() {
     const haystack = `${l.title} ${l.tags.join(" ")}`.toLowerCase();
     if (q && !haystack.includes(q)) return false;
     if (loc && !l.location.toLowerCase().includes(loc)) return false;
+    if (
+      loc &&
+      Number.isFinite(radiusMax) &&
+      l.distance !== "—" &&
+      parseFloat(l.distance) > radiusMax
+    ) {
+      return false;
+    }
     if (filters.categories.length > 0 && !filters.categories.includes(l.category)) return false;
     if (filters.grades.length > 0 && !filters.grades.includes(l.grade)) return false;
     if (priceMin !== null && l.priceNum < priceMin) return false;
@@ -194,7 +205,8 @@ export function BrowsePage() {
           <SearchBar
             initialQuery={urlQuery}
             initialLocation={urlLocation}
-            onSearch={(q, loc) => handleSearch(q, loc)}
+            initialRadius={urlDistance}
+            onSearch={(q, loc, radius) => handleSearch(q, loc, radius)}
           />
 
           <button
@@ -230,6 +242,12 @@ export function BrowsePage() {
                   {urlQuery && <span className="font-semibold">&quot;{urlQuery}&quot;</span>}
                   {urlQuery && urlLocation && " in "}
                   {urlLocation && <span className="font-semibold">{urlLocation}</span>}
+                  {urlLocation && (
+                    <>
+                      {" "}
+                      within <span className="font-semibold">{urlDistance}</span>
+                    </>
+                  )}
                 </>
               ) : (
                 <>{visibleListings.length} listings</>
