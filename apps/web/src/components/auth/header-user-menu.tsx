@@ -3,9 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LayoutDashboard, LogOut, Settings } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ChevronDown,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+} from "lucide-react";
 import { Button } from "@eco-globe/ui";
-import { clearDemoUser, useDemoUser, type UserRole } from "@/lib/demo-user";
+import {
+  buildDemoUser,
+  clearDemoUser,
+  useDemoUser,
+  writeDemoUser,
+  type UserRole,
+} from "@/lib/demo-user";
 
 const PORTAL_HREF: Record<UserRole, string> = {
   buyer: "/buyer/browse",
@@ -17,6 +29,17 @@ const PORTAL_LABEL: Record<UserRole, string> = {
   buyer: "Buyer dashboard",
   seller: "Seller dashboard",
   admin: "Admin dashboard",
+};
+
+const ROLE_LABEL: Record<UserRole, string> = {
+  buyer: "Buyer",
+  seller: "Seller",
+  admin: "Admin",
+};
+
+const ROLE_SWITCH: Partial<Record<UserRole, UserRole>> = {
+  buyer: "seller",
+  seller: "buyer",
 };
 
 export function HeaderUserMenu({
@@ -45,6 +68,18 @@ export function HeaderUserMenu({
     router.push("/");
   };
 
+  const handleRoleSwitch = (targetRole: UserRole) => {
+    if (!user) return;
+    writeDemoUser(
+      buildDemoUser(targetRole, {
+        name: user.name,
+        email: user.email,
+      }),
+    );
+    setOpen(false);
+    router.push(PORTAL_HREF[targetRole]);
+  };
+
   if (!user) {
     return (
       <div className="flex items-center gap-3">
@@ -70,6 +105,7 @@ export function HeaderUserMenu({
 
   const initial = (user.name || user.email || "U").charAt(0).toUpperCase();
   const firstName = (user.name || user.email).split(" ")[0];
+  const switchTarget = ROLE_SWITCH[user.role];
 
   return (
     <div ref={containerRef} className="relative">
@@ -116,6 +152,20 @@ export function HeaderUserMenu({
             </p>
           </div>
           <div className="my-2" style={{ borderTop: "1px solid #F0F0F0" }} />
+          {switchTarget && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleRoleSwitch(switchTarget)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                role="menuitem"
+              >
+                <ArrowLeftRight className="size-[18px] text-neutral-500" />
+                Switch to {ROLE_LABEL[switchTarget]}
+              </button>
+              <div className="my-2" style={{ borderTop: "1px solid #F0F0F0" }} />
+            </>
+          )}
           <Link
             href={PORTAL_HREF[user.role]}
             onClick={() => setOpen(false)}

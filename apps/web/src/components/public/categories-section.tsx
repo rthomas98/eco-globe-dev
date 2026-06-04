@@ -1,31 +1,39 @@
+import Link from "next/link";
+
 const categories = [
   {
     title: "Industrial Byproducts",
     image: "/images/category-industrial-byproducts.png",
+    href: "/browse?category=Industrial+Byproducts",
   },
   {
     title: "Low CO₂ feedstocks",
     image: "/images/category-low-co2-feedstocks.png",
+    href: "/browse?tag=Low+CO%E2%82%82+feedstocks",
   },
   {
     title: "Certified Feedstocks",
     image: "/images/category-certified-feedstocks.png",
+    href: "/browse?tag=Certified+Feedstocks",
   },
   {
     title: "Used products",
     image: "/images/category-used-products.png",
+    href: "/browse?category=Used+products",
   },
 ];
 
 function CategoryCard({
   title,
   image,
+  href,
 }: {
   title: string;
   image: string;
+  href: string;
 }) {
   return (
-    <div className="group relative h-[200px] sm:h-[280px] lg:h-[342px] cursor-pointer overflow-hidden rounded-2xl">
+    <Link href={href} className="group relative block h-[200px] sm:h-[280px] lg:h-[342px] overflow-hidden rounded-2xl">
       <img
         src={image}
         alt={title}
@@ -34,7 +42,7 @@ function CategoryCard({
       <div className="absolute inset-x-0 bottom-0 flex flex-col items-start bg-gradient-to-b from-transparent via-black/60 to-neutral-900 p-6 sm:p-10 pt-16 sm:pt-24">
         <h3 className="text-xl sm:text-2xl lg:text-[28px] font-bold leading-7 sm:leading-9 text-white">{title}</h3>
       </div>
-    </div>
+    </Link>
   );
 }
 

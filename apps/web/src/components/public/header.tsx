@@ -9,6 +9,7 @@ import { Button } from "@eco-globe/ui";
 import { HeaderUserMenu } from "@/components/auth/header-user-menu";
 
 const navLinks = [
+  { label: "Home", href: "/" },
   { label: "Services", href: "/services" },
   { label: "Sellers", href: "/sellers" },
   { label: "Buyers", href: "/buyers" },

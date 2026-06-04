@@ -12,6 +12,7 @@ import {
   Bell,
   ChevronUp,
   ChevronDown,
+  ArrowLeftRight,
   LayoutDashboard,
   Building2,
   Home,
@@ -19,6 +20,12 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { NotificationsPanel } from "../seller/notifications-panel";
+import {
+  buildDemoUser,
+  clearDemoUser,
+  readDemoUser,
+  writeDemoUser,
+} from "@/lib/demo-user";
 
 interface NavIcon {
   href: string;
@@ -49,7 +56,15 @@ const navIcons: NavIcon[] = [
   { href: "/buyer/help", icon: HelpCircle, label: "Help" },
 ];
 
-function UserMenu({ onClose, onLogout }: { onClose: () => void; onLogout: () => void }) {
+function UserMenu({
+  onClose,
+  onLogout,
+  onSwitchToSeller,
+}: {
+  onClose: () => void;
+  onLogout: () => void;
+  onSwitchToSeller: () => void;
+}) {
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
@@ -66,6 +81,15 @@ function UserMenu({ onClose, onLogout }: { onClose: () => void; onLogout: () => 
             <p className="text-sm text-neutral-500">joanna@buyer.com</p>
           </div>
         </div>
+        <div className="my-3" style={{ borderTop: "1px solid #F0F0F0" }} />
+        <button
+          type="button"
+          onClick={onSwitchToSeller}
+          className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+        >
+          <ArrowLeftRight className="size-[18px] text-neutral-500" />
+          Switch to Seller
+        </button>
         <div className="my-3" style={{ borderTop: "1px solid #F0F0F0" }} />
         <Link
           href="/buyer/browse"
@@ -112,11 +136,21 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
   const [notifsOpen, setNotifsOpen] = useState(false);
 
   const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("ecoglobe.demoUser");
-    }
+    clearDemoUser();
     setUserMenuOpen(false);
     router.push("/login");
+  };
+
+  const handleSwitchToSeller = () => {
+    const current = readDemoUser();
+    writeDemoUser(
+      buildDemoUser("seller", {
+        name: current?.name || "Joanna Bell",
+        email: current?.email || "joanna@buyer.com",
+      }),
+    );
+    setUserMenuOpen(false);
+    router.push("/seller/listings");
   };
 
   return (
@@ -232,6 +266,7 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
           <UserMenu
             onClose={() => setUserMenuOpen(false)}
             onLogout={handleLogout}
+            onSwitchToSeller={handleSwitchToSeller}
           />
         )}
       </aside>

@@ -8,10 +8,10 @@ import { Button } from "@eco-globe/ui";
 import { listings } from "./browse-listings";
 
 const popularSearches = [
-  "Industrial Byproducts",
-  "Low CO₂ feedstocks",
-  "Certified Feedstocks",
-  "Used products",
+  { label: "Industrial Byproducts", href: "/browse?category=Industrial+Byproducts" },
+  { label: "Low CO₂ feedstocks", href: "/browse?tag=Low+CO%E2%82%82+feedstocks" },
+  { label: "Certified Feedstocks", href: "/browse?tag=Certified+Feedstocks" },
+  { label: "Used products", href: "/browse?category=Used+products" },
 ];
 
 const ALL_LOCATIONS = Array.from(
@@ -108,10 +108,6 @@ export function HeroSection() {
     if (location) params.set("location", location);
     if (distance) params.set("distance", distance);
     router.push(`/browse${params.toString() ? `?${params}` : ""}`);
-  };
-
-  const handleTagClick = (tag: string) => {
-    router.push(`/browse?q=${encodeURIComponent(tag)}`);
   };
 
   return (
@@ -316,13 +312,13 @@ export function HeroSection() {
             </span>
             <div className="flex flex-wrap justify-center gap-3">
               {popularSearches.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => handleTagClick(tag)}
+                <Link
+                  key={tag.label}
+                  href={tag.href}
                   className="rounded-full border border-white/40 bg-neutral-900/30 px-3 py-1 text-base text-white transition-colors hover:bg-white/20"
                 >
-                  {tag}
-                </button>
+                  {tag.label}
+                </Link>
               ))}
             </div>
             <p className="text-sm text-white/80">

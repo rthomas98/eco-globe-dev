@@ -35,6 +35,24 @@ const marketplacePath = [
   "You need pricing transparency and speed",
 ];
 
+const opportunityItems = [
+  {
+    icon: TrendingUp,
+    title: "Give hard-to-place streams a business path",
+    text: "One-time lots, irregular volumes, and off-spec materials can become listings buyers are actively searching for.",
+  },
+  {
+    icon: Globe,
+    title: "Reach cross-industry demand faster",
+    text: "Cement producers, asphalt blenders, carbon plants, and chemical manufacturers can discover your material without one-by-one outreach.",
+  },
+  {
+    icon: CheckCircle,
+    title: "Use one account for both sides",
+    text: "Sell what you produce and source what you need through the same network, logistics workflow, and payment rails.",
+  },
+];
+
 const whyEcoGlobe = [
   { icon: Globe, text: "Integrated platform connecting industrial suppliers and buyers across waste streams" },
   { icon: Shield, text: "Founded by industry veterans with 35+ years combined experience in energy and circular economy" },
@@ -66,7 +84,33 @@ export function ServicesPage() {
 
       {/* Two paths */}
       <section className="py-16 lg:py-[120px]">
-        <div className="mx-auto grid max-w-[1440px] grid-cols-1 lg:grid-cols-2 gap-10 px-4 sm:px-8 lg:px-[135px]">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-10 px-4 sm:px-8 lg:px-[135px]">
+          <div className="rounded-3xl bg-neutral-900 p-8 text-white sm:p-10 lg:p-12">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+              <div>
+                <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
+                  The opportunity
+                </p>
+                <h2 className="text-2xl font-bold leading-tight sm:text-3xl lg:text-4xl">
+                  What you&apos;re joining
+                </h2>
+                <p className="mt-4 max-w-[520px] text-base leading-7 text-white/75">
+                  A network where the company selling a stream in one industry may also be sourcing a feedstock in another.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                {opportunityItems.map((item) => (
+                  <div key={item.title} className="rounded-2xl bg-white/8 p-5 ring-1 ring-white/10">
+                    <item.icon className="mb-4 size-5 text-white" />
+                    <h3 className="mb-3 text-base font-bold text-white">{item.title}</h3>
+                    <p className="text-sm leading-6 text-white/70">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* Consulting */}
           <div className="flex flex-col gap-8 rounded-2xl bg-white p-10" style={{ border: "1px solid #E0E0E0" }}>
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">Consulting Services</h2>
@@ -101,7 +145,7 @@ export function ServicesPage() {
           {/* Marketplace */}
           <div className="flex flex-col gap-8 rounded-2xl bg-white p-10" style={{ border: "1px solid #E0E0E0" }}>
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">Marketplace Access</h2>
-            <p className="text-base text-neutral-700">Companies who know what feedstocks they need, experienced traders, or those ready to transact independently.</p>
+            <p className="text-base text-neutral-700">For companies ready to transact. Vetted counterparties, integrated logistics, escrow payments, carbon tracking, and live pricing.</p>
             <div className="h-[240px] overflow-hidden rounded-xl bg-neutral-100">
               <img
                 src="/images/services-marketplace.png"
@@ -127,6 +171,7 @@ export function ServicesPage() {
                 <Button variant="primary" size="md">Join the Marketplace</Button>
               </Link>
             </div>
+          </div>
           </div>
         </div>
       </section>

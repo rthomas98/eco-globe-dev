@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -16,76 +16,9 @@ import {
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { getProductDetailById } from "../public/product-detail-data";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
 import { BuyerLayout } from "./buyer-layout";
 import { CarbonCalculatorButton } from "./carbon-calculator-button";
-
-function SellerMap({ lng, lat }: { lng: number; lat: number }) {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  const validToken = !!token && token !== "placeholder" && token.startsWith("pk.");
-
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-
-  useEffect(() => {
-    if (!validToken) return;
-    if (!mapContainer.current || mapRef.current) return;
-    mapboxgl.accessToken = token!;
-    const m = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: [lng, lat],
-      zoom: 11,
-    });
-    m.addControl(new mapboxgl.NavigationControl(), "top-right");
-    const el = document.createElement("div");
-    el.style.cssText =
-      "width:24px;height:24px;border-radius:50%;background:#378853;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25);";
-    new mapboxgl.Marker(el).setLngLat([lng, lat]).addTo(m);
-    mapRef.current = m;
-    return () => {
-      m.remove();
-      mapRef.current = null;
-    };
-  }, [lng, lat, validToken, token]);
-
-  if (!validToken) {
-    return (
-      <div
-        className="relative h-[260px] w-full overflow-hidden rounded-xl"
-        style={{
-          background:
-            "linear-gradient(135deg, #E8F1ED 0%, #F4F8F2 50%, #E0EAE3 100%)",
-        }}
-      >
-        <svg className="absolute inset-0 h-full w-full opacity-40" aria-hidden>
-          <defs>
-            <pattern id="grid-buyer-detail" width="48" height="48" patternUnits="userSpaceOnUse">
-              <path
-                d="M 48 0 L 0 0 0 48"
-                fill="none"
-                stroke="#C8D7CD"
-                strokeWidth="0.5"
-              />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid-buyer-detail)" />
-        </svg>
-        <div
-          className="absolute left-1/2 top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{
-            background: "#378853",
-            border: "2.5px solid white",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
-          }}
-        />
-      </div>
-    );
-  }
-
-  return <div ref={mapContainer} className="h-[260px] w-full rounded-xl" />;
-}
+import { SellerLocationMap } from "../public/seller-location-map";
 
 export function BuyerProductDetailPage() {
   const params = useParams<{ id?: string }>();
@@ -185,7 +118,11 @@ export function BuyerProductDetailPage() {
               {/* Map */}
               <h2 className="mb-4 text-xl font-bold text-neutral-900">Map</h2>
               <div className="mb-10">
-                <SellerMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} />
+                <SellerLocationMap
+                  lng={product.sellerCoords.lng}
+                  lat={product.sellerCoords.lat}
+                  heightClassName="h-[260px]"
+                />
               </div>
 
               {/* Specifications */}

@@ -37,9 +37,6 @@ export function AboutPage() {
             <h2 className="w-full lg:w-[300px] shrink-0 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Our mission</h2>
             <div className="flex flex-col gap-6">
               <p className="text-base leading-7 text-neutral-700">
-                EcoGlobe delivers secure, scalable feedstock solutions tailored to industrial demands.
-              </p>
-              <p className="text-base leading-7 text-neutral-700">
                 We connect ecosystems to convert byproducts into valuable resources, reducing costs and emissions while creating new revenue opportunities for businesses on both sides of the trade.
               </p>
 
