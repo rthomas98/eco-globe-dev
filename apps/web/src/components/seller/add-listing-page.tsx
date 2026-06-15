@@ -82,7 +82,7 @@ export function AddListingPage() {
   const [form, setForm] = useState({
     name: "", category: "", images: [] as string[],
     material: "", listingType: "", grade: "", color: "", shelfLife: "", storage: "", pkg: "", weight: "", usage: "", origin: "",
-    price: "", moq: "", qty: "", unit: "lb",
+    price: "", moq: "", qty: "", unit: "ton",
     description: "",
     claims: [] as string[], certFiles: [] as File[], sustainNotes: "",
     sameAsCompany: false, originLocation: "",
@@ -132,10 +132,10 @@ export function AddListingPage() {
         ? `${facility.label} — ${facility.address.split(",")[0] || ""}`.trim()
         : form.originLocation || "Unknown location",
       distance: "—",
-      moq: form.moq ? `${form.moq} ${form.unit === "lb" ? "lb" : "tons"}` : "1 ton",
+      moq: form.moq ? `${form.moq} tons` : "1 ton",
       co2: "— kg CO₂e",
       price: form.price ? `$${form.price}` : "$0",
-      unit: form.unit === "lb" ? "/lb" : "/ton",
+      unit: "/ton",
       image: form.images[0] || "/products/wood-chips.png",
       tags: [form.category || "feedstock"],
       lng: facility?.lng ?? -91.1403,
@@ -347,7 +347,7 @@ export function AddListingPage() {
               <div className="flex">
                 <input type="text" value={form.qty} onChange={(e) => up("qty", e.target.value)} className="flex-1 rounded-l-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400" style={{ border: "1px solid #E0E0E0", borderRight: "none" }} />
                 <select value={form.unit} onChange={(e) => up("unit", e.target.value)} className="rounded-r-lg bg-neutral-50 px-3 py-3 text-sm outline-none" style={{ border: "1px solid #E0E0E0" }}>
-                  <option value="lb">lb</option><option value="ton">ton</option><option value="kg">kg</option>
+                  <option value="ton">ton</option>
                 </select>
               </div>
             </div>
@@ -436,7 +436,7 @@ export function AddListingPage() {
         <StepLayout step={6} onBack={() => setStep(5)} onNext={() => setStep(7)} onSave={handleSaveDraft}>
           <h1 className="mb-2 text-3xl font-bold text-neutral-900">Origin</h1>
           <p className="mb-6 text-sm text-neutral-600">
-            Pick the facility this listing ships from. Each profile can have multiple sites — for example, Shell Norco and Shell Deer Park.
+            Pick the facility this listing ships from. Each profile can have multiple sites — for example, Norco Plant and Deer Park Plant.
           </p>
           <div className="flex flex-col gap-5">
             {facilities.length > 0 ? (

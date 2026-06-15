@@ -16,51 +16,9 @@ import {
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { getProductDetailById } from "../public/product-detail-data";
-import { ListingMap } from "../public/listing-map";
 import { BuyerLayout } from "./buyer-layout";
-
-function SellerMap({ lng, lat, title }: { lng: number; lat: number; title?: string }) {
-  const [radius, setRadius] = useState<number>(0);
-  const mapListing = {
-    id: "seller-location",
-    title: title ?? "Seller location",
-    location: "",
-    price: "",
-    unit: "",
-    moq: "",
-    co2: "",
-    lng,
-    lat,
-  };
-
-  return (
-    <div className="relative h-[260px] w-full">
-      <div
-        className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs shadow"
-        style={{ border: "1px solid #E0E0E0" }}
-      >
-        <span className="font-semibold text-neutral-700">Radius</span>
-        <select
-          value={radius}
-          onChange={(e) => setRadius(parseInt(e.target.value, 10))}
-          className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs outline-none"
-        >
-          <option value={0}>Off</option>
-          <option value={2}>2 mi</option>
-          <option value={5}>5 mi</option>
-          <option value={10}>10 mi</option>
-          <option value={25}>25 mi</option>
-          <option value={50}>50 mi</option>
-        </select>
-      </div>
-      <ListingMap
-        listings={[mapListing]}
-        origin={{ lng, lat, label: title }}
-        radiusMiles={radius > 0 ? radius : undefined}
-      />
-    </div>
-  );
-}
+import { CarbonCalculatorButton } from "./carbon-calculator-button";
+import { SellerLocationMap } from "../public/seller-location-map";
 
 export function BuyerProductDetailPage() {
   const params = useParams<{ id?: string }>();
@@ -160,7 +118,11 @@ export function BuyerProductDetailPage() {
               {/* Map */}
               <h2 className="mb-4 text-xl font-bold text-neutral-900">Map</h2>
               <div className="mb-10">
-                <SellerMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} />
+                <SellerLocationMap
+                  lng={product.sellerCoords.lng}
+                  lat={product.sellerCoords.lat}
+                  heightClassName="h-[260px]"
+                />
               </div>
 
               {/* Specifications */}
@@ -221,6 +183,20 @@ export function BuyerProductDetailPage() {
                   </p>
                 </div>
               </div>
+              {/* Carbon Analytics Tool */}
+              <h2 className="mb-4 text-xl font-bold text-neutral-900">Carbon Analytics Tool</h2>
+              <div className="mb-6 rounded-xl bg-neutral-50 p-6">
+                <p className="mb-4 text-sm text-neutral-700">
+                  Estimate transportation footprint, compare scenarios, and see
+                  annualized impact for {product.title}.
+                </p>
+                <CarbonCalculatorButton
+                  listingId={product.id}
+                  variant="primary"
+                  label="Open Carbon Calculator"
+                />
+              </div>
+
               {/* Feedback */}
               <div className="mb-10 flex items-center justify-between rounded-xl bg-neutral-50 px-6 py-4">
                 <p className="text-sm text-neutral-700">
@@ -264,9 +240,16 @@ export function BuyerProductDetailPage() {
                     >
                       <Minus className="size-4" />
                     </button>
-                    <span className="w-8 text-center text-sm font-semibold text-neutral-900">
-                      {qty}
-                    </span>
+                    <input
+                      aria-label="Quantity"
+                      type="number"
+                      min={product.minOrder}
+                      value={qty}
+                      onChange={(e) =>
+                        setQty(Math.max(product.minOrder, Number(e.target.value) || product.minOrder))
+                      }
+                      className="w-20 bg-transparent text-center text-sm font-semibold text-neutral-900 outline-none"
+                    />
                     <button
                       onClick={() => setQty(qty + 1)}
                       className="flex size-9 items-center justify-center text-neutral-700 hover:text-neutral-900"

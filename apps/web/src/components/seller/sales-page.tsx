@@ -5,30 +5,30 @@ import { Search, SlidersHorizontal, DollarSign, CheckCircle2, Clock, RefreshCw, 
 import { Button, Select } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
 
-type Action = "Send quote" | "Mark ready" | "Upload BOL" | "Respond" | "View Detail";
+type Action = "Send quote" | "Mark ready" | "Upload Bill of Lading (BOL)" | "Respond" | "View Detail";
 interface Order { id: string; buyer: string; product: string; qty: string; shipping: string; action: Action; }
 
 const orders: Order[] = [
-  { id: "TS98765", buyer: "AgriCorp Solutions", product: "Oat Hull Animal Grade", qty: "123 lb", shipping: "Delivery", action: "Send quote" },
-  { id: "TS98766", buyer: "BioGreen Innovations", product: "Organic Fertilizer", qty: "500 lb", shipping: "Pickup", action: "Mark ready" },
-  { id: "TS98767", buyer: "NutriFeed Industries", product: "Soybean Meal", qty: "200 lb", shipping: "Delivery", action: "Upload BOL" },
-  { id: "TS98768", buyer: "GreenHarvest Co.", product: "Corn Silage", qty: "1,000 lb", shipping: "Delivery", action: "Respond" },
-  { id: "TS98769", buyer: "PurePastures Ltd.", product: "Alfalfa Hay", qty: "750 lb", shipping: "Pickup", action: "Upload BOL" },
-  { id: "TS98765", buyer: "AgriCorp Solutions", product: "Oat Hull Animal Grade", qty: "123 lb", shipping: "Delivery", action: "View Detail" },
-  { id: "TS98766", buyer: "Oceanic Innovations", product: "Seaweed Extract Premium", qty: "200 lb", shipping: "Delivery", action: "View Detail" },
-  { id: "TS98767", buyer: "GreenEarth Technologies", product: "Organic Fertilizer Blend", qty: "150 lb", shipping: "Delivery", action: "View Detail" },
-  { id: "TS98768", buyer: "NutriFeed Corp", product: "Alfalfa Pellets Feed Grade", qty: "250 lb", shipping: "Delivery", action: "View Detail" },
-  { id: "TS98769", buyer: "BioHarvest Ltd", product: "Compostable Mulch Film", qty: "300 lb", shipping: "Delivery", action: "View Detail" },
-  { id: "TS98770", buyer: "AgriTech Enterprises", product: "Insect Protein Powder", qty: "500 lb", shipping: "Delivery", action: "View Detail" },
-  { id: "TS98771", buyer: "CropScience Co.", product: "Bio-Stimulant Liquid", qty: "100 lb", shipping: "Delivery", action: "View Detail" },
-  { id: "TS98772", buyer: "Harvest Innovations", product: "Sustainable Seed Mix", qty: "400 lb", shipping: "Delivery", action: "View Detail" },
-  { id: "TS98773", buyer: "PureWater Systems", product: "Irrigation Water Treatment", qty: "600 lb", shipping: "Delivery", action: "View Detail" },
-  { id: "TS98774", buyer: "Rural Energy Corp", product: "Solar Farm Kits", qty: "700 lb", shipping: "Pickup", action: "View Detail" },
-  { id: "TS98775", buyer: "FarmTech Solutions", product: "Automated Irrigation System", qty: "800 lb", shipping: "Delivery", action: "View Detail" },
-  { id: "TS98776", buyer: "AgriWaste Group", product: "Anaerobic Digester Units", qty: "1000 lb", shipping: "Pickup", action: "View Detail" },
-  { id: "TS98777", buyer: "SmartAgri Tech", product: "Drone Crop Monitoring", qty: "200 lb", shipping: "Delivery", action: "View Detail" },
-  { id: "TS98778", buyer: "FoodSecure Ltd", product: "Farm Produce Storage Solutions", qty: "300 lb", shipping: "Pickup", action: "View Detail" },
-  { id: "TS98779", buyer: "NutriCrops Inc", product: "Crop Nutrient Fortifiers", qty: "400 lb", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98765", buyer: "AgriCorp Solutions", product: "Pyrolysis Pitch", qty: "20 tons", shipping: "Delivery", action: "Send quote" },
+  { id: "TS98766", buyer: "BioGreen Innovations", product: "Black Gypsum", qty: "10 tons", shipping: "Pickup", action: "Mark ready" },
+  { id: "TS98767", buyer: "NutriFeed Industries", product: "Epoxy Off-Spec", qty: "12 tons", shipping: "Delivery", action: "Upload Bill of Lading (BOL)" },
+  { id: "TS98768", buyer: "GreenHarvest Co.", product: "Tar", qty: "25 tons", shipping: "Delivery", action: "Respond" },
+  { id: "TS98769", buyer: "PurePastures Ltd.", product: "Hydrochar", qty: "15 tons", shipping: "Pickup", action: "Upload Bill of Lading (BOL)" },
+  { id: "TS98765", buyer: "AgriCorp Solutions", product: "Pyrolysis Pitch", qty: "20 tons", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98766", buyer: "Oceanic Innovations", product: "Refined Used Cooking Oil", qty: "8 tons", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98767", buyer: "GreenEarth Technologies", product: "Black Gypsum", qty: "16 tons", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98768", buyer: "NutriFeed Corp", product: "Epoxy Off-Spec", qty: "6 tons", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98769", buyer: "BioHarvest Ltd", product: "Tar", qty: "18 tons", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98770", buyer: "AgriTech Enterprises", product: "Biochar", qty: "14 tons", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98771", buyer: "CropScience Co.", product: "Hydrochar", qty: "9 tons", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98772", buyer: "Harvest Innovations", product: "Used Pallets", qty: "30 tons", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98773", buyer: "PureWater Systems", product: "Used Dry Transformer", qty: "1 unit", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98774", buyer: "Rural Energy Corp", product: "White Label", qty: "11 tons", shipping: "Pickup", action: "View Detail" },
+  { id: "TS98775", buyer: "FarmTech Solutions", product: "Rice Husk", qty: "22 tons", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98776", buyer: "AgriWaste Group", product: "Corn Stover", qty: "20 tons", shipping: "Pickup", action: "View Detail" },
+  { id: "TS98777", buyer: "SmartAgri Tech", product: "Wood Pellets", qty: "24 tons", shipping: "Delivery", action: "View Detail" },
+  { id: "TS98778", buyer: "FoodSecure Ltd", product: "Sugar Bagasse", qty: "19 tons", shipping: "Pickup", action: "View Detail" },
+  { id: "TS98779", buyer: "NutriCrops Inc", product: "Polymer Blend", qty: "13 tons", shipping: "Delivery", action: "View Detail" },
 ];
 
 const tabs = ["All Order", "Action needed", "Processing", "Completed", "Disputes"];
@@ -70,7 +70,7 @@ function CreateQuoteModal({ onClose, onSend }: { onClose: () => void; onSend: ()
         <div className="mb-6 flex items-center justify-between"><h2 className="text-xl font-bold text-neutral-900">Create Quote</h2><button onClick={onClose} className="text-neutral-400"><X className="size-5" /></button></div>
         <div className="grid grid-cols-2 gap-4 mb-4"><div><p className="text-xs font-semibold text-neutral-500">Order ID</p><p className="text-sm text-neutral-900">OD20411</p></div><div><p className="text-xs font-semibold text-neutral-500">Buyer</p><p className="text-sm text-neutral-900">AgriCorp Solutions</p></div></div>
         <div className="mb-4"><p className="text-xs font-semibold text-neutral-500">Delivery address</p><p className="text-sm text-neutral-900">2012 Rue Beauregard, STE 202, Lafayette, LA 70508</p></div>
-        <div className="mb-6"><p className="text-xs font-semibold text-neutral-500">Product</p><p className="text-sm text-neutral-900">Wood Sawdust Industrial High Quality - 20 tons</p></div>
+        <div className="mb-6"><p className="text-xs font-semibold text-neutral-500">Product</p><p className="text-sm text-neutral-900">Pyrolysis Pitch - 20 tons</p></div>
         <div style={{borderTop:"1px solid #F0F0F0",paddingTop:"16px"}} className="mb-4"><h3 className="mb-4 text-base font-bold text-neutral-900">Product</h3>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="mb-1.5 block text-sm font-medium text-neutral-900">Shipping cost</label><div className="flex items-center rounded-lg" style={{border:"1px solid #E0E0E0"}}><span className="px-3 text-sm text-neutral-400">$</span><input type="text" defaultValue="0.00" className="flex-1 bg-transparent px-2 py-3 text-sm outline-none" /></div></div>
@@ -84,14 +84,14 @@ function CreateQuoteModal({ onClose, onSend }: { onClose: () => void; onSend: ()
   );
 }
 
-/* ─── Upload BOL Modal ─── */
+/* ─── Upload Bill of Lading (BOL) Modal ─── */
 function UploadBOLModal({ onClose, onUpload }: { onClose: () => void; onUpload: () => void }) {
   const [files, setFiles] = useState<File[]>([]);
   const ref = useRef<HTMLInputElement>(null);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center"><div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative z-10 w-full max-w-[680px] rounded-2xl bg-white p-8" style={{boxShadow:"0 20px 60px rgba(0,0,0,0.15)"}}>
-        <div className="mb-6 flex items-center justify-between"><h2 className="text-xl font-bold text-neutral-900">Upload BOL</h2><button onClick={onClose} className="text-neutral-400"><X className="size-5" /></button></div>
+        <div className="mb-6 flex items-center justify-between"><h2 className="text-xl font-bold text-neutral-900">Upload Bill of Lading (BOL)</h2><button onClick={onClose} className="text-neutral-400"><X className="size-5" /></button></div>
         <div onClick={() => ref.current?.click()} className="mb-4 flex cursor-pointer flex-col items-center gap-3 rounded-xl bg-neutral-50 py-10" style={{border:"2px dashed #D0D0D0"}}>
           <p className="text-sm text-neutral-700"><span className="font-semibold">Drop file here</span> or <span className="font-semibold text-green-600 cursor-pointer">Browse</span></p>
           <p className="text-xs text-neutral-400">Accepts .gif, .jpg, and .png</p>
@@ -103,7 +103,7 @@ function UploadBOLModal({ onClose, onUpload }: { onClose: () => void; onUpload: 
             <button onClick={() => setFiles(files.filter((_,idx)=>idx!==i))} className="text-neutral-400"><X className="size-4" /></button>
           </div>
         ))}
-        <div className="mt-4 flex justify-end gap-3"><Button variant="secondary" size="md" onClick={onClose}>Cancel</Button><Button variant="primary" size="md" onClick={onUpload}>Upload BOL</Button></div>
+        <div className="mt-4 flex justify-end gap-3"><Button variant="secondary" size="md" onClick={onClose}>Cancel</Button><Button variant="primary" size="md" onClick={onUpload}>Upload Bill of Lading (BOL)</Button></div>
       </div>
     </div>
   );
@@ -126,7 +126,7 @@ function SuccessModal({ title, message, status, onClose }: { title: string; mess
 
 /* ─── Order Detail Drawer ─── */
 function OrderDetailDrawer({ order, onClose, onAction }: { order: Order; onClose: () => void; onAction: (a: string) => void }) {
-  const actionLabel = order.action === "Send quote" ? "Send quote" : order.action === "Upload BOL" ? "Upload BOL" : order.action === "Mark ready" ? "Mark ready" : "";
+  const actionLabel = order.action === "Send quote" ? "Send quote" : order.action === "Upload Bill of Lading (BOL)" ? "Upload Bill of Lading (BOL)" : order.action === "Mark ready" ? "Mark ready" : "";
   return (
     <div className="fixed inset-0 z-50 flex justify-end"><div className="absolute inset-0 bg-black/20" onClick={onClose} />
       <div className="relative z-10 flex h-full w-full max-w-[780px] flex-col overflow-y-auto bg-white shadow-xl">
@@ -142,7 +142,7 @@ function OrderDetailDrawer({ order, onClose, onAction }: { order: Order; onClose
           {/* Alert banner */}
           <div className="mb-6 flex items-start gap-3 rounded-xl bg-neutral-50 px-5 py-4">
             <FileText className="mt-0.5 size-5 shrink-0 text-neutral-400" />
-            <div><p className="text-sm font-semibold text-neutral-900">{order.action === "Upload BOL" ? "Upload Bill of Lading (BOL)" : "Send shipping quote"}</p><p className="text-xs text-neutral-500">{order.action === "Upload BOL" ? "Upload the BOL to confirm the shipment and keep escrow processing on track." : "The buyer selected Delivery. Please send a shipping quote to continue this order."}</p></div>
+            <div><p className="text-sm font-semibold text-neutral-900">{order.action === "Upload Bill of Lading (BOL)" ? "Upload Bill of Lading (BOL)" : "Send shipping quote"}</p><p className="text-xs text-neutral-500">{order.action === "Upload Bill of Lading (BOL)" ? "Upload the Bill of Lading to confirm the shipment and keep escrow processing on track." : "The buyer selected Delivery. Please send a shipping quote to continue this order."}</p></div>
           </div>
           <div className="flex gap-6">
             <div className="flex-1 flex flex-col gap-6">
@@ -151,7 +151,7 @@ function OrderDetailDrawer({ order, onClose, onAction }: { order: Order; onClose
                 <h3 className="mb-4 text-lg font-semibold text-neutral-900">Order info</h3>
                 <div className="grid grid-cols-2 gap-y-4">
                   <div><p className="text-xs font-semibold text-neutral-500">Order ID</p><p className="text-sm text-neutral-900">OD20411</p></div>
-                  <div><p className="text-xs font-semibold text-neutral-500">Order Placed</p><p className="text-sm text-neutral-900">Oct 24, 2024 10:10 AM</p></div>
+                  <div><p className="text-xs font-semibold text-neutral-500">Order Placed</p><p className="text-sm text-neutral-900">May 18, 2026 10:10 AM</p></div>
                   <div><p className="text-xs font-semibold text-neutral-500">Buyer</p><p className="text-sm text-neutral-900">AgriCorp Solutions</p></div>
                   <div><p className="text-xs font-semibold text-neutral-500">Status</p><p className="text-sm text-neutral-900">Quote awaiting approval</p></div>
                   <div><p className="text-xs font-semibold text-neutral-500">Shipping</p><p className="text-sm text-neutral-900">Delivery</p></div>
@@ -160,7 +160,7 @@ function OrderDetailDrawer({ order, onClose, onAction }: { order: Order; onClose
               </section>
               <section className="rounded-xl p-5" style={{border:"1px solid #F0F0F0"}}>
                 <h3 className="mb-4 text-lg font-semibold text-neutral-900">Products</h3>
-                <div className="flex items-center gap-4"><div className="size-12 shrink-0 overflow-hidden rounded-lg"><img src="/products/wood-chips.png" alt="" className="size-full object-cover" /></div><div><p className="text-sm font-medium text-neutral-900">Wood Sawdust Industrial High Quality</p><p className="text-sm text-neutral-500">$150.00 /tons</p></div></div>
+                <div className="flex items-center gap-4"><div className="size-12 shrink-0 overflow-hidden rounded-lg"><img src="/products/generated/pyrolysis.png" alt="" className="size-full object-cover" /></div><div><p className="text-sm font-medium text-neutral-900">Pyrolysis Pitch</p><p className="text-sm text-neutral-500">$50.00 /ton</p></div></div>
               </section>
               <section className="rounded-xl p-5" style={{border:"1px solid #F0F0F0"}}>
                 <h3 className="mb-4 text-lg font-semibold text-neutral-900">Delivery info</h3>
@@ -170,7 +170,7 @@ function OrderDetailDrawer({ order, onClose, onAction }: { order: Order; onClose
               </section>
               <section className="rounded-xl p-5" style={{border:"1px solid #F0F0F0"}}>
                 <h3 className="mb-4 text-lg font-semibold text-neutral-900">Payment Details</h3>
-                <div className="grid grid-cols-2 gap-y-4 mb-4"><div><p className="text-xs font-semibold text-neutral-500">Transaction ID</p><p className="text-sm text-neutral-900">TS93863</p></div><div><p className="text-xs font-semibold text-neutral-500">Escrow amount</p><p className="text-sm text-neutral-900">$2,500.00</p></div><div><p className="text-xs font-semibold text-neutral-500">Escrow status</p><p className="text-sm text-neutral-900">Funded</p></div><div><p className="text-xs font-semibold text-neutral-500">Release date</p><p className="text-sm text-neutral-900">Oct 28, 2024 10:10 AM</p></div></div>
+                <div className="grid grid-cols-2 gap-y-4 mb-4"><div><p className="text-xs font-semibold text-neutral-500">Transaction ID</p><p className="text-sm text-neutral-900">TS93863</p></div><div><p className="text-xs font-semibold text-neutral-500">Escrow amount</p><p className="text-sm text-neutral-900">$1,000.00</p></div><div><p className="text-xs font-semibold text-neutral-500">Escrow status</p><p className="text-sm text-neutral-900">Funded</p></div><div><p className="text-xs font-semibold text-neutral-500">Release date</p><p className="text-sm text-neutral-900">May 20, 2026 10:10 AM</p></div></div>
                 <div className="flex items-center gap-3 rounded-lg bg-neutral-50 px-4 py-3"><span className="text-sm font-bold text-blue-600">VISA</span><span className="text-sm text-neutral-700">Visa ending with 2145</span></div>
               </section>
               <section className="rounded-xl p-5" style={{border:"1px solid #F0F0F0"}}>
@@ -181,7 +181,7 @@ function OrderDetailDrawer({ order, onClose, onAction }: { order: Order; onClose
               </section>
               <section className="rounded-xl p-5" style={{border:"1px solid #F0F0F0"}}>
                 <h3 className="mb-4 text-lg font-semibold text-neutral-900">Activity Log</h3>
-                {[{e:"Order placed",d:"Oct 29, 2024 10:10 AM",a:true},{e:"Escrow funded",d:"Oct 29, 2024 10:10 AM",a:true},{e:"Seller marked ready for pickup",d:"",a:false},{e:"Pickup confirmed",d:"",a:false},{e:"Escrow released",d:"",a:false},{e:"Order completed",d:"",a:false}].map((item,i,arr)=>(
+                {[{e:"Order placed",d:"May 18, 2026 10:10 AM",a:true},{e:"Escrow funded",d:"May 18, 2026 10:15 AM",a:true},{e:"Seller marked ready for pickup",d:"",a:false},{e:"Pickup confirmed",d:"",a:false},{e:"Escrow released",d:"",a:false},{e:"Order completed",d:"",a:false}].map((item,i,arr)=>(
                   <div key={item.e} className="flex gap-4"><div className="flex flex-col items-center"><div className={`size-3 rounded-full ${item.a?"bg-green-500":"bg-neutral-300"}`}/>{i<arr.length-1&&<div className={`w-0.5 flex-1 ${item.a&&arr[i+1]?.a?"bg-green-500":"bg-neutral-200"}`}/>}</div><div className="flex flex-1 items-center justify-between pb-5"><span className={`text-sm ${item.a?"font-medium text-neutral-900":"text-neutral-400"}`}>{item.e}</span>{item.d&&<span className="text-xs text-neutral-500">{item.d}</span>}</div></div>
                 ))}
               </section>
@@ -221,7 +221,7 @@ export function SellerSalesPage() {
 
   const handleAction = (action: string) => {
     if (action === "Send quote") setShowQuoteModal(true);
-    else if (action === "Upload BOL") setShowBOLModal(true);
+    else if (action === "Upload Bill of Lading (BOL)") setShowBOLModal(true);
     else if (action === "Mark ready" || action === "Respond") setSelectedOrder(orders[0]);
     else setSelectedOrder(orders[0]);
   };

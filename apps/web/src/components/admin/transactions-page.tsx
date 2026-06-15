@@ -41,8 +41,8 @@ function StatusBadge({ status }: { status: TxnStatus }) {
 
 function TxnDetailDrawer({ txn, onClose }: { txn: Transaction; onClose: () => void }) {
   const log = [
-    { event: "Escrow funded", date: "Oct 29, 2024 10:10 AM", active: true },
-    { event: "Quote approved", date: "Oct 29, 2024 10:10 AM", active: true },
+    { event: "Escrow funded", date: "May 18, 2026 10:15 AM", active: true },
+    { event: "Quote approved", date: "May 18, 2026 10:20 AM", active: true },
     { event: "Buyer confirmed", date: "", active: false },
     { event: "Escrow released", date: "", active: false },
     { event: "Payout completed", date: "", active: false },
@@ -66,8 +66,8 @@ function TxnDetailDrawer({ txn, onClose }: { txn: Transaction; onClose: () => vo
             <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-semibold text-neutral-900">Sale info</h3><button className="text-sm font-medium text-green-600">View Order Detail</button></div>
             <div className="grid grid-cols-2 gap-y-4 rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
               <div><p className="text-xs font-semibold text-neutral-500">Order ID</p><p className="text-sm text-neutral-900">{txn.orderId}</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Order Placed</p><p className="text-sm text-neutral-900">Oct 24, 2024 10:10 AM</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Buyer</p><p className="text-sm text-neutral-900">Shell Refinery Louisiana</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Order Placed</p><p className="text-sm text-neutral-900">May 18, 2026 10:10 AM</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Buyer</p><p className="text-sm text-neutral-900">GulfStar Chemicals</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Seller</p><p className="text-sm text-neutral-900">Umbrella Corp</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Quantity</p><p className="text-sm text-neutral-900">20 tons</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Shipping</p><p className="text-sm text-neutral-900">Delivery</p></div>
@@ -81,8 +81,8 @@ function TxnDetailDrawer({ txn, onClose }: { txn: Transaction; onClose: () => vo
                 <div><p className="text-xs font-semibold text-neutral-500">EcoGlobe fee</p><p className="text-sm text-neutral-900">$200.00</p></div>
                 <div><p className="text-xs font-semibold text-neutral-500">Escrow fee</p><p className="text-sm text-neutral-900">$100.00</p></div>
                 <div><p className="text-xs font-semibold text-neutral-500">Net amount</p><p className="text-sm text-neutral-900">$15,100,000</p></div>
-                <div><p className="text-xs font-semibold text-neutral-500">Escrow funded date</p><p className="text-sm text-neutral-900">Oct 24, 2024 10:10 AM</p></div>
-                <div><p className="text-xs font-semibold text-neutral-500">Release date</p><p className="text-sm text-neutral-900">ERD Oct 29, 2024 10:10 AM</p></div>
+                <div><p className="text-xs font-semibold text-neutral-500">Escrow funded date</p><p className="text-sm text-neutral-900">May 18, 2026 10:15 AM</p></div>
+                <div><p className="text-xs font-semibold text-neutral-500">Release date</p><p className="text-sm text-neutral-900">ERD May 20, 2026 10:10 AM</p></div>
                 <div><p className="text-xs font-semibold text-neutral-500">Bank account</p><p className="text-sm text-neutral-900">US Bank Account ****4567</p></div>
                 <div><p className="text-xs font-semibold text-neutral-500">Payout status</p><p className="text-sm text-neutral-900">Pending</p></div>
               </div>

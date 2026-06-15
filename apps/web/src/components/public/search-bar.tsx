@@ -26,14 +26,16 @@ export function SearchBar({
   onSearch,
   initialQuery = "",
   initialLocation = "",
+  initialRadius = "100 mi",
 }: {
   onSearch?: (query: string, location: string, radius: string) => void;
   initialQuery?: string;
   initialLocation?: string;
+  initialRadius?: string;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [location, setLocation] = useState(initialLocation);
-  const [radius, setRadius] = useState("100 mi");
+  const [radius, setRadius] = useState(initialRadius);
   const [activeDropdown, setActiveDropdown] = useState<"feedstock" | "location" | null>(null);
   const [radiusOpen, setRadiusOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);

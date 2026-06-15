@@ -13,51 +13,10 @@ import { getProductDetailById } from "./product-detail-data";
 import { listings as ALL_LISTINGS } from "./browse-listings";
 import { useDemoUser } from "@/lib/demo-user";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
-import { ListingMap } from "./listing-map";
+import { SellerLocationMap } from "./seller-location-map";
 import { HeaderUserMenu } from "@/components/auth/header-user-menu";
 
 const FAVORITES_KEY = "ecoglobe.favoriteListings";
-
-function SellerMap({ lng, lat, title }: { lng: number; lat: number; title?: string }) {
-  const [radius, setRadius] = useState<number>(0);
-  const mapListing = {
-    id: "seller-location",
-    title: title ?? "Seller location",
-    location: "",
-    price: "",
-    unit: "",
-    moq: "",
-    co2: "",
-    lng,
-    lat,
-  };
-
-  return (
-    <div className="relative h-[280px] w-full">
-      <div className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs shadow"
-        style={{ border: "1px solid #E0E0E0" }}>
-        <span className="font-semibold text-neutral-700">Radius</span>
-        <select
-          value={radius}
-          onChange={(e) => setRadius(parseInt(e.target.value, 10))}
-          className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs outline-none"
-        >
-          <option value={0}>Off</option>
-          <option value={2}>2 mi</option>
-          <option value={5}>5 mi</option>
-          <option value={10}>10 mi</option>
-          <option value={25}>25 mi</option>
-          <option value={50}>50 mi</option>
-        </select>
-      </div>
-      <ListingMap
-        listings={[mapListing]}
-        origin={{ lng, lat, label: title }}
-        radiusMiles={radius > 0 ? radius : undefined}
-      />
-    </div>
-  );
-}
 
 export function ProductDetailPage() {
   const params = useParams<{ id?: string }>();
@@ -184,10 +143,14 @@ export function ProductDetailPage() {
         </Link>
         <div className="flex items-center gap-3">
           <SearchBar />
-          <button className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900" style={{ border: "1px solid #E0E0E0" }}>
+          <Link
+            href="/browse"
+            className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900"
+            style={{ border: "1px solid #E0E0E0" }}
+          >
             <SlidersHorizontal className="size-4" />
             Filters
-          </button>
+          </Link>
         </div>
         <div className="flex items-center gap-4">
           <CartButton />
@@ -312,7 +275,7 @@ export function ProductDetailPage() {
             {/* Map */}
             <h2 className="mb-4 text-xl font-bold text-neutral-900">Map</h2>
             <div className="mb-10">
-              <SellerMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} />
+              <SellerLocationMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} />
             </div>
 
             {/* Specifications */}
@@ -405,7 +368,16 @@ export function ProductDetailPage() {
                   <button onClick={() => setQty(Math.max(product.minOrder, qty - 1))} className="flex size-9 items-center justify-center text-neutral-700 hover:text-neutral-900">
                     <Minus className="size-4" />
                   </button>
-                  <span className="w-8 text-center text-sm font-semibold text-neutral-900">{qty}</span>
+                  <input
+                    aria-label="Quantity"
+                    type="number"
+                    min={product.minOrder}
+                    value={qty}
+                    onChange={(e) =>
+                      setQty(Math.max(product.minOrder, Number(e.target.value) || product.minOrder))
+                    }
+                    className="w-16 bg-transparent text-center text-sm font-semibold text-neutral-900 outline-none"
+                  />
                   <button onClick={() => setQty(qty + 1)} className="flex size-9 items-center justify-center text-neutral-700 hover:text-neutral-900">
                     <Plus className="size-4" />
                   </button>

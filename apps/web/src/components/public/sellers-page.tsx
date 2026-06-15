@@ -57,8 +57,8 @@ export function SellersPage() {
         <div className="mx-auto flex flex-col lg:flex-row max-w-[1440px] gap-8 lg:gap-16 px-4 sm:px-8 lg:px-[135px]">
           <div className="h-[250px] sm:h-[350px] lg:h-[420px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
             <img
-              src="/images/sellers-why-sell.png"
-              alt="Responsible supplier operations"
+              src="/images/sellers-why-sell-chemicals.png"
+              alt="Chemical feedstock tanks and solid byproduct storage"
               className="h-full w-full object-cover"
             />
           </div>
@@ -100,8 +100,8 @@ export function SellersPage() {
           </div>
           <div className="h-[250px] sm:h-[350px] lg:h-[420px] w-full lg:w-[450px] shrink-0 overflow-hidden rounded-2xl bg-neutral-200">
             <img
-              src="/images/sellers-how-it-works.png"
-              alt="Feedstock onboarding and verification workflow"
+              src="/images/sellers-how-it-works-hd.png"
+              alt="Feedstock sample review and seller onboarding workflow"
               className="h-full w-full object-cover"
             />
           </div>

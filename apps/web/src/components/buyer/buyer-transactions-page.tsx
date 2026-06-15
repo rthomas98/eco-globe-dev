@@ -365,8 +365,8 @@ function buildTransactionDetail(t: Transaction): TransactionDetail {
     status: t.status,
     order: {
       id: "OD20411",
-      placedAt: "Oct 24, 2024 10:10 AM",
-      seller: "Shell Refinery Louisiana",
+      placedAt: "May 18, 2026 10:10 AM",
+      seller: "GulfStar Chemicals",
       quantity: "20 tons",
       shipping: "Delivery",
       paymentMethod: "US Bank Account ****4567",
@@ -376,8 +376,8 @@ function buildTransactionDetail(t: Transaction): TransactionDetail {
       ecoglobeFee: "$200.00",
       escrowFee: "$100.00",
       netAmount: "$15,100,000",
-      escrowFundedDate: "Oct 24, 2024 10:10 AM",
-      releaseDate: "ERD Oct 29, 2024 10:10 AM",
+      escrowFundedDate: "May 18, 2026 10:15 AM",
+      releaseDate: "ERD May 20, 2026 10:10 AM",
       bankAccount: "US Bank Account ****4567",
       payoutStatus: t.status === "Completed" ? "Paid" : "Pending",
     },
@@ -386,10 +386,10 @@ function buildTransactionDetail(t: Transaction): TransactionDetail {
       { name: "Example data name.pdf" },
     ],
     activity: [
-      { label: "Escrow funded", date: "Oct 29, 2024 10:10 AM", complete: true },
+      { label: "Escrow funded", date: "May 18, 2026 10:15 AM", complete: true },
       {
         label: "Quote approved",
-        date: "Oct 29, 2024 10:10 AM",
+        date: "May 18, 2026 10:20 AM",
         complete: true,
       },
       {

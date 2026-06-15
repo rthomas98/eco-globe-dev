@@ -36,7 +36,7 @@ interface Escrow {
 }
 
 const escrows: Escrow[] = [
-  { id: "EC12345", orderId: "TS12345", seller: "Rising Star Corp",   amount: 12_900_000, orderDate: "12/12/2026", releaseDate: "ERD 03/11/2027", status: "Funded",   buyer: "Shell Refinery Louisiana", shippingType: "Delivery", fundedDate: "01/15/2027" },
+  { id: "EC12345", orderId: "TS12345", seller: "Rising Star Corp",   amount: 12_900_000, orderDate: "12/12/2026", releaseDate: "ERD 03/11/2027", status: "Funded",   buyer: "GulfStar Chemicals", shippingType: "Delivery", fundedDate: "01/15/2027" },
   { id: "EC12355", orderId: "TS12355", seller: "Stark Industries",   amount: 12_400_000, orderDate: "10/28/2027", releaseDate: "ERD 03/11/2027", status: "Funded",   buyer: "BP North America",        shippingType: "Delivery", fundedDate: "10/28/2027" },
   { id: "EC12346", orderId: "TS12346", seller: "Wayne Enterprises",  amount:  9_750_000, orderDate: "01/15/2027", releaseDate: "ERD 03/11/2027", status: "Funded",   buyer: "ExxonMobil",              shippingType: "Pickup",   fundedDate: "01/15/2027" },
   { id: "EC12356", orderId: "TS12356", seller: "Oscorp",             amount: 22_700_000, orderDate: "11/30/2027", releaseDate: "ERD 03/11/2027", status: "Funded",   buyer: "Phillips 66",             shippingType: "Delivery", fundedDate: "11/30/2027" },
@@ -294,8 +294,8 @@ function Field({ label, value }: { label: string; value: string }) {
 
 function Timeline() {
   const events = [
-    { label: "Buyer funded escrow",   ts: "Oct 29, 2024 10:10 AM", done: true },
-    { label: "Seller uploaded BOL",   ts: "Oct 29, 2024 10:10 AM", done: true },
+    { label: "Buyer funded escrow",   ts: "May 18, 2026 10:15 AM", done: true },
+    { label: "Seller uploaded Bill of Lading (BOL)",   ts: "May 18, 2026 10:20 AM", done: true },
     { label: "Buyer confirms delivery", ts: "",                    done: false },
     { label: "Funds released",        ts: "",                      done: false },
   ];

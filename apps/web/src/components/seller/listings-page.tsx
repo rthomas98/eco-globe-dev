@@ -17,12 +17,12 @@ interface Listing {
 }
 
 const listings: Listing[] = [
-  { name: "Wood Sawdust Industrial High Quality", id: "EG-PROD-00023", category: "Polymer", available: 3500, price: "$400/ton", sustainability: "Verified", status: "Draft", location: "Baton Rouge, LA", image: "/products/wood-chips.png" },
+  { name: "Epoxy Off-Spec", id: "EG-PROD-00023", category: "Chemicals", available: 42, price: "$50/ton", sustainability: "Verified", status: "Draft", location: "Houston, TX", image: "/products/generated/epoxy-offspec.png" },
   { name: "Household Cleaning Tools & Accessories Wood Chips Shavings Sawdust for Effective Cleaning", id: "EG-PROD-00024", category: "Refinery", available: 1400, price: "$400/ton", sustainability: "Verified", status: "Pending", location: "Lake Charles, LA", image: "/products/wood-shavings.png" },
   { name: "Natural Rutile Sand Concentrate 90%/95% TiO2 Wholesale for Titanium", id: "EG-PROD-00025", category: "Waste", available: 2000, price: "$400/ton", sustainability: "Verified", status: "Approved", location: "New Orleans, LA", image: "/products/rutile-sand.png" },
   { name: "Natural Zeolite Powder for Barn Odor Control, Ammonia Absorber", id: "EG-PROD-00026", category: "Plastic", available: 1700, price: "$400/ton", sustainability: "Partial", status: "Approved", location: "Monroe, LA", image: "/products/zeolite-powder.png" },
   { name: "Molecular Sieve Zeolite 13X for Drying Petrochemical Feedstocks of...", id: "EG-PROD-00027", category: "Plastic", available: 2300, price: "$400/ton", sustainability: "Partial", status: "Approved", location: "Shreveport, LA", image: "/products/molecular-sieve.png" },
-  { name: "CBO Coal Tar Carbon Black Oil Feedstock", id: "EG-PROD-00028", category: "Plastic", available: 2300, price: "$400/ton", sustainability: "Partial", status: "Approved", location: "Lafayette, LA", image: "/products/coal-tar.png" },
+  { name: "Tar", id: "EG-PROD-00028", category: "Chemicals", available: 2300, price: "$50/ton", sustainability: "Partial", status: "Approved", location: "Lafayette, LA", image: "/products/coal-tar.png" },
   { name: "Granules Polypropylene Factory Plastic Raw Material Pellets", id: "EG-PROD-00029", category: "Plastic", available: 200, price: "$400/ton", sustainability: "Verified", status: "Approved", location: "Baton Rouge, LA", image: "/products/red-granules.png" },
 ];
 
@@ -50,7 +50,7 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
               <div className="size-10 shrink-0 overflow-hidden rounded-lg"><img src={listing.image} alt="" className="size-full object-cover" /></div>
               <div>
                 <div className="flex items-center gap-2"><h2 className="text-lg font-bold text-neutral-900">{listing.name}</h2><StatusBadge status={listing.status} /></div>
-                <p className="text-xs text-neutral-500">{listing.location} · Delivery in 48 hrs · <span className="rounded bg-neutral-100 px-1.5 py-0.5">600 tons available</span></p>
+                <p className="text-xs text-neutral-500">{listing.location} · Delivery in 48 hrs · <span className="rounded bg-neutral-100 px-1.5 py-0.5">{listing.available} tons available</span></p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -73,8 +73,8 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
                 <h3 className="mb-4 text-lg font-semibold text-neutral-900">Listing Info</h3>
                 <div className="rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
                   <div className="grid grid-cols-2 gap-y-4 mb-4">
-                    <div><p className="text-xs font-semibold text-neutral-500">Listing category</p><p className="text-sm text-neutral-900">Manufacture</p></div>
-                    <div><p className="text-xs font-semibold text-neutral-500">Listing price</p><p className="text-sm text-neutral-900">$190-220</p></div>
+                    <div><p className="text-xs font-semibold text-neutral-500">Listing category</p><p className="text-sm text-neutral-900">{listing.category}</p></div>
+                    <div><p className="text-xs font-semibold text-neutral-500">Listing price</p><p className="text-sm text-neutral-900">{listing.price}</p></div>
                   </div>
                   <div className="flex gap-3 overflow-x-auto">
                     {images.map((img, i) => <div key={i} className="size-20 shrink-0 overflow-hidden rounded-lg"><img src={img} alt="" className="size-full object-cover" /></div>)}
@@ -84,7 +84,7 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
               <section>
                 <h3 className="mb-4 text-lg font-semibold text-neutral-900">Specifications</h3>
                 <div className="grid grid-cols-2 gap-y-4 rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
-                  {[["Material composition", "Rice Husk"], ["Listing type", "Dried"], ["Grade / purity", "Export Standard"], ["Color", "Natural Wood Color"], ["Shelf Life", "12 months"], ["Storage & handling", "In dry place"], ["Package", "123 lb/PP Bag"], ["Weight", "123 lb"], ["Usage", "Paper-making Industry"], ["Place of Origin", "Baton Rouge, LA"]].map(([k, v]) => (
+                  {[["Material composition", listing.name], ["Listing type", "Dried"], ["Grade / purity", "Export Standard"], ["Color", "Natural Wood Color"], ["Shelf Life", "12 months"], ["Storage & handling", "In dry place"], ["Package", listing.name === "Epoxy Off-Spec" ? "42 gallons/Barrel" : "Bulk bag"], ["Weight", `${listing.available} tons`], ["Usage", "Chemical Industry"], ["Place of Origin", listing.location], ["Company", "Chemicals"]].map(([k, v]) => (
                     <div key={k}><p className="text-xs font-semibold text-neutral-500">{k}</p><p className="text-sm text-neutral-900">{v}</p></div>
                   ))}
                 </div>
@@ -113,7 +113,7 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
           )}
           {tab === "documents" && (
             <div className="flex flex-col gap-3">
-              {["Invoice_WoodSawdust_00023.pdf", "Carbon_Certificate_00023.pdf", "Bill_of_Lading_00023.pdf"].map((doc) => (
+              {["Invoice_EpoxyOffSpec_00023.pdf", "Carbon_Certificate_00023.pdf", "Transportation_Bill_of_Lading_00023.pdf"].map((doc) => (
                 <div key={doc} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ border: "1px solid #F0F0F0" }}>
                   <span className="text-sm text-neutral-900">{doc}</span>
                   <button className="text-neutral-400"><MoreHorizontal className="size-4" /></button>

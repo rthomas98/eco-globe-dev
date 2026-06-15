@@ -25,6 +25,11 @@ export function CTABannerSection() {
                 Join as a Seller
               </Button>
             </Link>
+            <Link href="/register">
+              <Button variant="outline-white" size="lg">
+                Join as a Buyer
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

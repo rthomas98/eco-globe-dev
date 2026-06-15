@@ -14,10 +14,20 @@ interface Listing {
 
 const listings: Listing[] = [
   {
+    id: "pyrolysis",
+    title: "Pyrolysis Pitch",
+    location: "Cadiz, Spain",
+    moq: "1000 tons",
+    price: "$400",
+    currency: "$",
+    unit: "/ton",
+    image: "/products/generated/pyrolysis.png",
+  },
+  {
     id: "bagasse",
     title: "Shredded, Refined Sugar Bagasse",
     location: "Port Allen, Louisiana",
-    moq: "3 tons",
+    moq: "200 tons",
     price: "$48",
     currency: "$",
     unit: "/ton",
@@ -27,21 +37,11 @@ const listings: Listing[] = [
     id: "polymer",
     title: "Scrap Polymer Blend with Impurities",
     location: "Houston, Texas",
-    moq: "2.5 tons",
+    moq: "1000 tons",
     price: "€60",
     currency: "€",
     unit: "/ton",
     image: "/products/generated/polymer.png",
-  },
-  {
-    id: "pyrolysis",
-    title: "Pyrolysis Pitch",
-    location: "Cadiz, Spain",
-    moq: "1 tons",
-    price: "$400",
-    currency: "$",
-    unit: "/ton",
-    image: "/products/generated/pyrolysis.png",
   },
   {
     id: "stover-walker",
@@ -57,7 +57,7 @@ const listings: Listing[] = [
     id: "used-dry-transformer",
     title: "Used Dry Transformer",
     location: "Houston, Texas",
-    moq: "1 unit",
+    moq: "50 units",
     price: "$800",
     currency: "$",
     unit: "/unit",
@@ -67,7 +67,7 @@ const listings: Listing[] = [
     id: "hydrochar",
     title: "Hydrochar",
     location: "Rotterdam, Netherlands",
-    moq: "2 tons",
+    moq: "200 tons",
     price: "€75",
     currency: "€",
     unit: "/ton",
@@ -77,7 +77,7 @@ const listings: Listing[] = [
     id: "used-pallets",
     title: "Used Pallets",
     location: "Denham Springs, Louisiana",
-    moq: "1 tons",
+    moq: "100 tons",
     price: "$15",
     currency: "$",
     unit: "/ton",
@@ -109,7 +109,7 @@ function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       href={`/browse/${listing.id}`}
-      className="group flex flex-col gap-3"
+      className="group flex cursor-pointer flex-col gap-3"
     >
       <div className="h-[240px] overflow-hidden rounded-xl">
         <img

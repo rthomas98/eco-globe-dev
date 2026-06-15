@@ -25,7 +25,7 @@ export default function Page() {
         },
         {
           heading: "Can my company have multiple facilities?",
-          body: "Yes. Profiles support multi-site setups (e.g. Shell Norco + Shell Deer Park) and the Carbon Calculator distance step lets buyers pick which facility to ship to.",
+          body: "Yes. Profiles support multi-site setups (for example, a Norco Plant and a Deer Park Plant) and the Carbon Calculator distance step lets buyers pick which facility to ship to.",
         },
         {
           heading: "Who can see my listing?",

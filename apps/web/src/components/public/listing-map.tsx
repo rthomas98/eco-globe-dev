@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { type ViewerLocation, useViewerLocation } from "@/lib/viewer-location";
 
 export interface MapListing {
   id: string;
@@ -20,10 +21,10 @@ export interface MapListing {
 const fallbackListings: MapListing[] = [
   { id: "bagasse", title: "Shredded, Refined Sugar Bagasse", location: "Port Allen, Louisiana", price: "$48", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -91.2103, lat: 30.4524 },
   { id: "polymer", title: "Scrap Polymer Blend", location: "Houston, Texas", price: "€60", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -95.3698, lat: 29.7604 },
-  { id: "pyrolysis", title: "Pyrolysis Pitch", location: "Cadiz, Spain", price: "$400", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -6.2886, lat: 36.5271 },
-  { id: "tar", title: "TAR Dark Refinery Byproduct", location: "Cadiz, Spain", price: "$400", unit: "/ton", moq: "5 tons", co2: "360 kg CO₂e", lng: -6.2886, lat: 36.5271 },
+  { id: "pyrolysis", title: "Pyrolysis Pitch", location: "Houston, Texas", price: "$50", unit: "/ton", moq: "1000 tons", co2: "300 kg CO₂e", lng: -95.3698, lat: 29.7604 },
+  { id: "tar", title: "Tar", location: "Houston, Texas", price: "$50", unit: "/ton", moq: "5 tons", co2: "360 kg CO₂e", lng: -95.3698, lat: 29.7604 },
   { id: "used-cooking-oil", title: "Refined Used Cooking Oil (UCO)", location: "Rotterdam, Netherlands", price: "$550", unit: "/ton", moq: "4 tons", co2: "540 kg CO₂e", lng: 4.4777, lat: 51.9244 },
-  { id: "epoxy-offspec", title: "Epoxy Off-Spec", location: "Houston, Texas", price: "$800", unit: "/ton", moq: "2 tons", co2: "280 kg CO₂e", lng: -95.3698, lat: 29.7604 },
+  { id: "epoxy-offspec", title: "Epoxy Off-Spec", location: "Houston, Texas", price: "$50", unit: "/ton", moq: "2 tons", co2: "280 kg CO₂e", lng: -95.3698, lat: 29.7604 },
 ];
 
 function buildPopupContent(
@@ -222,20 +223,73 @@ function circlePolygon(
   };
 }
 
-function FallbackMap({ data, selectedId, onSelect, onView, origin, radiusMiles }: {
+function buildViewerPopupContent(location: ViewerLocation): HTMLDivElement {
+  const container = document.createElement("div");
+  const sourceLabel =
+    location.source === "browser"
+      ? "Approximate login location"
+      : "Saved company location";
+
+  Object.assign(container.style, {
+    width: "210px",
+    padding: "10px 12px",
+    fontFamily: "Inter, sans-serif",
+  });
+
+  const title = document.createElement("p");
+  title.textContent = "You are here";
+  Object.assign(title.style, {
+    margin: "0 0 4px",
+    fontSize: "14px",
+    fontWeight: "700",
+    color: "#090909",
+  });
+  container.appendChild(title);
+
+  const label = document.createElement("p");
+  label.textContent = `${location.label} · ${sourceLabel}`;
+  Object.assign(label.style, {
+    margin: "0",
+    fontSize: "12px",
+    lineHeight: "1.4",
+    color: "#616161",
+  });
+  container.appendChild(label);
+
+  return container;
+}
+
+function createViewerMarkerElement() {
+  const el = document.createElement("div");
+  el.setAttribute("aria-label", "Your location");
+  el.style.cssText =
+    "width:28px;height:28px;border-radius:50%;background:#0F62FE;border:3px solid white;box-shadow:0 0 0 8px rgba(15,98,254,0.18),0 3px 10px rgba(0,0,0,0.25);";
+  return el;
+}
+
+function extendBoundsWithMapData(bounds: mapboxgl.LngLatBounds, data: MapListing[], viewerLocation?: ViewerLocation | null) {
+  data.forEach((l) => bounds.extend([l.lng, l.lat]));
+  if (viewerLocation) bounds.extend([viewerLocation.lng, viewerLocation.lat]);
+}
+
+function getViewerLocationLabel(viewerLocation?: ViewerLocation | null) {
+  if (!viewerLocation) return "Enable location to show where you are browsing from";
+  return viewerLocation.source === "browser"
+    ? "Showing your approximate login location"
+    : `Showing saved company location: ${viewerLocation.label}`;
+}
+
+function FallbackMap({ data, selectedId, onSelect, onView, origin, radiusMiles, viewerLocation }: {
   data: MapListing[];
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   onView?: (id: string) => void;
   origin?: { lng: number; lat: number; label?: string };
   radiusMiles?: number;
+  viewerLocation?: ViewerLocation | null;
 }) {
-  const lngs = data.map((d) => d.lng);
-  const lats = data.map((d) => d.lat);
-  if (origin) {
-    lngs.push(origin.lng);
-    lats.push(origin.lat);
-  }
+  const lngs = [...data.map((d) => d.lng), ...(origin ? [origin.lng] : []), ...(viewerLocation ? [viewerLocation.lng] : [])];
+  const lats = [...data.map((d) => d.lat), ...(origin ? [origin.lat] : []), ...(viewerLocation ? [viewerLocation.lat] : [])];
   const minLng = Math.min(...lngs);
   const maxLng = Math.max(...lngs);
   const minLat = Math.min(...lats);
@@ -244,6 +298,10 @@ function FallbackMap({ data, selectedId, onSelect, onView, origin, radiusMiles }
   const padY = (maxLat - minLat) * 0.15 || 0.3;
   const lngRange = (maxLng - minLng) + padX * 2 || 1;
   const latRange = (maxLat - minLat) + padY * 2 || 1;
+  const toPoint = (lng: number, lat: number) => ({
+    xPct: ((lng - minLng + padX) / lngRange) * 100,
+    yPct: (1 - (lat - minLat + padY) / latRange) * 100,
+  });
 
   // Approximate radius in % of viewport: ~69 mi per degree latitude.
   const radiusDeg = radiusMiles ? radiusMiles / 69 : 0;
@@ -310,8 +368,7 @@ function FallbackMap({ data, selectedId, onSelect, onView, origin, radiusMiles }
 
       {/* Pins */}
       {data.map((listing) => {
-        const xPct = ((listing.lng - minLng + padX) / lngRange) * 100;
-        const yPct = (1 - (listing.lat - minLat + padY) / latRange) * 100;
+        const { xPct, yPct } = toPoint(listing.lng, listing.lat);
         const isSelected = listing.id === selectedId;
         return (
           <button
@@ -334,13 +391,36 @@ function FallbackMap({ data, selectedId, onSelect, onView, origin, radiusMiles }
         );
       })}
 
+      {viewerLocation &&
+        (() => {
+          const { xPct, yPct } = toPoint(viewerLocation.lng, viewerLocation.lat);
+          return (
+            <div
+              className="absolute z-20 -translate-x-1/2 -translate-y-1/2"
+              style={{ left: `${xPct}%`, top: `${yPct}%` }}
+              aria-label="Your location"
+              title="Your location"
+            >
+              <div
+                className="size-7 rounded-full bg-blue-600"
+                style={{
+                  border: "3px solid white",
+                  boxShadow: "0 0 0 8px rgba(37,99,235,0.18), 0 3px 10px rgba(0,0,0,0.25)",
+                }}
+              />
+              <div className="absolute left-1/2 top-9 -translate-x-1/2 whitespace-nowrap rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-blue-700 shadow-sm">
+                You are here
+              </div>
+            </div>
+          );
+        })()}
+
       {/* Selected popup */}
       {selectedId &&
         (() => {
           const sel = data.find((l) => l.id === selectedId);
           if (!sel) return null;
-          const xPct = ((sel.lng - minLng + padX) / lngRange) * 100;
-          const yPct = (1 - (sel.lat - minLat + padY) / latRange) * 100;
+          const { xPct, yPct } = toPoint(sel.lng, sel.lat);
           return (
             <div
               className="absolute z-20 w-[240px] -translate-x-1/2 overflow-hidden rounded-lg bg-white shadow-lg"
@@ -386,6 +466,9 @@ function FallbackMap({ data, selectedId, onSelect, onView, origin, radiusMiles }
       <div className="absolute bottom-3 right-3 rounded-md bg-white/80 px-2 py-1 text-[10px] text-neutral-500 backdrop-blur-sm">
         Map preview · Set NEXT_PUBLIC_MAPBOX_TOKEN to enable
       </div>
+      <div className="absolute bottom-3 left-3 max-w-[260px] rounded-md bg-white/85 px-2 py-1 text-[10px] font-medium text-neutral-700 backdrop-blur-sm">
+        {getViewerLocationLabel(viewerLocation)}
+      </div>
     </div>
   );
 }
@@ -402,11 +485,13 @@ export function ListingMap({
   const data = listings && listings.length > 0 ? listings : fallbackListings;
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const validToken = isValidToken(token);
+  const { location: viewerLocation } = useViewerLocation();
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<Map<string, { marker: mapboxgl.Marker; popup: mapboxgl.Popup; el: HTMLDivElement }>>(new globalThis.Map());
   const originMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const viewerMarkerRef = useRef<{ marker: mapboxgl.Marker; popup: mapboxgl.Popup } | null>(null);
 
   useEffect(() => {
     if (!validToken) return;
@@ -428,6 +513,7 @@ export function ListingMap({
       mapInstance.remove();
       mapRef.current = null;
       markersRef.current.clear();
+      viewerMarkerRef.current = null;
     };
   }, [validToken, token]);
 
@@ -473,15 +559,17 @@ export function ListingMap({
     // includes the circle envelope, and the two were fighting each other.
     if (
       data.length > 0 &&
-      data.length !== fallbackListings.length &&
+      (viewerLocation || data.length !== fallbackListings.length) &&
       !(origin && radiusMiles && radiusMiles > 0)
     ) {
       const bounds = buildBounds(data, origin);
+      extendBoundsWithMapData(bounds, [], viewerLocation);
       mapInstance.fitBounds(bounds, { padding: 80, maxZoom: 11, duration: 600 });
     }
-  }, [data, onSelect, onView, validToken, origin, radiusMiles, activeId]);
+  }, [data, onSelect, onView, validToken, origin, radiusMiles, activeId, viewerLocation]);
 
   // Sync origin pin + radius circle (mapbox path)
+
   useEffect(() => {
     if (!validToken) return;
     const mapInstance = mapRef.current;
@@ -605,6 +693,32 @@ export function ListingMap({
     }
   }, [origin, radiusMiles, validToken, activeId, data]);
 
+  // Sync viewer ("you are here") marker (mapbox path)
+  useEffect(() => {
+    if (!validToken) return;
+    const mapInstance = mapRef.current;
+    if (!mapInstance) return;
+
+    viewerMarkerRef.current?.marker.remove();
+    viewerMarkerRef.current?.popup.remove();
+    viewerMarkerRef.current = null;
+
+    if (!viewerLocation) return;
+
+    const popup = new mapboxgl.Popup({
+      offset: 18,
+      closeButton: false,
+      maxWidth: "240px",
+    }).setDOMContent(buildViewerPopupContent(viewerLocation));
+
+    const marker = new mapboxgl.Marker(createViewerMarkerElement())
+      .setLngLat([viewerLocation.lng, viewerLocation.lat])
+      .setPopup(popup)
+      .addTo(mapInstance);
+
+    viewerMarkerRef.current = { marker, popup };
+  }, [validToken, viewerLocation]);
+
   // React to selection changes — fly to and highlight
   useEffect(() => {
     if (!validToken) return;
@@ -641,13 +755,14 @@ export function ListingMap({
       // Skipped when a radius is active so we don't fight the radius effect's
       // own fitBounds (which fits the circle envelope).
       const bounds = buildBounds(data, origin);
+      extendBoundsWithMapData(bounds, [], viewerLocation);
       mapInstance.fitBounds(bounds, {
         padding: 80,
         maxZoom: 11,
         duration: 700,
       });
     }
-  }, [selectedId, data, validToken, origin, radiusMiles]);
+  }, [selectedId, data, validToken, origin, radiusMiles, viewerLocation]);
 
   if (!validToken) {
     return (
@@ -658,9 +773,17 @@ export function ListingMap({
         onView={onView}
         origin={origin}
         radiusMiles={radiusMiles}
+        viewerLocation={viewerLocation}
       />
     );
   }
 
-  return <div ref={mapContainer} className="h-full w-full rounded-xl" />;
+  return (
+    <div className="relative h-full w-full">
+      <div ref={mapContainer} className="h-full w-full rounded-xl" />
+      <div className="absolute bottom-3 left-3 max-w-[280px] rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-neutral-700 shadow-sm backdrop-blur-sm">
+        {getViewerLocationLabel(viewerLocation)}
+      </div>
+    </div>
+  );
 }

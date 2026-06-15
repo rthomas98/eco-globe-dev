@@ -68,7 +68,7 @@ export function Footer() {
                   title="Buyers"
                   links={[
                     { label: "Browse feedstocks", href: "/browse" },
-                    { label: "Search by specs, volume & Carbon footprint", href: "/browse" },
+                    { label: "Search by specs, volume, distance & Carbon footprint", href: "/browse" },
                     { label: "Request quotes", href: "/register" },
                     { label: "Track orders & delivery", href: "/buyer/orders" },
                     { label: "Sustainability reports", href: "/sustainability-reports" },

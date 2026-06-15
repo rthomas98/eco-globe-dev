@@ -27,8 +27,8 @@ function StatusBadge({ status }: { status: EscrowStatus }) {
 
 function EscrowDetailDrawer({ item, onClose }: { item: EscrowItem; onClose: () => void }) {
   const log = [
-    { event: "Buyer funded escrow", date: "Oct 29, 2024 10:10 AM", active: true },
-    { event: "Seller uploaded BOL", date: "Oct 29, 2024 10:10 AM", active: true },
+    { event: "Buyer funded escrow", date: "May 18, 2026 10:15 AM", active: true },
+    { event: "Seller uploaded Bill of Lading (BOL)", date: "May 18, 2026 10:20 AM", active: true },
     { event: "Buyer confirms delivery", date: "", active: false },
     { event: "Funds released", date: "", active: false },
   ];
@@ -54,7 +54,7 @@ function EscrowDetailDrawer({ item, onClose }: { item: EscrowItem; onClose: () =
               <div><p className="text-xs font-semibold text-neutral-500">Amount held</p><p className="text-sm text-neutral-900">$15,500,000</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Funded date</p><p className="text-sm text-neutral-900">01/15/2027</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Order ID</p><p className="text-sm text-neutral-900">OD20411</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Buyer</p><p className="text-sm text-neutral-900">Shell Refinery Louisiana</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Buyer</p><p className="text-sm text-neutral-900">GulfStar Chemicals</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Seller</p><p className="text-sm text-neutral-900">Umbrella Corp</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Shipping type</p><p className="text-sm text-neutral-900">Delivery</p></div>
             </div>

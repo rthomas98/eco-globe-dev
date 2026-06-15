@@ -5,7 +5,7 @@ export default function Page() {
     <InfoPage
       eyebrow="Logistics"
       title="Logistics that protect your margins"
-      intro="Industrial feedstocks are bulk, cost-sensitive, and sometimes hazardous. Logistics is where deals fall apart. EcoGlobe coordinates carriers, BOLs, and chain-of-custody so your transaction actually closes."
+      intro="Industrial feedstocks are bulk, cost-sensitive, and sometimes hazardous. Logistics is where deals fall apart. EcoGlobe coordinates carriers, Bills of Lading (BOLs), and chain-of-custody so your transaction actually closes."
       sections={[
         {
           heading: "Modes we cover",
@@ -20,7 +20,7 @@ export default function Page() {
         },
         {
           heading: "What's coordinated",
-          body: "Carrier matching, scheduling, BOL generation, chain-of-custody documentation, and live status updates surfaced on the buyer's order page.",
+          body: "Carrier matching, scheduling, Bill of Lading (BOL) generation, chain-of-custody documentation, and live status updates surfaced on the buyer's order page.",
         },
         {
           heading: "Carbon-aware planning",

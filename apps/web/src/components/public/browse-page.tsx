@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { SlidersHorizontal, Lock, FileText, AlertTriangle } from "lucide-react";
@@ -101,35 +101,59 @@ function ListingCard({
   );
 }
 
+function normalizeListingSearch(value: string) {
+  return value
+    .toLowerCase()
+    .replaceAll("₂", "2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export function BrowsePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const urlQuery = searchParams.get("q") || "";
   const urlLocation = searchParams.get("location") || "";
+  const urlDistance = searchParams.get("distance") || "100 mi";
+  const urlCategory = searchParams.get("category") || "";
+  const urlTag = searchParams.get("tag") || "";
   const user = useDemoUser();
   const isMember = !!user;
 
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [filters, setFilters] = useState<FilterState>(() => ({
+    ...defaultFilters,
+    categories: urlCategory ? [urlCategory] : [],
+  }));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [radiusMiles, setRadiusMiles] = useState<number>(0); // 0 = off
   const originFacility = user?.facilities?.find((f) => f.lat && f.lng);
 
-  const handleSearch = (query: string, location: string) => {
+  useEffect(() => {
+    setSelectedId(null);
+    setFilters((current) => ({
+      ...current,
+      categories: urlCategory ? [urlCategory] : [],
+    }));
+  }, [urlCategory]);
+
+  const handleSearch = (query: string, location: string, radius: string) => {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
     if (location) params.set("location", location);
+    if (radius) params.set("distance", radius);
     router.push(`/browse${params.toString() ? `?${params}` : ""}`);
   };
 
-  const q = urlQuery.trim().toLowerCase();
-  const loc = urlLocation.trim().toLowerCase();
+  const q = normalizeListingSearch(urlQuery);
+  const loc = normalizeListingSearch(urlLocation);
+  const tag = normalizeListingSearch(urlTag);
 
   const priceMin = filters.priceMin ? parseFloat(filters.priceMin) : null;
   const priceMax = filters.priceMax ? parseFloat(filters.priceMax) : null;
   const qtyMin = filters.qtyMin ? parseFloat(filters.qtyMin) : null;
   const qtyMax = filters.qtyMax ? parseFloat(filters.qtyMax) : null;
+  const radiusMax = parseFloat(urlDistance);
 
   const matchesCarbonBucket = (co2Num: number) =>
     filters.carbon.some((bucket) => {
@@ -145,9 +169,24 @@ export function BrowsePage() {
     [customListings],
   );
   const visibleListings = allListings.filter((l) => {
-    const haystack = `${l.title} ${l.tags.join(" ")}`.toLowerCase();
+    const haystack = normalizeListingSearch(`${l.title} ${l.tags.join(" ")} ${l.category}`);
     if (q && !haystack.includes(q)) return false;
-    if (loc && !l.location.toLowerCase().includes(loc)) return false;
+    if (tag) {
+      const matchesTag = l.tags.some((listingTag) => {
+        const normalizedTag = normalizeListingSearch(listingTag);
+        return normalizedTag.includes(tag) || tag.includes(normalizedTag);
+      });
+      if (!matchesTag) return false;
+    }
+    if (loc && !normalizeListingSearch(l.location).includes(loc)) return false;
+    if (
+      loc &&
+      Number.isFinite(radiusMax) &&
+      l.distance !== "—" &&
+      parseFloat(l.distance) > radiusMax
+    ) {
+      return false;
+    }
     if (filters.categories.length > 0 && !filters.categories.includes(l.category)) return false;
     if (filters.grades.length > 0 && !filters.grades.includes(l.grade)) return false;
     if (priceMin !== null && l.priceNum < priceMin) return false;
@@ -177,6 +216,7 @@ export function BrowsePage() {
   );
 
   const activeFilterCount =
+    (urlTag ? 1 : 0) +
     filters.categories.length +
     (filters.priceMin || filters.priceMax ? 1 : 0) +
     (filters.qtyMin || filters.qtyMax ? 1 : 0) +
@@ -196,7 +236,8 @@ export function BrowsePage() {
           <SearchBar
             initialQuery={urlQuery}
             initialLocation={urlLocation}
-            onSearch={(q, loc) => handleSearch(q, loc)}
+            initialRadius={urlDistance}
+            onSearch={(q, loc, radius) => handleSearch(q, loc, radius)}
           />
 
           <button
@@ -226,18 +267,35 @@ export function BrowsePage() {
         <div className="w-full lg:w-[55%] overflow-y-auto p-6">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-neutral-900">
-              {urlQuery || urlLocation ? (
+              {urlQuery || urlLocation || urlCategory || urlTag ? (
                 <>
-                  {visibleListings.length} listing{visibleListings.length === 1 ? "" : "s"} for{" "}
+                  {visibleListings.length} listing{visibleListings.length === 1 ? "" : "s"}{" "}
+                  {urlCategory && (
+                    <>
+                      in <span className="font-semibold">{urlCategory}</span>
+                    </>
+                  )}
+                  {urlTag && (
+                    <>
+                      tagged <span className="font-semibold">{urlTag}</span>
+                    </>
+                  )}
+                  {(urlQuery || urlLocation) && " for "}
                   {urlQuery && <span className="font-semibold">&quot;{urlQuery}&quot;</span>}
                   {urlQuery && urlLocation && " in "}
                   {urlLocation && <span className="font-semibold">{urlLocation}</span>}
+                  {urlLocation && (
+                    <>
+                      {" "}
+                      within <span className="font-semibold">{urlDistance}</span>
+                    </>
+                  )}
                 </>
               ) : (
                 <>{visibleListings.length} listings</>
               )}
             </p>
-            {(urlQuery || urlLocation || activeFilterCount > 0) && (
+            {(urlQuery || urlLocation || urlCategory || urlTag || activeFilterCount > 0) && (
               <button
                 onClick={() => {
                   setSelectedId(null);

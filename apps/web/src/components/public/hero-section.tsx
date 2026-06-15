@@ -1,21 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, MapPin, Package, TrendingUp } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { listings } from "./browse-listings";
 
 const popularSearches = [
-  "Industrial Byproducts",
-  "Low CO₂ feedstocks",
-  "Certified Feedstocks",
-  "Used products",
+  { label: "Industrial Byproducts", href: "/browse?category=Industrial+Byproducts" },
+  { label: "Low CO₂ feedstocks", href: "/browse?tag=Low+CO%E2%82%82+feedstocks" },
+  { label: "Certified Feedstocks", href: "/browse?tag=Certified+Feedstocks" },
+  { label: "Used products", href: "/browse?category=Used+products" },
 ];
 
 const ALL_LOCATIONS = Array.from(
   new Set(listings.map((l) => l.location)),
 ).sort();
+
+const distanceOptions = ["10 mi", "25 mi", "50 mi", "100 mi", "200 mi"];
 
 function filterFeedstocks(query: string, max = 6) {
   const q = query.trim().toLowerCase();
@@ -70,7 +73,10 @@ function useLiveCount(query: string, location: string) {
 export function HeroSection() {
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
-  const [openField, setOpenField] = useState<"query" | "location" | null>(null);
+  const [distance, setDistance] = useState("100 mi");
+  const [openField, setOpenField] = useState<
+    "query" | "location" | "distance" | null
+  >(null);
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
 
@@ -100,11 +106,8 @@ export function HeroSection() {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
     if (location) params.set("location", location);
+    if (distance) params.set("distance", distance);
     router.push(`/browse${params.toString() ? `?${params}` : ""}`);
-  };
-
-  const handleTagClick = (tag: string) => {
-    router.push(`/browse?q=${encodeURIComponent(tag)}`);
   };
 
   return (
@@ -185,14 +188,14 @@ export function HeroSection() {
                 {/* Location */}
                 <div className="relative flex flex-1 flex-col gap-1 md:pr-4">
                   <label className="text-left text-sm text-neutral-800">
-                    Location
+                    Location / Country
                   </label>
                   <input
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     onFocus={() => setOpenField("location")}
-                    placeholder="City, state, or facility"
+                    placeholder="City, state, country"
                     className="bg-transparent text-left text-base text-neutral-900 outline-none placeholder:text-neutral-500"
                   />
                   {openField === "location" &&
@@ -224,6 +227,54 @@ export function HeroSection() {
                       </div>
                     )}
                 </div>
+
+                {/* Distance */}
+                <div className="relative flex flex-1 flex-col gap-1 md:max-w-[150px] md:border-l md:border-neutral-200 md:pl-4">
+                  <label className="text-left text-sm text-neutral-800">
+                    Distance
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenField(openField === "distance" ? null : "distance")
+                    }
+                    className="bg-transparent text-left text-base text-neutral-900 outline-none"
+                    aria-haspopup="listbox"
+                    aria-expanded={openField === "distance"}
+                  >
+                    {distance}
+                  </button>
+                  {openField === "distance" && (
+                    <div
+                      className="absolute left-0 right-0 top-[calc(100%+12px)] z-20 rounded-2xl bg-white py-2 text-left"
+                      style={{
+                        border: "1px solid #E0E0E0",
+                        boxShadow: "0 16px 40px rgba(0,0,0,0.12)",
+                      }}
+                      role="listbox"
+                    >
+                      {distanceOptions.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => {
+                            setDistance(option);
+                            setOpenField(null);
+                          }}
+                          className={`flex w-full px-4 py-2 text-left text-sm hover:bg-neutral-50 ${
+                            option === distance
+                              ? "font-semibold text-neutral-900"
+                              : "text-neutral-700"
+                          }`}
+                          role="option"
+                          aria-selected={option === distance}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <Button
@@ -251,6 +302,7 @@ export function HeroSection() {
               </span>{" "}
               {count === 1 ? "feedstock" : "feedstocks"} match
               {query || location ? " your filters" : " right now"}
+              {location ? ` within ${distance}` : ""}
             </span>
           </div>
 
@@ -260,15 +312,25 @@ export function HeroSection() {
             </span>
             <div className="flex flex-wrap justify-center gap-3">
               {popularSearches.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => handleTagClick(tag)}
+                <Link
+                  key={tag.label}
+                  href={tag.href}
                   className="rounded-full border border-white/40 bg-neutral-900/30 px-3 py-1 text-base text-white transition-colors hover:bg-white/20"
                 >
-                  {tag}
-                </button>
+                  {tag.label}
+                </Link>
               ))}
             </div>
+            <p className="text-sm text-white/80">
+              Are you both a seller and a buyer?{" "}
+              <Link
+                href="/register"
+                className="font-semibold text-white underline underline-offset-4 hover:text-white/80"
+              >
+                Click here
+              </Link>
+              .
+            </p>
           </div>
         </div>
       </div>

@@ -65,17 +65,17 @@ export function clearDemoUser() {
   writeDemoUser(null);
 }
 
-const SHELL_FACILITIES: Facility[] = [
+const SELLER_FACILITIES: Facility[] = [
   {
-    id: "shell-norco",
-    label: "Shell Norco",
+    id: "norco-plant",
+    label: "Norco Plant",
     address: "15536 River Rd, Norco, LA 70079",
     lat: 30.0021,
     lng: -90.4159,
   },
   {
-    id: "shell-deer-park",
-    label: "Shell Deer Park",
+    id: "deer-park-plant",
+    label: "Deer Park Plant",
     address: "5900 TX-225, Deer Park, TX 77536",
     lat: 29.7218,
     lng: -95.1158,
@@ -114,7 +114,7 @@ const DEFAULT_PROFILE: Record<
     industry: "Refinery",
     companySize: "Big",
     userRole: "Plant Manager",
-    facilities: SHELL_FACILITIES,
+    facilities: SELLER_FACILITIES,
   },
   buyer: {
     industry: "Carbon Black",

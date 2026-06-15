@@ -30,6 +30,7 @@ type ShippingType = "pickup" | "delivery" | null;
 
 interface PickupData {
   date: string;
+  timeRange: string;
   fullName: string;
   phone: string;
   email: string;
@@ -60,14 +61,15 @@ interface BillingAddress {
   city: string;
   state: string;
   zip: string;
+  country: string;
 }
 
 const fallbackProduct = {
-  title: "Wood Sawdust Industrial High Quality",
-  seller: "Shell Refinery Louisiana",
+  title: "Pyrolysis Pitch",
+  seller: "GulfStar Chemicals",
   qty: 20,
-  unitPrice: 100,
-  image: "/products/wood-shavings.png",
+  unitPrice: 50,
+  image: "/products/generated/pyrolysis.png",
 };
 
 const pickupAddress = "1165 Bayou Paul Ln, St Gabriel, Baton rouge, 93264 LA";
@@ -257,14 +259,27 @@ function PickupForm({ data, onChange }: { data: PickupData; onChange: (d: Pickup
 
       {/* Pickup date */}
       <SubCard icon={Calendar} label="Pickup date">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-neutral-900">Select date</label>
-          <input
-            type="date"
-            value={data.date}
-            onChange={(e) => update("date", e.target.value)}
-            className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-neutral-900/20"
-            style={{ border: "1px solid #E0E0E0" }}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-neutral-900">Select date</label>
+            <input
+              type="date"
+              value={data.date}
+              onChange={(e) => update("date", e.target.value)}
+              className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-neutral-900/20"
+              style={{ border: "1px solid #E0E0E0" }}
+            />
+          </div>
+          <FormSelect
+            id="pu-time-range"
+            label="Pickup time range"
+            value={data.timeRange}
+            onChange={(v) => update("timeRange", v)}
+            options={[
+              { value: "09:00 AM - 12:00 PM", label: "09:00 AM - 12:00 PM" },
+              { value: "12:00 PM - 03:00 PM", label: "12:00 PM - 03:00 PM" },
+              { value: "03:00 PM - 06:00 PM", label: "03:00 PM - 06:00 PM" },
+            ]}
           />
         </div>
       </SubCard>
@@ -368,7 +383,7 @@ function DeliveryForm({
             <div className="flex-1 min-w-0">
               <p className="truncate text-sm font-bold text-neutral-900">{address.name}</p>
               <p className="truncate text-xs text-neutral-500">
-                {address.street}, {address.city}, {address.zip} {address.state}
+                {address.street}, {address.city}, {address.state} {address.zip}, {address.country}
               </p>
             </div>
             <button
@@ -531,11 +546,26 @@ function AddBillingModal({
   onSave: (b: BillingAddress) => void;
   onClose: () => void;
 }) {
+  const initialUsesCustomState =
+    !!initial?.state && !["LA", "TX", "MS", "AR", "GA", "AL", "FL"].includes(initial.state);
+  const initialUsesCustomCountry =
+    !!initial?.country &&
+    !["US", "Spain", "France", "Netherlands", "Mexico", "Brazil", "Saudi Arabia"].includes(
+      initial.country,
+    );
   const [data, setData] = useState<BillingAddress>(
-    initial ?? { id: "", name: "Acme Company", street: "", city: "", state: "", zip: "" },
+    initial ?? { id: "", name: "Acme Company", street: "", city: "", state: "", zip: "", country: "" },
+  );
+  const [stateMode, setStateMode] = useState(initialUsesCustomState ? "other" : initial?.state ?? "");
+  const [customState, setCustomState] = useState(initialUsesCustomState ? initial.state : "");
+  const [countryMode, setCountryMode] = useState(
+    initialUsesCustomCountry ? "other" : initial?.country ?? "",
+  );
+  const [customCountry, setCustomCountry] = useState(
+    initialUsesCustomCountry ? initial.country : "",
   );
   const update = (k: keyof BillingAddress, v: string) => setData({ ...data, [k]: v });
-  const valid = data.street.trim() && data.city.trim() && data.state && data.zip.trim();
+  const valid = data.street.trim() && data.city.trim() && data.state && data.zip.trim() && data.country;
 
   return (
     <Modal
@@ -570,17 +600,64 @@ function AddBillingModal({
           <FormSelect
             id="bil-state"
             label="State"
-            value={data.state}
-            onChange={(v) => update("state", v)}
+            value={stateMode}
+            onChange={(v) => {
+              setStateMode(v);
+              update("state", v === "other" ? customState : v);
+            }}
             options={[
               { value: "LA", label: "Louisiana" },
               { value: "TX", label: "Texas" },
               { value: "MS", label: "Mississippi" },
+              { value: "AR", label: "Arkansas" },
+              { value: "GA", label: "Georgia" },
               { value: "AL", label: "Alabama" },
               { value: "FL", label: "Florida" },
+              { value: "other", label: "Other / type below" },
             ]}
           />
         </div>
+        {stateMode === "other" && (
+          <FormInput
+            id="bil-state-other"
+            label="Type state"
+            value={customState}
+            onChange={(v) => {
+              setCustomState(v);
+              update("state", v);
+            }}
+          />
+        )}
+        <FormSelect
+          id="bil-country"
+          label="Country"
+          value={countryMode}
+          onChange={(v) => {
+            setCountryMode(v);
+            update("country", v === "other" ? customCountry : v);
+          }}
+          options={[
+            { value: "US", label: "US" },
+            { value: "Spain", label: "Spain" },
+            { value: "France", label: "France" },
+            { value: "Netherlands", label: "Netherlands" },
+            { value: "Mexico", label: "Mexico" },
+            { value: "Brazil", label: "Brazil" },
+            { value: "Saudi Arabia", label: "Saudi Arabia" },
+            { value: "other", label: "Other / type below" },
+          ]}
+        />
+        {countryMode === "other" && (
+          <FormInput
+            id="bil-country-other"
+            label="Type country"
+            value={customCountry}
+            onChange={(v) => {
+              setCustomCountry(v);
+              update("country", v);
+            }}
+          />
+        )}
         <FormInput id="bil-zip" label="Zip Code" value={data.zip} onChange={(v) => update("zip", v)} />
       </div>
     </Modal>
@@ -709,7 +786,7 @@ function BillingPickerModal({
             key={b.id}
             icon={MapPin}
             title={b.name}
-            subtitle={`${b.street}, ${b.city}, ${b.zip} ${b.state}`}
+            subtitle={`${b.street}, ${b.city}, ${b.state} ${b.zip}, ${b.country}`}
             selected={b.id === selectedId}
             onChoose={() => { onSelect(b.id); onClose(); }}
             onEdit={() => onEdit(b.id)}
@@ -751,6 +828,9 @@ function PaymentPickerModal({
       onClose={onClose}
     >
       <div className="flex flex-col gap-3">
+        <p className="text-sm text-neutral-500">
+          Choose a saved payment method or add a new one.
+        </p>
         {items.map((p) => (
           <PickerRow
             key={p.id}
@@ -791,6 +871,7 @@ export function BuyerCheckoutPage() {
   const [shippingType, setShippingType] = useState<ShippingType>(null);
   const [pickup, setPickup] = useState<PickupData>({
     date: "",
+    timeRange: "",
     fullName: "",
     phone: "",
     email: "",
@@ -806,7 +887,6 @@ export function BuyerCheckoutPage() {
   const [deliveryAddressId, setDeliveryAddressId] = useState<string | null>(null);
   const [showDeliveryPicker, setShowDeliveryPicker] = useState(false);
 
-  const [payments, setPayments] = useState<PaymentMethod[]>([]);
   const [billings, setBillings] = useState<BillingAddress[]>([
     {
       id: "addr-2",
@@ -815,10 +895,21 @@ export function BuyerCheckoutPage() {
       city: "Atlanta",
       state: "GA",
       zip: "30308",
+      country: "US",
     },
   ]);
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
-  const [selectedBillingId, setSelectedBillingId] = useState<string | null>(null);
+  const [payments, setPayments] = useState<PaymentMethod[]>([
+    {
+      id: "pay-saved-1",
+      ownership: "business",
+      holder: "AgriCorp Solutions",
+      bank: "Chase",
+      routing: "021000021",
+      account: "12344345",
+    },
+  ]);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>("pay-saved-1");
+  const [selectedBillingId, setSelectedBillingId] = useState<string | null>("addr-2");
 
   const [orderId, setOrderId] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -875,6 +966,7 @@ export function BuyerCheckoutPage() {
           { label: "Shipping method", value: "Pickup" },
           { label: "Pickup location", value: pickupAddress },
           { label: "Pickup date", value: pickup.date || "Requested" },
+          { label: "Pickup time range", value: pickup.timeRange || "Requested" },
           { label: "Status", value: "Awaiting seller confirmation" },
         ]
       : [
@@ -1167,7 +1259,7 @@ export function BuyerCheckoutPage() {
                             {billing.name}
                           </p>
                           <p className="truncate text-xs text-neutral-500">
-                            {billing.street}, {billing.city}, {billing.zip} {billing.state}
+                            {billing.street}, {billing.city}, {billing.state} {billing.zip}, {billing.country}
                           </p>
                         </div>
                         <button
