@@ -22,6 +22,9 @@ build/
 *.swp
 *.swo
 
+# Claude Code (local settings, worktrees)
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
