@@ -9,7 +9,7 @@ import { Button, Input } from "@eco-globe/ui";
 import { AuthLayout } from "./auth-layout";
 import { buildDemoUser, writeDemoUser } from "@/lib/demo-user";
 
-type Role = "buyer" | "seller" | null;
+type Role = "buyer" | "seller" | "both" | null;
 type Step = "form" | "verify";
 
 function PasswordInput({ id, label, value, onChange }: {
@@ -182,9 +182,16 @@ export function RegisterPage() {
 
   const handleVerified = () => {
     if (!role) return;
-    writeDemoUser(
-      buildDemoUser(role, { email, name: `${firstName} ${lastName}`.trim() }),
-    );
+    const name = `${firstName} ${lastName}`.trim();
+    if (role === "both") {
+      // Join as both — record both roles and let the user pick where to land.
+      writeDemoUser(
+        buildDemoUser("buyer", { email, name, roles: ["buyer", "seller"] }),
+      );
+      router.push("/choose-dashboard");
+      return;
+    }
+    writeDemoUser(buildDemoUser(role, { email, name }));
     router.push(role === "seller" ? "/seller/onboarding" : "/buyer/onboarding");
   };
 
@@ -204,7 +211,9 @@ export function RegisterPage() {
     ? "Create Buyer Account"
     : role === "seller"
       ? "Create Seller Account"
-      : "Create Account";
+      : role === "both"
+        ? "Create Buyer & Seller Account"
+        : "Create Account";
 
   return (
     <AuthLayout cardWidth="max-w-[960px]">
@@ -214,26 +223,38 @@ export function RegisterPage() {
         </h1>
 
         {/* Role toggle */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setRole("buyer")}
+              className={`rounded-lg py-3.5 text-center text-base text-neutral-900 transition-colors ${
+                role === "buyer" ? "bg-neutral-100" : "bg-white hover:bg-neutral-50"
+              }`}
+              style={{ border: "1px solid #E0E0E0" }}
+            >
+              I am a <span className="font-bold">Buyer</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole("seller")}
+              className={`rounded-lg py-3.5 text-center text-base text-neutral-900 transition-colors ${
+                role === "seller" ? "bg-neutral-100" : "bg-white hover:bg-neutral-50"
+              }`}
+              style={{ border: "1px solid #E0E0E0" }}
+            >
+              I am a <span className="font-bold">Seller</span>
+            </button>
+          </div>
           <button
             type="button"
-            onClick={() => setRole("buyer")}
+            onClick={() => setRole("both")}
             className={`rounded-lg py-3.5 text-center text-base text-neutral-900 transition-colors ${
-              role === "buyer" ? "bg-neutral-100" : "bg-white hover:bg-neutral-50"
+              role === "both" ? "bg-neutral-100" : "bg-white hover:bg-neutral-50"
             }`}
             style={{ border: "1px solid #E0E0E0" }}
           >
-            I am a <span className="font-bold">Buyer</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole("seller")}
-            className={`rounded-lg py-3.5 text-center text-base text-neutral-900 transition-colors ${
-              role === "seller" ? "bg-neutral-100" : "bg-white hover:bg-neutral-50"
-            }`}
-            style={{ border: "1px solid #E0E0E0" }}
-          >
-            I am a <span className="font-bold">Seller</span>
+            I am <span className="font-bold">both — Buyer &amp; Seller</span>
           </button>
         </div>
 

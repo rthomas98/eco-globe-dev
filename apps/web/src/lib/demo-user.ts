@@ -31,13 +31,30 @@ export interface Facility {
 }
 
 export interface DemoUser {
+  /** Currently active portal/role. */
   role: UserRole;
+  /**
+   * All roles this account holds. A user who joined as both buyer and seller
+   * has ["buyer", "seller"]. Falls back to [role] for older sessions that
+   * predate this field. Drives the header "Switch to" vs "Add access" actions.
+   */
+  roles?: UserRole[];
   email: string;
   name: string;
   industry?: Industry;
   companySize?: CompanySize;
   userRole?: DecisionRole;
   facilities?: Facility[];
+}
+
+/** Roles an account holds, tolerant of older sessions without `roles`. */
+export function getUserRoles(user: DemoUser): UserRole[] {
+  return user.roles && user.roles.length > 0 ? user.roles : [user.role];
+}
+
+/** True when the account holds the given role. */
+export function hasRole(user: DemoUser, role: UserRole): boolean {
+  return getUserRoles(user).includes(role);
 }
 
 const KEY = "ecoglobe.demoUser";
@@ -149,6 +166,7 @@ export function buildDemoUser(
         : "demo.admin@ecoglobe.com";
   return {
     role,
+    roles: [role],
     name: overrides.name || defaultName,
     email: overrides.email || defaultEmail,
     ...base,

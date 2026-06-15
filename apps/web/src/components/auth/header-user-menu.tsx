@@ -8,16 +8,24 @@ import {
   ChevronDown,
   LayoutDashboard,
   LogOut,
+  Plus,
   Settings,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import {
   buildDemoUser,
   clearDemoUser,
+  getUserRoles,
   useDemoUser,
   writeDemoUser,
   type UserRole,
 } from "@/lib/demo-user";
+
+const ONBOARDING_HREF: Record<UserRole, string> = {
+  buyer: "/buyer/onboarding",
+  seller: "/seller/onboarding",
+  admin: "/admin/dashboard",
+};
 
 const PORTAL_HREF: Record<UserRole, string> = {
   buyer: "/buyer/browse",
@@ -68,16 +76,21 @@ export function HeaderUserMenu({
     router.push("/");
   };
 
-  const handleRoleSwitch = (targetRole: UserRole) => {
+  // Activate a role. When the account already holds it, this is a plain
+  // dashboard switch. When it doesn't, the role is added to the account
+  // ("Add access") and we route to its onboarding to set that side up.
+  const handleRoleActivate = (targetRole: UserRole, isNewRole: boolean) => {
     if (!user) return;
+    const nextRoles = Array.from(new Set([...getUserRoles(user), targetRole]));
     writeDemoUser(
       buildDemoUser(targetRole, {
         name: user.name,
         email: user.email,
+        roles: nextRoles,
       }),
     );
     setOpen(false);
-    router.push(PORTAL_HREF[targetRole]);
+    router.push(isNewRole ? ONBOARDING_HREF[targetRole] : PORTAL_HREF[targetRole]);
   };
 
   if (!user) {
@@ -106,6 +119,9 @@ export function HeaderUserMenu({
   const initial = (user.name || user.email || "U").charAt(0).toUpperCase();
   const firstName = (user.name || user.email).split(" ")[0];
   const switchTarget = ROLE_SWITCH[user.role];
+  const hasSwitchTarget = switchTarget
+    ? getUserRoles(user).includes(switchTarget)
+    : false;
 
   return (
     <div ref={containerRef} className="relative">
@@ -156,12 +172,21 @@ export function HeaderUserMenu({
             <>
               <button
                 type="button"
-                onClick={() => handleRoleSwitch(switchTarget)}
+                onClick={() => handleRoleActivate(switchTarget, !hasSwitchTarget)}
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50"
                 role="menuitem"
               >
-                <ArrowLeftRight className="size-[18px] text-neutral-500" />
-                Switch to {ROLE_LABEL[switchTarget]}
+                {hasSwitchTarget ? (
+                  <>
+                    <ArrowLeftRight className="size-[18px] text-neutral-500" />
+                    Switch to {ROLE_LABEL[switchTarget]}
+                  </>
+                ) : (
+                  <>
+                    <Plus className="size-[18px] text-neutral-500" />
+                    Add {ROLE_LABEL[switchTarget]} access
+                  </>
+                )}
               </button>
               <div className="my-2" style={{ borderTop: "1px solid #F0F0F0" }} />
             </>
