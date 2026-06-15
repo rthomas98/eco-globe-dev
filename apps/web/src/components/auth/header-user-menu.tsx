@@ -21,12 +21,6 @@ import {
   type UserRole,
 } from "@/lib/demo-user";
 
-const ONBOARDING_HREF: Record<UserRole, string> = {
-  buyer: "/buyer/onboarding",
-  seller: "/seller/onboarding",
-  admin: "/admin/dashboard",
-};
-
 const PORTAL_HREF: Record<UserRole, string> = {
   buyer: "/buyer/browse",
   seller: "/seller/listings",
@@ -78,10 +72,24 @@ export function HeaderUserMenu({
 
   // Activate a role. When the account already holds it, this is a plain
   // dashboard switch. When it doesn't, the role is added to the account
-  // ("Add access") and we route to its onboarding to set that side up.
+  // ("Add access") and we send the user through the dashboard chooser so the
+  // landing is consistent with joining as both at registration.
   const handleRoleActivate = (targetRole: UserRole, isNewRole: boolean) => {
     if (!user) return;
     const nextRoles = Array.from(new Set([...getUserRoles(user), targetRole]));
+    if (isNewRole) {
+      // Keep the current active role for now; the chooser finalizes where they land.
+      writeDemoUser(
+        buildDemoUser(user.role, {
+          name: user.name,
+          email: user.email,
+          roles: nextRoles,
+        }),
+      );
+      setOpen(false);
+      router.push("/choose-dashboard");
+      return;
+    }
     writeDemoUser(
       buildDemoUser(targetRole, {
         name: user.name,
@@ -90,7 +98,7 @@ export function HeaderUserMenu({
       }),
     );
     setOpen(false);
-    router.push(isNewRole ? ONBOARDING_HREF[targetRole] : PORTAL_HREF[targetRole]);
+    router.push(PORTAL_HREF[targetRole]);
   };
 
   if (!user) {
