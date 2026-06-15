@@ -57,38 +57,49 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* Team */}
+      {/* Industry Expertise */}
       <section className="bg-neutral-100 py-12 lg:py-[100px]">
         <div className="mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
-          <div className="mb-10 flex flex-col gap-3">
+          <div className="mb-10 flex flex-col gap-4 lg:max-w-[760px]">
             <p className="text-sm font-medium uppercase tracking-wider" style={{ color: "#96794A" }}>
-              Meet the team
+              Our foundation
             </p>
             <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">
-              The people behind EcoGlobe
+              Built on Industry Expertise
             </h2>
+            <p className="text-base leading-7 text-neutral-700">
+              EcoGlobe is built by people who have spent their careers inside the industries this platform serves.
+            </p>
           </div>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {[
-              { initial: "A", name: "Ana Sanz", title: "Co-Founder" },
-              { initial: "B", name: "Bea Roberts", title: "Co-Founder" },
-            ].map((member) => (
+              {
+                title: "Mapping industrial waste streams",
+                body: "Hands-on experience inside chemical plants, petrochemical plants, and refineries — identifying, characterizing, and quantifying byproducts at the plant level, and knowing which streams have real market value.",
+              },
+              {
+                title: "Circular economy commercialization",
+                body: "Direct experience converting waste streams into revenue, including the technical, regulatory, and economic validation that determines whether a stream finds a buyer or never leaves the site.",
+              },
+              {
+                title: "Cross-industry market access",
+                body: "Deep knowledge of how feedstock and byproduct demand moves between sectors — including asphalt, pulp & paper, cement, stainless steel, and other processing plants — which industries need what, what they will and won’t pay for, and why most of this demand never reaches the right supplier today.",
+              },
+              {
+                title: "Trade infrastructure",
+                body: "Practical understanding of the compliance, logistics, verification, and payment work that determines whether industrial deals close or collapse — built into the platform from day one.",
+              },
+            ].map((pillar, i) => (
               <div
-                key={member.name}
-                className="flex items-center gap-6 rounded-2xl bg-white p-8"
+                key={pillar.title}
+                className="flex flex-col gap-3 rounded-2xl bg-white p-8"
                 style={{ border: "1px solid #E0E0E0" }}
               >
-                <div
-                  className="flex size-20 shrink-0 items-center justify-center rounded-full text-2xl font-bold text-neutral-700"
-                  style={{ backgroundColor: "#F5F5F5" }}
-                >
-                  {member.initial}
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-neutral-900">{member.name}</h3>
-                  <p className="text-sm text-neutral-500">{member.title}</p>
-                  <p className="mt-2 text-sm text-neutral-700">Bio coming soon.</p>
-                </div>
+                <span className="text-sm font-bold" style={{ color: "#96794A" }}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <h3 className="text-lg font-bold text-neutral-900">{pillar.title}</h3>
+                <p className="text-sm leading-7 text-neutral-700">{pillar.body}</p>
               </div>
             ))}
           </div>
