@@ -12,7 +12,6 @@ export default function Page() {
           body: [
             "Tons of industrial byproducts diverted from landfill or incineration.",
             "Carbon footprint avoided across funded transactions (transport-only today; manufacturing once we have the data).",
-            "Verified-supplier coverage by industry and region.",
           ],
         },
         {
