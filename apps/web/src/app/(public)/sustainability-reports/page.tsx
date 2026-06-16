@@ -20,7 +20,7 @@ export default function Page() {
         },
         {
           heading: "Get the latest report",
-          body: "Quarterly PDF. Email us if you'd like the next issue when it ships, or want a custom slice for your operation.",
+          body: "We can tailor a report to your needs. Reports are published quarterly as a PDF — email us to get the next issue when it ships, or tell us what you'd like to see and we'll customize one for your operation.",
         },
       ]}
       ctaLabel="Request the latest report"
