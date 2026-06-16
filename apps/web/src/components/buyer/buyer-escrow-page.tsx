@@ -10,6 +10,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { BuyerLayout } from "./buyer-layout";
@@ -356,6 +359,84 @@ function FiltersPanel({
   );
 }
 
+type SortKey =
+  | "id"
+  | "orderId"
+  | "buyer"
+  | "amount"
+  | "orderDate"
+  | "releaseDate"
+  | "status";
+type SortDir = "asc" | "desc";
+
+const COLUMNS: { key: SortKey; label: string }[] = [
+  { key: "id", label: "Escrow ID" },
+  { key: "orderId", label: "Order ID" },
+  { key: "buyer", label: "Buyer" },
+  { key: "amount", label: "Amount" },
+  { key: "orderDate", label: "Order Date" },
+  { key: "releaseDate", label: "Release Date" },
+  { key: "status", label: "Status" },
+];
+
+function parseAmount(v: string): number {
+  return Number(v.replace(/[^0-9.]/g, "")) || 0;
+}
+
+function parseDate(v: string): number {
+  const [m, d, y] = v.split("/").map(Number);
+  if (!y) return 0;
+  return new Date(y, (m || 1) - 1, d || 1).getTime();
+}
+
+/** Type-aware sort value: numbers for amount/dates, lowercased text otherwise. */
+function sortValue(e: Escrow, key: SortKey): number | string {
+  switch (key) {
+    case "amount":
+      return parseAmount(e.amount);
+    case "orderDate":
+      return parseDate(e.orderDate);
+    case "releaseDate":
+      return parseDate(e.releaseDate);
+    default:
+      return String(e[key]).toLowerCase();
+  }
+}
+
+function SortableHeader({
+  label,
+  active,
+  dir,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  dir: SortDir;
+  onClick: () => void;
+}) {
+  return (
+    <th className="px-6 py-4 text-left">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+        className="group inline-flex items-center gap-1.5 text-sm font-medium text-neutral-700 transition-colors hover:text-neutral-900"
+      >
+        {label}
+        {active ? (
+          dir === "asc" ? (
+            <ArrowUp className="size-3.5 text-neutral-900" />
+          ) : (
+            <ArrowDown className="size-3.5 text-neutral-900" />
+          )
+        ) : (
+          <ArrowUpDown className="size-3.5 text-neutral-300 group-hover:text-neutral-400" />
+        )}
+      </button>
+    </th>
+  );
+}
+
 function buildEscrowDetail(e: Escrow): EscrowDetail {
   const released = e.status === "Released";
   return {
@@ -399,6 +480,16 @@ export function BuyerEscrowPage() {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(null);
+
+  const handleSort = (key: SortKey) => {
+    setPage(1);
+    setSort((curr) =>
+      curr && curr.key === key
+        ? { key, dir: curr.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" },
+    );
+  };
 
   const filtered = ESCROWS.filter((e) => {
     if (filters.statuses.length && !filters.statuses.includes(e.status))
@@ -415,8 +506,20 @@ export function BuyerEscrowPage() {
     return true;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const sorted = sort
+    ? [...filtered].sort((a, b) => {
+        const av = sortValue(a, sort.key);
+        const bv = sortValue(b, sort.key);
+        const cmp =
+          typeof av === "number" && typeof bv === "number"
+            ? av - bv
+            : String(av).localeCompare(String(bv));
+        return sort.dir === "asc" ? cmp : -cmp;
+      })
+    : filtered;
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selected = selectedId
     ? ESCROWS.find((e) => e.id === selectedId) ?? null
     : null;
@@ -462,27 +565,15 @@ export function BuyerEscrowPage() {
             <table className="w-full">
               <thead>
                 <tr style={{ borderBottom: "1px solid #F0F0F0" }}>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-neutral-700">
-                    Escrow ID
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-neutral-700">
-                    Order ID
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-neutral-700">
-                    Buyer
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-neutral-700">
-                    Amount
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-neutral-700">
-                    Order Date
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-neutral-700">
-                    Release Date
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-neutral-700">
-                    Status
-                  </th>
+                  {COLUMNS.map((col) => (
+                    <SortableHeader
+                      key={col.key}
+                      label={col.label}
+                      active={sort?.key === col.key}
+                      dir={sort?.key === col.key ? sort.dir : "asc"}
+                      onClick={() => handleSort(col.key)}
+                    />
+                  ))}
                   <th className="px-6 py-4"></th>
                 </tr>
               </thead>
