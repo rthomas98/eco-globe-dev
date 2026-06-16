@@ -12,6 +12,7 @@ import { HeaderUserMenu } from "@/components/auth/header-user-menu";
 import { FiltersPanel, defaultFilters, type FilterState } from "./filters-panel";
 import { listings, type Listing } from "./browse-listings";
 import { useDemoUser } from "@/lib/demo-user";
+import { useViewerLocation } from "@/lib/viewer-location";
 import { useCustomListings } from "@/lib/custom-listings";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
 
@@ -126,8 +127,23 @@ export function BrowsePage() {
     categories: urlCategory ? [urlCategory] : [],
   }));
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [radiusMiles, setRadiusMiles] = useState<number>(0); // 0 = off
-  const originFacility = user?.facilities?.find((f) => f.lat && f.lng);
+  // Default to a visible search radius so the map opens framed on the customer.
+  const [radiusMiles, setRadiusMiles] = useState<number>(50);
+
+  // The map centers on the customer's address by default: their detected
+  // browser location, falling back to a saved company facility.
+  const { location: viewerLocation } = useViewerLocation();
+  const mapOrigin = useMemo(
+    () =>
+      viewerLocation
+        ? {
+            lng: viewerLocation.lng,
+            lat: viewerLocation.lat,
+            label: viewerLocation.label,
+          }
+        : undefined,
+    [viewerLocation],
+  );
 
   useEffect(() => {
     setSelectedId(null);
@@ -344,7 +360,7 @@ export function BrowsePage() {
 
         {/* Map panel */}
         <div className="relative hidden lg:block lg:w-[45%] h-full p-2">
-          {originFacility && (
+          {mapOrigin && (
             <div
               className="absolute right-4 top-4 z-10 flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs shadow"
               style={{ border: "1px solid #E0E0E0" }}
@@ -371,16 +387,10 @@ export function BrowsePage() {
             selectedId={selectedId}
             onSelect={(id) => setSelectedId(id)}
             onView={(id) => router.push(`/browse/${id}`)}
-            origin={
-              originFacility?.lat && originFacility?.lng
-                ? {
-                    lng: originFacility.lng,
-                    lat: originFacility.lat,
-                    label: originFacility.label,
-                  }
-                : undefined
-            }
+            origin={mapOrigin}
             radiusMiles={radiusMiles > 0 ? radiusMiles : undefined}
+            showOriginPin={false}
+            radiusFitListings={false}
           />
         </div>
       </div>

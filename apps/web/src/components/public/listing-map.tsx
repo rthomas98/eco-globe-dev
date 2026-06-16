@@ -163,6 +163,18 @@ interface ListingMapProps {
    * when `origin` is set, draw a route line between origin and this listing.
    */
   activeId?: string;
+  /**
+   * Draw the dark pin at `origin`. Default true. Set false when another marker
+   * (e.g. the viewer "you are here" pin) already marks the same spot.
+   */
+  showOriginPin?: boolean;
+  /**
+   * When auto-zooming to the radius circle, also include every listing in the
+   * fitted bounds. Default true (good for single-listing detail/calculator maps).
+   * Set false to keep the view centered on `origin` + the circle even when
+   * listings are spread far away (e.g. the global browse map).
+   */
+  radiusFitListings?: boolean;
 }
 
 function isValidToken(t: string | undefined): t is string {
@@ -481,6 +493,8 @@ export function ListingMap({
   origin,
   radiusMiles,
   activeId,
+  showOriginPin = true,
+  radiusFitListings = true,
 }: ListingMapProps = {}) {
   const data = listings && listings.length > 0 ? listings : fallbackListings;
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -596,13 +610,16 @@ export function ListingMap({
 
       if (!origin) return;
 
-      // Origin pin (distinct from listings)
-      const el = document.createElement("div");
-      el.style.cssText =
-        "width:22px;height:22px;border-radius:50%;background:#1F2937;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);";
-      originMarkerRef.current = new mapboxgl.Marker(el)
-        .setLngLat([origin.lng, origin.lat])
-        .addTo(mapInstance);
+      // Origin pin (distinct from listings). Skipped when another marker
+      // already represents this spot (e.g. the viewer "you are here" pin).
+      if (showOriginPin) {
+        const el = document.createElement("div");
+        el.style.cssText =
+          "width:22px;height:22px;border-radius:50%;background:#1F2937;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);";
+        originMarkerRef.current = new mapboxgl.Marker(el)
+          .setLngLat([origin.lng, origin.lat])
+          .addTo(mapInstance);
+      }
 
       // Route line from origin to active feedstock
       const activeListing = activeId
@@ -678,8 +695,11 @@ export function ListingMap({
         [origin.lng - dLng, origin.lat - dLat],
         [origin.lng + dLng, origin.lat + dLat],
       );
-      // Also include any listings already on the map.
-      data.forEach((l) => radiusBounds.extend([l.lng, l.lat]));
+      // Also include any listings already on the map — unless the caller wants
+      // the view kept on the origin + circle (listings may be far away).
+      if (radiusFitListings) {
+        data.forEach((l) => radiusBounds.extend([l.lng, l.lat]));
+      }
       mapInstance.fitBounds(radiusBounds, {
         padding: 60,
         duration: 700,
@@ -691,7 +711,7 @@ export function ListingMap({
     } else {
       mapInstance.once("load", apply);
     }
-  }, [origin, radiusMiles, validToken, activeId, data]);
+  }, [origin, radiusMiles, validToken, activeId, data, showOriginPin, radiusFitListings]);
 
   // Sync viewer ("you are here") marker (mapbox path)
   useEffect(() => {
