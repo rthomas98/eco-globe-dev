@@ -47,7 +47,7 @@ export function BuyerRfqPage() {
           <Link href="/buyer/rfq/new">
             <Button variant="primary" size="md">
               <Plus className="size-4" />
-              New RFQ
+              New request for quote
             </Button>
           </Link>
         </div>
@@ -72,7 +72,7 @@ export function BuyerRfqPage() {
         <div className="rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
           {visible.length === 0 ? (
             <div className="px-6 py-12 text-center">
-              <p className="text-sm font-medium text-neutral-700">No RFQs match.</p>
+              <p className="text-sm font-medium text-neutral-700">No requests for quote match.</p>
               <p className="mt-1 text-xs text-neutral-500">Submit a new request to start gathering quotes.</p>
             </div>
           ) : (

@@ -41,7 +41,7 @@ const navIcons: NavIcon[] = [
   { href: "/buyer/browse", icon: Search, label: "Search" },
   { href: "/buyer/orders", icon: ShoppingCart, label: "My Orders" },
   { href: "/buyer/favorites", icon: Heart, label: "Saved" },
-  { href: "/buyer/rfq", icon: FileQuestion, label: "RFQs" },
+  { href: "/buyer/rfq", icon: FileQuestion, label: "Requests for quote" },
   {
     href: "/buyer/accounting",
     icon: DollarSign,

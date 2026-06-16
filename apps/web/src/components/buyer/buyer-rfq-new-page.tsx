@@ -68,7 +68,7 @@ export function BuyerRfqNewPage() {
           className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-neutral-900"
         >
           <ArrowLeft className="size-4" />
-          Back to RFQs
+          Back to requests for quote
         </Link>
 
         <h1 className="text-3xl font-bold text-neutral-900">New request for quote</h1>
@@ -207,7 +207,7 @@ export function BuyerRfqNewPage() {
             <Section title="Submission">
               <div className="flex flex-col gap-3 text-sm text-neutral-700">
                 <p>
-                  We&apos;ll send your RFQ to <strong>verified sellers</strong> in
+                  We&apos;ll send your request for quote to <strong>verified sellers</strong> in
                   matching categories who deliver to your region.
                 </p>
                 <p>Quotes typically arrive within 48 hours.</p>
@@ -221,7 +221,7 @@ export function BuyerRfqNewPage() {
                 style={!canSubmit || submitting ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
               >
                 <Send className="size-4" />
-                {submitting ? "Submitting…" : "Submit RFQ"}
+                {submitting ? "Submitting…" : "Submit request for quote"}
               </Button>
               <button className="mt-2 w-full text-sm font-medium text-neutral-700 underline">
                 Save as draft
@@ -231,7 +231,7 @@ export function BuyerRfqNewPage() {
               <ul className="list-disc pl-5 text-sm text-neutral-700">
                 <li>Be specific about grade, purity, and any required certifications.</li>
                 <li>Attach SDS or specification PDFs when available.</li>
-                <li>State your delivery cadence — recurring RFQs get more attention.</li>
+                <li>State your delivery cadence — recurring requests get more attention.</li>
               </ul>
             </Section>
           </aside>
