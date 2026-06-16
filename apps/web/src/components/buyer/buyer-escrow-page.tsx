@@ -6,7 +6,6 @@ import {
   SlidersHorizontal,
   MoreHorizontal,
   X,
-  Calendar,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -218,10 +217,36 @@ const ESCROWS: Escrow[] = [
 
 interface Filters {
   statuses: EscrowStatus[];
-  date: string;
+  buyer: string;
+  escrowId: string;
+  orderId: string;
+  amountMin: string;
+  amountMax: string;
+  orderDateFrom: string;
+  orderDateTo: string;
+  releaseDateFrom: string;
+  releaseDateTo: string;
 }
 
-const defaultFilters: Filters = { statuses: [], date: "" };
+const defaultFilters: Filters = {
+  statuses: [],
+  buyer: "",
+  escrowId: "",
+  orderId: "",
+  amountMin: "",
+  amountMax: "",
+  orderDateFrom: "",
+  orderDateTo: "",
+  releaseDateFrom: "",
+  releaseDateTo: "",
+};
+
+/** Distinct buyer names for the Buyer filter dropdown. */
+const BUYERS = Array.from(new Set(ESCROWS.map((e) => e.buyer))).sort();
+
+const FIELD_CLASS =
+  "w-full rounded-lg bg-white px-4 py-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 focus:ring-2 focus:ring-neutral-900/20";
+const FIELD_BORDER = { border: "1px solid #E0E0E0" } as const;
 
 const STATUS_PILL: Record<EscrowStatus, string> = {
   "In escrow": "bg-blue-100 text-blue-700",
@@ -284,59 +309,187 @@ function FiltersPanel({
           </button>
         </div>
 
-        <div className="px-6 py-6">
-          <h3 className="mb-3 text-base font-bold text-neutral-900">Status</h3>
-          <div className="grid grid-cols-2 gap-y-3">
-            {allStatuses.map((s) => (
-              <label
-                key={s}
-                className="flex cursor-pointer items-center gap-2.5 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  checked={filters.statuses.includes(s)}
-                  onChange={() => toggleStatus(s)}
-                  className="sr-only peer"
-                />
-                <span
-                  className="flex size-5 items-center justify-center rounded transition-colors peer-checked:bg-neutral-900"
-                  style={{
-                    border: filters.statuses.includes(s)
-                      ? "1px solid #090909"
-                      : "1px solid #D0D0D0",
-                  }}
+        <div className="max-h-[70vh] space-y-6 overflow-y-auto px-6 py-6">
+          {/* Status */}
+          <div>
+            <h3 className="mb-3 text-base font-bold text-neutral-900">Status</h3>
+            <div className="grid grid-cols-2 gap-y-3">
+              {allStatuses.map((s) => (
+                <label
+                  key={s}
+                  className="flex cursor-pointer items-center gap-2.5 text-sm"
                 >
-                  {filters.statuses.includes(s) && (
-                    <svg
-                      className="size-3 text-white"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                </span>
-                <span className="text-neutral-900">{s}</span>
-              </label>
-            ))}
+                  <input
+                    type="checkbox"
+                    checked={filters.statuses.includes(s)}
+                    onChange={() => toggleStatus(s)}
+                    className="sr-only peer"
+                  />
+                  <span
+                    className="flex size-5 items-center justify-center rounded transition-colors peer-checked:bg-neutral-900"
+                    style={{
+                      border: filters.statuses.includes(s)
+                        ? "1px solid #090909"
+                        : "1px solid #D0D0D0",
+                    }}
+                  >
+                    {filters.statuses.includes(s) && (
+                      <svg
+                        className="size-3 text-white"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="text-neutral-900">{s}</span>
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="px-6 pb-6" style={{ borderTop: "1px solid #F0F0F0" }}>
-          <h3 className="mb-3 mt-6 text-base font-bold text-neutral-900">
-            Date
-          </h3>
-          <div className="relative">
+          {/* Buyer */}
+          <div>
+            <h3 className="mb-3 text-base font-bold text-neutral-900">Buyer</h3>
+            <select
+              value={filters.buyer}
+              onChange={(e) => onChange({ ...filters, buyer: e.target.value })}
+              className={FIELD_CLASS}
+              style={FIELD_BORDER}
+            >
+              <option value="">All buyers</option>
+              {BUYERS.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Escrow ID */}
+          <div>
+            <h3 className="mb-3 text-base font-bold text-neutral-900">
+              Escrow ID
+            </h3>
             <input
               type="text"
-              value={filters.date}
-              onChange={(e) => onChange({ ...filters, date: e.target.value })}
-              className="w-full rounded-lg bg-white px-4 py-3 pr-11 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 focus:ring-2 focus:ring-neutral-900/20"
-              style={{ border: "1px solid #E0E0E0" }}
+              placeholder="e.g. EC12345"
+              value={filters.escrowId}
+              onChange={(e) =>
+                onChange({ ...filters, escrowId: e.target.value })
+              }
+              className={FIELD_CLASS}
+              style={FIELD_BORDER}
             />
-            <Calendar className="pointer-events-none absolute right-3 top-1/2 size-5 -translate-y-1/2 text-neutral-500" />
+          </div>
+
+          {/* Order ID */}
+          <div>
+            <h3 className="mb-3 text-base font-bold text-neutral-900">
+              Order ID
+            </h3>
+            <input
+              type="text"
+              placeholder="e.g. TS12345"
+              value={filters.orderId}
+              onChange={(e) =>
+                onChange({ ...filters, orderId: e.target.value })
+              }
+              className={FIELD_CLASS}
+              style={FIELD_BORDER}
+            />
+          </div>
+
+          {/* Amount */}
+          <div>
+            <h3 className="mb-3 text-base font-bold text-neutral-900">
+              Amount ($)
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="Min"
+                value={filters.amountMin}
+                onChange={(e) =>
+                  onChange({ ...filters, amountMin: e.target.value })
+                }
+                className={FIELD_CLASS}
+                style={FIELD_BORDER}
+              />
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="Max"
+                value={filters.amountMax}
+                onChange={(e) =>
+                  onChange({ ...filters, amountMax: e.target.value })
+                }
+                className={FIELD_CLASS}
+                style={FIELD_BORDER}
+              />
+            </div>
+          </div>
+
+          {/* Order Date */}
+          <div>
+            <h3 className="mb-3 text-base font-bold text-neutral-900">
+              Order Date
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="date"
+                aria-label="Order date from"
+                value={filters.orderDateFrom}
+                onChange={(e) =>
+                  onChange({ ...filters, orderDateFrom: e.target.value })
+                }
+                className={FIELD_CLASS}
+                style={FIELD_BORDER}
+              />
+              <input
+                type="date"
+                aria-label="Order date to"
+                value={filters.orderDateTo}
+                onChange={(e) =>
+                  onChange({ ...filters, orderDateTo: e.target.value })
+                }
+                className={FIELD_CLASS}
+                style={FIELD_BORDER}
+              />
+            </div>
+          </div>
+
+          {/* Release Date */}
+          <div>
+            <h3 className="mb-3 text-base font-bold text-neutral-900">
+              Release Date
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="date"
+                aria-label="Release date from"
+                value={filters.releaseDateFrom}
+                onChange={(e) =>
+                  onChange({ ...filters, releaseDateFrom: e.target.value })
+                }
+                className={FIELD_CLASS}
+                style={FIELD_BORDER}
+              />
+              <input
+                type="date"
+                aria-label="Release date to"
+                value={filters.releaseDateTo}
+                onChange={(e) =>
+                  onChange({ ...filters, releaseDateTo: e.target.value })
+                }
+                className={FIELD_CLASS}
+                style={FIELD_BORDER}
+              />
+            </div>
           </div>
         </div>
 
@@ -386,6 +539,14 @@ function parseAmount(v: string): number {
 function parseDate(v: string): number {
   const [m, d, y] = v.split("/").map(Number);
   if (!y) return 0;
+  return new Date(y, (m || 1) - 1, d || 1).getTime();
+}
+
+/** Parse a YYYY-MM-DD value from a <input type="date">; null when empty. */
+function parseISO(v: string): number | null {
+  if (!v) return null;
+  const [y, m, d] = v.split("-").map(Number);
+  if (!y) return null;
   return new Date(y, (m || 1) - 1, d || 1).getTime();
 }
 
@@ -494,6 +655,34 @@ export function BuyerEscrowPage() {
   const filtered = ESCROWS.filter((e) => {
     if (filters.statuses.length && !filters.statuses.includes(e.status))
       return false;
+    if (filters.buyer && e.buyer !== filters.buyer) return false;
+    if (
+      filters.escrowId &&
+      !e.id.toLowerCase().includes(filters.escrowId.toLowerCase())
+    )
+      return false;
+    if (
+      filters.orderId &&
+      !e.orderId.toLowerCase().includes(filters.orderId.toLowerCase())
+    )
+      return false;
+
+    const amount = parseAmount(e.amount);
+    if (filters.amountMin && amount < Number(filters.amountMin)) return false;
+    if (filters.amountMax && amount > Number(filters.amountMax)) return false;
+
+    const orderDate = parseDate(e.orderDate);
+    const orderFrom = parseISO(filters.orderDateFrom);
+    const orderTo = parseISO(filters.orderDateTo);
+    if (orderFrom !== null && orderDate < orderFrom) return false;
+    if (orderTo !== null && orderDate > orderTo) return false;
+
+    const releaseDate = parseDate(e.releaseDate);
+    const releaseFrom = parseISO(filters.releaseDateFrom);
+    const releaseTo = parseISO(filters.releaseDateTo);
+    if (releaseFrom !== null && releaseDate < releaseFrom) return false;
+    if (releaseTo !== null && releaseDate > releaseTo) return false;
+
     if (search.trim()) {
       const q = search.toLowerCase();
       if (
@@ -505,6 +694,20 @@ export function BuyerEscrowPage() {
     }
     return true;
   });
+
+  const activeFilterCount =
+    filters.statuses.length +
+    [
+      filters.buyer,
+      filters.escrowId,
+      filters.orderId,
+      filters.amountMin,
+      filters.amountMax,
+      filters.orderDateFrom,
+      filters.orderDateTo,
+      filters.releaseDateFrom,
+      filters.releaseDateTo,
+    ].filter(Boolean).length;
 
   const sorted = sort
     ? [...filtered].sort((a, b) => {
@@ -553,6 +756,11 @@ export function BuyerEscrowPage() {
             >
               <SlidersHorizontal className="size-4" />
               Filters
+              {activeFilterCount > 0 && (
+                <span className="flex size-5 items-center justify-center rounded-full bg-neutral-900 text-xs font-semibold text-white">
+                  {activeFilterCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -700,8 +908,14 @@ export function BuyerEscrowPage() {
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
         filters={filters}
-        onChange={setFilters}
-        onReset={() => setFilters(defaultFilters)}
+        onChange={(f) => {
+          setFilters(f);
+          setPage(1);
+        }}
+        onReset={() => {
+          setFilters(defaultFilters);
+          setPage(1);
+        }}
       />
 
       <BuyerEscrowDetailPanel
