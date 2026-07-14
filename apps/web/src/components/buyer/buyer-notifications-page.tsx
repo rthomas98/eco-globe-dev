@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronRight, SlidersHorizontal } from "lucide-react";
 import { BuyerLayout } from "./buyer-layout";
 import {
-  sellerNotifications,
+  buyerNotifications,
   type NotificationGroup,
   type SellerNotification,
 } from "../seller/notifications-data";
@@ -37,8 +37,8 @@ export function BuyerNotificationsPage() {
 
   const visible =
     tab === "unread"
-      ? sellerNotifications.filter((n) => isUnread(n))
-      : sellerNotifications;
+      ? buyerNotifications.filter((n) => isUnread(n))
+      : buyerNotifications;
 
   return (
     <BuyerLayout>
@@ -110,6 +110,14 @@ export function BuyerNotificationsPage() {
                           <n.icon className="size-4 text-neutral-500" />
                         </div>
                         <div className="flex-1 pt-0.5">
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">
+                              {n.category}
+                            </span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                              {n.priority} priority
+                            </span>
+                          </div>
                           <p className="text-sm text-neutral-700">{n.message}</p>
                           <p className="mt-1 text-xs text-neutral-400">
                             {n.source} · {n.time}

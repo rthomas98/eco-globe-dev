@@ -21,6 +21,19 @@ import {
   Home,
   LogOut,
   Shield,
+  Truck,
+  FileSignature,
+  PenLine,
+  FileText,
+  Video,
+  MapPin,
+  Lightbulb,
+  PackageCheck,
+  Blocks,
+  Workflow,
+  Languages,
+  Rocket,
+  MonitorSmartphone,
 } from "lucide-react";
 
 interface NavItem {
@@ -30,7 +43,7 @@ interface NavItem {
   children?: { label: string; href: string }[];
 }
 
-const navItems: NavItem[] = [
+const mainAdminNavItems: NavItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Sales", href: "/admin/sales", icon: ShoppingCart },
   { label: "Listings", href: "/admin/listings", icon: ClipboardList },
@@ -42,6 +55,7 @@ const navItems: NavItem[] = [
     icon: Globe,
     children: [
       { label: "Transactions", href: "/admin/accounting/transactions" },
+      { label: "Payments", href: "/admin/accounting/payments" },
       { label: "Escrow", href: "/admin/accounting/escrow" },
     ],
   },
@@ -68,6 +82,27 @@ const navItems: NavItem[] = [
     ],
   },
   { label: "Settings", href: "/admin/settings", icon: Settings },
+];
+
+const separateAdminNavItems: NavItem[] = [
+  ...mainAdminNavItems.slice(0, 5),
+  { label: "Logistics", href: "/admin/logistics", icon: Truck },
+  { label: "Contracts", href: "/admin/contracts", icon: FileSignature },
+  { label: "E-signatures", href: "/admin/e-signatures", icon: PenLine },
+  { label: "Documents", href: "/admin/documents", icon: FileText },
+  { label: "Video demos", href: "/admin/video-demos", icon: Video },
+  { label: "Delivery Tracking", href: "/admin/delivery-tracking", icon: Truck },
+  { label: "Partner Network", href: "/admin/partners", icon: Users },
+  { label: "Asset Verification", href: "/admin/asset-verification", icon: PackageCheck },
+  { label: "Map Intelligence", href: "/admin/map-intelligence", icon: MapPin },
+  { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  { label: "Recommendations", href: "/admin/recommendations", icon: Lightbulb },
+  { label: "Blockchain", href: "/admin/blockchain-traceability", icon: Blocks },
+  { label: "Smart Contracts", href: "/admin/smart-contracts", icon: Workflow },
+  { label: "Language", href: "/admin/language", icon: Languages },
+  { label: "National Expansion", href: "/admin/national-expansion", icon: Rocket },
+  { label: "Mobile Access", href: "/admin/mobile-access", icon: MonitorSmartphone },
+  ...mainAdminNavItems.slice(5),
 ];
 
 const notifications = [
@@ -190,8 +225,17 @@ function SidebarBottom() {
   );
 }
 
-export function AdminSidebar({ className }: { className?: string }) {
+export function AdminSidebar({
+  className,
+  showLogistics = false,
+  showContracts = false,
+}: {
+  className?: string;
+  showLogistics?: boolean;
+  showContracts?: boolean;
+}) {
   const pathname = usePathname();
+  const navItems = showLogistics || showContracts ? separateAdminNavItems : mainAdminNavItems;
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
     const initial = new Set<string>();
     navItems.forEach((item) => {

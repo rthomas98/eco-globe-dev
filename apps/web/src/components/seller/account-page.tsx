@@ -5,6 +5,7 @@ import { Check, X, Eye, EyeOff, Minus, Plus, BellOff, ChevronUp, ChevronDown } f
 import { Button, Input } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
 import { useDemoUser } from "@/lib/demo-user";
+import { notificationPreferenceCategories } from "@/components/notifications/notifications-demo-data";
 
 type Tab = "profile" | "security" | "preferences";
 
@@ -546,11 +547,12 @@ function UpdatePasswordModal({ onClose }: { onClose: () => void }) {
 }
 
 /* ─── Preferences tab ─── */
-type Channel = "email" | "mobile" | "inApp";
+type Channel = "email" | "sms" | "inApp";
 
 interface NotifItem {
   id: string;
   label: string;
+  description: string;
   prefs: Record<Channel, boolean>;
 }
 
@@ -561,47 +563,34 @@ interface NotifCategory {
   items: NotifItem[];
 }
 
-const initialCategories: NotifCategory[] = [
-  {
-    id: "orders",
-    title: "Orders & quotes",
-    description:
-      "Activity around buyer interest and active orders for your listings.",
-    items: [
-      { id: "i1", label: "New buyer inquiry on a listing", prefs: { email: true, mobile: false, inApp: true } },
-      { id: "i2", label: "Quote awaiting your approval", prefs: { email: true, mobile: true, inApp: false } },
-      { id: "i3", label: "Buyer requested a change to your quote", prefs: { email: false, mobile: true, inApp: false } },
-      { id: "i4", label: "Order placed against one of your listings", prefs: { email: true, mobile: true, inApp: true } },
-      { id: "i5", label: "Order cancelled", prefs: { email: true, mobile: false, inApp: false } },
-    ],
-  },
-  {
-    id: "payments",
-    title: "Payments & escrow",
-    description:
-      "Funds movement and payouts tied to your transactions.",
-    items: [
-      { id: "j1", label: "Escrow funded by buyer", prefs: { email: true, mobile: false, inApp: true } },
-      { id: "j2", label: "Escrow released to your account", prefs: { email: false, mobile: true, inApp: true } },
-      { id: "j3", label: "Dispute opened on a transaction", prefs: { email: true, mobile: true, inApp: false } },
-    ],
-  },
-  {
-    id: "listings",
-    title: "Listings & verification",
-    description:
-      "Updates on the status of your listings and seller account.",
-    items: [
-      { id: "k1", label: "Listing approved by EcoGlobe team", prefs: { email: false, mobile: false, inApp: true } },
-      { id: "k2", label: "SDS or certification needs attention", prefs: { email: true, mobile: false, inApp: false } },
-    ],
-  },
-];
+const initialCategories: NotifCategory[] = notificationPreferenceCategories.map(
+  (category) => ({
+    id: category.id,
+    title: category.title,
+    description: category.description,
+    items: category.items.map((item) => ({
+      id: item.id,
+      label: item.label,
+      description: item.description,
+      prefs: { ...item.defaultChannels },
+    })),
+  }),
+);
 
-function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+function Checkbox({
+  checked,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  ariaLabel: string;
+}) {
   return (
     <button
       type="button"
+      aria-label={ariaLabel}
+      aria-pressed={checked}
       onClick={onChange}
       className={`flex size-5 items-center justify-center rounded transition-colors ${
         checked ? "bg-neutral-900" : "bg-white hover:bg-neutral-50"
@@ -645,7 +634,7 @@ function NotificationCategoryCard({ category, onToggle }: {
           >
             <span>Question</span>
             <span className="text-center">Email</span>
-            <span className="text-center">Mobile</span>
+            <span className="text-center">SMS</span>
             <span className="text-center">In-App</span>
           </div>
           {category.items.map((item, i) => (
@@ -657,15 +646,30 @@ function NotificationCategoryCard({ category, onToggle }: {
                 borderTop: i === 0 ? "1px solid #F0F0F0" : "1px solid #F8F8F8",
               }}
             >
-              <span>{item.label}</span>
+              <span>
+                <span className="block font-medium text-neutral-900">{item.label}</span>
+                <span className="mt-1 block text-xs text-neutral-500">{item.description}</span>
+              </span>
               <div className="flex justify-center">
-                <Checkbox checked={item.prefs.email} onChange={() => onToggle(item.id, "email")} />
+                <Checkbox
+                  checked={item.prefs.email}
+                  onChange={() => onToggle(item.id, "email")}
+                  ariaLabel={`${item.label} email`}
+                />
               </div>
               <div className="flex justify-center">
-                <Checkbox checked={item.prefs.mobile} onChange={() => onToggle(item.id, "mobile")} />
+                <Checkbox
+                  checked={item.prefs.sms}
+                  onChange={() => onToggle(item.id, "sms")}
+                  ariaLabel={`${item.label} sms`}
+                />
               </div>
               <div className="flex justify-center">
-                <Checkbox checked={item.prefs.inApp} onChange={() => onToggle(item.id, "inApp")} />
+                <Checkbox
+                  checked={item.prefs.inApp}
+                  onChange={() => onToggle(item.id, "inApp")}
+                  ariaLabel={`${item.label} in-app`}
+                />
               </div>
             </div>
           ))}
@@ -701,7 +705,8 @@ function PreferencesTab() {
         <div className="flex flex-col gap-1">
           <h3 className="text-lg font-bold text-neutral-900">Don&apos;t disturb</h3>
           <p className="text-sm text-neutral-500">
-            Consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+            Pause non-critical seller alerts while keeping high-priority order,
+            escrow, and compliance deadlines visible.
           </p>
         </div>
         <button

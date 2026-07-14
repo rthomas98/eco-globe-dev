@@ -19,23 +19,46 @@ import {
 } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
+import {
+  escrowRecords,
+  escrowStatusForSeller,
+  formatEscrowMoney,
+} from "@/components/escrow/escrow-demo-data";
 
-type EscrowStatus = "Funded" | "Released" | "Disputed";
+type EscrowStatus =
+  | "Awaiting funding"
+  | "Funded"
+  | "Pending payout"
+  | "Released"
+  | "Disputed";
 
 interface Escrow {
   id: string;
   orderId: string;
   seller: string;
   amount: number;
+  amountHeld: number;
+  platformFee: number;
+  sellerPayout: number;
   orderDate: string;
   releaseDate: string;
   status: EscrowStatus;
   buyer: string;
+  product: string;
   shippingType: "Delivery" | "Pickup";
   fundedDate: string;
+  provider: string;
+  providerReference: string;
+  releaseTrigger: string;
+  automatedTrigger: string;
+  inspectionWindow: string;
+  nextStep: string;
+  disputeReason?: string;
+  documents: string[];
+  activity: { label: string; date?: string; complete: boolean }[];
 }
 
-const escrows: Escrow[] = [
+const legacyEscrows = [
   { id: "EC12345", orderId: "TS12345", seller: "Rising Star Corp",   amount: 12_900_000, orderDate: "12/12/2026", releaseDate: "ERD 03/11/2027", status: "Funded",   buyer: "GulfStar Chemicals", shippingType: "Delivery", fundedDate: "01/15/2027" },
   { id: "EC12355", orderId: "TS12355", seller: "Stark Industries",   amount: 12_400_000, orderDate: "10/28/2027", releaseDate: "ERD 03/11/2027", status: "Funded",   buyer: "BP North America",        shippingType: "Delivery", fundedDate: "10/28/2027" },
   { id: "EC12346", orderId: "TS12346", seller: "Wayne Enterprises",  amount:  9_750_000, orderDate: "01/15/2027", releaseDate: "ERD 03/11/2027", status: "Funded",   buyer: "ExxonMobil",              shippingType: "Pickup",   fundedDate: "01/15/2027" },
@@ -57,14 +80,43 @@ const escrows: Escrow[] = [
   { id: "EC12354", orderId: "TS12354", seller: "Virtanen Inc.",      amount: 20_500_000, orderDate: "09/14/2027", releaseDate: "09/14/2027",     status: "Released", buyer: "World Fuel Services",     shippingType: "Pickup",   fundedDate: "08/14/2027" },
   { id: "EC12364", orderId: "TS12364", seller: "Frobozz Co.",        amount: 15_500_000, orderDate: "07/30/2028", releaseDate: "07/30/2028",     status: "Released", buyer: "Phillips 66",             shippingType: "Delivery", fundedDate: "06/30/2028" },
 ];
+void legacyEscrows;
+
+const escrows: Escrow[] = escrowRecords.map((record) => ({
+  id: record.id,
+  orderId: record.orderId,
+  seller: record.seller,
+  amount: record.amount,
+  amountHeld: record.amountHeld,
+  platformFee: record.platformFee,
+  sellerPayout: record.sellerPayout,
+  orderDate: record.orderDate,
+  releaseDate: record.releaseDate,
+  status: escrowStatusForSeller(record.status),
+  buyer: record.buyer,
+  product: record.product,
+  shippingType: record.shippingType,
+  fundedDate: record.fundedDate,
+  provider: record.provider,
+  providerReference: record.providerReference,
+  releaseTrigger: record.releaseTrigger,
+  automatedTrigger: record.automatedTrigger,
+  inspectionWindow: record.inspectionWindow,
+  nextStep: record.sellerNextStep,
+  disputeReason: record.disputeReason,
+  documents: record.documents,
+  activity: record.activity,
+}));
 
 function formatMoney(n: number) {
-  return `$${n.toLocaleString("en-US")}`;
+  return formatEscrowMoney(n);
 }
 
 function StatusBadge({ status }: { status: EscrowStatus }) {
   const styles: Record<EscrowStatus, string> = {
+    "Awaiting funding": "bg-neutral-100 text-neutral-700",
     Funded: "bg-blue-50 text-blue-700",
+    "Pending payout": "bg-emerald-50 text-emerald-700",
     Released: "bg-green-50 text-green-700",
     Disputed: "bg-amber-50 text-amber-700",
   };
@@ -147,7 +199,7 @@ function FilterPanel({
       <div className="mt-6 border-t border-neutral-100 pt-5">
         <p className="mb-3 text-sm font-medium text-neutral-900">Escrow status</p>
         <div className="grid grid-cols-2 gap-3">
-          {(["Funded", "Released"] as EscrowStatus[]).map((s) => (
+          {(["Awaiting funding", "Funded", "Pending payout", "Released", "Disputed"] as EscrowStatus[]).map((s) => (
             <label key={s} className="flex items-center gap-2.5">
               <input
                 type="checkbox"
@@ -195,9 +247,7 @@ function EscrowDetailDrawer({
               <h2 className="text-2xl font-bold text-neutral-900">
                 Escrow ID: {escrow.id}
               </h2>
-              <span className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                In Progress
-              </span>
+              <StatusBadge status={escrow.status} />
             </div>
             <p className="text-sm text-neutral-500">{formatMoney(escrow.amount)}</p>
           </div>
@@ -237,19 +287,62 @@ function EscrowDetailDrawer({
             </div>
             <div className="grid grid-cols-2 gap-x-8 gap-y-5">
               <Field label="Amount Total" value={formatMoney(escrow.amount)} />
-              <Field label="Amount held" value={formatMoney(escrow.amount)} />
+              <Field label="Amount held" value={formatMoney(escrow.amountHeld)} />
+              <Field label="Expected payout" value={formatMoney(escrow.sellerPayout)} />
+              <Field label="Platform fee" value={formatMoney(escrow.platformFee)} />
               <Field label="Funded date" value={escrow.fundedDate} />
-              <Field label="Order ID" value={`OD${escrow.orderId.replace("TS", "204")}`} />
+              <Field label="Order ID" value={escrow.orderId} />
               <Field label="Buyer" value={escrow.buyer} />
+              <Field label="Product" value={escrow.product} />
               <Field label="Shipping type" value={escrow.shippingType} />
+              <Field label="Escrow provider" value={escrow.provider} />
+              <Field label="Provider reference" value={escrow.providerReference} />
             </div>
+          </div>
+
+          <div className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
+            <h3 className="mb-4 text-lg font-bold text-neutral-900">Seller release path</h3>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-xl bg-neutral-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  Release trigger
+                </p>
+                <p className="mt-2 text-sm font-medium text-neutral-900">
+                  {escrow.releaseTrigger}
+                </p>
+              </div>
+              <div className="rounded-xl bg-neutral-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  Automated release
+                </p>
+                <p className="mt-2 text-sm font-medium text-neutral-900">
+                  {escrow.automatedTrigger}
+                </p>
+              </div>
+              <div className="rounded-xl bg-neutral-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  Inspection window
+                </p>
+                <p className="mt-2 text-sm font-medium text-neutral-900">
+                  {escrow.inspectionWindow}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 rounded-xl bg-green-50 p-4 text-sm text-green-900">
+              {escrow.nextStep}
+            </div>
+            {escrow.disputeReason && (
+              <div className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+                Dispute reason: {escrow.disputeReason}
+              </div>
+            )}
           </div>
 
           {/* Documents */}
           <div className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
             <h3 className="mb-4 text-lg font-bold text-neutral-900">Documents</h3>
             <div className="flex flex-col gap-2">
-              {["Example data name.pdf", "Example data name.pdf"].map((name, i) => (
+              {escrow.documents.map((name, i) => (
                 <div key={i} className="flex items-center gap-3 rounded-lg bg-neutral-50 px-4 py-3">
                   <FileText className="size-5 text-neutral-500" />
                   <span className="flex-1 text-sm text-neutral-900">{name}</span>
@@ -275,7 +368,7 @@ function EscrowDetailDrawer({
           {/* Activity log */}
           <div className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
             <h3 className="mb-5 text-lg font-bold text-neutral-900">Activity Log</h3>
-            <Timeline />
+            <Timeline events={escrow.activity} />
           </div>
         </div>
       </div>
@@ -292,27 +385,25 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Timeline() {
-  const events = [
-    { label: "Buyer funded escrow",   ts: "May 18, 2026 10:15 AM", done: true },
-    { label: "Seller uploaded Bill of Lading (BOL)",   ts: "May 18, 2026 10:20 AM", done: true },
-    { label: "Buyer confirms delivery", ts: "",                    done: false },
-    { label: "Funds released",        ts: "",                      done: false },
-  ];
+function Timeline({
+  events,
+}: {
+  events: { label: string; date?: string; complete: boolean }[];
+}) {
   return (
     <div className="relative flex flex-col gap-5">
       {events.map((e, i) => (
-        <div key={i} className="flex items-start gap-4">
+        <div key={`${e.label}-${i}`} className="flex items-start gap-4">
           <div className="relative flex flex-col items-center">
             <span
               className={`size-2.5 shrink-0 rounded-full ${
-                e.done ? "bg-green-500" : "bg-neutral-300"
+                e.complete ? "bg-green-500" : "bg-neutral-300"
               }`}
             />
             {i < events.length - 1 && (
               <span
                 className={`mt-1 h-9 w-px ${
-                  e.done && events[i + 1].done ? "bg-green-500" : "bg-neutral-200"
+                  e.complete && events[i + 1].complete ? "bg-green-500" : "bg-neutral-200"
                 }`}
               />
             )}
@@ -320,12 +411,12 @@ function Timeline() {
           <div className="flex flex-1 items-start justify-between">
             <p
               className={`text-sm ${
-                e.done ? "text-neutral-900" : "text-neutral-500"
+                e.complete ? "text-neutral-900" : "text-neutral-500"
               }`}
             >
               {e.label}
             </p>
-            {e.ts && <p className="text-sm text-neutral-500">{e.ts}</p>}
+            {e.date && <p className="text-sm text-neutral-500">{e.date}</p>}
           </div>
         </div>
       ))}
@@ -337,12 +428,16 @@ export function EscrowPage() {
   const [search, setSearch] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<Record<EscrowStatus, boolean>>({
+    "Awaiting funding": false,
     Funded: false,
+    "Pending payout": false,
     Released: false,
     Disputed: false,
   });
   const [appliedFilter, setAppliedFilter] = useState<Record<EscrowStatus, boolean>>({
+    "Awaiting funding": false,
     Funded: false,
+    "Pending payout": false,
     Released: false,
     Disputed: false,
   });
@@ -369,10 +464,22 @@ export function EscrowPage() {
       return (
         e.id.toLowerCase().includes(q) ||
         e.orderId.toLowerCase().includes(q) ||
-        e.seller.toLowerCase().includes(q)
+        e.buyer.toLowerCase().includes(q) ||
+        e.product.toLowerCase().includes(q)
       );
     });
   }, [search, appliedFilter]);
+
+  const fundsOnHold = escrows.reduce((sum, e) => sum + e.amountHeld, 0);
+  const pendingRelease = escrows
+    .filter((e) => e.status === "Funded" || e.status === "Pending payout")
+    .reduce((sum, e) => sum + e.amountHeld, 0);
+  const releasedFunds = escrows
+    .filter((e) => e.status === "Released")
+    .reduce((sum, e) => sum + e.sellerPayout, 0);
+  const disputedFunds = escrows
+    .filter((e) => e.status === "Disputed")
+    .reduce((sum, e) => sum + e.amountHeld, 0);
 
   return (
     <SellerLayout title="Escrow">
@@ -415,7 +522,13 @@ export function EscrowPage() {
                 setStatusFilter((p) => ({ ...p, [s]: !p[s] }))
               }
               onReset={() => {
-                const empty = { Funded: false, Released: false, Disputed: false };
+                const empty: Record<EscrowStatus, boolean> = {
+                  "Awaiting funding": false,
+                  Funded: false,
+                  "Pending payout": false,
+                  Released: false,
+                  Disputed: false,
+                };
                 setStatusFilter(empty);
                 setAppliedFilter(empty);
               }}
@@ -430,10 +543,10 @@ export function EscrowPage() {
 
       {/* KPI cards */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Funds on Hold"   value="$123,456,789" icon={DollarSign}    iconBg="bg-neutral-100" iconColor="text-neutral-600" />
-        <KpiCard label="Pending Release" value="$123,456,789" icon={History}       iconBg="bg-neutral-100" iconColor="text-neutral-600" />
-        <KpiCard label="Released Funds"  value="$123,456,789" icon={CheckCircle2}  iconBg="bg-green-50"    iconColor="text-green-600" />
-        <KpiCard label="Disputed Funds"  value="$123,456,789" icon={AlertTriangle} iconBg="bg-amber-50"    iconColor="text-amber-600" />
+        <KpiCard label="Funds on Hold"   value={formatMoney(fundsOnHold)} icon={DollarSign}    iconBg="bg-neutral-100" iconColor="text-neutral-600" />
+        <KpiCard label="Pending Release" value={formatMoney(pendingRelease)} icon={History}       iconBg="bg-neutral-100" iconColor="text-neutral-600" />
+        <KpiCard label="Released Funds"  value={formatMoney(releasedFunds)} icon={CheckCircle2}  iconBg="bg-green-50"    iconColor="text-green-600" />
+        <KpiCard label="Disputed Funds"  value={formatMoney(disputedFunds)} icon={AlertTriangle} iconBg="bg-amber-50"    iconColor="text-amber-600" />
       </div>
 
       {/* Table */}
@@ -444,7 +557,7 @@ export function EscrowPage() {
               <tr className="text-left text-sm font-semibold text-neutral-900" style={{ borderBottom: "1px solid #F0F0F0" }}>
                 <th className="px-6 py-4">Escrow ID</th>
                 <th className="px-6 py-4">Order ID</th>
-                <th className="px-6 py-4">Seller</th>
+                <th className="px-6 py-4">Buyer</th>
                 <th className="px-6 py-4">Amount</th>
                 <th className="px-6 py-4">Order Date</th>
                 <th className="px-6 py-4">Release Date</th>
@@ -462,7 +575,7 @@ export function EscrowPage() {
                 >
                   <td className="px-6 py-4 font-medium text-neutral-900">{e.id}</td>
                   <td className="px-6 py-4">{e.orderId}</td>
-                  <td className="px-6 py-4">{e.seller}</td>
+                  <td className="px-6 py-4">{e.buyer}</td>
                   <td className="px-6 py-4">{formatMoney(e.amount)}</td>
                   <td className="px-6 py-4">{e.orderDate}</td>
                   <td className="px-6 py-4">{e.releaseDate}</td>

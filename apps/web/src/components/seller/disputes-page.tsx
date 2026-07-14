@@ -11,20 +11,22 @@ type DisputeStatus = "Open" | "Awaiting buyer" | "Under review" | "Resolved";
 interface Dispute {
   id: string;
   orderId: string;
+  escrowId: string;
   buyer: string;
   reason: string;
   amount: string;
   opened: string;
   status: DisputeStatus;
   unread: number;
+  escrowNote: string;
 }
 
 const disputes: Dispute[] = [
-  { id: "DSP-2041", orderId: "TS98765", buyer: "AgriCorp Solutions", reason: "Quantity mismatch on delivery", amount: "$13,440.00", opened: "2026-05-01", status: "Open", unread: 2 },
-  { id: "DSP-2038", orderId: "TS98742", buyer: "GreenHarvest Co.", reason: "Quality below specification", amount: "$8,210.00", opened: "2026-04-28", status: "Under review", unread: 0 },
-  { id: "DSP-2031", orderId: "TS98711", buyer: "NutriFeed Industries", reason: "Damaged in transit", amount: "$4,990.00", opened: "2026-04-22", status: "Awaiting buyer", unread: 1 },
-  { id: "DSP-2027", orderId: "TS98699", buyer: "BioGreen Innovations", reason: "Wrong product shipped", amount: "$2,180.00", opened: "2026-04-15", status: "Resolved", unread: 0 },
-  { id: "DSP-2018", orderId: "TS98641", buyer: "PurePastures Ltd.", reason: "Carbon certification missing", amount: "$5,640.00", opened: "2026-04-08", status: "Resolved", unread: 0 },
+  { id: "DSP-2041", orderId: "EG-50021", escrowId: "ESC-50021", buyer: "AgriCorp Solutions", reason: "Quantity mismatch on delivery", amount: "$13,440.00", opened: "2026-05-01", status: "Open", unread: 2, escrowNote: "Funds remain held until you upload delivery weight proof." },
+  { id: "DSP-2038", orderId: "EG-50018", escrowId: "ESC-50018", buyer: "GreenHarvest Co.", reason: "Quality below specification", amount: "$8,210.00", opened: "2026-04-28", status: "Under review", unread: 0, escrowNote: "Automated release is paused while EcoGlobe reviews quality evidence." },
+  { id: "DSP-2031", orderId: "EG-50012", escrowId: "ESC-50012", buyer: "NutriFeed Industries", reason: "Damaged in transit", amount: "$4,990.00", opened: "2026-04-22", status: "Awaiting buyer", unread: 1, escrowNote: "Payout completed; this dispute is retained for account history." },
+  { id: "DSP-2027", orderId: "EG-50009", escrowId: "ESC-50009", buyer: "BioGreen Innovations", reason: "Wrong product shipped", amount: "$2,180.00", opened: "2026-04-15", status: "Resolved", unread: 0, escrowNote: "Release resumed after buyer accepted corrected delivery." },
+  { id: "DSP-2018", orderId: "EG-50002", escrowId: "ESC-50002", buyer: "PurePastures Ltd.", reason: "Carbon certification missing", amount: "$5,640.00", opened: "2026-04-08", status: "Resolved", unread: 0, escrowNote: "Closed with documentation credit and adjusted payout." },
 ];
 
 const STATUS_FILTERS: Array<DisputeStatus | "All"> = ["All", "Open", "Awaiting buyer", "Under review", "Resolved"];
@@ -103,6 +105,9 @@ export function SellerDisputesPage() {
                     <p className="mt-0.5 text-xs text-neutral-500">
                       {d.buyer} · Order {d.orderId} · {d.amount}
                     </p>
+                    <p className="mt-1 font-mono text-xs text-neutral-500">
+                      Escrow {d.escrowId}
+                    </p>
                   </div>
                   <ChevronRight className="mt-1 size-4 shrink-0 text-neutral-300" />
                 </button>
@@ -161,6 +166,16 @@ function DisputeDetail({ dispute }: { dispute: Dispute }) {
           </p>
         </div>
       </header>
+
+      <section className="rounded-xl bg-amber-50 p-4">
+        <h3 className="text-sm font-semibold text-amber-950">Escrow impact</h3>
+        <p className="mt-1 text-sm text-amber-900">
+          <Link href="/seller/accounting/escrow" className="font-mono underline">
+            {dispute.escrowId}
+          </Link>{" "}
+          · {dispute.escrowNote}
+        </p>
+      </section>
 
       <section>
         <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-neutral-500">

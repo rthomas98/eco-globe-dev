@@ -81,6 +81,9 @@ export function Footer() {
                     { label: "Contact us", href: "/contact" },
                     { label: "Careers", href: "/careers" },
                     { label: "FAQs", href: "/faqs" },
+                    { label: "Video demos", href: "/video-demos" },
+                    { label: "Language preview", href: "/language" },
+                    { label: "Mobile preview", href: "/mobile-preview" },
                     { label: "Help Center", href: "/help" },
                     { label: "Newsletter", href: "/newsletter" },
                   ]}

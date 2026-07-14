@@ -16,6 +16,7 @@ import {
   useDemoUser,
   writeDemoUser,
 } from "@/lib/demo-user";
+import { notificationPreferenceCategories } from "@/components/notifications/notifications-demo-data";
 import { BuyerLayout } from "./buyer-layout";
 
 type Tab = "profile" | "company" | "security" | "preferences";
@@ -36,13 +37,34 @@ const defaultProfile: ProfileForm = {
   department: "Strategic Sourcing",
 };
 
-const preferenceRows = [
-  "Order updates",
-  "Quote approvals",
-  "Escrow and payment alerts",
-  "Carbon Calculator results",
-  "New matching feedstocks",
-];
+type PreferenceChannel = "email" | "sms" | "inApp";
+
+interface BuyerPreferenceItem {
+  id: string;
+  label: string;
+  description: string;
+  channels: Record<PreferenceChannel, boolean>;
+}
+
+interface BuyerPreferenceCategory {
+  id: string;
+  title: string;
+  description: string;
+  items: BuyerPreferenceItem[];
+}
+
+const buyerPreferenceCategories: BuyerPreferenceCategory[] =
+  notificationPreferenceCategories.map((category) => ({
+    id: category.id,
+    title: category.title,
+    description: category.description,
+    items: category.items.map((item) => ({
+      id: item.id,
+      label: item.label,
+      description: item.description,
+      channels: { ...item.defaultChannels },
+    })),
+  }));
 
 function FieldRow({
   label,
@@ -216,26 +238,105 @@ function SecurityTab() {
 }
 
 function PreferencesTab() {
+  const [categories, setCategories] = useState<BuyerPreferenceCategory[]>(
+    buyerPreferenceCategories,
+  );
+  const [paused, setPaused] = useState(false);
+
+  const toggleChannel = (
+    categoryId: string,
+    itemId: string,
+    channel: PreferenceChannel,
+  ) => {
+    setCategories((current) =>
+      current.map((category) =>
+        category.id !== categoryId
+          ? category
+          : {
+              ...category,
+              items: category.items.map((item) =>
+                item.id !== itemId
+                  ? item
+                  : {
+                      ...item,
+                      channels: {
+                        ...item.channels,
+                        [channel]: !item.channels[channel],
+                      },
+                    },
+              ),
+            },
+      ),
+    );
+  };
+
   return (
     <section
       className="rounded-2xl bg-white p-5"
       style={{ border: "1px solid #F0F0F0" }}
     >
-      <div className="mb-5 flex items-center gap-2">
-        <Bell className="size-5 text-neutral-700" />
-        <h2 className="text-lg font-bold text-neutral-900">Notification preferences</h2>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-2">
+          <Bell className="mt-0.5 size-5 text-neutral-700" />
+          <div>
+            <h2 className="text-lg font-bold text-neutral-900">Notification preferences</h2>
+            <p className="mt-1 text-sm text-neutral-600">
+              Control order, escrow, sustainability, and compliance alerts across
+              email, SMS, and in-app notifications.
+            </p>
+          </div>
+        </div>
+        <Button
+          variant={paused ? "primary" : "secondary"}
+          size="sm"
+          onClick={() => setPaused((value) => !value)}
+        >
+          {paused ? "Resume Alerts" : "Pause Non-critical Alerts"}
+        </Button>
       </div>
-      <div className="flex flex-col">
-        {preferenceRows.map((label) => (
+      <div className="flex flex-col gap-4">
+        {categories.map((category) => (
           <div
-            key={label}
-            className="flex items-center justify-between py-4"
-            style={{ borderBottom: "1px solid #F0F0F0" }}
+            key={category.id}
+            className="rounded-xl bg-neutral-50 p-4"
+            style={{ border: "1px solid #F0F0F0" }}
           >
-            <span className="text-sm font-semibold text-neutral-900">{label}</span>
-            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
-              Enabled
-            </span>
+            <div className="mb-3">
+              <h3 className="text-sm font-bold text-neutral-900">{category.title}</h3>
+              <p className="mt-1 text-xs text-neutral-500">{category.description}</p>
+            </div>
+            <div className="flex flex-col">
+              {category.items.map((item) => (
+                <div
+                  key={item.id}
+                  className="grid gap-3 py-3 text-sm sm:grid-cols-[1fr_72px_72px_72px] sm:items-center"
+                  style={{ borderTop: "1px solid #F0F0F0" }}
+                >
+                  <div>
+                    <p className="font-semibold text-neutral-900">{item.label}</p>
+                    <p className="mt-1 text-xs text-neutral-500">{item.description}</p>
+                  </div>
+                  {(["email", "sms", "inApp"] as const).map((channel) => (
+                    <label
+                      key={channel}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-neutral-700 sm:justify-center"
+                      style={{ border: "1px solid #E7E7E7" }}
+                    >
+                      <span className="sm:hidden">
+                        {channel === "inApp" ? "In-app" : channel.toUpperCase()}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={item.channels[channel]}
+                        onChange={() => toggleChannel(category.id, item.id, channel)}
+                        className="size-4 accent-neutral-900"
+                        aria-label={`${item.label} ${channel}`}
+                      />
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>

@@ -5,41 +5,76 @@ import { Search, SlidersHorizontal, DollarSign, RefreshCw, CheckCircle2, AlertTr
 import { Button } from "@eco-globe/ui";
 import { ExportDropdown } from "./export-dropdown";
 import { DateRangeDropdown } from "./date-range-dropdown";
+import {
+  escrowRecords,
+  escrowStatusForAdmin,
+  formatEscrowMoney,
+} from "@/components/escrow/escrow-demo-data";
 
-type EscrowStatus = "In Progress" | "Completed";
-interface EscrowItem { id: string; date: string; escrow: string; orderId: string; buyer: string; seller: string; amount: string; status: EscrowStatus; }
+type EscrowStatus = "In Progress" | "Ready to release" | "Disputed" | "Completed";
+interface EscrowItem {
+  id: string;
+  date: string;
+  escrow: string;
+  orderId: string;
+  buyer: string;
+  seller: string;
+  product: string;
+  amount: string;
+  amountHeld: string;
+  provider: string;
+  providerReference: string;
+  releaseTrigger: string;
+  automatedTrigger: string;
+  inspectionWindow: string;
+  adminNextStep: string;
+  disputeReason?: string;
+  documents: string[];
+  activity: { label: string; date?: string; complete: boolean }[];
+  status: EscrowStatus;
+}
 
-const escrowItems: EscrowItem[] = Array.from({ length: 20 }, (_, i) => ({
-  id: "TS12345",
-  date: "12/12/2026",
-  escrow: i < 2 ? "Fund" : "Escrow released",
-  orderId: "OD12346",
-  buyer: "Buyer name",
-  seller: "Seller name",
-  amount: "$12,900,000",
-  status: i < 2 ? "In Progress" as EscrowStatus : "Completed" as EscrowStatus,
+const escrowItems: EscrowItem[] = escrowRecords.map((record) => ({
+  id: record.id,
+  date: record.orderDate,
+  escrow: record.status === "Released" ? "Escrow released" : "Funds held",
+  orderId: record.orderId,
+  buyer: record.buyer,
+  seller: record.seller,
+  product: record.product,
+  amount: formatEscrowMoney(record.amount),
+  amountHeld: formatEscrowMoney(record.amountHeld),
+  provider: record.provider,
+  providerReference: record.providerReference,
+  releaseTrigger: record.releaseTrigger,
+  automatedTrigger: record.automatedTrigger,
+  inspectionWindow: record.inspectionWindow,
+  adminNextStep: record.adminNextStep,
+  disputeReason: record.disputeReason,
+  documents: record.documents,
+  activity: record.activity,
+  status: escrowStatusForAdmin(record.status),
 }));
 
 function StatusBadge({ status }: { status: EscrowStatus }) {
-  const s: Record<EscrowStatus, string> = { "In Progress": "bg-amber-50 text-amber-600", Completed: "bg-green-50 text-green-600" };
+  const s: Record<EscrowStatus, string> = {
+    "In Progress": "bg-blue-50 text-blue-700",
+    "Ready to release": "bg-emerald-50 text-emerald-700",
+    Disputed: "bg-amber-50 text-amber-700",
+    Completed: "bg-green-50 text-green-600",
+  };
   return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${s[status]}`}>{status}</span>;
 }
 
 function EscrowDetailDrawer({ item, onClose }: { item: EscrowItem; onClose: () => void }) {
-  const log = [
-    { event: "Buyer funded escrow", date: "May 18, 2026 10:15 AM", active: true },
-    { event: "Seller uploaded Bill of Lading (BOL)", date: "May 18, 2026 10:20 AM", active: true },
-    { event: "Buyer confirms delivery", date: "", active: false },
-    { event: "Funds released", date: "", active: false },
-  ];
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/20" onClick={onClose} />
       <div className="relative z-10 flex h-full w-full max-w-[680px] flex-col overflow-y-auto bg-white shadow-xl">
         <div className="sticky top-0 z-10 flex items-center justify-between bg-white px-6 py-4" style={{ borderBottom: "1px solid #F0F0F0" }}>
           <div>
-            <div className="flex items-center gap-3"><h2 className="text-xl font-bold text-neutral-900">Escrow ID: EC12345</h2><StatusBadge status={item.status} /></div>
-            <p className="text-sm text-neutral-500">$15,500,000</p>
+            <div className="flex items-center gap-3"><h2 className="text-xl font-bold text-neutral-900">Escrow ID: {item.id}</h2><StatusBadge status={item.status} /></div>
+            <p className="text-sm text-neutral-500">{item.amount}</p>
           </div>
           <div className="flex items-center gap-2">
             <button className="flex size-9 items-center justify-center rounded-full hover:bg-neutral-100"><MoreHorizontal className="size-5 text-neutral-500" /></button>
@@ -50,19 +85,36 @@ function EscrowDetailDrawer({ item, onClose }: { item: EscrowItem; onClose: () =
           <section>
             <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-semibold text-neutral-900">Escrow info</h3><button className="text-sm font-medium text-green-600">View Order Detail</button></div>
             <div className="grid grid-cols-2 gap-y-4 rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
-              <div><p className="text-xs font-semibold text-neutral-500">Amount Total</p><p className="text-sm text-neutral-900">$15,500,000</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Amount held</p><p className="text-sm text-neutral-900">$15,500,000</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Funded date</p><p className="text-sm text-neutral-900">01/15/2027</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Order ID</p><p className="text-sm text-neutral-900">OD20411</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Buyer</p><p className="text-sm text-neutral-900">GulfStar Chemicals</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Seller</p><p className="text-sm text-neutral-900">Umbrella Corp</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Shipping type</p><p className="text-sm text-neutral-900">Delivery</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Amount Total</p><p className="text-sm text-neutral-900">{item.amount}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Amount held</p><p className="text-sm text-neutral-900">{item.amountHeld}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Provider</p><p className="text-sm text-neutral-900">{item.provider}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Provider reference</p><p className="text-sm text-neutral-900">{item.providerReference}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Order ID</p><p className="text-sm text-neutral-900">{item.orderId}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Product</p><p className="text-sm text-neutral-900">{item.product}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Buyer</p><p className="text-sm text-neutral-900">{item.buyer}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Seller</p><p className="text-sm text-neutral-900">{item.seller}</p></div>
             </div>
+          </section>
+          <section>
+            <h3 className="mb-4 text-lg font-semibold text-neutral-900">Release automation</h3>
+            <div className="grid gap-3 rounded-xl p-5 md:grid-cols-3" style={{ border: "1px solid #F0F0F0" }}>
+              <div><p className="text-xs font-semibold text-neutral-500">Release trigger</p><p className="mt-1 text-sm text-neutral-900">{item.releaseTrigger}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Automated release</p><p className="mt-1 text-sm text-neutral-900">{item.automatedTrigger}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Inspection window</p><p className="mt-1 text-sm text-neutral-900">{item.inspectionWindow}</p></div>
+            </div>
+            <div className="mt-3 rounded-xl bg-neutral-50 p-4 text-sm text-neutral-800">
+              Admin next step: {item.adminNextStep}
+            </div>
+            {item.disputeReason && (
+              <div className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+                Dispute reason: {item.disputeReason}
+              </div>
+            )}
           </section>
           <section>
             <h3 className="mb-4 text-lg font-semibold text-neutral-900">Documents</h3>
             <div className="flex flex-col gap-3">
-              {["Example data name.pdf", "Example data name.pdf"].map((doc, i) => (
+              {item.documents.map((doc, i) => (
                 <div key={i} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ border: "1px solid #F0F0F0" }}>
                   <div className="flex items-center gap-3"><FileText className="size-5 text-neutral-400" /><span className="text-sm text-neutral-900">{doc}</span></div>
                   <div className="flex items-center gap-2"><button className="text-neutral-400 hover:text-neutral-700"><Download className="size-4" /></button><button className="text-neutral-400 hover:text-neutral-700"><MoreHorizontal className="size-4" /></button></div>
@@ -73,10 +125,10 @@ function EscrowDetailDrawer({ item, onClose }: { item: EscrowItem; onClose: () =
           <section>
             <h3 className="mb-4 text-lg font-semibold text-neutral-900">Activity Log</h3>
             <div className="rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
-              {log.map((item, i) => (
-                <div key={item.event} className="flex gap-4">
-                  <div className="flex flex-col items-center"><div className={`size-3 rounded-full ${item.active ? "bg-green-500" : "bg-neutral-300"}`} />{i < log.length - 1 && <div className={`w-0.5 flex-1 ${item.active && log[i + 1]?.active ? "bg-green-500" : "bg-neutral-200"}`} />}</div>
-                  <div className="flex flex-1 items-center justify-between pb-5"><span className={`text-sm ${item.active ? "font-medium text-neutral-900" : "text-neutral-400"}`}>{item.event}</span>{item.date && <span className="text-xs text-neutral-500">{item.date}</span>}</div>
+              {item.activity.map((event, i) => (
+                <div key={`${event.label}-${i}`} className="flex gap-4">
+                  <div className="flex flex-col items-center"><div className={`size-3 rounded-full ${event.complete ? "bg-green-500" : "bg-neutral-300"}`} />{i < item.activity.length - 1 && <div className={`w-0.5 flex-1 ${event.complete && item.activity[i + 1]?.complete ? "bg-green-500" : "bg-neutral-200"}`} />}</div>
+                  <div className="flex flex-1 items-center justify-between pb-5"><span className={`text-sm ${event.complete ? "font-medium text-neutral-900" : "text-neutral-400"}`}>{event.label}</span>{event.date && <span className="text-xs text-neutral-500">{event.date}</span>}</div>
                 </div>
               ))}
             </div>
@@ -112,6 +164,16 @@ export function EscrowPage() {
     const q = searchQuery.toLowerCase();
     return item.id.toLowerCase().includes(q) || item.orderId.toLowerCase().includes(q) || item.buyer.toLowerCase().includes(q) || item.seller.toLowerCase().includes(q);
   });
+  const fundsOnHold = escrowRecords.reduce((sum, item) => sum + item.amountHeld, 0);
+  const pendingRelease = escrowRecords
+    .filter((item) => item.status === "Held in escrow" || item.status === "Ready to release")
+    .reduce((sum, item) => sum + item.amountHeld, 0);
+  const releasedFunds = escrowRecords
+    .filter((item) => item.status === "Released")
+    .reduce((sum, item) => sum + item.sellerPayout, 0);
+  const disputedFunds = escrowRecords
+    .filter((item) => item.status === "Disputed")
+    .reduce((sum, item) => sum + item.amountHeld, 0);
 
   return (
     <div className="flex h-full flex-col">
@@ -133,7 +195,7 @@ export function EscrowPage() {
         </div>
       </div>
       <div className="grid grid-cols-4 gap-4 px-6 pb-5">
-        {[{ l: "Funds on Hold", v: "$123,456,789", i: DollarSign }, { l: "Pending Release", v: "$123,456,789", i: RefreshCw }, { l: "Released Funds", v: "$123,456,789", i: CheckCircle2 }, { l: "Disputed Funds", v: "$123,456,789", i: AlertTriangle }].map((s) => (
+        {[{ l: "Funds on Hold", v: formatEscrowMoney(fundsOnHold), i: DollarSign }, { l: "Pending Release", v: formatEscrowMoney(pendingRelease), i: RefreshCw }, { l: "Released Funds", v: formatEscrowMoney(releasedFunds), i: CheckCircle2 }, { l: "Disputed Funds", v: formatEscrowMoney(disputedFunds), i: AlertTriangle }].map((s) => (
           <div key={s.l} className="flex flex-col gap-2 rounded-xl px-5 py-4" style={{ border: "1px solid #F0F0F0" }}><div className="flex items-center justify-between"><span className="text-sm text-neutral-500">{s.l}</span><s.i className="size-4 text-neutral-400" /></div><span className="text-2xl font-bold text-neutral-900">{s.v}</span></div>
         ))}
       </div>

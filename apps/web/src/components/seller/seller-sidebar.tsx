@@ -20,6 +20,19 @@ import {
   LogOut,
   AlertTriangle,
   FileText,
+  Truck,
+  FileSignature,
+  PenLine,
+  ShieldCheck,
+  Video,
+  Route,
+  Network,
+  Lightbulb,
+  Blocks,
+  Workflow,
+  Languages,
+  Rocket,
+  MonitorSmartphone,
 } from "lucide-react";
 import { NotificationsPanel } from "./notifications-panel";
 import {
@@ -41,6 +54,15 @@ const navItems: NavItem[] = [
   { label: "Home", href: "/", icon: Home },
   { label: "Listings", href: "/seller/listings", icon: LayoutGrid },
   { label: "Sales", href: "/seller/sales", icon: TrendingUp },
+  { label: "Logistics", href: "/seller/logistics", icon: Truck },
+  { label: "Contracts", href: "/seller/contracts", icon: FileSignature },
+  { label: "E-signatures", href: "/seller/e-signatures", icon: PenLine },
+  { label: "Verification", href: "/seller/verification", icon: ShieldCheck },
+  { label: "Delivery Tracking", href: "/seller/delivery-tracking", icon: Route },
+  { label: "Partner Network", href: "/seller/partners", icon: Network },
+  { label: "Asset Verification", href: "/seller/asset-verification", icon: ShieldCheck },
+  { label: "Blockchain", href: "/seller/blockchain-traceability", icon: Blocks },
+  { label: "Smart Contracts", href: "/seller/smart-contracts", icon: Workflow },
   {
     label: "Carbon Calculator",
     href: "/seller/carbon-calculator",
@@ -52,6 +74,7 @@ const navItems: NavItem[] = [
     icon: Receipt,
     children: [
       { label: "Transactions", href: "/seller/accounting/transactions" },
+      { label: "Payments", href: "/seller/accounting/payments" },
       { label: "Escrow", href: "/seller/accounting/escrow" },
       { label: "Bank Account", href: "/seller/accounting/bank-account" },
     ],
@@ -68,6 +91,12 @@ const navItems: NavItem[] = [
   },
   { label: "Disputes", href: "/seller/disputes", icon: AlertTriangle },
   { label: "Documents", href: "/seller/documents", icon: FileText },
+  { label: "Analytics", href: "/seller/analytics", icon: BarChart3 },
+  { label: "Recommendations", href: "/seller/recommendations", icon: Lightbulb },
+  { label: "Language", href: "/seller/language", icon: Languages },
+  { label: "National Expansion", href: "/seller/national-expansion", icon: Rocket },
+  { label: "Mobile Access", href: "/seller/mobile-access", icon: MonitorSmartphone },
+  { label: "Video demos", href: "/seller/video-demos", icon: Video },
 ];
 
 function UserMenu({

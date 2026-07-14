@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Info, MoreHorizontal, Filter, CheckCheck, Settings } from "lucide-react";
+import { Info, MoreHorizontal, Filter, CheckCheck, Settings, Mail, MessageSquareText, MonitorDot } from "lucide-react";
 import {
   adminNotificationGroups,
   type AdminNotification,
 } from "./notifications-data";
+import type { NotificationChannel } from "@/components/notifications/notifications-demo-data";
 
 type Tab = "all" | "unread";
 type Category =
@@ -15,7 +16,10 @@ type Category =
   | "Compliance"
   | "Transactions"
   | "Disputes"
-  | "System";
+  | "System"
+  | "Orders"
+  | "Payments"
+  | "Sustainability";
 
 const CATEGORIES: Category[] = [
   "All",
@@ -23,6 +27,9 @@ const CATEGORIES: Category[] = [
   "Compliance",
   "Transactions",
   "Disputes",
+  "Orders",
+  "Payments",
+  "Sustainability",
   "System",
 ];
 
@@ -31,29 +38,36 @@ const CATEGORY_TONE: Record<Exclude<Category, "All">, { bg: string; fg: string }
   Compliance: { bg: "#FEF3C7", fg: "#92400E" },
   Transactions: { bg: "#DCFCE7", fg: "#166534" },
   Disputes: { bg: "#FEE2E2", fg: "#991B1B" },
+  Orders: { bg: "#DBEAFE", fg: "#1D4ED8" },
+  Payments: { bg: "#DCFCE7", fg: "#166534" },
+  Sustainability: { bg: "#D1FAE5", fg: "#047857" },
   System: { bg: "#F1F5F9", fg: "#334155" },
 };
 
 export function AdminNotificationsPage() {
   const [tab, setTab] = useState<Tab>("all");
   const [category, setCategory] = useState<Category>("All");
+  const [readIds, setReadIds] = useState<string[]>([]);
+
+  const isUnread = (item: AdminNotification) =>
+    item.unread && !readIds.includes(item.id);
 
   const filtered = useMemo(() => {
     return adminNotificationGroups
       .map((g) => ({
         group: g.group,
         items: g.items.filter((i) => {
-          if (tab === "unread" && !i.unread) return false;
+          if (tab === "unread" && !isUnread(i)) return false;
           if (category !== "All" && i.category !== category) return false;
           return true;
         }),
       }))
       .filter((g) => g.items.length > 0);
-  }, [tab, category]);
+  }, [tab, category, readIds]);
 
   const totalUnread = adminNotificationGroups
     .flatMap((g) => g.items)
-    .filter((i) => i.unread).length;
+    .filter((i) => isUnread(i)).length;
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -67,7 +81,14 @@ export function AdminNotificationsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50" style={{ border: "1px solid #E0E0E0" }}>
+            <button
+              type="button"
+              onClick={() =>
+                setReadIds(adminNotificationGroups.flatMap((g) => g.items.map((item) => item.id)))
+              }
+              className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              style={{ border: "1px solid #E0E0E0" }}
+            >
               <CheckCheck className="size-4" />
               Mark all as read
             </button>
@@ -143,8 +164,14 @@ export function AdminNotificationsPage() {
               <div className="rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
                 {group.items.map((item, i) => (
                   <NotificationRow
-                    key={i}
+                    key={item.id}
                     item={item}
+                    unread={isUnread(item)}
+                    onOpen={() =>
+                      setReadIds((current) =>
+                        current.includes(item.id) ? current : [...current, item.id],
+                      )
+                    }
                     isLast={i === group.items.length - 1}
                   />
                 ))}
@@ -157,14 +184,34 @@ export function AdminNotificationsPage() {
   );
 }
 
-function NotificationRow({ item, isLast }: { item: AdminNotification; isLast: boolean }) {
+function NotificationRow({
+  item,
+  unread,
+  onOpen,
+  isLast,
+}: {
+  item: AdminNotification;
+  unread: boolean;
+  onOpen: () => void;
+  isLast: boolean;
+}) {
   const tone = CATEGORY_TONE[item.category as Exclude<Category, "All">];
+  const channelIcon: Record<NotificationChannel, React.ComponentType<{ className?: string }>> = {
+    email: Mail,
+    sms: MessageSquareText,
+    inApp: MonitorDot,
+  };
+  const channelLabel: Record<NotificationChannel, string> = {
+    email: "Email",
+    sms: "SMS",
+    inApp: "In-app",
+  };
   const className = `flex items-start gap-3 px-5 py-4 ${item.href ? "hover:bg-neutral-50" : ""}`;
   const style = { borderBottom: isLast ? undefined : "1px solid #F4F4F5" };
   const inner = (
     <>
       <div className="mt-1 flex size-2 shrink-0 items-center justify-center">
-        {item.unread && <span className="size-2 rounded-full bg-red-500" />}
+        {unread && <span className="size-2 rounded-full bg-red-500" />}
       </div>
       <Info className="mt-0.5 size-5 shrink-0 text-neutral-400" />
       <div className="flex-1">
@@ -175,34 +222,45 @@ function NotificationRow({ item, isLast }: { item: AdminNotification; isLast: bo
           >
             {item.category}
           </span>
-          <p className={`text-sm ${item.unread ? "font-semibold text-neutral-900" : "text-neutral-700"}`}>
+          <p className={`text-sm ${unread ? "font-semibold text-neutral-900" : "text-neutral-700"}`}>
             {item.msg}
           </p>
         </div>
         <p className="mt-1 text-xs text-neutral-400">
-          {item.source} · {item.time}
+          {item.source} · {item.time} · {item.priority} priority
         </p>
+        <p className="mt-2 text-xs leading-5 text-neutral-500">{item.detail}</p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {item.channels.map((channel) => {
+            const ChannelIcon = channelIcon[channel];
+            return (
+              <span
+                key={channel}
+                className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-[10px] font-semibold text-neutral-600"
+              >
+                <ChannelIcon className="size-3" />
+                {channelLabel[channel]}
+              </span>
+            );
+          })}
+        </div>
       </div>
-      <button
-        type="button"
-        onClick={(e) => e.preventDefault()}
-        className="shrink-0 text-neutral-400 hover:text-neutral-700"
-      >
+      <span className="shrink-0 text-neutral-400">
         <MoreHorizontal className="size-4" />
-      </button>
+      </span>
     </>
   );
 
   if (item.href) {
     return (
-      <Link href={item.href} className={className} style={style}>
+      <Link href={item.href} onClick={onOpen} className={className} style={style}>
         {inner}
       </Link>
     );
   }
   return (
-    <div className={className} style={style}>
+    <button type="button" onClick={onOpen} className={className} style={style}>
       {inner}
-    </div>
+    </button>
   );
 }

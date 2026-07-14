@@ -3,40 +3,42 @@
 import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Download } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { notificationPreferenceCategories } from "@/components/notifications/notifications-demo-data";
 
-const STORAGE_KEY = "ecoglobe_notif_prefs";
+const STORAGE_KEY = "ecoglobe_notif_prefs_v2";
 
-interface NotifItem { label: string; email: boolean; mobile: boolean; inApp: boolean; }
+interface NotifItem { label: string; description: string; email: boolean; sms: boolean; inApp: boolean; }
 interface Category { title: string; description: string; items: NotifItem[]; }
 
-const defaultCategories: Category[] = [
-  { title: "Marketplace activity", description: "Listing approvals, new sellers, dispute escalations, and other activity that needs admin eyes.", items: [
-    { label: "New listing pending approval", email: true, mobile: false, inApp: true },
-    { label: "Listing flagged by a buyer", email: true, mobile: true, inApp: false },
-    { label: "Seller verification documents uploaded", email: false, mobile: true, inApp: false },
-    { label: "SDS missing on an active listing", email: true, mobile: true, inApp: true },
-    { label: "Listing edits submitted for review", email: true, mobile: false, inApp: false },
-  ]},
-  { title: "Payments & escrow", description: "Escrow events, refunds, and payouts that touch the marketplace ledger.", items: [
-    { label: "Escrow funded", email: true, mobile: false, inApp: true },
-    { label: "Escrow released to seller", email: true, mobile: true, inApp: false },
-    { label: "Refund issued", email: false, mobile: true, inApp: false },
-    { label: "Dispute opened on a transaction", email: true, mobile: true, inApp: true },
-    { label: "Payout failed or returned", email: true, mobile: false, inApp: false },
-  ]},
-  { title: "Compliance & support", description: "Support tickets, compliance checks, and other items that need a human in the loop.", items: [
-    { label: "New support ticket from a buyer", email: true, mobile: false, inApp: true },
-    { label: "New support ticket from a seller", email: true, mobile: true, inApp: false },
-    { label: "Compliance check failed", email: false, mobile: true, inApp: false },
-    { label: "Account flagged for review", email: true, mobile: true, inApp: true },
-    { label: "Weekly compliance digest", email: true, mobile: false, inApp: false },
-  ]},
-];
+const defaultCategories: Category[] = notificationPreferenceCategories.map((category) => ({
+  title: category.title,
+  description: category.description,
+  items: category.items.map((item) => ({
+    label: item.label,
+    description: item.description,
+    email: item.defaultChannels.email,
+    sms: item.defaultChannels.sms,
+    inApp: item.defaultChannels.inApp,
+  })),
+}));
 
 function getPrefs(): Category[] {
   if (typeof window === "undefined") return defaultCategories;
   const s = localStorage.getItem(STORAGE_KEY);
-  return s ? JSON.parse(s) : defaultCategories;
+  if (!s) return defaultCategories;
+  try {
+    const parsed = JSON.parse(s) as Category[];
+    return parsed.map((cat) => ({
+      ...cat,
+      items: cat.items.map((item) => ({
+        ...item,
+        description: item.description ?? "",
+        sms: item.sms ?? (item as unknown as { mobile?: boolean }).mobile ?? false,
+      })),
+    }));
+  } catch {
+    return defaultCategories;
+  }
 }
 
 export function NotificationsPreferencesPage() {
@@ -50,7 +52,7 @@ export function NotificationsPreferencesPage() {
     setExpanded((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
   };
 
-  const togglePref = (catIdx: number, itemIdx: number, channel: "email" | "mobile" | "inApp") => {
+  const togglePref = (catIdx: number, itemIdx: number, channel: "email" | "sms" | "inApp") => {
     const updated = categories.map((cat, ci) => ci !== catIdx ? cat : {
       ...cat, items: cat.items.map((item, ii) => ii !== itemIdx ? item : { ...item, [channel]: !item[channel] })
     });
@@ -67,7 +69,9 @@ export function NotificationsPreferencesPage() {
         <div className="mb-8 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-bold text-neutral-900">Don&apos;t disturb</h2>
-            <p className="mt-1 text-sm text-neutral-500">Consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+            <p className="mt-1 text-sm text-neutral-500">
+              Pause non-critical email, SMS, and in-app notifications. High-priority compliance and payment alerts still appear in the admin inbox.
+            </p>
           </div>
           <Button
             variant={paused ? "primary" : "secondary"}
@@ -104,22 +108,43 @@ export function NotificationsPreferencesPage() {
                         <tr style={{ borderBottom: "1px solid #F0F0F0" }}>
                           <th className="pb-3 text-left text-sm font-medium text-neutral-500">Question</th>
                           <th className="pb-3 text-center text-sm font-medium text-neutral-500 w-20">Email</th>
-                          <th className="pb-3 text-center text-sm font-medium text-neutral-500 w-20">Mobile</th>
+                          <th className="pb-3 text-center text-sm font-medium text-neutral-500 w-20">SMS</th>
                           <th className="pb-3 text-center text-sm font-medium text-neutral-500 w-20">In-App</th>
                         </tr>
                       </thead>
                       <tbody>
                         {cat.items.map((item, itemIdx) => (
                           <tr key={itemIdx} style={{ borderBottom: "1px solid #F8F8F8" }}>
-                            <td className="py-4 text-sm text-neutral-700">{item.label}</td>
-                            <td className="py-4 text-center">
-                              <input type="checkbox" checked={item.email} onChange={() => togglePref(catIdx, itemIdx, "email")} className="size-4 rounded accent-neutral-900" />
+                            <td className="py-4">
+                              <p className="text-sm font-medium text-neutral-700">{item.label}</p>
+                              <p className="mt-1 text-xs text-neutral-400">{item.description}</p>
                             </td>
                             <td className="py-4 text-center">
-                              <input type="checkbox" checked={item.mobile} onChange={() => togglePref(catIdx, itemIdx, "mobile")} className="size-4 rounded accent-neutral-900" />
+                              <input
+                                type="checkbox"
+                                checked={item.email}
+                                onChange={() => togglePref(catIdx, itemIdx, "email")}
+                                className="size-4 rounded accent-neutral-900"
+                                aria-label={`${item.label} email`}
+                              />
                             </td>
                             <td className="py-4 text-center">
-                              <input type="checkbox" checked={item.inApp} onChange={() => togglePref(catIdx, itemIdx, "inApp")} className="size-4 rounded accent-neutral-900" />
+                              <input
+                                type="checkbox"
+                                checked={item.sms}
+                                onChange={() => togglePref(catIdx, itemIdx, "sms")}
+                                className="size-4 rounded accent-neutral-900"
+                                aria-label={`${item.label} sms`}
+                              />
+                            </td>
+                            <td className="py-4 text-center">
+                              <input
+                                type="checkbox"
+                                checked={item.inApp}
+                                onChange={() => togglePref(catIdx, itemIdx, "inApp")}
+                                className="size-4 rounded accent-neutral-900"
+                                aria-label={`${item.label} in-app`}
+                              />
                             </td>
                           </tr>
                         ))}

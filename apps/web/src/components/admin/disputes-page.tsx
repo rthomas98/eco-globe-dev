@@ -10,6 +10,7 @@ type Severity = "High" | "Medium" | "Low";
 interface Dispute {
   id: string;
   orderId: string;
+  escrowId: string;
   buyer: string;
   seller: string;
   reason: string;
@@ -18,14 +19,15 @@ interface Dispute {
   status: DisputeStatus;
   severity: Severity;
   age: string;
+  escrowAction: string;
 }
 
 const disputes: Dispute[] = [
-  { id: "DSP-2041", orderId: "EG-50021", buyer: "AgriCorp Solutions", seller: "EcoPack Co.", reason: "Quantity mismatch on delivery", amount: "$13,440.00", opened: "2026-05-01", status: "Open", severity: "High", age: "3d" },
-  { id: "DSP-2038", orderId: "EG-50018", buyer: "GreenHarvest Co.", seller: "GreenTex Ltd", reason: "Quality below specification", amount: "$8,210.00", opened: "2026-04-28", status: "Under review", severity: "High", age: "6d" },
-  { id: "DSP-2031", orderId: "EG-50012", buyer: "NutriFeed Industries", seller: "EcoPack Co.", reason: "Damaged in transit", amount: "$4,990.00", opened: "2026-04-22", status: "Awaiting seller", severity: "Medium", age: "12d" },
-  { id: "DSP-2027", orderId: "EG-50009", buyer: "BioGreen Innovations", seller: "Trinity Feedstocks", reason: "Wrong product shipped", amount: "$2,180.00", opened: "2026-04-15", status: "Awaiting buyer", severity: "Medium", age: "19d" },
-  { id: "DSP-2018", orderId: "EG-50002", buyer: "PurePastures Ltd.", seller: "EcoPack Co.", reason: "Carbon certification missing", amount: "$5,640.00", opened: "2026-04-08", status: "Resolved", severity: "Low", age: "26d" },
+  { id: "DSP-2041", orderId: "EG-50021", escrowId: "ESC-50021", buyer: "AgriCorp Solutions", seller: "EcoPack Co.", reason: "Quantity mismatch on delivery", amount: "$13,440.00", opened: "2026-05-01", status: "Open", severity: "High", age: "3d", escrowAction: "Hold funds until buyer/seller evidence is reviewed" },
+  { id: "DSP-2038", orderId: "EG-50018", escrowId: "ESC-50018", buyer: "GreenHarvest Co.", seller: "GreenTex Ltd", reason: "Quality below specification", amount: "$8,210.00", opened: "2026-04-28", status: "Under review", severity: "High", age: "6d", escrowAction: "Pause automated release; decide partial release or refund" },
+  { id: "DSP-2031", orderId: "EG-50012", escrowId: "ESC-50012", buyer: "NutriFeed Industries", seller: "EcoPack Co.", reason: "Damaged in transit", amount: "$4,990.00", opened: "2026-04-22", status: "Awaiting seller", severity: "Medium", age: "12d", escrowAction: "Escrow released; attach dispute to seller score only" },
+  { id: "DSP-2027", orderId: "EG-50009", escrowId: "ESC-50009", buyer: "BioGreen Innovations", seller: "Trinity Feedstocks", reason: "Wrong product shipped", amount: "$2,180.00", opened: "2026-04-15", status: "Awaiting buyer", severity: "Medium", age: "19d", escrowAction: "Hold scheduled release until buyer responds" },
+  { id: "DSP-2018", orderId: "EG-50002", escrowId: "ESC-50002", buyer: "PurePastures Ltd.", seller: "EcoPack Co.", reason: "Carbon certification missing", amount: "$5,640.00", opened: "2026-04-08", status: "Resolved", severity: "Low", age: "26d", escrowAction: "Closed with buyer credit and seller payout adjustment" },
 ];
 
 const FILTERS: Array<DisputeStatus | "All"> = [
@@ -91,6 +93,7 @@ export function AdminDisputesPage() {
               <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 <th className="px-5 py-3">Dispute</th>
                 <th className="px-5 py-3">Order</th>
+                <th className="px-5 py-3">Escrow hold</th>
                 <th className="px-5 py-3">Parties</th>
                 <th className="px-5 py-3">Amount</th>
                 <th className="px-5 py-3">Status</th>
@@ -119,6 +122,14 @@ export function AdminDisputesPage() {
                     <Link href={`/admin/sales/${d.orderId}`} className="font-mono text-sm text-neutral-700 underline hover:text-neutral-900">
                       {d.orderId}
                     </Link>
+                  </td>
+                  <td className="px-5 py-4">
+                    <Link href={`/admin/accounting/escrow/${d.escrowId}`} className="font-mono text-sm text-neutral-700 underline hover:text-neutral-900">
+                      {d.escrowId}
+                    </Link>
+                    <span className="mt-1 block max-w-[220px] text-xs text-neutral-500">
+                      {d.escrowAction}
+                    </span>
                   </td>
                   <td className="px-5 py-4 text-sm text-neutral-700">
                     {d.buyer}

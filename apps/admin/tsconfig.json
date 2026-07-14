@@ -1,0 +1,32 @@
+{
+  "extends": "@eco-globe/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/components/*": ["../web/src/components/*"],
+      "@/lib/*": ["../web/src/lib/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "../web/src/components/admin/**/*.ts",
+    "../web/src/components/admin/**/*.tsx",
+    "../web/src/components/escrow/**/*.ts",
+    "../web/src/components/escrow/**/*.tsx",
+    "../web/src/components/contracts/**/*.ts",
+    "../web/src/components/contracts/**/*.tsx",
+    "../web/src/components/signatures/**/*.ts",
+    "../web/src/components/signatures/**/*.tsx",
+    "../web/src/components/logistics/**/*.ts",
+    "../web/src/components/logistics/**/*.tsx",
+    "../web/src/components/notifications/**/*.ts",
+    "../web/src/components/notifications/**/*.tsx",
+    "../web/src/components/public/listing-map.tsx",
+    "../web/src/lib/viewer-location.ts"
+  ],
+  "exclude": ["node_modules"]
+}

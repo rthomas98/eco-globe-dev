@@ -17,7 +17,7 @@ interface KycRequest {
   flags: number;
 }
 
-const requests: KycRequest[] = [
+const initialRequests: KycRequest[] = [
   { id: "KYC-9211", entity: "EcoPack Co.", type: "Seller", country: "USA", submitted: "2026-05-02", stage: "Submitted", docs: 4, flags: 0 },
   { id: "KYC-9210", entity: "GreenTex Ltd", type: "Seller", country: "UK", submitted: "2026-05-01", stage: "In review", docs: 6, flags: 1 },
   { id: "KYC-9208", entity: "Atlas Carbon Black", type: "Buyer", country: "Mexico", submitted: "2026-04-29", stage: "Awaiting docs", docs: 2, flags: 0 },
@@ -28,8 +28,17 @@ const requests: KycRequest[] = [
 const STAGES: Array<Stage | "All"> = ["All", "Submitted", "In review", "Awaiting docs", "Approved", "Rejected"];
 
 export function AdminKycPage() {
+  const [requests, setRequests] = useState<KycRequest[]>(initialRequests);
   const [filter, setFilter] = useState<Stage | "All">("All");
   const visible = requests.filter((r) => filter === "All" || r.stage === filter);
+
+  const updateStage = (id: string, stage: Stage) => {
+    setRequests((current) =>
+      current.map((request) =>
+        request.id === id ? { ...request, stage, flags: stage === "Rejected" ? Math.max(1, request.flags) : request.flags } : request,
+      ),
+    );
+  };
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -100,10 +109,18 @@ export function AdminKycPage() {
                 >
                   Review
                 </Link>
-                <button className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">
+                <button
+                  type="button"
+                  onClick={() => updateStage(r.id, "Rejected")}
+                  className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                >
                   <X className="inline-block size-3 align-text-bottom" /> Reject
                 </button>
-                <button className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => updateStage(r.id, "Approved")}
+                  className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
+                >
                   <Check className="inline-block size-3 align-text-bottom" /> Approve
                 </button>
               </div>

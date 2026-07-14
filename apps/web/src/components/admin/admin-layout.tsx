@@ -5,7 +5,15 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { AdminSidebar } from "./admin-sidebar";
 
-export function AdminLayout({ children }: { children: React.ReactNode }) {
+export function AdminLayout({
+  children,
+  showLogistics = false,
+  showContracts = false,
+}: {
+  children: React.ReactNode;
+  showLogistics?: boolean;
+  showContracts?: boolean;
+}) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
 
@@ -16,12 +24,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-white">
-      <AdminSidebar className="hidden lg:flex" />
+      <AdminSidebar className="hidden lg:flex" showLogistics={showLogistics} showContracts={showContracts} />
       {sidebarOpen && (
         <>
           <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={() => setSidebarOpen(false)} />
           <div className="fixed inset-y-0 left-0 z-50 lg:hidden">
-            <AdminSidebar className="flex" />
+            <AdminSidebar className="flex" showLogistics={showLogistics} showContracts={showContracts} />
             <button onClick={() => setSidebarOpen(false)} className="absolute right-2 top-4 flex size-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900">
               <X className="size-5" />
             </button>

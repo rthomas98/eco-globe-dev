@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ChevronRight, MoreHorizontal } from "lucide-react";
 import {
+  buyerNotifications,
   sellerNotifications,
   type NotificationGroup,
   type SellerNotification,
@@ -33,6 +34,8 @@ export function NotificationsPanel({
     ? "buyer"
     : "seller";
   const settingsHref = portal === "buyer" ? "/buyer/account" : "/seller/account";
+  const notifications =
+    portal === "buyer" ? buyerNotifications : sellerNotifications;
 
   const isUnread = (notification: SellerNotification) =>
     notification.unread && !readIds.includes(notification.id);
@@ -59,7 +62,7 @@ export function NotificationsPanel({
   }, [showMenu]);
 
   const visible =
-    tab === "unread" ? sellerNotifications.filter((n) => isUnread(n)) : sellerNotifications;
+    tab === "unread" ? notifications.filter((n) => isUnread(n)) : notifications;
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -97,7 +100,7 @@ export function NotificationsPanel({
                     <button
                       type="button"
                       onClick={() => {
-                        setReadIds(sellerNotifications.map((n) => n.id));
+                        setReadIds(notifications.map((n) => n.id));
                         setShowMenu(false);
                       }}
                       className="w-full px-4 py-2.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
@@ -164,6 +167,14 @@ export function NotificationsPanel({
                       <n.icon className="size-4 text-neutral-500" />
                     </div>
                     <div className="flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">
+                          {n.category}
+                        </span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                          {n.priority}
+                        </span>
+                      </div>
                       <p className="text-sm text-neutral-700">{n.message}</p>
                       <p className="mt-1 text-xs text-neutral-400">
                         {n.source} &middot; {n.time}

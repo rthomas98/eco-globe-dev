@@ -19,8 +19,13 @@ import {
   BuyerEscrowDetailPanel,
   type EscrowDetail,
 } from "./buyer-escrow-detail-panel";
+import {
+  escrowRecords,
+  escrowStatusForBuyer,
+  formatEscrowMoney,
+} from "@/components/escrow/escrow-demo-data";
 
-type EscrowStatus = "In escrow" | "Released";
+type EscrowStatus = "In escrow" | "Ready to release" | "Released" | "Disputed";
 
 interface Escrow {
   id: string;
@@ -30,9 +35,22 @@ interface Escrow {
   orderDate: string;
   releaseDate: string;
   status: EscrowStatus;
+  provider: string;
+  providerReference: string;
+  amountHeld: string;
+  seller: string;
+  product: string;
+  shippingType: string;
+  releaseTrigger: string;
+  automatedTrigger: string;
+  inspectionWindow: string;
+  nextStep: string;
+  disputeReason?: string;
+  documents: string[];
+  activity: { label: string; date?: string; complete: boolean }[];
 }
 
-const ESCROWS: Escrow[] = [
+const LEGACY_ESCROWS = [
   {
     id: "EC12345",
     orderId: "TS12345",
@@ -214,6 +232,30 @@ const ESCROWS: Escrow[] = [
     status: "Released",
   },
 ];
+void LEGACY_ESCROWS;
+
+const ESCROWS: Escrow[] = escrowRecords.map((record) => ({
+  id: record.id,
+  orderId: record.orderId,
+  buyer: record.seller,
+  amount: formatEscrowMoney(record.amount),
+  orderDate: record.orderDate,
+  releaseDate: record.releaseDate,
+  status: escrowStatusForBuyer(record.status),
+  provider: record.provider,
+  providerReference: record.providerReference,
+  amountHeld: formatEscrowMoney(record.amountHeld),
+  seller: record.seller,
+  product: record.product,
+  shippingType: record.shippingType,
+  releaseTrigger: record.releaseTrigger,
+  automatedTrigger: record.automatedTrigger,
+  inspectionWindow: record.inspectionWindow,
+  nextStep: record.buyerNextStep,
+  disputeReason: record.disputeReason,
+  documents: record.documents,
+  activity: record.activity,
+}));
 
 interface Filters {
   statuses: EscrowStatus[];
@@ -241,7 +283,7 @@ const defaultFilters: Filters = {
   releaseDateTo: "",
 };
 
-/** Distinct buyer names for the Buyer filter dropdown. */
+/** Distinct seller names for the counterparty filter dropdown. */
 const BUYERS = Array.from(new Set(ESCROWS.map((e) => e.buyer))).sort();
 
 const FIELD_CLASS =
@@ -250,7 +292,9 @@ const FIELD_BORDER = { border: "1px solid #E0E0E0" } as const;
 
 const STATUS_PILL: Record<EscrowStatus, string> = {
   "In escrow": "bg-blue-100 text-blue-700",
+  "Ready to release": "bg-emerald-100 text-emerald-700",
   Released: "bg-green-100 text-green-700",
+  Disputed: "bg-amber-100 text-amber-700",
 };
 
 function StatusPill({ status }: { status: EscrowStatus }) {
@@ -283,7 +327,12 @@ function FiltersPanel({
       : [...filters.statuses, s];
     onChange({ ...filters, statuses: next });
   };
-  const allStatuses: EscrowStatus[] = ["In escrow", "Released"];
+  const allStatuses: EscrowStatus[] = [
+    "In escrow",
+    "Ready to release",
+    "Released",
+    "Disputed",
+  ];
 
   return (
     <>
@@ -351,16 +400,16 @@ function FiltersPanel({
             </div>
           </div>
 
-          {/* Buyer */}
+          {/* Seller */}
           <div>
-            <h3 className="mb-3 text-base font-bold text-neutral-900">Buyer</h3>
+            <h3 className="mb-3 text-base font-bold text-neutral-900">Seller</h3>
             <select
               value={filters.buyer}
               onChange={(e) => onChange({ ...filters, buyer: e.target.value })}
               className={FIELD_CLASS}
               style={FIELD_BORDER}
             >
-              <option value="">All buyers</option>
+              <option value="">All sellers</option>
               {BUYERS.map((b) => (
                 <option key={b} value={b}>
                   {b}
@@ -525,7 +574,7 @@ type SortDir = "asc" | "desc";
 const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "id", label: "Escrow ID" },
   { key: "orderId", label: "Order ID" },
-  { key: "buyer", label: "Buyer" },
+  { key: "buyer", label: "Seller" },
   { key: "amount", label: "Amount" },
   { key: "orderDate", label: "Order Date" },
   { key: "releaseDate", label: "Release Date" },
@@ -603,33 +652,31 @@ function buildEscrowDetail(e: Escrow): EscrowDetail {
   return {
     id: e.id,
     amount: e.amount,
-    status: released ? "Released" : "In Progress",
+    status:
+      e.status === "Ready to release"
+        ? "Ready to release"
+        : e.status === "Disputed"
+          ? "Disputed"
+          : released
+            ? "Released"
+            : "In Progress",
     info: {
       amountTotal: e.amount,
-      amountHeld: released ? "$0" : e.amount,
+      amountHeld: e.amountHeld,
       fundedDate: e.orderDate,
-      orderId: "OD20411",
-      seller: "GulfStar Chemicals",
-      shippingType: "Delivery",
+      orderId: e.orderId,
+      seller: e.seller,
+      shippingType: e.shippingType,
+      provider: e.provider,
+      providerReference: e.providerReference,
+      releaseTrigger: e.releaseTrigger,
+      automatedTrigger: e.automatedTrigger,
+      inspectionWindow: e.inspectionWindow,
+      nextStep: e.nextStep,
+      disputeReason: e.disputeReason,
     },
-    documents: [
-      { name: "Example data name.pdf" },
-      { name: "Example data name.pdf" },
-    ],
-    activity: [
-      {
-        label: "Buyer funded escrow",
-        date: "May 18, 2026 10:10 AM",
-        complete: true,
-      },
-      {
-        label: "Seller uploaded Bill of Lading (BOL)",
-        date: "May 18, 2026 10:15 AM",
-        complete: true,
-      },
-      { label: "Buyer confirms delivery", complete: released },
-      { label: "Funds released", complete: released },
-    ],
+    documents: e.documents.map((name) => ({ name })),
+    activity: e.activity,
   };
 }
 

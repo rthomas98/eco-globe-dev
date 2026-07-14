@@ -1,0 +1,372 @@
+"use client";
+
+import { useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Leaf,
+  MessageSquare,
+  RadioTower,
+  Route,
+  Settings2,
+  Truck,
+} from "lucide-react";
+import { Button, Select } from "@eco-globe/ui";
+import {
+  carrierIntegrations,
+  logisticsShipments,
+  routeOptimizationSummary,
+  type LogisticsShipment,
+} from "../logistics/logistics-demo-data";
+
+type ShipmentFilter = "all" | "exceptions" | "delivered" | "active";
+type ActivityLogEntry = {
+  id: string;
+  message: string;
+};
+
+function createActivityEntry(message: string): ActivityLogEntry {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    message,
+  };
+}
+
+export function AdminLogisticsPage() {
+  const [shipments, setShipments] = useState<LogisticsShipment[]>(logisticsShipments);
+  const [selected, setSelected] = useState<LogisticsShipment>(logisticsShipments[0]);
+  const [filter, setFilter] = useState<ShipmentFilter>("all");
+  const [carrierContact, setCarrierContact] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
+
+  const exceptionCount = shipments.filter((shipment) => shipment.status === "Exception").length;
+  const filteredShipments = shipments.filter((shipment) => {
+    if (filter === "exceptions") return shipment.status === "Exception";
+    if (filter === "delivered") return shipment.status === "Delivered";
+    if (filter === "active") return shipment.status !== "Delivered";
+    return true;
+  });
+
+  function updateShipment(shipment: LogisticsShipment) {
+    setShipments((current) => current.map((item) => (item.id === shipment.id ? shipment : item)));
+    setSelected(shipment);
+  }
+
+  function handleContactCarrier() {
+    const message = `Carrier contact opened for ${selected.carrier} on ${selected.id}. Request current ETA, driver status, and next checkpoint confirmation for ${selected.trackingId}.`;
+
+    setCarrierContact(message);
+    setActionNotice(`${selected.carrier} contact workflow opened for ${selected.id}.`);
+    setActivityLog((current) => [
+      createActivityEntry(`Contact workflow opened for ${selected.carrier} / ${selected.trackingId}.`),
+      ...current,
+    ]);
+  }
+
+  function handleMarkCarrierResponded() {
+    const updated = {
+      ...selected,
+      lastUpdate: `Carrier response logged for ${selected.trackingId}. Dispatch confirmed the latest route checkpoint.`,
+      nextStep:
+        selected.status === "Exception"
+          ? "Admin should resolve the exception once access, timing, or document blockers are confirmed."
+          : selected.nextStep,
+    };
+
+    updateShipment(updated);
+    setActionNotice(`Carrier response logged for ${selected.id}.`);
+    setActivityLog((current) => [createActivityEntry(`Carrier response logged for ${selected.carrier}.`), ...current]);
+  }
+
+  function handleResolveException() {
+    if (selected.status !== "Exception") {
+      setActionNotice(`${selected.id} has no active logistics exception to resolve.`);
+      setActivityLog((current) => [
+        createActivityEntry(`Exception review checked for ${selected.id}; no open exception found.`),
+        ...current,
+      ]);
+      return;
+    }
+
+    const updated = {
+      ...selected,
+      status: "In transit" as const,
+      eta: "Updated ETA pending carrier confirmation",
+      lastUpdate: "Exception resolved by admin; facility access confirmed with carrier dispatch.",
+      nextStep: "Carrier can resume pickup and send the next tracking checkpoint.",
+      route: [...selected.route, "Admin exception clearance logged"],
+    };
+
+    updateShipment(updated);
+    setCarrierContact(null);
+    setActionNotice(`${selected.id} exception resolved and shipment moved back to In transit.`);
+    setActivityLog((current) => [createActivityEntry(`Resolved logistics exception for ${selected.id}.`), ...current]);
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-neutral-50">
+      <div className="px-8 py-6">
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">
+              Logistics control tower
+            </p>
+            <h1 className="mt-2 text-3xl font-bold text-neutral-900">
+              Carrier integrations, routing, cost, tracking, and delivery oversight.
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm text-neutral-600">
+              Admin view for monitoring all platform shipments, resolving logistics exceptions,
+              managing carrier integrations, and enforcing carbon-optimized routing rules.
+            </p>
+          </div>
+          <Button variant="primary" size="md">Add carrier integration</Button>
+        </div>
+
+        <div className="mb-6 grid gap-4 md:grid-cols-4">
+          <Metric label="Active shipments" value="35" icon={Truck} />
+          <Metric label="Exceptions" value={String(exceptionCount)} icon={AlertTriangle} />
+          <Metric label="CO2 avoided" value={routeOptimizationSummary.carbonAvoided} icon={Leaf} />
+          <Metric label="Quote response" value={routeOptimizationSummary.averageQuoteTime} icon={RadioTower} />
+        </div>
+
+        <div className="mb-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-neutral-900">Platform shipments</h2>
+                <p className="text-sm text-neutral-500">Real-time tracking and exception monitoring.</p>
+              </div>
+              <Select
+                id="admin-shipment-filter"
+                className="min-w-[180px]"
+                value={filter}
+                onChange={(event) => setFilter(event.target.value as ShipmentFilter)}
+                options={[
+                  { value: "all", label: "All shipments" },
+                  { value: "exceptions", label: "Exceptions" },
+                  { value: "delivered", label: "Delivered" },
+                  { value: "active", label: "Active shipments" },
+                ]}
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[920px]">
+                <thead>
+                  <tr className="text-left text-sm text-neutral-500" style={{ borderBottom: "1px solid #F0F0F0" }}>
+                    <th className="pb-3 font-medium">Shipment</th>
+                    <th className="pb-3 font-medium">Order</th>
+                    <th className="pb-3 font-medium">Carrier</th>
+                    <th className="pb-3 font-medium">Lane</th>
+                    <th className="pb-3 font-medium">Cost</th>
+                    <th className="pb-3 font-medium">Carbon</th>
+                    <th className="pb-3 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredShipments.map((shipment) => (
+                    <tr
+                      key={shipment.id}
+                      onClick={() => setSelected(shipment)}
+                      className={`cursor-pointer text-sm hover:bg-neutral-50 ${
+                        selected.id === shipment.id ? "bg-neutral-50" : ""
+                      }`}
+                      style={{ borderBottom: "1px solid #F8F8F8" }}
+                    >
+                      <td className="py-4 font-mono text-neutral-900">{shipment.id}</td>
+                      <td className="py-4 text-neutral-700">{shipment.orderId}</td>
+                      <td className="py-4 text-neutral-700">{shipment.carrier}</td>
+                      <td className="py-4 text-neutral-700">{shipment.origin} to {shipment.destination}</td>
+                      <td className="py-4 text-neutral-700">{shipment.cost}</td>
+                      <td className="py-4 text-neutral-700">{shipment.carbonKg} kg</td>
+                      <td className="py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          shipment.status === "Exception"
+                            ? "bg-red-50 text-red-700"
+                            : shipment.status === "Delivered"
+                              ? "bg-green-50 text-green-700"
+                              : "bg-amber-50 text-amber-700"
+                        }`}>
+                          {shipment.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filteredShipments.length === 0 && (
+                <div className="rounded-xl bg-neutral-50 p-6 text-center text-sm text-neutral-500">
+                  No shipments match this filter.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-neutral-900">Exception detail</h2>
+              <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
+                {selected.trackingId}
+              </span>
+            </div>
+            <div className="space-y-4 text-sm">
+              <Detail label="Shipment" value={`${selected.orderId} · ${selected.product}`} />
+              <Detail label="Counterparties" value={`${selected.seller} to ${selected.buyer}`} />
+              <Detail label="Last update" value={selected.lastUpdate} />
+              <Detail label="Next step" value={selected.nextStep} />
+              {actionNotice && (
+                <div className="rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
+                  <p className="font-semibold">Latest admin action</p>
+                  <p className="mt-1">{actionNotice}</p>
+                </div>
+              )}
+              <div className="rounded-xl bg-neutral-50 p-4">
+                <p className="mb-3 font-semibold text-neutral-900">Route checkpoints</p>
+                {selected.route.map((stop, index) => (
+                  <div key={stop} className="flex items-center gap-3 py-2">
+                    <span className="flex size-6 items-center justify-center rounded-full bg-white text-xs font-bold text-neutral-700">
+                      {index + 1}
+                    </span>
+                    <span className="text-neutral-700">{stop}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Button type="button" variant="secondary" size="sm" onClick={handleContactCarrier}>
+                  Contact carrier
+                </Button>
+                <Button type="button" variant="primary" size="sm" onClick={handleResolveException}>
+                  Resolve exception
+                </Button>
+              </div>
+              {carrierContact && (
+                <div className="rounded-xl bg-neutral-950 p-4 text-white">
+                  <div className="mb-3 flex items-center gap-2">
+                    <MessageSquare className="size-4 text-green-300" />
+                    <p className="font-semibold">Carrier contact workflow</p>
+                  </div>
+                  <p className="text-sm text-neutral-200">{carrierContact}</p>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <Button type="button" variant="secondary" size="sm" onClick={handleMarkCarrierResponded}>
+                      Mark responded
+                    </Button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setCarrierContact(null)}>
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {activityLog.length > 0 && (
+                <div className="rounded-xl bg-neutral-50 p-4">
+                  <p className="mb-3 font-semibold text-neutral-900">Admin action trail</p>
+                  <div className="space-y-2">
+                    {activityLog.slice(0, 4).map((entry) => (
+                      <div key={entry.id} className="rounded-lg bg-white px-3 py-2 text-xs text-neutral-600">
+                        {entry.message}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+            <h2 className="text-xl font-bold text-neutral-900">Carrier integrations</h2>
+            <div className="mt-4 grid gap-3">
+              {carrierIntegrations.map((carrier) => (
+                <div key={carrier.name} className="flex items-center justify-between rounded-xl bg-neutral-50 p-4">
+                  <div>
+                    <p className="font-semibold text-neutral-900">{carrier.name}</p>
+                    <p className="mt-1 text-sm text-neutral-500">{carrier.coverage}</p>
+                    {carrier.issue && <p className="mt-1 text-xs text-amber-700">{carrier.issue}</p>}
+                  </div>
+                  <div className="text-right text-sm">
+                    <p className="font-semibold text-neutral-900">{carrier.activeShipments} active</p>
+                    <p className="text-neutral-500">{carrier.avgResponse}</p>
+                    <p className={`mt-1 font-semibold ${
+                      carrier.status === "Connected" ? "text-green-700" : carrier.status === "Degraded" ? "text-amber-700" : "text-neutral-500"
+                    }`}>
+                      {carrier.status}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+            <h2 className="text-xl font-bold text-neutral-900">Routing configuration</h2>
+            <p className="mt-1 text-sm text-neutral-500">
+              Demo settings for carrier selection and sustainable routing rules.
+            </p>
+            <div className="mt-5 space-y-4">
+              <RoutingRule icon={Leaf} title="Prefer lowest-carbon route" detail="Auto-select when cost delta is under 8%." />
+              <RoutingRule icon={Route} title="Require carrier insurance" detail="Block booking if cargo coverage is missing." />
+              <RoutingRule icon={CheckCircle2} title="Automated release trigger" detail="Carrier delivery confirmation starts buyer inspection window." />
+              <RoutingRule icon={Settings2} title="Manual admin override" detail="Allow operations team to switch carriers on exceptions." />
+            </div>
+            <div className="mt-5 rounded-xl bg-green-50 p-4 text-sm text-green-800">
+              <p className="font-semibold">Optimization impact</p>
+              <p className="mt-1">
+                {routeOptimizationSummary.optimizedShipments} shipments optimized,
+                saving {routeOptimizationSummary.monthlySavings} this month.
+              </p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  return (
+    <div className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+      <div className="mb-4 flex items-center justify-between">
+        <span className="text-sm text-neutral-500">{label}</span>
+        <Icon className="size-5 text-neutral-400" />
+      </div>
+      <p className="text-2xl font-bold text-neutral-900">{value}</p>
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{label}</p>
+      <p className="mt-1 text-neutral-900">{value}</p>
+    </div>
+  );
+}
+
+function RoutingRule({
+  icon: Icon,
+  title,
+  detail,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl bg-neutral-50 p-4">
+      <Icon className="mt-0.5 size-5 text-neutral-500" />
+      <div>
+        <p className="font-semibold text-neutral-900">{title}</p>
+        <p className="mt-1 text-sm text-neutral-500">{detail}</p>
+      </div>
+    </div>
+  );
+}

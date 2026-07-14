@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@source "../../../web/src/components/admin";
+@source "../../../web/src/components/contracts";
+@source "../../../web/src/components/escrow";
+@source "../../../web/src/components/signatures";
+@source "../../../web/src/components/logistics";
+@source "../../../web/src/components/notifications";
+@source "../../../web/src/components/public/listing-map.tsx";
+@source "../../../packages/ui/src";
+
+@theme {
+  --color-neutral-0: #FFFFFF;
+  --color-neutral-100: #F5F5F5;
+  --color-neutral-200: #EEEEEE;
+  --color-neutral-300: #E0E0E0;
+  --color-neutral-400: #BDBDBD;
+  --color-neutral-500: #9E9E9E;
+  --color-neutral-600: #757575;
+  --color-neutral-700: #616161;
+  --color-neutral-800: #424242;
+  --color-neutral-900: #090909;
+
+  --color-heading: #031204;
+  --color-paragraph: #3C3D3E;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --container-content: 1170px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-neutral-800);
+  background-color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

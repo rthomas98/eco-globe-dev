@@ -1,0 +1,34 @@
+{
+  "name": "@eco-globe/admin",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack --port 4041",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf .next .turbo node_modules"
+  },
+  "dependencies": {
+    "@eco-globe/shared": "workspace:*",
+    "@eco-globe/ui": "workspace:*",
+    "lucide-react": "^0.475.0",
+    "mapbox-gl": "^3.20.0",
+    "next": "^15.3.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@eco-globe/eslint-config": "workspace:*",
+    "@eco-globe/typescript-config": "workspace:*",
+    "@tailwindcss/postcss": "^4.1.4",
+    "@types/mapbox-gl": "^3.5.0",
+    "@types/node": "^22.14.1",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.1.4",
+    "typescript": "^5.8.2"
+  }
+}

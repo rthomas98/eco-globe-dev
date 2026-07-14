@@ -1,5 +1,10 @@
-import { SellerDocumentsPage } from "@/components/seller/documents-page";
+import { DocumentsCenter } from "@/components/documents/documents-center";
+import { SellerLayout } from "@/components/seller/seller-layout";
 
 export default function Page() {
-  return <SellerDocumentsPage />;
+  return (
+    <SellerLayout title="Documents">
+      <DocumentsCenter role="seller" />
+    </SellerLayout>
+  );
 }

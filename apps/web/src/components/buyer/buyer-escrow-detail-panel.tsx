@@ -8,7 +8,7 @@ import { DocumentRow } from "./document-row";
 export interface EscrowDetail {
   id: string;
   amount: string;
-  status: "In Progress" | "Released";
+  status: "In Progress" | "Ready to release" | "Released" | "Disputed";
   info: {
     amountTotal: string;
     amountHeld: string;
@@ -16,6 +16,13 @@ export interface EscrowDetail {
     orderId: string;
     seller: string;
     shippingType: string;
+    provider: string;
+    providerReference: string;
+    releaseTrigger: string;
+    automatedTrigger: string;
+    inspectionWindow: string;
+    nextStep: string;
+    disputeReason?: string;
   };
   documents: { name: string }[];
   activity: { label: string; date?: string; complete: boolean }[];
@@ -28,7 +35,9 @@ interface Props {
 
 const STATUS_STYLES: Record<EscrowDetail["status"], string> = {
   "In Progress": "bg-blue-100 text-blue-700",
+  "Ready to release": "bg-emerald-100 text-emerald-700",
   Released: "bg-green-100 text-green-700",
+  Disputed: "bg-amber-100 text-amber-700",
 };
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -176,6 +185,64 @@ export function BuyerEscrowDetailPanel({ escrow, onClose }: Props) {
                   label="Shipping type"
                   value={escrow.info.shippingType}
                 />
+                <Field label="Escrow provider" value={escrow.info.provider} />
+                <Field
+                  label="Provider reference"
+                  value={escrow.info.providerReference}
+                />
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Release controls">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <div className="rounded-xl bg-neutral-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                    Release trigger
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-neutral-900">
+                    {escrow.info.releaseTrigger}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-neutral-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                    Automated release
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-neutral-900">
+                    {escrow.info.automatedTrigger}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-neutral-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                    Inspection window
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-neutral-900">
+                    {escrow.info.inspectionWindow}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-900">
+                {escrow.info.nextStep}
+              </div>
+              {escrow.info.disputeReason && (
+                <div className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+                  Dispute reason: {escrow.info.disputeReason}
+                </div>
+              )}
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={escrow.status === "Released" || escrow.status === "Disputed"}
+                >
+                  Confirm delivery
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-neutral-900"
+                  style={{ border: "1px solid #E0E0E0" }}
+                >
+                  Report an issue
+                </button>
               </div>
             </SectionCard>
 

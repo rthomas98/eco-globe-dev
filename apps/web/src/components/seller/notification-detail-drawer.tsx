@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Clock3, ExternalLink, X } from "lucide-react";
+import { CheckCircle2, Clock3, ExternalLink, Mail, MessageSquareText, MonitorDot, X } from "lucide-react";
 import type { SellerNotification } from "./notifications-data";
+import type { NotificationChannel } from "@/components/notifications/notifications-demo-data";
 
 export type NotificationPortal = "buyer" | "seller";
 
@@ -22,6 +23,16 @@ export function NotificationDetailDrawer({
   if (!notification) return null;
 
   const Icon = notification.icon;
+  const channelLabel: Record<NotificationChannel, string> = {
+    email: "Email",
+    sms: "SMS",
+    inApp: "In-app",
+  };
+  const channelIcon: Record<NotificationChannel, React.ComponentType<{ className?: string }>> = {
+    email: Mail,
+    sms: MessageSquareText,
+    inApp: MonitorDot,
+  };
 
   return (
     <div className="fixed inset-0 z-[70] flex justify-end">
@@ -64,7 +75,9 @@ export function NotificationDetailDrawer({
                 <p className="text-sm font-semibold text-neutral-900">
                   {notification.source}
                 </p>
-                <p className="text-xs text-neutral-500">{notification.group}</p>
+                <p className="text-xs text-neutral-500">
+                  {notification.group} · {notification.category} · {notification.priority} priority
+                </p>
               </div>
             </div>
             <p className="text-sm leading-6 text-neutral-800">{notification.message}</p>
@@ -100,6 +113,27 @@ export function NotificationDetailDrawer({
                 </p>
               </div>
             </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold text-neutral-900">Delivery channels</h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {notification.channels.map((channel) => {
+                const ChannelIcon = channelIcon[channel];
+                return (
+                  <span
+                    key={channel}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-700"
+                  >
+                    <ChannelIcon className="size-3.5" />
+                    {channelLabel[channel]}
+                  </span>
+                );
+              })}
+            </div>
+            <p className="mt-3 rounded-2xl bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
+              {notification.deliveryState}
+            </p>
           </div>
 
           <Link
