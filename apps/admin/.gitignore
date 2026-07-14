@@ -1,4 +1,5 @@
 .next
 .turbo
+.vercel
 node_modules
 tsconfig.tsbuildinfo
