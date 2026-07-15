@@ -19,17 +19,17 @@ function StepLayout({ step, children, onBack, onNext, onSave, nextLabel }: {
   const router = useRouter();
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <header className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #F0F0F0" }}>
+      <header className="flex items-center justify-between px-4 py-4 sm:px-6" style={{ borderBottom: "1px solid #F0F0F0" }}>
         <h2 className="text-base font-bold text-neutral-900">Add Listing</h2>
-        <button onClick={() => router.push("/seller/listings")} className="flex size-9 items-center justify-center rounded-full hover:bg-neutral-100"><X className="size-5 text-neutral-500" /></button>
+        <button type="button" onClick={() => router.push("/seller/listings")} className="flex size-9 items-center justify-center rounded-full hover:bg-neutral-100"><X className="size-5 text-neutral-500" /></button>
       </header>
-      <div className="flex flex-1 justify-center overflow-y-auto px-6 py-8"><div className="w-full max-w-[600px]">{children}</div></div>
+      <div className="flex flex-1 justify-center overflow-y-auto px-4 py-6 sm:px-6 sm:py-8"><div className="w-full max-w-[600px]">{children}</div></div>
       <div className="relative">
         <div className="h-1 w-full bg-neutral-100"><div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${(step / TOTAL) * 100}%` }} /></div>
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <Button variant="secondary" size="md" onClick={onBack}>Back</Button>
-          <Button variant="primary" size="md" onClick={onNext} className="min-w-[160px]">{nextLabel ?? "Next"}</Button>
-          {onSave ? <Button variant="secondary" size="md" onClick={onSave}>Save as Draft</Button> : <div />}
+          <Button variant="primary" size="md" onClick={onNext} className="min-w-[140px] sm:min-w-[160px]">{nextLabel ?? "Next"}</Button>
+          {onSave ? <Button variant="secondary" size="md" onClick={onSave} className="w-full sm:w-auto">Save as Draft</Button> : <div className="hidden sm:block" />}
         </div>
       </div>
     </div>
@@ -500,18 +500,18 @@ export function AddListingPage() {
 
       {step === 7 && (
         <div className="flex min-h-screen flex-col bg-white">
-          <header className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #F0F0F0" }}>
+          <header className="flex items-center justify-between px-4 py-4 sm:px-6" style={{ borderBottom: "1px solid #F0F0F0" }}>
             <h2 className="text-base font-bold text-neutral-900">Add Listing</h2>
-            <button onClick={() => router.push("/seller/listings")} className="flex size-9 items-center justify-center rounded-full hover:bg-neutral-100"><X className="size-5 text-neutral-500" /></button>
+            <button type="button" onClick={() => router.push("/seller/listings")} className="flex size-9 items-center justify-center rounded-full hover:bg-neutral-100"><X className="size-5 text-neutral-500" /></button>
           </header>
           <div className="flex flex-1 overflow-y-auto">
             {/* Preview */}
-            <div className="flex-1 px-6 py-8">
+            <div className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8">
               <div className="max-w-[900px] mx-auto">
                 <h1 className="mb-1 text-2xl font-bold text-neutral-900">{form.name || "Wood Sawdust Industrial Grade A"}</h1>
                 <p className="mb-6 text-sm text-neutral-500">Denham Springs, LA · 2.4 mi · <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs">MOQ: {form.moq || "3"} tons</span> <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs">300 kg CO₂e</span></p>
-                <div className="flex gap-6">
-                  <div className="flex-1">
+                <div className="flex flex-col gap-6 lg:flex-row">
+                  <div className="min-w-0 flex-1">
                     <div className="relative mb-4 h-[380px] overflow-hidden rounded-xl bg-neutral-200">
                       <img src={form.images[0] || "/products/wood-chips.png"} alt="" className="size-full object-cover" />
                       <button className="absolute right-4 top-4 flex size-10 items-center justify-center rounded-full bg-white/80"><Share2 className="size-4" /></button>
@@ -523,11 +523,11 @@ export function AddListingPage() {
                       ))}
                     </div>
                   </div>
-                  <div className="w-[300px] shrink-0">
+                  <div className="w-full shrink-0 lg:w-[300px]">
                     <div className="rounded-xl p-5" style={{ border: "1px solid #F0F0F0" }}>
                       <p className="text-3xl font-bold text-neutral-900">${form.price || "200"}</p>
                       <p className="mb-4 text-sm text-neutral-500">Minimum order quantity: {form.moq || "2"} tons</p>
-                      <div className="mb-4 flex items-center justify-between"><span className="text-sm text-neutral-700">Quantity</span><div className="flex items-center gap-0 rounded-lg" style={{ border: "1px solid #E0E0E0" }}><button className="px-3 py-1.5 text-neutral-500">—</button><span className="px-3 py-1.5 text-sm font-medium">3</span><button className="px-3 py-1.5 text-neutral-500">+</button></div></div>
+                      <div className="mb-4 flex items-center justify-between"><span className="text-sm text-neutral-700">Quantity</span><div className="flex items-center gap-0 rounded-lg" style={{ border: "1px solid #E0E0E0" }}><button type="button" className="px-3 py-1.5 text-neutral-500">—</button><span className="px-3 py-1.5 text-sm font-medium">3</span><button type="button" className="px-3 py-1.5 text-neutral-500">+</button></div></div>
                       <div className="mb-2 flex justify-between text-sm"><span className="text-neutral-500">Item subtotal</span><span>$600.00</span></div>
                       <div className="mb-3 flex justify-between text-sm"><span className="text-neutral-500">Shipping total</span><span>$50</span></div>
                       <div className="mb-4 flex justify-between text-sm font-bold" style={{ borderTop: "1px solid #F0F0F0", paddingTop: "12px" }}><span>Subtotal</span><span>$650.00</span></div>
@@ -574,10 +574,10 @@ export function AddListingPage() {
           </div>
           <div className="relative">
             <div className="h-1 w-full bg-neutral-100"><div className="h-full bg-green-500" style={{ width: "100%" }} /></div>
-            <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
               <Button variant="secondary" size="md" onClick={() => setStep(6)}>Back</Button>
               <Button variant="primary" size="md" onClick={persistListing} className="min-w-[160px]">Add Listing</Button>
-              <div />
+              <div className="hidden sm:block" />
             </div>
           </div>
         </div>

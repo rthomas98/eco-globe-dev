@@ -777,11 +777,11 @@ export function BuyerEscrowPage() {
   return (
     <BuyerLayout>
       <div className="flex h-full flex-col bg-neutral-50">
-        <div className="flex flex-wrap items-center justify-between gap-4 px-8 py-6">
+        <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-8 sm:py-6">
           <h1 className="text-2xl font-bold text-neutral-900">Escrow</h1>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
             <div
-              className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5"
+              className="flex min-w-[180px] flex-1 items-center gap-2 rounded-full bg-white px-4 py-2.5 sm:flex-none"
               style={{ border: "1px solid #E0E0E0" }}
             >
               <Search className="size-4 text-neutral-400" />
@@ -793,10 +793,11 @@ export function BuyerEscrowPage() {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                className="w-40 bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
+                className="min-w-0 flex-1 bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400 sm:w-40 sm:flex-none"
               />
             </div>
             <button
+              type="button"
               onClick={() => setFiltersOpen(true)}
               className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900"
               style={{ border: "1px solid #E0E0E0" }}
@@ -812,12 +813,12 @@ export function BuyerEscrowPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-8 pb-6">
+        <div className="flex-1 overflow-y-auto px-4 pb-6 sm:px-8">
           <div
-            className="overflow-hidden rounded-2xl bg-white"
+            className="overflow-x-auto rounded-2xl bg-white"
             style={{ border: "1px solid #F0F0F0" }}
           >
-            <table className="w-full">
+            <table className="w-full min-w-[860px]">
               <thead>
                 <tr style={{ borderBottom: "1px solid #F0F0F0" }}>
                   {COLUMNS.map((col) => (
@@ -890,7 +891,7 @@ export function BuyerEscrowPage() {
             </table>
           </div>
 
-          <div className="mt-6 flex items-center justify-between">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-1">
               <button
                 type="button"

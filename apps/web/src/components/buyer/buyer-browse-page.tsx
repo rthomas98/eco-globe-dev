@@ -138,14 +138,14 @@ export function BuyerBrowsePage() {
       <div className="flex h-full flex-col">
         {/* Top bar */}
         <header
-          className="flex h-20 shrink-0 items-center justify-between gap-4 px-6"
+          className="flex shrink-0 flex-col items-start justify-between gap-4 px-4 py-4 sm:flex-row sm:items-center sm:px-6"
           style={{ borderBottom: "1px solid #F0F0F0" }}
         >
           <h1 className="text-2xl font-bold text-neutral-900">Browse</h1>
 
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
             <div
-              className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5"
+              className="flex min-w-[180px] flex-1 items-center gap-2 rounded-full bg-white px-4 py-2.5 sm:flex-none"
               style={{ border: "1px solid #E0E0E0" }}
             >
               <Search className="size-4 text-neutral-400" />
@@ -154,11 +154,13 @@ export function BuyerBrowsePage() {
                 placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-40 bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
+                className="min-w-0 flex-1 bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400 sm:w-40"
               />
             </div>
 
-            <LocationPill value={`Search radius: ${radius} mi`} />
+            <div className="hidden sm:block">
+              <LocationPill value={`Search radius: ${radius} mi`} />
+            </div>
 
             <select
               aria-label="Search radius"
@@ -175,6 +177,7 @@ export function BuyerBrowsePage() {
             </select>
 
             <button
+              type="button"
               onClick={() => setFiltersOpen(true)}
               className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900"
               style={{ border: "1px solid #E0E0E0" }}

@@ -41,7 +41,7 @@ const settingsNav: SettingsNavItem[] = [
   { label: "Notifications", href: "/admin/settings/notifications" },
 ];
 
-export function SettingsSidebar({ className }: { className?: string }) {
+export function SettingsSidebar({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
   const pathname = usePathname();
   const [railExpanded, setRailExpanded] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(() => {
@@ -57,7 +57,7 @@ export function SettingsSidebar({ className }: { className?: string }) {
   };
 
   return (
-    <div className={`flex h-screen ${className ?? ""}`}>
+    <div className={`flex h-dvh ${className ?? ""}`}>
       {/* Icon rail / Expanded sidebar */}
       <div
         className={`flex shrink-0 flex-col bg-white py-4 transition-all duration-200 ${railExpanded ? "w-[200px] px-3" : "w-[60px] items-center"}`}
@@ -77,6 +77,8 @@ export function SettingsSidebar({ className }: { className?: string }) {
           </Link>
           {railExpanded && (
             <button
+              type="button"
+              aria-label="Collapse admin rail"
               onClick={() => setRailExpanded(false)}
               className="flex size-7 items-center justify-center rounded text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
             >
@@ -86,7 +88,7 @@ export function SettingsSidebar({ className }: { className?: string }) {
         </div>
 
         {/* Nav items */}
-        <nav className="flex flex-1 flex-col gap-0.5">
+        <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
           {mainNavItems.map((item) => {
             const isActive = item.href === "/admin/settings"
               ? pathname.startsWith("/admin/settings")
@@ -96,6 +98,7 @@ export function SettingsSidebar({ className }: { className?: string }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onNavigate}
                 className={`flex items-center gap-3 rounded-lg transition-colors ${
                   railExpanded ? "px-3 py-2.5" : "justify-center py-2.5"
                 } ${
@@ -116,6 +119,8 @@ export function SettingsSidebar({ className }: { className?: string }) {
         <div className={`flex flex-col gap-2 ${railExpanded ? "" : "items-center"}`}>
           {!railExpanded && (
             <button
+              type="button"
+              aria-label="Expand admin rail"
               onClick={() => setRailExpanded(true)}
               className="flex size-10 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
               title="Expand sidebar"
@@ -123,7 +128,7 @@ export function SettingsSidebar({ className }: { className?: string }) {
               <PanelLeftOpen className="size-[18px]" />
             </button>
           )}
-          <button className={`relative flex items-center gap-3 rounded-lg text-neutral-400 hover:bg-neutral-100 ${railExpanded ? "px-3 py-2.5" : "justify-center size-10"}`}>
+          <button type="button" className={`relative flex items-center gap-3 rounded-lg text-neutral-400 hover:bg-neutral-100 ${railExpanded ? "px-3 py-2.5" : "justify-center size-10"}`}>
             <Bell className="size-[18px]" />
             {railExpanded && <span className="text-sm font-medium text-neutral-500">Notifications</span>}
             <span className={`absolute flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ${railExpanded ? "left-[18px] top-1" : "right-1.5 top-1.5"}`}>8</span>
@@ -143,7 +148,7 @@ export function SettingsSidebar({ className }: { className?: string }) {
       {/* Settings nav */}
       <div className="flex w-[180px] shrink-0 flex-col bg-white py-5 px-3" style={{ borderRight: "1px solid #F0F0F0" }}>
         <h2 className="mb-4 px-3 text-base font-bold text-neutral-900">Settings</h2>
-        <nav className="flex flex-col gap-0.5">
+        <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto">
           {settingsNav.map((item) => {
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expanded.has(item.label);
@@ -152,19 +157,19 @@ export function SettingsSidebar({ className }: { className?: string }) {
             return (
               <div key={item.label}>
                 {hasChildren ? (
-                  <button onClick={() => toggle(item.label)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? "text-neutral-900" : "text-neutral-500 hover:text-neutral-900"}`}>
+                  <button type="button" onClick={() => toggle(item.label)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? "text-neutral-900" : "text-neutral-500 hover:text-neutral-900"}`}>
                     {item.label}
                     {isExpanded ? <ChevronUp className="size-4 text-neutral-400" /> : <ChevronDown className="size-4 text-neutral-400" />}
                   </button>
                 ) : (
-                  <Link href={item.href} className={`flex rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-neutral-100 text-neutral-900" : "text-neutral-500 hover:text-neutral-900"}`}>
+                  <Link href={item.href} onClick={onNavigate} className={`flex rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-neutral-100 text-neutral-900" : "text-neutral-500 hover:text-neutral-900"}`}>
                     {item.label}
                   </Link>
                 )}
                 {hasChildren && isExpanded && (
                   <div className="ml-3 flex flex-col gap-0.5 py-0.5">
                     {item.children!.map((child) => (
-                      <Link key={child.href} href={child.href} className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${pathname === child.href ? "bg-neutral-100 text-neutral-900" : "text-neutral-500 hover:text-neutral-900"}`}>
+                      <Link key={child.href} href={child.href} onClick={onNavigate} className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${pathname === child.href ? "bg-neutral-100 text-neutral-900" : "text-neutral-500 hover:text-neutral-900"}`}>
                         {child.label}
                       </Link>
                     ))}

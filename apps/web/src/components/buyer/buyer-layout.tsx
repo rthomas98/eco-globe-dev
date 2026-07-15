@@ -36,6 +36,8 @@ import {
   Languages,
   Rocket,
   MonitorSmartphone,
+  Menu,
+  X,
 } from "lucide-react";
 import { NotificationsPanel } from "../seller/notifications-panel";
 import {
@@ -168,6 +170,7 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     clearDemoUser();
@@ -188,12 +191,22 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-dvh overflow-hidden bg-white">
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close buyer navigation"
+          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
       <aside
-        className="relative flex h-screen w-[220px] shrink-0 flex-col bg-white"
+        className={`fixed inset-y-0 left-0 z-50 flex w-[220px] shrink-0 flex-col bg-white transition-transform duration-200 lg:relative lg:z-auto lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
         style={{ borderRight: "1px solid #E0E0E0" }}
       >
-        <div className="flex h-16 items-center px-6">
+        <div className="flex h-16 items-center justify-between px-6">
           <Link href="/">
             <Image
               src="/logo.svg"
@@ -204,9 +217,17 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
               priority
             />
           </Link>
+          <button
+            type="button"
+            aria-label="Close buyer navigation"
+            onClick={() => setSidebarOpen(false)}
+            className="flex size-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 lg:hidden"
+          >
+            <X className="size-5" />
+          </button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-3 pt-4">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pt-4">
           {navIcons.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + "/");
@@ -215,6 +236,7 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
               <div key={item.href} className="flex flex-col gap-1">
                 <Link
                   href={item.href}
+                  onClick={() => setSidebarOpen(false)}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                     isActive && !hasChildren
                       ? "bg-neutral-900 text-white"
@@ -241,6 +263,7 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
                         <Link
                           key={child.href}
                           href={child.href}
+                          onClick={() => setSidebarOpen(false)}
                           className={`rounded-lg px-3 py-2 text-sm transition-colors ${
                             childActive
                               ? "bg-neutral-100 font-medium text-neutral-900"
@@ -305,7 +328,25 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
         )}
       </aside>
 
-      <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header
+          className="flex h-14 shrink-0 items-center gap-3 px-4 lg:hidden"
+          style={{ borderBottom: "1px solid #E0E0E0" }}
+        >
+          <button
+            type="button"
+            aria-label="Open buyer navigation"
+            onClick={() => setSidebarOpen(true)}
+            className="text-neutral-500 hover:text-neutral-900"
+          >
+            <Menu className="size-5" />
+          </button>
+          <Link href="/" className="shrink-0">
+            <Image src="/logo.svg" alt="EcoGlobe" width={96} height={27} className="invert" priority />
+          </Link>
+        </header>
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
+      </main>
 
       {notifsOpen && (
         <NotificationsPanel

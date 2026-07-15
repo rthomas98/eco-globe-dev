@@ -254,7 +254,7 @@ export function AdminLogisticsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-neutral-50">
-      <div className="px-8 py-6">
+      <div className="min-w-0 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">
@@ -280,16 +280,16 @@ export function AdminLogisticsPage() {
           <Metric label="Quote response" value={routeOptimizationSummary.averageQuoteTime} icon={RadioTower} />
         </div>
 
-        <div className="mb-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
-            <div className="mb-4 flex items-center justify-between">
+        <div className="mb-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <section className="min-w-0 rounded-2xl bg-white p-4 sm:p-5" style={{ border: "1px solid #F0F0F0" }}>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-xl font-bold text-neutral-900">Platform shipments</h2>
                 <p className="text-sm text-neutral-500">Real-time tracking and exception monitoring.</p>
               </div>
               <Select
                 id="admin-shipment-filter"
-                className="min-w-[180px]"
+                className="w-full sm:min-w-[180px]"
                 value={filter}
                 onChange={(event) => setFilter(event.target.value as ShipmentFilter)}
                 options={[
@@ -360,10 +360,10 @@ export function AdminLogisticsPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
-            <div className="mb-4 flex items-center justify-between">
+          <section className="min-w-0 rounded-2xl bg-white p-4 sm:p-5" style={{ border: "1px solid #F0F0F0" }}>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xl font-bold text-neutral-900">Exception detail</h2>
-              <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
+              <span className="w-fit rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
                 {selected.trackingId}
               </span>
             </div>
@@ -389,7 +389,7 @@ export function AdminLogisticsPage() {
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <Button type="button" variant="secondary" size="sm" onClick={handleContactCarrier}>
                   Contact carrier
                 </Button>
@@ -404,7 +404,7 @@ export function AdminLogisticsPage() {
                     <p className="font-semibold">Carrier contact workflow</p>
                   </div>
                   <p className="text-sm text-neutral-200">{carrierContact}</p>
-                  <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <Button type="button" variant="secondary" size="sm" onClick={handleMarkCarrierResponded}>
                       Mark responded
                     </Button>
@@ -430,8 +430,8 @@ export function AdminLogisticsPage() {
           </section>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-          <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+        <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <section className="min-w-0 rounded-2xl bg-white p-4 sm:p-5" style={{ border: "1px solid #F0F0F0" }}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold text-neutral-900">Carrier integrations</h2>
@@ -565,7 +565,7 @@ export function AdminLogisticsPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+          <section className="min-w-0 rounded-2xl bg-white p-4 sm:p-5" style={{ border: "1px solid #F0F0F0" }}>
             <h2 className="text-xl font-bold text-neutral-900">Routing configuration</h2>
             <p className="mt-1 text-sm text-neutral-500">
               Demo settings for carrier selection and sustainable routing rules.

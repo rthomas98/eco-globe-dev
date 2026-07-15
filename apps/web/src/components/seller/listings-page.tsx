@@ -189,29 +189,29 @@ export function ListingsPage() {
 
   return (
     <SellerLayout title="Listings">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
+      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-neutral-900">Listings</h1>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{ border: "1px solid #F0F0F0" }}>
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
+          <div className="flex min-w-[180px] flex-1 items-center gap-2 rounded-full bg-neutral-50 px-4 py-2 sm:flex-none" style={{ border: "1px solid #F0F0F0" }}>
             <Search className="size-4 text-neutral-400" />
-            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400 sm:w-32 sm:flex-none" />
           </div>
           <div className="flex items-center gap-2 rounded-full px-3 py-2" style={{ border: "1px solid #F0F0F0" }}>
-            <button onClick={() => setView(view === "list" ? "card" : "list")} className="flex items-center gap-2 text-sm font-medium text-neutral-700">
+            <button type="button" onClick={() => setView(view === "list" ? "card" : "list")} className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-neutral-700">
               {view === "list" ? <><LayoutGrid className="size-4" /> Card View</> : <><List className="size-4" /> List View</>}
             </button>
             <ChevronDown className="size-4 text-neutral-400" />
           </div>
-          <button className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700" style={{ border: "1px solid #F0F0F0" }}>
+          <button type="button" className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700" style={{ border: "1px solid #F0F0F0" }}>
             <SlidersHorizontal className="size-4" /> Filters
           </button>
-          <Link href="/seller/listings/add"><Button variant="primary" size="md">Add Listing</Button></Link>
+          <Link href="/seller/listings/add" className="w-full sm:w-auto"><Button variant="primary" size="md" className="w-full sm:w-auto">Add Listing</Button></Link>
         </div>
       </div>
 
       {/* Pending banner */}
       {pendingCount > 0 && (
-        <div className="mb-5 flex items-center justify-between rounded-xl bg-blue-50 px-5 py-3">
+        <div className="mb-5 flex items-center justify-between gap-3 rounded-xl bg-blue-50 px-4 py-3 sm:px-5">
           <div className="flex items-center gap-3">
             <Info className="size-5 text-blue-500" />
             <span className="text-sm text-neutral-700">{pendingCount} Listing pending approval</span>
@@ -221,37 +221,39 @@ export function ListingsPage() {
       )}
 
       {view === "list" ? (
-        <table className="w-full min-w-[800px]">
-          <thead>
-            <tr className="text-left" style={{ borderBottom: "1px solid #F0F0F0" }}>
-              <th className="pb-3 text-sm font-medium text-neutral-500">Listing Name</th>
-              <th className="pb-3 text-sm font-medium text-neutral-500">Category</th>
-              <th className="pb-3 text-sm font-medium text-neutral-500">Available</th>
-              <th className="pb-3 text-sm font-medium text-neutral-500">Price</th>
-              <th className="pb-3 text-sm font-medium text-neutral-500">Sustainability</th>
-              <th className="pb-3 text-sm font-medium text-neutral-500">Status</th>
-              <th className="pb-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((l, i) => (
-              <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedListing(l)}>
-                <td className="py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="size-10 shrink-0 overflow-hidden rounded-lg"><img src={l.image} alt="" className="size-full object-cover" /></div>
-                    <div><p className="text-sm font-medium text-neutral-900 max-w-[300px] truncate">{l.name}</p><p className="text-xs text-neutral-400">{l.id}</p></div>
-                  </div>
-                </td>
-                <td className="py-3.5 text-sm text-neutral-700">{l.category}</td>
-                <td className="py-3.5 text-sm text-neutral-700">{l.available.toLocaleString()}</td>
-                <td className="py-3.5 text-sm text-neutral-900">{l.price}</td>
-                <td className="py-3.5"><SustainabilityDot type={l.sustainability} /></td>
-                <td className="py-3.5"><StatusBadge status={l.status} /></td>
-                <td className="py-3.5"><button className="text-neutral-400"><MoreHorizontal className="size-4" /></button></td>
+        <div className="overflow-x-auto rounded-xl bg-white">
+          <table className="w-full min-w-[800px]">
+            <thead>
+              <tr className="text-left" style={{ borderBottom: "1px solid #F0F0F0" }}>
+                <th className="pb-3 text-sm font-medium text-neutral-500">Listing Name</th>
+                <th className="pb-3 text-sm font-medium text-neutral-500">Category</th>
+                <th className="pb-3 text-sm font-medium text-neutral-500">Available</th>
+                <th className="pb-3 text-sm font-medium text-neutral-500">Price</th>
+                <th className="pb-3 text-sm font-medium text-neutral-500">Sustainability</th>
+                <th className="pb-3 text-sm font-medium text-neutral-500">Status</th>
+                <th className="pb-3"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((l, i) => (
+                <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedListing(l)}>
+                  <td className="py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 shrink-0 overflow-hidden rounded-lg"><img src={l.image} alt="" className="size-full object-cover" /></div>
+                      <div><p className="text-sm font-medium text-neutral-900 max-w-[300px] truncate">{l.name}</p><p className="text-xs text-neutral-400">{l.id}</p></div>
+                    </div>
+                  </td>
+                  <td className="py-3.5 text-sm text-neutral-700">{l.category}</td>
+                  <td className="py-3.5 text-sm text-neutral-700">{l.available.toLocaleString()}</td>
+                  <td className="py-3.5 text-sm text-neutral-900">{l.price}</td>
+                  <td className="py-3.5"><SustainabilityDot type={l.sustainability} /></td>
+                  <td className="py-3.5"><StatusBadge status={l.status} /></td>
+                  <td className="py-3.5"><button type="button" className="text-neutral-400"><MoreHorizontal className="size-4" /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <CardView listings={filtered} onSelect={setSelectedListing} />
       )}

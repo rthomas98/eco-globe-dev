@@ -14,20 +14,24 @@ export function SellerLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-neutral-100">
+    <div className="flex h-dvh overflow-hidden bg-neutral-100">
       {/* Desktop sidebar */}
       <SellerSidebar className="hidden lg:flex" />
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <>
-          <div
+          <button
+            type="button"
+            aria-label="Close seller navigation"
             className="fixed inset-0 z-40 bg-black/30 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
           <div className="fixed inset-y-0 left-0 z-50 lg:hidden">
-            <SellerSidebar className="flex" />
+            <SellerSidebar className="flex" onNavigate={() => setSidebarOpen(false)} />
             <button
+              type="button"
+              aria-label="Close seller navigation"
               onClick={() => setSidebarOpen(false)}
               className="absolute right-2 top-4 flex size-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
             >
@@ -37,11 +41,13 @@ export function SellerLayout({
         </>
       )}
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top bar */}
         <header className="flex h-16 items-center justify-between bg-white px-4 sm:px-6" style={{ borderBottom: "1px solid #E0E0E0" }}>
           <div className="flex items-center gap-3">
             <button
+              type="button"
+              aria-label="Open seller navigation"
               onClick={() => setSidebarOpen(true)}
               className="text-neutral-500 hover:text-neutral-900 lg:hidden"
             >
@@ -50,7 +56,7 @@ export function SellerLayout({
             <h1 className="text-lg font-semibold text-neutral-900">{title}</h1>
           </div>
           <div className="flex items-center gap-4">
-            <button className="text-neutral-500 hover:text-neutral-900">
+            <button type="button" aria-label="Search" className="text-neutral-500 hover:text-neutral-900">
               <Search className="size-5" />
             </button>
             <div className="flex size-8 items-center justify-center rounded-full bg-neutral-200">
@@ -59,7 +65,7 @@ export function SellerLayout({
           </div>
         </header>
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
           {children}
         </main>
       </div>

@@ -107,12 +107,12 @@ function StatsCards() {
 function FiltersPanel({ onClose }: { onClose: () => void }) {
   return (
     <div
-      className="absolute right-0 top-12 z-30 w-[360px] rounded-xl bg-white p-6"
+      className="fixed left-4 right-4 top-24 z-30 rounded-xl bg-white p-4 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[360px] sm:p-6"
       style={{ border: "1px solid #F0F0F0", boxShadow: "0 8px 30px rgba(0,0,0,0.08)" }}
     >
       <div className="mb-6 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-neutral-900">Filters</h3>
-        <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900">
+        <button type="button" onClick={onClose} className="text-neutral-400 hover:text-neutral-900">
           <X className="size-5" />
         </button>
       </div>
@@ -363,24 +363,25 @@ export function SalesPage() {
   });
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-w-0 flex-col">
       {/* Top bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
+      <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
         <h1 className="text-2xl font-bold text-neutral-900">Sales</h1>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{ border: "1px solid #F0F0F0" }}>
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
+          <div className="flex min-w-[180px] flex-1 items-center gap-2 rounded-full bg-neutral-50 px-4 py-2 sm:flex-none" style={{ border: "1px solid #F0F0F0" }}>
             <Search className="size-4 text-neutral-400" />
             <input
               type="text"
 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400 sm:w-32 sm:flex-none"
             />
           </div>
           <DateRangeDropdown value={dateRange} onChange={setDateRange} />
           <div className="relative">
             <button
+              type="button"
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700"
               style={{ border: "1px solid #F0F0F0" }}
@@ -402,12 +403,12 @@ export function SalesPage() {
       </div>
 
       {/* Stats */}
-      <div className="px-6 pb-5">
+      <div className="px-4 pb-5 sm:px-6">
         <StatsCards />
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-x-auto px-6">
+      <div className="flex-1 overflow-x-auto px-4 sm:px-6">
         <table className="w-full min-w-[900px]">
           <thead>
             <tr className="text-left" style={{ borderBottom: "1px solid #F0F0F0" }}>
@@ -435,7 +436,7 @@ export function SalesPage() {
                 <td className="py-3.5 text-sm text-neutral-700">{order.category}</td>
                 <td className="py-3.5"><StatusBadge status={order.status} /></td>
                 <td className="py-3.5">
-                  <button className="text-neutral-400 hover:text-neutral-700">
+                  <button type="button" className="text-neutral-400 hover:text-neutral-700">
                     <MoreHorizontal className="size-4" />
                   </button>
                 </td>
@@ -446,14 +447,15 @@ export function SalesPage() {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: "1px solid #F0F0F0" }}>
+      <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6" style={{ borderTop: "1px solid #F0F0F0" }}>
         <div className="flex items-center gap-1">
-          <button className="flex size-8 items-center justify-center rounded text-neutral-400 hover:text-neutral-700">
+          <button type="button" className="flex size-8 items-center justify-center rounded text-neutral-400 hover:text-neutral-700">
             <ChevronLeft className="size-4" />
           </button>
           {[1, 2, 3, "...", 15].map((page, i) => (
             <button
               key={i}
+              type="button"
               className={`flex size-8 items-center justify-center rounded text-sm ${
                 page === currentPage
                   ? "bg-neutral-900 font-medium text-white"
@@ -464,11 +466,11 @@ export function SalesPage() {
               {page}
             </button>
           ))}
-          <button className="flex size-8 items-center justify-center rounded text-neutral-400 hover:text-neutral-700">
+          <button type="button" className="flex size-8 items-center justify-center rounded text-neutral-400 hover:text-neutral-700">
             <ChevronRight className="size-4" />
           </button>
         </div>
-        <button className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-500" style={{ border: "1px solid #E0E0E0" }}>
+        <button type="button" className="flex w-fit items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-500" style={{ border: "1px solid #E0E0E0" }}>
           20 / page <ChevronDown className="size-3.5" />
         </button>
       </div>

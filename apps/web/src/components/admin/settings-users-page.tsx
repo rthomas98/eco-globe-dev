@@ -81,29 +81,29 @@ function UserModal({ user, onSave, onClose }: { user?: SystemUser; onSave: (u: S
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-[680px] rounded-2xl bg-white p-8" style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button type="button" aria-label="Close user dialog" className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-[680px] overflow-y-auto rounded-2xl bg-white p-4 sm:p-8" style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl font-bold text-neutral-900">{user ? "Edit System User" : "Add System User"}</h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900"><X className="size-5" /></button>
+          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-neutral-900"><X className="size-5" /></button>
         </div>
         <div className="flex flex-col gap-5">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="First name" id="fn" value={form.firstName} onChange={(e) => up("firstName", e.target.value)} />
             <Input label="Last name" id="ln" value={form.lastName} onChange={(e) => up("lastName", e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="Email" id="em" type="email" value={form.email} onChange={(e) => up("email", e.target.value)} />
             <Input label="Phone number" id="ph" type="tel" value={form.phone} onChange={(e) => up("phone", e.target.value)} />
           </div>
           <Input label="Address" id="addr" value={form.address} onChange={(e) => up("address", e.target.value)} />
           <Select label="Role" id="role" options={[{ value: "", label: "-- Choose --" }, ...roleOptions]} value={form.role} onChange={(e) => up("role", e.target.value)} />
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex flex-col gap-4 pt-2 sm:flex-row sm:items-center sm:justify-between">
             <label className="flex items-center gap-2 text-sm font-medium text-neutral-900">
               <input type="checkbox" checked={form.active} onChange={(e) => up("active", e.target.checked)} className="size-4 rounded accent-neutral-900" /> Active
             </label>
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>
               <Button variant="primary" size="md" disabled={!isValid} style={!isValid ? { opacity: 0.4, cursor: "not-allowed" } : undefined} onClick={handleSubmit}>
                 {user ? "Save Changes" : "Add System User"}
@@ -121,13 +121,13 @@ function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <button onClick={(e) => { e.stopPropagation(); setOpen(!open); }} className="text-neutral-400 hover:text-neutral-700"><MoreHorizontal className="size-4" /></button>
+      <button type="button" onClick={(e) => { e.stopPropagation(); setOpen(!open); }} className="text-neutral-400 hover:text-neutral-700"><MoreHorizontal className="size-4" /></button>
       {open && (
         <>
-          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <button type="button" aria-label="Close user actions" className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-6 z-30 w-[140px] rounded-lg bg-white py-1" style={{ border: "1px solid #F0F0F0", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
-            <button onClick={() => { onEdit(); setOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50"><Pencil className="size-3.5" /> Edit</button>
-            <button onClick={() => { onDelete(); setOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"><Trash2 className="size-3.5" /> Delete</button>
+            <button type="button" onClick={() => { onEdit(); setOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50"><Pencil className="size-3.5" /> Edit</button>
+            <button type="button" onClick={() => { onDelete(); setOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"><Trash2 className="size-3.5" /> Delete</button>
           </div>
         </>
       )}
@@ -169,22 +169,22 @@ export function SettingsUsersPage() {
   const paged = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
+    <div className="flex h-full min-w-0 flex-col">
+      <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
         <h1 className="text-2xl font-bold text-neutral-900">System Users</h1>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{ border: "1px solid #F0F0F0" }}>
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
+          <div className="flex min-w-[180px] flex-1 items-center gap-2 rounded-full bg-neutral-50 px-4 py-2 sm:flex-none" style={{ border: "1px solid #F0F0F0" }}>
             <Search className="size-4 text-neutral-400" />
-            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400 sm:w-32 sm:flex-none" />
           </div>
-          <button className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700" style={{ border: "1px solid #F0F0F0" }}>
+          <button type="button" className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700" style={{ border: "1px solid #F0F0F0" }}>
             <SlidersHorizontal className="size-4" /> Filters
           </button>
-          <Button variant="primary" size="md" onClick={() => { setEditingUser(undefined); setShowModal(true); }}>Add System User</Button>
+          <Button variant="primary" size="md" className="w-full sm:w-auto" onClick={() => { setEditingUser(undefined); setShowModal(true); }}>Add System User</Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto px-6">
+      <div className="flex-1 overflow-x-auto px-4 sm:px-6">
         <table className="w-full min-w-[700px]">
           <thead>
             <tr className="text-left" style={{ borderBottom: "1px solid #F0F0F0" }}>
@@ -220,15 +220,15 @@ export function SettingsUsersPage() {
         </table>
       </div>
 
-      <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: "1px solid #F0F0F0" }}>
+      <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6" style={{ borderTop: "1px solid #F0F0F0" }}>
         <div className="flex items-center gap-1">
-          <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} className="flex size-8 items-center justify-center rounded text-neutral-400"><ChevronLeft className="size-4" /></button>
+          <button type="button" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} className="flex size-8 items-center justify-center rounded text-neutral-400"><ChevronLeft className="size-4" /></button>
           {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => (
-            <button key={p} className={`flex size-8 items-center justify-center rounded text-sm ${p === currentPage ? "bg-neutral-900 font-medium text-white" : "text-neutral-500 hover:bg-neutral-100"}`} onClick={() => setCurrentPage(p)}>{p}</button>
+            <button key={p} type="button" className={`flex size-8 items-center justify-center rounded text-sm ${p === currentPage ? "bg-neutral-900 font-medium text-white" : "text-neutral-500 hover:bg-neutral-100"}`} onClick={() => setCurrentPage(p)}>{p}</button>
           ))}
-          <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} className="flex size-8 items-center justify-center rounded text-neutral-400"><ChevronRight className="size-4" /></button>
+          <button type="button" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} className="flex size-8 items-center justify-center rounded text-neutral-400"><ChevronRight className="size-4" /></button>
         </div>
-        <button className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-500" style={{ border: "1px solid #E0E0E0" }}>10 / page <ChevronDown className="size-3.5" /></button>
+        <button type="button" className="flex w-fit items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-500" style={{ border: "1px solid #E0E0E0" }}>10 / page <ChevronDown className="size-3.5" /></button>
       </div>
 
       {showModal && <UserModal user={editingUser} onSave={handleSave} onClose={() => { setShowModal(false); setEditingUser(undefined); }} />}

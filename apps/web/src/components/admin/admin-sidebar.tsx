@@ -298,10 +298,12 @@ export function AdminSidebar({
   className,
   showLogistics = false,
   showContracts = false,
+  onNavigate,
 }: {
   className?: string;
   showLogistics?: boolean;
   showContracts?: boolean;
+  onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const navGroups = showLogistics || showContracts ? expandedAdminNavGroups : mainAdminNavGroups;
@@ -415,6 +417,7 @@ export function AdminSidebar({
                         ) : (
                           <Link
                             href={item.href}
+                            onClick={onNavigate}
                             className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                               isActive
                                 ? "bg-neutral-100 text-neutral-900"
@@ -435,6 +438,7 @@ export function AdminSidebar({
                                 <Link
                                   key={child.href}
                                   href={child.href}
+                                  onClick={onNavigate}
                                   className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                                     childActive
                                       ? "bg-neutral-100 text-neutral-900"

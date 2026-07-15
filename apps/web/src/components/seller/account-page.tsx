@@ -49,15 +49,16 @@ function Modal({ title, onClose, children, footer, wide }: {
         >
           <h2 className="text-lg font-bold text-neutral-900">{title}</h2>
           <button
+            type="button"
             onClick={onClose}
             className="flex size-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
           >
             <X className="size-5" />
           </button>
         </div>
-        <div className="px-6 py-6">{children}</div>
+        <div className="px-4 py-5 sm:px-6 sm:py-6">{children}</div>
         <div
-          className="flex items-center justify-end gap-3 px-6 py-4"
+          className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6"
           style={{ borderTop: "1px solid #F0F0F0" }}
         >
           {footer}
@@ -89,7 +90,7 @@ function EditNameModal({ profile, onSave, onClose }: {
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Input
           label="First name"
           id="firstName"
@@ -280,21 +281,22 @@ function ProfileRow({ label, value, verified, onEdit }: {
 }) {
   return (
     <div
-      className="flex items-center justify-between gap-6 px-6 py-5"
+      className="flex flex-col gap-2 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6"
       style={{ borderBottom: "1px solid #F0F0F0" }}
     >
-      <span className="w-[200px] shrink-0 text-sm text-neutral-700">{label}</span>
-      <div className="flex flex-1 items-center gap-2 text-sm text-neutral-900">
+      <span className="w-full text-sm text-neutral-700 sm:w-[200px] sm:shrink-0">{label}</span>
+      <div className="flex w-full min-w-0 flex-1 items-center gap-2 break-words text-sm text-neutral-900 sm:w-auto">
         {value || <span className="text-neutral-400">Enter Data</span>}
         {verified && (
-          <span className="inline-flex size-4 items-center justify-center rounded-full bg-green-500">
+          <span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-green-500">
             <Check className="size-3 text-white" strokeWidth={3} />
           </span>
         )}
       </div>
       <button
+        type="button"
         onClick={onEdit}
-        className="text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700"
+        className="self-start text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700 sm:self-auto"
       >
         Edit
       </button>
@@ -321,7 +323,7 @@ function ProfileTab({ profile, setProfile }: {
   return (
     <>
       <div
-        className="flex items-center justify-between gap-6 px-6 py-6"
+        className="flex items-center justify-between gap-6 px-4 py-6 sm:px-6"
         style={{ borderBottom: "1px solid #F0F0F0" }}
       >
         <div className="flex flex-1 items-center">
@@ -335,12 +337,14 @@ function ProfileTab({ profile, setProfile }: {
         </div>
         <div className="flex items-center gap-5">
           <button
+            type="button"
             onClick={() => setProfile((p) => ({ ...p, avatar: null }))}
             className="text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700"
           >
             Delete
           </button>
           <button
+            type="button"
             onClick={() => setModal("photo")}
             className="text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700"
           >
@@ -352,14 +356,15 @@ function ProfileTab({ profile, setProfile }: {
       <ProfileRow label="Work Phone" value={profile.workPhone} verified onEdit={() => setModal("phone")} />
       <ProfileRow label="Work Email" value={profile.workEmail} verified onEdit={() => setModal("email")} />
       <ProfileRow label="Job Title" value={profile.jobTitle} onEdit={() => setModal("jobTitle")} />
-      <div className="flex items-center justify-between gap-6 px-6 py-5">
-        <span className="w-[200px] shrink-0 text-sm text-neutral-700">Department</span>
-        <div className="flex-1 text-sm text-neutral-900">
+      <div className="flex flex-col gap-2 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
+        <span className="w-full text-sm text-neutral-700 sm:w-[200px] sm:shrink-0">Department</span>
+        <div className="w-full min-w-0 flex-1 text-sm text-neutral-900 sm:w-auto">
           {profile.department || <span className="text-neutral-400">Enter Data</span>}
         </div>
         <button
+          type="button"
           onClick={() => setModal("department")}
-          className="text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700"
+          className="self-start text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700 sm:self-auto"
         >
           Edit
         </button>

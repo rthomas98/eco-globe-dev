@@ -70,7 +70,7 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
           </div>
 
           {isHero ? (
-            <nav className="hidden items-center gap-8 md:flex">
+            <nav className="hidden items-center gap-6 xl:flex">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
@@ -82,7 +82,7 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
               ))}
             </nav>
           ) : scrolled ? (
-            <form onSubmit={handleHeaderSearch} className="hidden items-center rounded-full px-1 py-1 md:flex" style={{ border: "1px solid #E0E0E0" }}>
+            <form onSubmit={handleHeaderSearch} className="hidden items-center rounded-full px-1 py-1 xl:flex" style={{ border: "1px solid #E0E0E0" }}>
               <input
                 type="text"
                 value={headerQuery}
@@ -103,7 +103,7 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
               </button>
             </form>
           ) : (
-            <nav className="hidden items-center gap-8 md:flex">
+            <nav className="hidden items-center gap-6 xl:flex">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
@@ -117,11 +117,12 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
           )}
 
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden xl:flex items-center gap-3">
               <HeaderUserMenu tone={isHero ? "light" : "dark"} />
             </div>
             <button
-              className="md:hidden flex items-center justify-center"
+              type="button"
+              className="flex items-center justify-center xl:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle menu"
             >
@@ -137,8 +138,8 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
 
       {/* Mobile menu overlay */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white shadow-lg">
-          <div className="px-4 py-6 flex flex-col gap-4">
+        <div className="max-h-[calc(100dvh-5rem)] overflow-y-auto bg-white shadow-lg xl:hidden">
+          <div className="flex flex-col gap-4 px-4 py-6">
             {navLinks.map((link) => (
               <Link
                 key={link.href}

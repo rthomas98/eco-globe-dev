@@ -686,13 +686,13 @@ function OrderCard({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
           {showReviewQuote && (
-            <Button variant="primary" size="md" onClick={onOpen}>
+            <Button variant="primary" size="md" className="flex-1 sm:flex-none" onClick={onOpen}>
               Review Quote
             </Button>
           )}
-          <Button variant="secondary" size="md" onClick={onOpen}>
+          <Button variant="secondary" size="md" className="flex-1 sm:flex-none" onClick={onOpen}>
             Order Details
           </Button>
           <MoreMenu order={order} onViewDetails={onOpen} onCancel={onCancel} />
@@ -704,8 +704,8 @@ function OrderCard({
 
 function CompletedTable({ items }: { items: Order[] }) {
   return (
-    <div className="overflow-hidden rounded-2xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
-      <table className="w-full">
+    <div className="overflow-x-auto rounded-2xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
+      <table className="w-full min-w-[860px]">
         <thead>
           <tr className="text-left" style={{ borderBottom: "1px solid #F0F0F0" }}>
             <th className="px-6 py-4 text-sm font-medium text-neutral-700">Order ID</th>
@@ -932,11 +932,11 @@ export function BuyerOrdersPage() {
     <BuyerLayout>
       <div className="flex h-full flex-col bg-neutral-50">
         {/* Top bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-8 py-6">
+        <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-8 sm:py-6">
           <h1 className="text-2xl font-bold text-neutral-900">My Orders</h1>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
             <div
-              className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5"
+              className="flex min-w-[180px] flex-1 items-center gap-2 rounded-full bg-white px-4 py-2.5 sm:flex-none"
               style={{ border: "1px solid #E0E0E0" }}
             >
               <Search className="size-4 text-neutral-400" />
@@ -945,10 +945,11 @@ export function BuyerOrdersPage() {
                 placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-40 bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
+                className="min-w-0 flex-1 bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400 sm:w-40 sm:flex-none"
               />
             </div>
             <button
+              type="button"
               onClick={() => setFiltersOpen(true)}
               className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900"
               style={{ border: "1px solid #E0E0E0" }}
@@ -961,14 +962,15 @@ export function BuyerOrdersPage() {
 
         {/* Tabs */}
         <div
-          className="flex items-center gap-8 px-8"
+          className="flex items-center gap-8 overflow-x-auto px-4 sm:px-8"
           style={{ borderBottom: "1px solid #F0F0F0" }}
         >
           {tabs.map((t) => (
             <button
+              type="button"
               key={t}
               onClick={() => setTab(t)}
-              className={`relative pb-4 text-sm font-medium transition-colors ${
+              className={`relative shrink-0 pb-4 text-sm font-medium transition-colors ${
                 tab === t
                   ? "text-neutral-900"
                   : "text-neutral-500 hover:text-neutral-700"
@@ -983,7 +985,7 @@ export function BuyerOrdersPage() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
           {tab === "Completed" || tab === "Cancelled" ? (
             <CompletedTable items={filtered} />
           ) : filtered.length === 0 ? (

@@ -149,8 +149,8 @@ export function AdminContractsPage() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-neutral-50">
-      <div className="px-8 py-6">
+    <div className="min-w-0 flex-1 overflow-y-auto bg-neutral-50">
+      <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">
@@ -167,24 +167,24 @@ export function AdminContractsPage() {
           <Button variant="primary" size="md">Create template</Button>
         </div>
 
-        <div className="mb-6 grid gap-4 md:grid-cols-4">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Metric label="Active contracts" value={String(contractAdminSummary.activeContracts)} icon={FileText} />
           <Metric label="Pending signatures" value={String(pendingSignatureCount)} icon={FileSignature} />
           <Metric label="Renewal queue" value={String(contractAdminSummary.renewalQueue)} icon={CalendarClock} />
           <Metric label="At-risk contracts" value={String(contractAdminSummary.atRiskContracts)} icon={AlertTriangle} />
         </div>
 
-        <div className="mb-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+        <div className="mb-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+          <section className="min-w-0 rounded-2xl bg-white p-4 sm:p-5" style={{ border: "1px solid #F0F0F0" }}>
             <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-xl font-bold text-neutral-900">Platform contracts</h2>
                 <p className="text-sm text-neutral-500">
                   Monitor every contract across buyer and seller workflows.
                 </p>
               </div>
-              <div className="flex flex-1 flex-wrap justify-end gap-3">
-                <div className="relative min-w-[240px] max-w-[320px] flex-1">
+              <div className="flex w-full flex-wrap gap-3 sm:w-auto sm:flex-1 sm:justify-end">
+                <div className="relative min-w-[180px] flex-1 sm:min-w-[240px] sm:max-w-[320px]">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
                   <input
                     id="admin-contract-search"
@@ -199,7 +199,7 @@ export function AdminContractsPage() {
                   id="admin-contract-filter"
                   value={contractFilter}
                   onChange={(event) => updateFilter(event.target.value)}
-                  className="min-w-[190px] text-sm"
+                  className="w-full text-sm sm:min-w-[190px] sm:w-auto"
                   options={[
                     { value: "all", label: "All contracts" },
                     { value: "signature", label: "Signature pending" },
@@ -214,7 +214,7 @@ export function AdminContractsPage() {
                 Showing <span className="font-semibold text-neutral-900">{firstResult}-{lastResult}</span>{" "}
                 of <span className="font-semibold text-neutral-900">{filteredContracts.length}</span> contracts
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex w-full items-center gap-2 sm:w-auto">
                 <label htmlFor="admin-contract-page-size" className="text-sm text-neutral-500">
                   Rows
                 </label>
@@ -314,7 +314,7 @@ export function AdminContractsPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+          <section className="min-w-0 rounded-2xl bg-white p-4 sm:p-5" style={{ border: "1px solid #F0F0F0" }}>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-neutral-900">Contract detail</h2>
               {hasMatchingContracts && (
@@ -328,7 +328,7 @@ export function AdminContractsPage() {
                 <Detail label="Template" value={selected.template} />
                 <Detail label="Payment terms" value={selected.paymentTerms} />
                 <Detail label="Next action" value={selected.nextAction} />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <Button
                     type="button"
                     variant="secondary"

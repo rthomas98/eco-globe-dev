@@ -110,7 +110,12 @@ function UserMenu({
 }) {
   return (
     <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <button
+        type="button"
+        aria-label="Close seller user menu"
+        className="fixed inset-0 z-40"
+        onClick={onClose}
+      />
       <div
         className="absolute bottom-16 left-3 z-50 w-[280px] rounded-2xl bg-white p-5"
         style={{ border: "1px solid #F0F0F0", boxShadow: "0 12px 40px rgba(0,0,0,0.12)" }}
@@ -172,7 +177,7 @@ function UserMenu({
   );
 }
 
-export function SellerSidebar({ className }: { className?: string }) {
+export function SellerSidebar({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -205,7 +210,7 @@ export function SellerSidebar({ className }: { className?: string }) {
 
   return (
     <aside
-      className={`relative flex h-screen w-[240px] shrink-0 flex-col bg-white ${className ?? ""}`}
+      className={`relative flex h-dvh w-[240px] shrink-0 flex-col bg-white ${className ?? ""}`}
       style={{ borderRight: "1px solid #E0E0E0" }}
     >
       {/* Logo */}
@@ -223,7 +228,7 @@ export function SellerSidebar({ className }: { className?: string }) {
       </div>
 
       {/* Nav items */}
-      <nav className="flex flex-1 flex-col gap-1 px-3 pt-4">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pt-4">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           const isOpen = openSection === item.label;
@@ -256,6 +261,7 @@ export function SellerSidebar({ className }: { className?: string }) {
                         <Link
                           key={child.href}
                           href={child.href}
+                          onClick={onNavigate}
                           className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                             childActive
                               ? "bg-neutral-100 text-neutral-900"
@@ -276,6 +282,7 @@ export function SellerSidebar({ className }: { className?: string }) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-neutral-900 text-white"
