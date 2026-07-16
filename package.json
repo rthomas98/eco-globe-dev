@@ -10,6 +10,7 @@
     "dev:convex": "turbo run dev --filter=@eco-globe/backend",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
+    "solo:check": "prettier --check solo.yml",
     "clean": "turbo run clean",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },

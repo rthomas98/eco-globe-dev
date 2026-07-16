@@ -1,0 +1,51 @@
+name: EcoGlobe
+icon_initials: EG
+
+processes:
+  Web App:
+    command: pnpm dev:web
+    working_dir: .
+    auto_start: true
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+
+  Admin App:
+    command: pnpm dev:admin
+    working_dir: .
+    auto_start: true
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+
+  Convex Backend:
+    command: pnpm dev:convex
+    working_dir: .
+    auto_start: true
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+
+  Mobile App:
+    command: pnpm dev:mobile
+    working_dir: .
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+
+  Type Check:
+    command: pnpm type-check
+    working_dir: .
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+
+  Production Build:
+    command: pnpm build
+    working_dir: .
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
