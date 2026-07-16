@@ -69,9 +69,9 @@ export function SettingsSidebar({ className, onNavigate }: { className?: string;
             <Image
               src="/logo.svg"
               alt="EcoGlobe"
-              width={railExpanded ? 100 : 28}
-              height={28}
-              className="invert"
+              width={120}
+              height={35}
+              className={`h-auto invert ${railExpanded ? "w-[100px]" : "w-7"}`}
               priority
             />
           </Link>

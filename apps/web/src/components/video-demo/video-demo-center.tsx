@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
+  BookOpenCheck,
   Captions,
   Check,
   CheckCircle2,
@@ -10,16 +11,21 @@ import {
   ChevronRight,
   Clock3,
   Download,
+  Eye,
   FileText,
   Heart,
   MapPinned,
   Pause,
   Play,
+  Plus,
   Search,
+  Settings2,
   ShieldCheck,
   ShoppingCart,
   Smartphone,
   Sparkles,
+  Users,
+  X,
 } from "lucide-react";
 
 type Role = "public" | "buyer" | "seller" | "admin";
@@ -370,7 +376,13 @@ function sceneIcon(id: string) {
   return ShoppingCart;
 }
 
-export function VideoDemoCenter({ role }: { role: Role }) {
+export function VideoDemoCenter({
+  role,
+  demoId,
+}: {
+  role: Role;
+  demoId?: string;
+}) {
   const available = useMemo(
     () =>
       demos.filter(
@@ -382,7 +394,9 @@ export function VideoDemoCenter({ role }: { role: Role }) {
     [role],
   );
   const [selectedId, setSelectedId] = useState(
-    available[0]?.id ?? "marketplace",
+    available.some((demo) => demo.id === demoId)
+      ? demoId!
+      : (available[0]?.id ?? "marketplace"),
   );
   const [category, setCategory] = useState<Category>("All");
   const [query, setQuery] = useState("");
@@ -393,6 +407,11 @@ export function VideoDemoCenter({ role }: { role: Role }) {
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [notice, setNotice] = useState("");
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [assignmentOpen, setAssignmentOpen] = useState(false);
+  const [published, setPublished] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(available.map((demo) => [demo.id, true])),
+  );
 
   const selected =
     available.find((demo) => demo.id === selectedId) ?? available[0];
@@ -457,8 +476,8 @@ export function VideoDemoCenter({ role }: { role: Role }) {
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-neutral-50">
       <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
+        <header className="mb-6 flex w-full flex-col items-start gap-4 lg:flex-row lg:items-start lg:justify-start">
+          <div className="mr-auto w-full max-w-4xl self-start text-left">
             <p className="mb-2 text-xs font-semibold tracking-[0.28em] text-emerald-700">
               VIDEO DEMO CENTER
             </p>
@@ -470,17 +489,36 @@ export function VideoDemoCenter({ role }: { role: Role }) {
               with chapters, captions, transcripts, and progress tracking.
             </p>
           </div>
-          <div className="flex gap-3">
-            <Metric label="Available" value={String(available.length)} />
-            <Metric
-              label="Completed"
-              value={`${completedCount}/${available.length}`}
-            />
-            <Metric
-              label="Learning time"
-              value={`${Math.round(available.reduce((sum, demo) => sum + demo.duration, 0) / 60)} min`}
-            />
-          </div>
+          {role === "admin" ? (
+            <div className="flex shrink-0 flex-wrap gap-2 self-start lg:ml-auto">
+              <button
+                type="button"
+                onClick={() => setAssignmentOpen(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-bold text-neutral-800"
+              >
+                <Users className="size-4" /> Assign learning
+              </button>
+              <button
+                type="button"
+                onClick={() => setCatalogOpen(true)}
+                className="inline-flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2.5 text-sm font-bold text-white"
+              >
+                <Settings2 className="size-4" /> Manage catalog
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <Metric label="Available" value={String(available.length)} />
+              <Metric
+                label="Completed"
+                value={`${completedCount}/${available.length}`}
+              />
+              <Metric
+                label="Learning time"
+                value={`${Math.round(available.reduce((sum, demo) => sum + demo.duration, 0) / 60)} min`}
+              />
+            </div>
+          )}
         </header>
 
         {notice && (
@@ -490,6 +528,37 @@ export function VideoDemoCenter({ role }: { role: Role }) {
           >
             {notice}
           </div>
+        )}
+
+        {role === "admin" && (
+          <section className="mb-6 rounded-3xl bg-neutral-950 p-6 text-white shadow-xl sm:p-8">
+            <div className="grid gap-6 xl:grid-cols-[1fr_620px] xl:items-end">
+              <div>
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-emerald-300">
+                  <BookOpenCheck className="size-4" /> Learning operations
+                </p>
+                <h2 className="mt-4 text-2xl font-black sm:text-3xl">
+                  Publish guided learning and measure workflow readiness.
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-300">
+                  Govern the demo catalog, assign required learning, inspect
+                  completion, and keep resources aligned with live admin
+                  workflows.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <AdminMetric value={String(available.length)} label="Lessons" />
+                <AdminMetric
+                  value={String(
+                    Object.values(published).filter(Boolean).length,
+                  )}
+                  label="Published"
+                />
+                <AdminMetric value="86%" label="Completion" />
+                <AdminMetric value="148" label="Assigned" />
+              </div>
+            </div>
+          </section>
         )}
 
         <section className="mb-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200">
@@ -563,12 +632,23 @@ export function VideoDemoCenter({ role }: { role: Role }) {
                   </p>
                   <div className="mt-3 flex items-center justify-between text-xs">
                     <span>{demo.level}</span>
-                    {completed[demo.id] && (
+                    {role === "admin" ? (
+                      <span
+                        className={`flex items-center gap-1 font-bold ${published[demo.id] ? "text-emerald-400" : "text-amber-400"}`}
+                      >
+                        {published[demo.id] ? (
+                          <Eye className="size-3" />
+                        ) : (
+                          <Pause className="size-3" />
+                        )}
+                        {published[demo.id] ? "Published" : "Draft"}
+                      </span>
+                    ) : completed[demo.id] ? (
                       <span className="flex items-center gap-1 text-emerald-400">
                         <CheckCircle2 className="size-3" />
                         Complete
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </button>
               ))}
@@ -813,6 +893,224 @@ export function VideoDemoCenter({ role }: { role: Role }) {
           </div>
         </div>
       </div>
+      {catalogOpen && (
+        <CatalogDialog
+          demos={available}
+          published={published}
+          onToggle={(id) =>
+            setPublished((current) => ({ ...current, [id]: !current[id] }))
+          }
+          onClose={() => setCatalogOpen(false)}
+          onSave={() => {
+            setCatalogOpen(false);
+            setNotice("Demo catalog publication settings saved.");
+          }}
+        />
+      )}
+      {assignmentOpen && (
+        <AssignmentDialog
+          demos={available}
+          onClose={() => setAssignmentOpen(false)}
+          onAssign={(demo, audience) => {
+            setAssignmentOpen(false);
+            setNotice(`${demo} assigned to ${audience}.`);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CatalogDialog({
+  demos,
+  published,
+  onToggle,
+  onClose,
+  onSave,
+}: {
+  demos: DemoVideo[];
+  published: Record<string, boolean>;
+  onToggle: (id: string) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <dialog
+      open
+      aria-labelledby="catalog-dialog-title"
+      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-black/40 p-4"
+    >
+      <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">
+              CATALOG GOVERNANCE
+            </p>
+            <h2
+              id="catalog-dialog-title"
+              className="mt-2 text-2xl font-black text-neutral-950"
+            >
+              Manage video demos
+            </h2>
+            <p className="mt-2 text-sm text-neutral-500">
+              Control which guided workflows are visible to assigned audiences.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Close catalog dialog"
+            onClick={onClose}
+            className="flex size-9 items-center justify-center rounded-full bg-neutral-100"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="mt-6 space-y-2">
+          {demos.map((demo) => (
+            <button
+              key={demo.id}
+              type="button"
+              aria-pressed={published[demo.id]}
+              onClick={() => onToggle(demo.id)}
+              className="flex w-full items-center justify-between rounded-xl bg-neutral-50 p-4 text-left"
+            >
+              <span>
+                <span className="block font-bold text-neutral-900">
+                  {demo.title}
+                </span>
+                <span className="mt-1 block text-xs text-neutral-500">
+                  {demo.category} · {formatTime(demo.duration)}
+                </span>
+              </span>
+              <span
+                className={`rounded-full px-2.5 py-1 text-xs font-bold ${published[demo.id] ? "bg-emerald-100 text-emerald-800" : "bg-neutral-200 text-neutral-700"}`}
+              >
+                {published[demo.id] ? "Published" : "Draft"}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-neutral-200 px-4 py-2.5 text-sm font-bold"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            className="rounded-full bg-neutral-950 px-4 py-2.5 text-sm font-bold text-white"
+          >
+            Save catalog
+          </button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+function AssignmentDialog({
+  demos,
+  onClose,
+  onAssign,
+}: {
+  demos: DemoVideo[];
+  onClose: () => void;
+  onAssign: (demo: string, audience: string) => void;
+}) {
+  const [demoId, setDemoId] = useState(demos[0]?.id ?? "");
+  const [audience, setAudience] = useState("Admin operations");
+  const demo = demos.find((item) => item.id === demoId);
+  return (
+    <dialog
+      open
+      aria-labelledby="assignment-dialog-title"
+      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-black/40 p-4"
+    >
+      <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">
+              LEARNING ASSIGNMENT
+            </p>
+            <h2
+              id="assignment-dialog-title"
+              className="mt-2 text-2xl font-black text-neutral-950"
+            >
+              Assign required learning
+            </h2>
+          </div>
+          <button
+            type="button"
+            aria-label="Close assignment dialog"
+            onClick={onClose}
+            className="flex size-9 items-center justify-center rounded-full bg-neutral-100"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="mt-6 grid gap-4">
+          <label className="text-sm font-bold">
+            Demo
+            <select
+              value={demoId}
+              onChange={(event) => setDemoId(event.target.value)}
+              className="mt-2 h-11 w-full rounded-xl border border-neutral-200 px-3"
+            >
+              {demos.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-bold">
+            Audience
+            <select
+              value={audience}
+              onChange={(event) => setAudience(event.target.value)}
+              className="mt-2 h-11 w-full rounded-xl border border-neutral-200 px-3"
+            >
+              <option>Admin operations</option>
+              <option>Contract operations</option>
+              <option>Logistics operations</option>
+              <option>Compliance reviewers</option>
+              <option>All internal users</option>
+            </select>
+          </label>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-neutral-200 px-4 py-2.5 text-sm font-bold"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!demo}
+            onClick={() => demo && onAssign(demo.title, audience)}
+            className="inline-flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2.5 text-sm font-bold text-white"
+          >
+            <Plus className="size-4" />
+            Assign demo
+          </button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+function AdminMetric({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-2xl bg-white/8 p-4 ring-1 ring-white/10">
+      <p className="text-xl font-black text-white">{value}</p>
+      <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-neutral-400">
+        {label}
+      </p>
     </div>
   );
 }

@@ -25,6 +25,8 @@
     "../web/src/components/logistics/**/*.tsx",
     "../web/src/components/notifications/**/*.ts",
     "../web/src/components/notifications/**/*.tsx",
+    "../web/src/components/partners/**/*.ts",
+    "../web/src/components/partners/**/*.tsx",
     "../web/src/components/public/listing-map.tsx",
     "../web/src/lib/viewer-location.ts"
   ],

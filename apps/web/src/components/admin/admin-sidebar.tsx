@@ -563,9 +563,9 @@ export function AdminSidebar({
           <Image
             src="/logo.svg"
             alt="EcoGlobe"
-            width={100}
-            height={28}
-            className="invert"
+            width={120}
+            height={35}
+            className="h-auto w-[100px] invert"
             priority
           />
         </Link>

@@ -49,9 +49,9 @@ function AdminAuthFrame({
             <Image
               src="/logo.svg"
               alt="EcoGlobe"
-              width={128}
-              height={36}
-              className="brightness-0 invert"
+              width={120}
+              height={35}
+              className="h-auto w-[128px] brightness-0 invert"
               priority
             />
           </Link>
@@ -96,9 +96,9 @@ function AdminAuthFrame({
               <Image
                 src="/logo.svg"
                 alt="EcoGlobe"
-                width={114}
-                height={32}
-                className="invert"
+                width={120}
+                height={35}
+                className="h-auto w-[114px] invert"
                 priority
               />
             </div>
