@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
 import { AuthLayout } from "./auth-layout";
 import { buildDemoUser, writeDemoUser, type UserRole } from "@/lib/demo-user";
@@ -10,6 +11,7 @@ import { buildDemoUser, writeDemoUser, type UserRole } from "@/lib/demo-user";
 export function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = () => {
     const e = email.toLowerCase();
@@ -55,7 +57,36 @@ export function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <Input label="Password" id="password" type="password" />
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="password"
+              className="text-base font-medium text-neutral-900"
+            >
+              Password
+            </label>
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                className="w-full rounded-lg bg-white px-4 py-3 pr-12 text-base text-neutral-900 outline-none placeholder:text-neutral-500 focus:ring-2 focus:ring-neutral-900/20"
+                style={{ border: "1px solid #E0E0E0" }}
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="absolute right-3 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-neutral-400 transition-colors hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/30"
+              >
+                {showPassword ? (
+                  <EyeOff className="size-5" aria-hidden="true" />
+                ) : (
+                  <Eye className="size-5" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          </div>
           <Link
             href="/forgot-password"
             className="text-left text-sm font-medium text-neutral-900 underline"
