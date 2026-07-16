@@ -345,7 +345,9 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
             <Image src="/logo.svg" alt="EcoGlobe" width={96} height={27} className="invert" priority />
           </Link>
         </header>
-        <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          {children}
+        </div>
       </main>
 
       {notifsOpen && (
