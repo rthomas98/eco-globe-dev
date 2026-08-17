@@ -7,14 +7,17 @@
     "dev:web": "turbo run dev --filter=@eco-globe/web",
     "dev:admin": "turbo run dev --filter=@eco-globe/admin",
     "dev:mobile": "turbo run dev --filter=@eco-globe/mobile",
-    "dev:convex": "turbo run dev --filter=@eco-globe/backend",
+    "dev:api": "turbo run dev --filter=@eco-globe/backend",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
+    "test:e2e:onboarding": "playwright test tests/e2e/onboarding.spec.js --reporter=line",
+    "test:e2e:portal-access": "playwright test tests/e2e/portal-access.spec.js --reporter=line",
     "solo:check": "prettier --check solo.yml",
     "clean": "turbo run clean",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "prettier": "^3.5.3",
     "turbo": "^2.10.5",
     "typescript": "^5.8.2"

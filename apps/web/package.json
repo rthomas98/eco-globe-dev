@@ -11,12 +11,8 @@
     "clean": "rm -rf .next .turbo node_modules"
   },
   "dependencies": {
-    "@convex-dev/better-auth": "^0.10.0",
     "@eco-globe/shared": "workspace:*",
     "@eco-globe/ui": "workspace:*",
-    "better-auth": ">=1.4.9 <1.5.0",
-    "convex": "^1.21.0",
-    "convex-helpers": "^0.1.114",
     "lucide-react": "^0.475.0",
     "mapbox-gl": "^3.20.0",
     "next": "^15.3.1",

@@ -18,10 +18,10 @@ processes:
     restart_when_changed: []
     env: {}
 
-  Convex Backend:
-    command: pnpm dev:convex
+  Backend API:
+    command: pnpm dev:api
     working_dir: .
-    auto_start: true
+    auto_start: false
     auto_restart: false
     restart_when_changed: []
     env: {}

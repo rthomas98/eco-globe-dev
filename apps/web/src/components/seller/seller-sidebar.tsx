@@ -37,10 +37,10 @@ import {
 import { NotificationsPanel } from "./notifications-panel";
 import {
   buildDemoUser,
-  clearDemoUser,
   readDemoUser,
   writeDemoUser,
 } from "@/lib/demo-user";
+import { logoutBackendUser } from "@/lib/backend-auth";
 
 type NavChild = { label: string; href: string };
 type NavItem = {
@@ -190,10 +190,11 @@ export function SellerSidebar({ className, onNavigate }: { className?: string; o
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
 
-  const handleLogout = () => {
-    clearDemoUser();
+  const handleLogout = async () => {
+    await logoutBackendUser(readDemoUser()?.token);
     setUserMenuOpen(false);
-    router.push("/login");
+    router.replace("/");
+    router.refresh();
   };
 
   const handleSwitchToBuyer = () => {

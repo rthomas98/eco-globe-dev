@@ -30,7 +30,25 @@ export interface Facility {
   lng?: number;
 }
 
+export interface BackendCompanyMembership {
+  id: number;
+  legalName: string;
+  companyTypeCode: string;
+  memberRoleCode: string;
+  permissionTierCode: string;
+  canApproveTransactions: boolean;
+  canExecuteTransactions: boolean;
+}
+
 export interface DemoUser {
+  /** Backend user id from Azure SQL. */
+  id?: number;
+  /** Bearer session token issued by the backend auth API. */
+  token?: string;
+  sessionExpiresAt?: string;
+  activeCompanyId?: number;
+  accountStatusCode?: string;
+  companies?: BackendCompanyMembership[];
   /** Currently active portal/role. */
   role: UserRole;
   /**

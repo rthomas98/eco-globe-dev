@@ -6,28 +6,46 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
 import { AuthLayout } from "./auth-layout";
-import { buildDemoUser, writeDemoUser, type UserRole } from "@/lib/demo-user";
+import { BackendApiError, inferRequestedRole, writeBackendLoginSession } from "@/lib/backend-auth";
+import type { UserRole } from "@/lib/demo-user";
 
 export function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [status, setStatus] = useState<"idle" | "loading">("idle");
+  const [error, setError] = useState("");
 
-  const handleLogin = () => {
-    const e = email.toLowerCase();
-    const role: UserRole = e.includes("seller")
-      ? "seller"
-      : e.includes("buyer")
-        ? "buyer"
-        : "admin";
-    writeDemoUser(buildDemoUser(role, { email }));
-    const dest =
-      role === "seller"
-        ? "/seller/listings"
-        : role === "buyer"
-          ? "/buyer/browse"
-          : "/admin/dashboard";
-    router.push(dest);
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim() || status === "loading") return;
+    setStatus("loading");
+    setError("");
+    const requestedRole = inferRequestedRole(email);
+
+    try {
+      const user = await writeBackendLoginSession({
+        email,
+        password,
+        role: requestedRole,
+      });
+      const role: UserRole = user.role;
+      const dest =
+        role === "seller"
+          ? "/seller/listings"
+          : role === "buyer"
+            ? "/buyer/browse"
+            : "/admin/dashboard";
+      router.push(dest);
+    } catch (err) {
+      setError(
+        err instanceof BackendApiError
+          ? err.message
+          : "Unable to log in. Please check the backend is running and try again.",
+      );
+    } finally {
+      setStatus("idle");
+    }
   };
 
   return (
@@ -68,9 +86,16 @@ export function LoginPage() {
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 className="w-full rounded-lg bg-white px-4 py-3 pr-12 text-base text-neutral-900 outline-none placeholder:text-neutral-500 focus:ring-2 focus:ring-neutral-900/20"
                 style={{ border: "1px solid #E0E0E0" }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    void handleLogin();
+                  }
+                }}
               />
               <button
                 type="button"
@@ -93,19 +118,26 @@ export function LoginPage() {
           >
             Forgot Password?
           </Link>
+          {error && (
+            <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {error}
+            </p>
+          )}
         </div>
 
         <Button
           variant="primary"
           size="lg"
           className="w-full"
-          disabled={!email.trim()}
+          disabled={!email.trim() || !password.trim() || status === "loading"}
           style={
-            !email.trim() ? { opacity: 0.4, cursor: "not-allowed" } : undefined
+            !email.trim() || !password.trim() || status === "loading"
+              ? { opacity: 0.4, cursor: "not-allowed" }
+              : undefined
           }
-          onClick={handleLogin}
+          onClick={() => void handleLogin()}
         >
-          Login
+          {status === "loading" ? "Logging in..." : "Login"}
         </Button>
 
         <p className="text-base text-neutral-900">

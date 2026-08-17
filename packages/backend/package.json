@@ -2,20 +2,23 @@
   "name": "@eco-globe/backend",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "convex dev",
-    "deploy": "convex deploy",
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf node_modules .convex"
+    "clean": "rm -rf dist node_modules"
   },
   "dependencies": {
-    "@convex-dev/better-auth": "^0.10.0",
-    "better-auth": "1.4.9",
-    "convex": "^1.21.0"
+    "dotenv": "^17.4.2",
+    "mssql": "^12.7.0"
   },
   "devDependencies": {
     "@eco-globe/typescript-config": "workspace:*",
+    "@types/mssql": "^12.3.0",
     "@types/node": "^22.14.1",
+    "tsx": "^4.23.1",
     "typescript": "^5.8.2"
   }
 }

@@ -1,14 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";
+import {
+  BackendApiError,
+  completeBackendOnboarding,
+  startBackendStripeOnboarding,
+} from "@/lib/backend-auth";
+import { getUserRoles, useDemoUser } from "@/lib/demo-user";
 
-type Step = "welcome" | "business" | "products" | "sustainability" | "success";
+type Step =
+  | "welcome"
+  | "business"
+  | "products"
+  | "sustainability"
+  | "stripe"
+  | "success";
 
-const totalSteps = 4;
+const totalSteps = 5;
 
 function OnboardingLayout({
   step,
@@ -18,6 +30,8 @@ function OnboardingLayout({
   onNext,
   onSkip,
   nextLabel,
+  isBusy,
+  error,
 }: {
   step: Step;
   currentStep: number;
@@ -26,6 +40,8 @@ function OnboardingLayout({
   onNext?: () => void;
   onSkip?: () => void;
   nextLabel?: string;
+  isBusy?: boolean;
+  error?: string;
 }) {
   const showNav = step !== "welcome" && step !== "success";
   const progress = currentStep / totalSteps;
@@ -67,16 +83,32 @@ function OnboardingLayout({
             <Button variant="secondary" size="md" onClick={onBack}>
               Back
             </Button>
+            {error ? (
+              <p className="max-w-[420px] rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-700">
+                {error}
+              </p>
+            ) : (
+              <div />
+            )}
             <Button
               variant="primary"
               size="md"
               onClick={onNext}
               className="min-w-[160px]"
+              disabled={isBusy}
+              style={
+                isBusy ? { opacity: 0.5, cursor: "not-allowed" } : undefined
+              }
             >
-              {nextLabel ?? "Next"}
+              {isBusy ? "Saving..." : (nextLabel ?? "Next")}
             </Button>
             {onSkip ? (
-              <Button variant="secondary" size="md" onClick={onSkip}>
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={onSkip}
+                disabled={isBusy}
+              >
                 Skip, I&apos;ll do it later
               </Button>
             ) : (
@@ -105,15 +137,20 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
               EcoGlobe
             </h1>
             <p className="mb-2 text-base leading-relaxed text-neutral-500">
-              Ecoglobe is a global platform connecting verified sellers and responsible buyers
-              through transparent sustainability data and trusted trade workflows.
+              Ecoglobe is a global platform connecting verified sellers and
+              responsible buyers through transparent sustainability data and
+              trusted trade workflows.
             </p>
             <p className="text-base leading-relaxed text-neutral-500">
               Get started by choosing how you&apos;d like to use the platform.
             </p>
           </div>
           <div className="w-full max-w-[480px] overflow-hidden rounded-2xl">
-            <img src="/hero.jpg" alt="Industrial facility" className="h-[360px] w-full object-cover" />
+            <img
+              src="/hero.jpg"
+              alt="Industrial facility"
+              className="h-[360px] w-full object-cover"
+            />
           </div>
         </div>
       </div>
@@ -144,7 +181,12 @@ function BusinessStep({
   onNext: () => void;
 }) {
   return (
-    <OnboardingLayout step="business" currentStep={1} onBack={onBack} onNext={onNext}>
+    <OnboardingLayout
+      step="business"
+      currentStep={1}
+      onBack={onBack}
+      onNext={onNext}
+    >
       <div className="flex flex-1 justify-center px-6 py-10">
         <div className="w-full max-w-[600px]">
           <h1 className="mb-2 text-3xl font-bold text-neutral-900">
@@ -184,7 +226,7 @@ function BusinessStep({
               </label>
               <input
                 type="text"
-                  value={data.website}
+                value={data.website}
                 onChange={(e) => onChange("website", e.target.value)}
                 className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
                 style={{ border: "1px solid #E0E0E0" }}
@@ -228,10 +270,17 @@ function ProductsStep({
   ];
 
   return (
-    <OnboardingLayout step="products" currentStep={2} onBack={onBack} onNext={onNext}>
+    <OnboardingLayout
+      step="products"
+      currentStep={2}
+      onBack={onBack}
+      onNext={onNext}
+    >
       <div className="flex flex-1 justify-center overflow-y-auto px-6 py-10">
         <div className="w-full max-w-[600px]">
-          <h1 className="mb-2 text-3xl font-bold text-neutral-900">Products of interest</h1>
+          <h1 className="mb-2 text-3xl font-bold text-neutral-900">
+            Products of interest
+          </h1>
           <p className="mb-8 text-base text-neutral-500">
             Tell us about the products you&apos;re interested
           </p>
@@ -288,12 +337,16 @@ function SustainabilityStep({
   onBack,
   onNext,
   onSkip,
+  isBusy,
+  error,
 }: {
   data: Record<string, string>;
   onChange: (k: string, v: string) => void;
   onBack: () => void;
   onNext: () => void;
   onSkip: () => void;
+  isBusy?: boolean;
+  error?: string;
 }) {
   const certOptions = [
     { value: "", label: "-- Choose --" },
@@ -327,13 +380,17 @@ function SustainabilityStep({
       onBack={onBack}
       onNext={onNext}
       onSkip={onSkip}
+      isBusy={isBusy}
+      error={error}
     >
       <div className="flex flex-1 justify-center px-6 py-10">
         <div className="w-full max-w-[600px]">
           <h1 className="mb-2 text-3xl font-bold text-neutral-900">
             Sustainability Preferences
           </h1>
-          <p className="mb-8 text-base text-neutral-500">you can update this anytime.</p>
+          <p className="mb-8 text-base text-neutral-500">
+            you can update this anytime.
+          </p>
           <div className="flex flex-col gap-6">
             <Select
               label="Preferred certifications"
@@ -363,10 +420,74 @@ function SustainabilityStep({
   );
 }
 
+/* ─── Step 5: Stripe Billing ─── */
+function StripeBillingStep({
+  onBack,
+  onNext,
+  onSkip,
+  isBusy,
+  error,
+}: {
+  onBack: () => void;
+  onNext: () => void;
+  onSkip: () => void;
+  isBusy?: boolean;
+  error?: string;
+}) {
+  return (
+    <OnboardingLayout
+      step="stripe"
+      currentStep={4}
+      onBack={onBack}
+      onNext={onNext}
+      onSkip={onSkip}
+      nextLabel="Set up Stripe billing"
+      isBusy={isBusy}
+      error={error}
+    >
+      <div className="flex flex-1 items-center justify-center px-6 py-10">
+        <div className="w-full max-w-[680px] rounded-3xl border border-neutral-200 bg-neutral-50 p-8">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">
+            Billing readiness
+          </p>
+          <h1 className="mb-4 text-3xl font-bold text-neutral-900">
+            Connect Stripe for secure buyer payments
+          </h1>
+          <p className="mb-6 text-base leading-7 text-neutral-600">
+            EcoGlobe uses Stripe to securely collect buyer payment methods
+            before orders, support escrow funding, and keep card or bank details
+            out of EcoGlobe systems.
+          </p>
+          <div className="grid gap-3 text-sm text-neutral-700 sm:grid-cols-3">
+            <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <p className="font-semibold text-neutral-900">Payment method</p>
+              <p className="mt-2">
+                Store buyer billing details through Stripe-hosted setup.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <p className="font-semibold text-neutral-900">Escrow ready</p>
+              <p className="mt-2">
+                Prepare funding for transactions above EcoGlobe thresholds.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <p className="font-semibold text-neutral-900">Demo safe</p>
+              <p className="mt-2">
+                Local setup records readiness without requiring live keys.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </OnboardingLayout>
+  );
+}
+
 /* ─── Step 5: Success ─── */
 function SuccessStep() {
   return (
-    <OnboardingLayout step="success" currentStep={4}>
+    <OnboardingLayout step="success" currentStep={5}>
       <div className="flex flex-1 items-center justify-center px-6">
         <div className="flex max-w-[500px] flex-col items-center text-center">
           <span className="mb-6 text-6xl">🎉</span>
@@ -374,7 +495,8 @@ function SuccessStep() {
             Your Buyer Account Is Ready
           </h1>
           <p className="mb-8 text-base text-neutral-500">
-            You can now explore verified sellers and start sourcing with confidence.
+            You can now explore verified sellers and start sourcing with
+            confidence.
           </p>
           <div className="flex gap-4">
             <Link href="/buyer/browse">
@@ -396,7 +518,10 @@ function SuccessStep() {
 
 /* ─── Main Buyer Onboarding ─── */
 export function BuyerOnboardingPage() {
+  const user = useDemoUser();
   const [step, setStep] = useState<Step>("welcome");
+  const [status, setStatus] = useState<"idle" | "saving" | "stripe">("idle");
+  const [error, setError] = useState("");
   const [businessData, setBusinessData] = useState({
     company: "",
     jobTitle: "",
@@ -424,6 +549,92 @@ export function BuyerOnboardingPage() {
     setProductData((p) => ({ ...p, [k]: v }));
   const updateSustainability = (k: string, v: string) =>
     setSustainabilityData((p) => ({ ...p, [k]: v }));
+  const getOnboardingRole = () =>
+    user && getUserRoles(user).includes("seller") ? "both" : "buyer";
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("stripe") === "success") {
+      setStep("success");
+    }
+    if (params.get("stripe") === "cancelled") {
+      setStep("stripe");
+      setError(
+        "Stripe setup was cancelled. You can start it again or skip for now.",
+      );
+    }
+  }, []);
+
+  const completeBuyerOnboarding = async () => {
+    if (status === "saving") return;
+    if (!user?.token) {
+      setError("Please log in again before completing onboarding.");
+      return;
+    }
+
+    setStatus("saving");
+    setError("");
+
+    try {
+      await completeBackendOnboarding({
+        token: user.token,
+        role: getOnboardingRole(),
+        activeRole: "buyer",
+        fallbackRoles:
+          getOnboardingRole() === "both" ? ["buyer", "seller"] : ["buyer"],
+        companyName: businessData.company || `${user.name}'s company`,
+        industry: businessData.industry,
+        jobTitle: businessData.jobTitle,
+        website: businessData.website,
+        address: businessData.address,
+      });
+      setStep("stripe");
+    } catch (err) {
+      setError(
+        err instanceof BackendApiError
+          ? err.message
+          : "Unable to save onboarding. Please check the backend and try again.",
+      );
+    } finally {
+      setStatus("idle");
+    }
+  };
+
+  const startStripeBilling = async () => {
+    if (status === "stripe") return;
+    if (!user?.token) {
+      setError("Please log in again before setting up Stripe billing.");
+      return;
+    }
+
+    setStatus("stripe");
+    setError("");
+
+    try {
+      const returnUrl = `${window.location.origin}/buyer/onboarding`;
+      const stripe = await startBackendStripeOnboarding({
+        token: user.token,
+        role: "buyer",
+        returnUrl,
+        refreshUrl: returnUrl,
+      });
+
+      if (stripe.mode === "stripe") {
+        window.location.href = stripe.redirectUrl;
+        return;
+      }
+
+      setStep("success");
+    } catch (err) {
+      setError(
+        err instanceof BackendApiError
+          ? err.message
+          : "Unable to start Stripe billing setup. Please check the backend and try again.",
+      );
+    } finally {
+      setStatus("idle");
+    }
+  };
 
   switch (step) {
     case "welcome":
@@ -452,8 +663,20 @@ export function BuyerOnboardingPage() {
           data={sustainabilityData}
           onChange={updateSustainability}
           onBack={() => setStep("products")}
-          onNext={() => setStep("success")}
+          onNext={() => void completeBuyerOnboarding()}
+          onSkip={() => void completeBuyerOnboarding()}
+          isBusy={status === "saving"}
+          error={error}
+        />
+      );
+    case "stripe":
+      return (
+        <StripeBillingStep
+          onBack={() => setStep("sustainability")}
+          onNext={() => void startStripeBilling()}
           onSkip={() => setStep("success")}
+          isBusy={status === "stripe"}
+          error={error}
         />
       );
     case "success":

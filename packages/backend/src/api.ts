@@ -1,0 +1,4696 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+import {
+  getBearerToken,
+  getSessionFromToken,
+  requireSessionAuth,
+} from "./auth.js";
+import {
+  queryRowsWithParams,
+  queryRowsWithParamsInTransaction,
+  runInTransaction,
+  sql,
+} from "./database.js";
+import {
+  ApiError,
+  type AuthContext,
+  getOptionalBoolean,
+  getOptionalNumber,
+  getOptionalString,
+  getRequiredString,
+  matchPath,
+  parseId,
+  readJsonBody,
+  sendJson,
+} from "./http.js";
+
+type Method = "GET" | "POST" | "PATCH" | "DELETE";
+
+type LookupTable =
+  | "AccountStatuses"
+  | "CompanyTypes"
+  | "MemberRoles"
+  | "PermissionTiers"
+  | "LocationTypes"
+  | "MaterialTypes"
+  | "ListingStatuses"
+  | "DocumentTypes"
+  | "QuoteStatuses"
+  | "OrderStatuses"
+  | "OrderCreationSources"
+  | "Carriers"
+  | "ShipmentStatuses"
+  | "EscrowProviders"
+  | "EscrowStatuses"
+  | "EscrowReleaseRules"
+  | "PaymentStatuses"
+  | "PaymentTypes"
+  | "PayoutStatuses"
+  | "ContractSources"
+  | "ContractStatuses"
+  | "SignatureStatuses"
+  | "NotificationChannels"
+  | "NotificationCategories"
+  | "NotificationStatuses"
+  | "DisputeIssueTypes"
+  | "DisputeStatuses"
+  | "RecordTypes"
+  | "ActorTypes"
+  | "AuditActionTypes";
+
+type UserBody = {
+  name: string;
+  email: string;
+  authProviderUserId?: string;
+  accountStatusCode?: string;
+};
+
+type CompanyBody = {
+  legalName: string;
+  companyTypeCode: string;
+  verificationStatusCode?: string;
+};
+
+type MemberBody = {
+  userId: number;
+  memberRoleCode?: string;
+  permissionTierCode?: string;
+  memberStatusCode?: string;
+  transactionApprovalLimit?: number;
+  canApproveTransactions?: boolean;
+  canExecuteTransactions?: boolean;
+};
+
+type LocationBody = {
+  companyId?: number;
+  locationTypeCode?: string;
+  name: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  stateProvince?: string;
+  postalCode?: string;
+  countryCode: string;
+  latitude?: number;
+  longitude?: number;
+  isDefault?: boolean;
+};
+
+type OnboardingBody = {
+  role: "buyer" | "seller" | "both";
+  activeRole?: "buyer" | "seller";
+  companyName: string;
+  industry?: string;
+  jobTitle?: string;
+  website?: string;
+  address?: string;
+  location?: {
+    name?: string;
+    addressLine1?: string;
+    city?: string;
+    stateProvince?: string;
+    postalCode?: string;
+    countryCode?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+};
+
+type StripeOnboardingBody = {
+  role: "buyer" | "seller";
+  returnUrl?: string;
+  refreshUrl?: string;
+};
+
+type ProfileStatusBody = {
+  onboardingStatusCode?: string;
+  subscriptionStatusCode?: string;
+  billingStatusCode?: string;
+  payoutStatusCode?: string;
+  approvalStatusCode?: string;
+};
+
+type ListingBody = {
+  sellerCompanyId: number;
+  locationId: number;
+  title: string;
+  slug?: string;
+  materialTypeCode: string;
+  quantity: number;
+  quantityUnit: string;
+  minimumOrderQuantity: number;
+  pricePerUnit: number;
+  currencyCode?: string;
+  listingStatusCode?: string;
+  carbonIntensityKgCo2e?: number;
+  description?: string;
+};
+
+type ListingDocumentBody = {
+  listingId?: number;
+  documentTypeCode?: string;
+  fileName: string;
+  fileUrl: string;
+  verificationStatusCode?: string;
+};
+
+type QuoteBody = {
+  listingId: number;
+  buyerCompanyId: number;
+  sellerCompanyId?: number;
+  quantity: number;
+  quantityUnit?: string;
+  unitPrice?: number;
+  currencyCode?: string;
+  deliveryTerms?: string;
+  quoteStatusCode?: string;
+  expiresAt?: string;
+};
+
+type OrderBody = {
+  quoteId?: number;
+  listingId?: number;
+  buyerCompanyId: number;
+  sellerCompanyId?: number;
+  creationSourceCode?: string;
+  orderStatusCode?: string;
+  totalAmount?: number;
+  currencyCode?: string;
+  escrowRequired?: boolean;
+  directOrderReason?: string;
+};
+
+type NotificationBody = {
+  userId?: number;
+  companyId?: number;
+  relatedRecordTypeCode?: string;
+  relatedRecordId?: number;
+  notificationChannelCode?: string;
+  notificationCategoryCode?: string;
+  notificationStatusCode?: string;
+  subject: string;
+  body: string;
+  sentAt?: string;
+  readAt?: string;
+};
+
+type NotificationPreferenceBody = {
+  userId?: number;
+  companyId?: number;
+  notificationChannelCode?: string;
+  notificationCategoryCode?: string;
+  enabled?: boolean;
+  isCompanyDefault?: boolean;
+};
+
+type CarrierBody = {
+  code?: string;
+  name: string;
+  description?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+};
+
+type ShipmentBody = {
+  orderId: number;
+  carrierId?: number;
+  carrierCode?: string;
+  trackingNumber?: string;
+  originLocationId?: number;
+  destinationLocationId?: number;
+  shipmentStatusCode?: string;
+  shippingCost?: number;
+  carbonImpactKgCo2e?: number;
+  pickupScheduledAt?: string;
+  deliveryConfirmedAt?: string;
+};
+
+type EscrowBody = {
+  orderId: number;
+  escrowProviderCode?: string;
+  providerEscrowId?: string;
+  amount?: number;
+  currencyCode?: string;
+  escrowStatusCode?: string;
+  thresholdAmount?: number;
+  releaseRuleCode?: string;
+  disputeLocked?: boolean;
+};
+
+type PaymentBody = {
+  orderId: number;
+  escrowId?: number;
+  payerCompanyId: number;
+  providerPaymentId?: string;
+  amount?: number;
+  currencyCode?: string;
+  paymentStatusCode?: string;
+  paymentTypeCode?: string;
+};
+
+type PayoutBody = {
+  orderId: number;
+  escrowId?: number;
+  sellerCompanyId?: number;
+  providerPayoutId?: string;
+  amount?: number;
+  currencyCode?: string;
+  payoutStatusCode?: string;
+};
+
+type ContractBody = {
+  buyerCompanyId: number;
+  sellerCompanyId: number;
+  listingId?: number;
+  contractSourceCode?: string;
+  contractStatusCode?: string;
+  title: string;
+  renewalTerms?: string;
+  renewalDate?: string;
+  signedDocumentUrl?: string;
+};
+
+type SignatureBody = {
+  contractId: number;
+  signerUserId: number;
+  signerCompanyId: number;
+  providerSignatureId?: string;
+  signatureStatusCode?: string;
+  signedDocumentUrl?: string;
+  signedAt?: string;
+};
+
+type DisputeBody = {
+  orderId?: number;
+  escrowId?: number;
+  shipmentId?: number;
+  openedByUserId?: number;
+  issueTypeCode?: string;
+  disputeStatusCode?: string;
+  summary: string;
+  resolutionNotes?: string;
+};
+
+const lookupTables: LookupTable[] = [
+  "AccountStatuses",
+  "CompanyTypes",
+  "MemberRoles",
+  "PermissionTiers",
+  "LocationTypes",
+  "MaterialTypes",
+  "ListingStatuses",
+  "DocumentTypes",
+  "QuoteStatuses",
+  "OrderStatuses",
+  "OrderCreationSources",
+  "Carriers",
+  "ShipmentStatuses",
+  "EscrowProviders",
+  "EscrowStatuses",
+  "EscrowReleaseRules",
+  "PaymentStatuses",
+  "PaymentTypes",
+  "PayoutStatuses",
+  "ContractSources",
+  "ContractStatuses",
+  "SignatureStatuses",
+  "NotificationChannels",
+  "NotificationCategories",
+  "NotificationStatuses",
+  "DisputeIssueTypes",
+  "DisputeStatuses",
+  "RecordTypes",
+  "ActorTypes",
+  "AuditActionTypes",
+];
+
+function ensureMethod(method: string | undefined): Method {
+  if (
+    method === "GET" ||
+    method === "POST" ||
+    method === "PATCH" ||
+    method === "DELETE"
+  ) {
+    return method;
+  }
+
+  throw new ApiError(405, "Method not allowed.");
+}
+
+function intParam(name: string, value: number | undefined) {
+  return { name, type: sql.Int, value };
+}
+
+function nvarcharParam(name: string, value: string | undefined, length = 240) {
+  return { name, type: sql.NVarChar(length), value };
+}
+
+function varcharParam(name: string, value: string | undefined, length = 120) {
+  return { name, type: sql.VarChar(length), value };
+}
+
+function decimalParam(name: string, value: number | undefined) {
+  return { name, type: sql.Decimal(18, 3), value };
+}
+
+function moneyParam(name: string, value: number | undefined) {
+  return { name, type: sql.Decimal(18, 2), value };
+}
+
+function dateTimeParam(name: string, value: Date | undefined) {
+  return { name, type: sql.DateTime2, value };
+}
+
+function bitParam(name: string, value: boolean | undefined) {
+  return { name, type: sql.Bit, value };
+}
+
+function normalizeCode(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 140);
+}
+
+function getFrontendBaseUrl() {
+  return (
+    process.env.ECOGLOBE_WEB_URL?.replace(/\/$/, "") ?? "http://localhost:4040"
+  );
+}
+
+function normalizeRedirectUrl(value: string | undefined, fallbackPath: string) {
+  const fallback = `${getFrontendBaseUrl()}${fallbackPath}`;
+  if (!value) return fallback;
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.toString();
+    }
+  } catch {
+    return fallback;
+  }
+
+  return fallback;
+}
+
+async function stripePost<T>(
+  path: string,
+  params: URLSearchParams,
+): Promise<T> {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    throw new ApiError(500, "Stripe is not configured for this environment.");
+  }
+
+  const stripeResponse = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${secretKey}`,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: params,
+  });
+
+  const payload = (await stripeResponse.json()) as {
+    error?: { message?: string };
+  };
+  if (!stripeResponse.ok) {
+    throw new ApiError(
+      502,
+      payload.error?.message ?? "Stripe rejected the onboarding request.",
+    );
+  }
+
+  return payload as T;
+}
+
+function getBodyInt(body: Partial<Record<string, unknown>>, key: string) {
+  const value = body[key];
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new ApiError(400, `${key} must be a positive integer.`);
+  }
+
+  return parsed;
+}
+
+function getOptionalInt(body: Partial<Record<string, unknown>>, key: string) {
+  const value = body[key];
+
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new ApiError(400, `${key} must be a positive integer.`);
+  }
+
+  return parsed;
+}
+
+function getOptionalDate(body: Partial<Record<string, unknown>>, key: string) {
+  const value = getOptionalString(body, key, 80);
+  if (!value) return undefined;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new ApiError(400, `${key} must be a valid date or datetime.`);
+  }
+
+  return parsed;
+}
+
+async function lookupId(table: LookupTable, code: string) {
+  const rows = await queryRowsWithParams<{ id: number }>(
+    `SELECT Id AS id FROM dbo.${table} WHERE Code = @code AND IsActive = 1;`,
+    [varcharParam("code", normalizeCode(code), 80)],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(400, `Unknown ${table} code: ${code}.`);
+  }
+
+  return rows[0].id;
+}
+
+function requireAdmin(auth: AuthContext) {
+  if (!auth.isAdmin) {
+    throw new ApiError(403, "Admin access is required.");
+  }
+}
+
+async function writeAuditLog({
+  auth,
+  request,
+  actionTypeCode,
+  recordTypeCode,
+  recordId,
+  previousValue,
+  newValue,
+  reason,
+}: {
+  auth: AuthContext;
+  request: IncomingMessage;
+  actionTypeCode: string;
+  recordTypeCode: string;
+  recordId?: number;
+  previousValue?: unknown;
+  newValue?: unknown;
+  reason?: string;
+}) {
+  const actorTypeId = await lookupId(
+    "ActorTypes",
+    auth.isAdmin ? "admin" : "user",
+  );
+  const actionTypeId = await lookupId("AuditActionTypes", actionTypeCode);
+  const recordTypeId = await lookupId("RecordTypes", recordTypeCode);
+  const forwardedFor = request.headers["x-forwarded-for"];
+  const ipAddress = Array.isArray(forwardedFor)
+    ? forwardedFor[0]
+    : forwardedFor?.split(",")[0]?.trim();
+  const userAgent = Array.isArray(request.headers["user-agent"])
+    ? request.headers["user-agent"][0]
+    : request.headers["user-agent"];
+
+  await queryRowsWithParams(
+    `
+      INSERT INTO dbo.AuditLogs (
+        ActorUserId, ActorCompanyId, ActorTypeId, ActionTypeId, RecordTypeId,
+        RecordId, PreviousValue, NewValue, Reason, IpAddress, UserAgent,
+        CreatedByUserId, UpdatedByUserId
+      )
+      VALUES (
+        @actorUserId, @actorCompanyId, @actorTypeId, @actionTypeId, @recordTypeId,
+        @recordId, @previousValue, @newValue, @reason, @ipAddress, @userAgent,
+        @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("actorUserId", auth.userId),
+      intParam("actorCompanyId", auth.companyId),
+      intParam("actorTypeId", actorTypeId),
+      intParam("actionTypeId", actionTypeId),
+      intParam("recordTypeId", recordTypeId),
+      intParam("recordId", recordId),
+      nvarcharParam(
+        "previousValue",
+        previousValue === undefined ? undefined : JSON.stringify(previousValue),
+        4000,
+      ),
+      nvarcharParam(
+        "newValue",
+        newValue === undefined ? undefined : JSON.stringify(newValue),
+        4000,
+      ),
+      nvarcharParam("reason", reason, 1000),
+      varcharParam("ipAddress", ipAddress, 64),
+      nvarcharParam("userAgent", userAgent, 500),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+}
+
+async function lookupIdTx(
+  transaction: sql.Transaction,
+  table: LookupTable,
+  code: string,
+) {
+  const rows = await queryRowsWithParamsInTransaction<{ id: number }>(
+    transaction,
+    `SELECT Id AS id FROM dbo.${table} WHERE Code = @code AND IsActive = 1;`,
+    [varcharParam("code", normalizeCode(code), 80)],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(400, `Unknown ${table} code: ${code}.`);
+  }
+
+  return rows[0].id;
+}
+
+async function getOptionalAuth(
+  request: IncomingMessage,
+): Promise<AuthContext | undefined> {
+  const session = await getSessionFromToken(getBearerToken(request));
+
+  if (!session) {
+    return undefined;
+  }
+
+  return {
+    userId: session.id,
+    companyId: session.activeCompanyId,
+    isAdmin: session.activeRoleCode === "admin",
+  };
+}
+
+function getOptionalNestedString(
+  body: Partial<Record<string, unknown>>,
+  parentKey: string,
+  key: string,
+  maxLength = 240,
+) {
+  const parent = body[parentKey];
+  if (!parent || typeof parent !== "object" || Array.isArray(parent))
+    return undefined;
+  return getOptionalString(
+    parent as Partial<Record<string, unknown>>,
+    key,
+    maxLength,
+  );
+}
+
+function getOptionalNestedNumber(
+  body: Partial<Record<string, unknown>>,
+  parentKey: string,
+  key: string,
+) {
+  const parent = body[parentKey];
+  if (!parent || typeof parent !== "object" || Array.isArray(parent))
+    return undefined;
+  return getOptionalNumber(parent as Partial<Record<string, unknown>>, key);
+}
+
+function normalizeOnboardingRole(role: string) {
+  const normalized = normalizeCode(role);
+  if (
+    normalized !== "buyer" &&
+    normalized !== "seller" &&
+    normalized !== "both"
+  ) {
+    throw new ApiError(400, "role must be buyer, seller, or both.");
+  }
+  return normalized;
+}
+
+function parseAddressFallback(rawAddress: string | undefined) {
+  const fallback = {
+    addressLine1: rawAddress ?? "Address pending",
+    city: "Pending",
+    stateProvince: undefined as string | undefined,
+    postalCode: undefined as string | undefined,
+    countryCode: "US",
+  };
+
+  if (!rawAddress) return fallback;
+
+  const parts = rawAddress
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length < 2) return fallback;
+
+  const statePostal = parts[2]?.match(/^([A-Za-z]{2})(?:\s+(.+))?$/);
+
+  return {
+    addressLine1: parts[0] ?? fallback.addressLine1,
+    city: parts[1] ?? fallback.city,
+    stateProvince: statePostal?.[1]?.toUpperCase(),
+    postalCode: statePostal?.[2],
+    countryCode: parts[3]?.slice(0, 2).toUpperCase() ?? "US",
+  };
+}
+
+async function completeOnboarding(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<OnboardingBody>(request);
+  const role = normalizeOnboardingRole(getRequiredString(body, "role", 20));
+  const requestedActiveRole = getOptionalString(body, "activeRole", 20);
+  if (
+    requestedActiveRole &&
+    requestedActiveRole !== "buyer" &&
+    requestedActiveRole !== "seller"
+  ) {
+    throw new ApiError(400, "activeRole must be buyer or seller.");
+  }
+  const activeRoleCode =
+    requestedActiveRole === "seller" && (role === "seller" || role === "both")
+      ? "seller"
+      : "buyer";
+  const companyName = getRequiredString(body, "companyName", 240);
+  const rawAddress = getOptionalString(body, "address", 240);
+  const parsedAddress = parseAddressFallback(rawAddress);
+  const locationAddress =
+    getOptionalNestedString(body, "location", "addressLine1", 240) ??
+    parsedAddress.addressLine1;
+  const locationCity =
+    getOptionalNestedString(body, "location", "city", 120) ??
+    parsedAddress.city;
+  const locationState =
+    getOptionalNestedString(body, "location", "stateProvince", 120) ??
+    parsedAddress.stateProvince;
+  const locationPostalCode =
+    getOptionalNestedString(body, "location", "postalCode", 40) ??
+    parsedAddress.postalCode;
+  const locationCountryCode =
+    getOptionalNestedString(
+      body,
+      "location",
+      "countryCode",
+      2,
+    )?.toUpperCase() ?? parsedAddress.countryCode;
+  const locationName =
+    getOptionalNestedString(body, "location", "name", 160) ??
+    (role === "seller" ? "Primary pickup site" : "Primary delivery site");
+  const locationTypeCode = role === "seller" ? "pickup" : "delivery";
+
+  const result = await runInTransaction(async (transaction) => {
+    const companyTypeId = await lookupIdTx(transaction, "CompanyTypes", role);
+    const verificationStatusId = await lookupIdTx(
+      transaction,
+      "AccountStatuses",
+      "pending_verification",
+    );
+    const activeStatusId = await lookupIdTx(
+      transaction,
+      "AccountStatuses",
+      "active",
+    );
+    const pendingStatusId = await lookupIdTx(
+      transaction,
+      "AccountStatuses",
+      "pending_verification",
+    );
+    const ownerRoleId = await lookupIdTx(transaction, "MemberRoles", "owner");
+    const executorTierId = await lookupIdTx(
+      transaction,
+      "PermissionTiers",
+      "executor",
+    );
+    const locationTypeId = await lookupIdTx(
+      transaction,
+      "LocationTypes",
+      locationTypeCode,
+    );
+    const subscribedBuyerStatusId = await lookupIdTx(
+      transaction,
+      "AccountStatuses",
+      "subscribed_buyer",
+    );
+    const subscribedSellerStatusId = await lookupIdTx(
+      transaction,
+      "AccountStatuses",
+      "subscribed_seller",
+    );
+    const pendingPayoutStatusId = await lookupIdTx(
+      transaction,
+      "PayoutStatuses",
+      "pending",
+    );
+
+    const existingCompany = (
+      await queryRowsWithParamsInTransaction<{ id: number }>(
+        transaction,
+        `
+          SELECT TOP (1) c.Id AS id
+          FROM dbo.CompanyMembers cm
+          INNER JOIN dbo.Companies c ON c.Id = cm.CompanyId
+          WHERE cm.UserId = @userId
+          ORDER BY c.Id ASC;
+        `,
+        [intParam("userId", auth.userId)],
+      )
+    )[0];
+
+    const companyRows = existingCompany
+      ? await queryRowsWithParamsInTransaction<{
+          id: number;
+          legalName: string;
+        }>(
+          transaction,
+          `
+            UPDATE dbo.Companies
+            SET
+              LegalName = @legalName,
+              CompanyTypeId = @companyTypeId,
+              VerificationStatusId = COALESCE(VerificationStatusId, @verificationStatusId),
+              UpdatedByUserId = @updatedByUserId,
+              UpdatedAt = SYSUTCDATETIME()
+            OUTPUT INSERTED.Id AS id, INSERTED.LegalName AS legalName
+            WHERE Id = @companyId;
+          `,
+          [
+            intParam("companyId", existingCompany.id),
+            nvarcharParam("legalName", companyName, 240),
+            intParam("companyTypeId", companyTypeId),
+            intParam("verificationStatusId", verificationStatusId),
+            intParam("updatedByUserId", auth.userId),
+          ],
+        )
+      : await queryRowsWithParamsInTransaction<{
+          id: number;
+          legalName: string;
+        }>(
+          transaction,
+          `
+            INSERT INTO dbo.Companies (
+              LegalName, CompanyTypeId, VerificationStatusId, CreatedByUserId, UpdatedByUserId
+            )
+            OUTPUT INSERTED.Id AS id, INSERTED.LegalName AS legalName
+            VALUES (@legalName, @companyTypeId, @verificationStatusId, @createdByUserId, @updatedByUserId);
+          `,
+          [
+            nvarcharParam("legalName", companyName, 240),
+            intParam("companyTypeId", companyTypeId),
+            intParam("verificationStatusId", verificationStatusId),
+            intParam("createdByUserId", auth.userId),
+            intParam("updatedByUserId", auth.userId),
+          ],
+        );
+
+    const company = companyRows[0];
+    if (!company)
+      throw new ApiError(500, "Unable to create onboarding company.");
+
+    await queryRowsWithParamsInTransaction(
+      transaction,
+      `
+        IF EXISTS (SELECT 1 FROM dbo.CompanyMembers WHERE UserId = @userId AND CompanyId = @companyId)
+        BEGIN
+          UPDATE dbo.CompanyMembers
+          SET
+            MemberRoleId = @memberRoleId,
+            PermissionTierId = @permissionTierId,
+            MemberStatusId = @memberStatusId,
+            TransactionApprovalLimit = @transactionApprovalLimit,
+            CanApproveTransactions = 1,
+            CanExecuteTransactions = 1,
+            UpdatedByUserId = @updatedByUserId,
+            UpdatedAt = SYSUTCDATETIME()
+          WHERE UserId = @userId AND CompanyId = @companyId;
+        END
+        ELSE
+        BEGIN
+          INSERT INTO dbo.CompanyMembers (
+            UserId, CompanyId, MemberRoleId, PermissionTierId, MemberStatusId,
+            TransactionApprovalLimit, CanApproveTransactions, CanExecuteTransactions,
+            CreatedByUserId, UpdatedByUserId
+          )
+          VALUES (
+            @userId, @companyId, @memberRoleId, @permissionTierId, @memberStatusId,
+            @transactionApprovalLimit, 1, 1,
+            @createdByUserId, @updatedByUserId
+          );
+        END;
+      `,
+      [
+        intParam("userId", auth.userId),
+        intParam("companyId", company.id),
+        intParam("memberRoleId", ownerRoleId),
+        intParam("permissionTierId", executorTierId),
+        intParam("memberStatusId", activeStatusId),
+        moneyParam("transactionApprovalLimit", 500000),
+        intParam("createdByUserId", auth.userId),
+        intParam("updatedByUserId", auth.userId),
+      ],
+    );
+
+    if (role === "buyer" || role === "both") {
+      await queryRowsWithParamsInTransaction(
+        transaction,
+        `
+          IF EXISTS (SELECT 1 FROM dbo.BuyerProfiles WHERE CompanyId = @companyId)
+          BEGIN
+            UPDATE dbo.BuyerProfiles
+            SET
+              OnboardingStatusId = @onboardingStatusId,
+              SubscriptionStatusId = @subscriptionStatusId,
+              BillingStatusId = @billingStatusId,
+              ApprovalStatusId = @approvalStatusId,
+              UpdatedByUserId = @updatedByUserId,
+              UpdatedAt = SYSUTCDATETIME()
+            WHERE CompanyId = @companyId;
+          END
+          ELSE
+          BEGIN
+            INSERT INTO dbo.BuyerProfiles (
+              CompanyId, OnboardingStatusId, SubscriptionStatusId, BillingStatusId, ApprovalStatusId,
+              CreatedByUserId, UpdatedByUserId
+            )
+            VALUES (
+              @companyId, @onboardingStatusId, @subscriptionStatusId, @billingStatusId, @approvalStatusId,
+              @createdByUserId, @updatedByUserId
+            );
+          END;
+        `,
+        [
+          intParam("companyId", company.id),
+          intParam("onboardingStatusId", activeStatusId),
+          intParam("subscriptionStatusId", subscribedBuyerStatusId),
+          intParam("billingStatusId", pendingStatusId),
+          intParam("approvalStatusId", pendingStatusId),
+          intParam("createdByUserId", auth.userId),
+          intParam("updatedByUserId", auth.userId),
+        ],
+      );
+    }
+
+    if (role === "seller" || role === "both") {
+      await queryRowsWithParamsInTransaction(
+        transaction,
+        `
+          IF EXISTS (SELECT 1 FROM dbo.SellerProfiles WHERE CompanyId = @companyId)
+          BEGIN
+            UPDATE dbo.SellerProfiles
+            SET
+              OnboardingStatusId = @onboardingStatusId,
+              SubscriptionStatusId = @subscriptionStatusId,
+              PayoutStatusId = @payoutStatusId,
+              ApprovalStatusId = @approvalStatusId,
+              UpdatedByUserId = @updatedByUserId,
+              UpdatedAt = SYSUTCDATETIME()
+            WHERE CompanyId = @companyId;
+          END
+          ELSE
+          BEGIN
+            INSERT INTO dbo.SellerProfiles (
+              CompanyId, OnboardingStatusId, SubscriptionStatusId, PayoutStatusId, ApprovalStatusId,
+              CreatedByUserId, UpdatedByUserId
+            )
+            VALUES (
+              @companyId, @onboardingStatusId, @subscriptionStatusId, @payoutStatusId, @approvalStatusId,
+              @createdByUserId, @updatedByUserId
+            );
+          END;
+        `,
+        [
+          intParam("companyId", company.id),
+          intParam("onboardingStatusId", activeStatusId),
+          intParam("subscriptionStatusId", subscribedSellerStatusId),
+          intParam("payoutStatusId", pendingPayoutStatusId),
+          intParam("approvalStatusId", pendingStatusId),
+          intParam("createdByUserId", auth.userId),
+          intParam("updatedByUserId", auth.userId),
+        ],
+      );
+    }
+
+    const locationRows = await queryRowsWithParamsInTransaction<{
+      id: number;
+      companyId: number;
+      name: string;
+    }>(
+      transaction,
+      `
+        IF EXISTS (SELECT 1 FROM dbo.Locations WHERE CompanyId = @companyId AND IsDefault = 1)
+        BEGIN
+          UPDATE dbo.Locations
+          SET
+            LocationTypeId = @locationTypeId,
+            Name = @name,
+            AddressLine1 = @addressLine1,
+            City = @city,
+            StateProvince = @stateProvince,
+            PostalCode = @postalCode,
+            CountryCode = @countryCode,
+            Latitude = @latitude,
+            Longitude = @longitude,
+            UpdatedByUserId = @updatedByUserId,
+            UpdatedAt = SYSUTCDATETIME()
+          OUTPUT INSERTED.Id AS id, INSERTED.CompanyId AS companyId, INSERTED.Name AS name
+          WHERE CompanyId = @companyId AND IsDefault = 1;
+        END
+        ELSE
+        BEGIN
+          INSERT INTO dbo.Locations (
+            CompanyId, LocationTypeId, Name, AddressLine1, City, StateProvince,
+            PostalCode, CountryCode, Latitude, Longitude, IsDefault, CreatedByUserId, UpdatedByUserId
+          )
+          OUTPUT INSERTED.Id AS id, INSERTED.CompanyId AS companyId, INSERTED.Name AS name
+          VALUES (
+            @companyId, @locationTypeId, @name, @addressLine1, @city, @stateProvince,
+            @postalCode, @countryCode, @latitude, @longitude, 1, @createdByUserId, @updatedByUserId
+          );
+        END;
+      `,
+      [
+        intParam("companyId", company.id),
+        intParam("locationTypeId", locationTypeId),
+        nvarcharParam("name", locationName, 160),
+        nvarcharParam("addressLine1", locationAddress, 240),
+        nvarcharParam("city", locationCity, 120),
+        nvarcharParam("stateProvince", locationState, 120),
+        nvarcharParam("postalCode", locationPostalCode, 40),
+        varcharParam("countryCode", locationCountryCode, 2),
+        decimalParam(
+          "latitude",
+          getOptionalNestedNumber(body, "location", "latitude"),
+        ),
+        decimalParam(
+          "longitude",
+          getOptionalNestedNumber(body, "location", "longitude"),
+        ),
+        intParam("createdByUserId", auth.userId),
+        intParam("updatedByUserId", auth.userId),
+      ],
+    );
+
+    await queryRowsWithParamsInTransaction(
+      transaction,
+      `
+        UPDATE dbo.UserSessions
+        SET
+          ActiveCompanyId = @activeCompanyId,
+          ActiveRoleCode = @activeRoleCode,
+          UpdatedByUserId = @updatedByUserId,
+          UpdatedAt = SYSUTCDATETIME()
+        WHERE UserId = @userId
+          AND RevokedAt IS NULL
+          AND ExpiresAt > SYSUTCDATETIME();
+      `,
+      [
+        intParam("activeCompanyId", company.id),
+        varcharParam("activeRoleCode", activeRoleCode, 40),
+        intParam("updatedByUserId", auth.userId),
+        intParam("userId", auth.userId),
+      ],
+    );
+
+    const profileRows = await queryRowsWithParamsInTransaction<{
+      buyerProfileId?: number;
+      sellerProfileId?: number;
+    }>(
+      transaction,
+      `
+        SELECT
+          (SELECT Id FROM dbo.BuyerProfiles WHERE CompanyId = @companyId) AS buyerProfileId,
+          (SELECT Id FROM dbo.SellerProfiles WHERE CompanyId = @companyId) AS sellerProfileId;
+      `,
+      [intParam("companyId", company.id)],
+    );
+
+    return {
+      company,
+      location: locationRows[0],
+      profiles: profileRows[0] ?? {},
+      activeRoleCode,
+    };
+  });
+
+  const token = getBearerToken(request);
+  const user = await getSessionFromToken(token);
+
+  sendJson(response, 200, {
+    ok: true,
+    onboarding: result,
+    user,
+  });
+}
+
+async function startStripeOnboarding(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<StripeOnboardingBody>(request);
+  const role = getRequiredString(body, "role", 20);
+  if (role !== "buyer" && role !== "seller") {
+    throw new ApiError(400, "role must be buyer or seller.");
+  }
+
+  const returnUrl = normalizeRedirectUrl(
+    getOptionalString(body, "returnUrl", 1000),
+    `/${role}/onboarding`,
+  );
+  const refreshUrl = normalizeRedirectUrl(
+    getOptionalString(body, "refreshUrl", 1000),
+    `/${role}/onboarding`,
+  );
+  const readyStatusId = await lookupId("AccountStatuses", "active");
+  const pendingStatusId = await lookupId(
+    "AccountStatuses",
+    "pending_verification",
+  );
+  const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY);
+
+  const rows = await queryRowsWithParams<{
+    userId: number;
+    email: string;
+    name: string;
+    companyId: number;
+    legalName: string;
+    companyTypeCode: string;
+    buyerProfileId?: number;
+    sellerProfileId?: number;
+  }>(
+    `
+      SELECT TOP (1)
+        u.Id AS userId,
+        u.Email AS email,
+        u.Name AS name,
+        c.Id AS companyId,
+        c.LegalName AS legalName,
+        ct.Code AS companyTypeCode,
+        bp.Id AS buyerProfileId,
+        sp.Id AS sellerProfileId
+      FROM dbo.CompanyMembers cm
+      INNER JOIN dbo.Users u ON u.Id = cm.UserId
+      INNER JOIN dbo.Companies c ON c.Id = cm.CompanyId
+      INNER JOIN dbo.CompanyTypes ct ON ct.Id = c.CompanyTypeId
+      LEFT JOIN dbo.BuyerProfiles bp ON bp.CompanyId = c.Id
+      LEFT JOIN dbo.SellerProfiles sp ON sp.CompanyId = c.Id
+      WHERE cm.UserId = @userId
+        AND c.Id = COALESCE(@companyId, c.Id)
+        AND (ct.Code = @role OR ct.Code = 'both')
+      ORDER BY c.Id ASC;
+    `,
+    [
+      intParam("userId", auth.userId),
+      intParam("companyId", auth.companyId),
+      varcharParam("role", role, 20),
+    ],
+  );
+
+  const account = rows[0];
+  if (!account) {
+    throw new ApiError(
+      400,
+      "Complete company onboarding before starting Stripe setup.",
+    );
+  }
+
+  if (role === "buyer" && !account.buyerProfileId) {
+    throw new ApiError(
+      400,
+      "Buyer profile is not ready for Stripe billing setup.",
+    );
+  }
+
+  if (role === "seller" && !account.sellerProfileId) {
+    throw new ApiError(
+      400,
+      "Seller profile is not ready for Stripe payout setup.",
+    );
+  }
+
+  let redirectUrl = returnUrl;
+  let providerReference = `stripe_demo_${role}_${account.companyId}`;
+  let statusId = readyStatusId;
+  let statusCode = "active";
+  let mode: "demo" | "stripe" = "demo";
+
+  if (stripeConfigured && role === "buyer") {
+    type StripeCustomer = { id: string };
+    type StripeCheckoutSession = { id: string; url: string };
+    const customer = await stripePost<StripeCustomer>(
+      "customers",
+      new URLSearchParams({
+        email: account.email,
+        name: account.name,
+        "metadata[ecoglobe_company_id]": String(account.companyId),
+        "metadata[ecoglobe_company_name]": account.legalName,
+      }),
+    );
+    const session = await stripePost<StripeCheckoutSession>(
+      "checkout/sessions",
+      new URLSearchParams({
+        mode: "setup",
+        currency: "usd",
+        customer: customer.id,
+        success_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}stripe=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}stripe=cancelled`,
+      }),
+    );
+
+    redirectUrl = session.url;
+    providerReference = session.id;
+    statusId = pendingStatusId;
+    statusCode = "pending_verification";
+    mode = "stripe";
+  }
+
+  if (stripeConfigured && role === "seller") {
+    type StripeAccount = { id: string };
+    type StripeAccountLink = { url: string };
+    const stripeAccount = await stripePost<StripeAccount>(
+      "accounts",
+      new URLSearchParams({
+        type: "express",
+        country: "US",
+        email: account.email,
+        business_type: "company",
+        "capabilities[transfers][requested]": "true",
+        "metadata[ecoglobe_company_id]": String(account.companyId),
+        "metadata[ecoglobe_company_name]": account.legalName,
+      }),
+    );
+    const accountLink = await stripePost<StripeAccountLink>(
+      "account_links",
+      new URLSearchParams({
+        account: stripeAccount.id,
+        refresh_url: refreshUrl,
+        return_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}stripe=success`,
+        type: "account_onboarding",
+      }),
+    );
+
+    redirectUrl = accountLink.url;
+    providerReference = stripeAccount.id;
+    statusId = pendingStatusId;
+    statusCode = "pending_verification";
+    mode = "stripe";
+  }
+
+  await queryRowsWithParams(
+    role === "buyer"
+      ? `
+          UPDATE dbo.BuyerProfiles
+          SET BillingStatusId = @statusId,
+              UpdatedByUserId = @updatedByUserId,
+              UpdatedAt = SYSUTCDATETIME()
+          WHERE CompanyId = @companyId;
+        `
+      : `
+          UPDATE dbo.SellerProfiles
+          SET PayoutStatusId = @statusId,
+              UpdatedByUserId = @updatedByUserId,
+              UpdatedAt = SYSUTCDATETIME()
+          WHERE CompanyId = @companyId;
+        `,
+    [
+      intParam("companyId", account.companyId),
+      intParam("statusId", statusId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  sendJson(response, 200, {
+    ok: true,
+    provider: "stripe",
+    mode,
+    role,
+    companyId: account.companyId,
+    redirectUrl,
+    providerReference,
+    statusCode,
+    message:
+      mode === "demo"
+        ? "Stripe demo setup recorded. Add STRIPE_SECRET_KEY to create live Stripe onboarding redirects."
+        : "Stripe onboarding redirect created.",
+  });
+}
+
+async function listLookups(response: ServerResponse) {
+  const lookups: Record<string, unknown[]> = {};
+
+  for (const table of lookupTables) {
+    lookups[table] = await queryRowsWithParams(
+      `SELECT Id AS id, Code AS code, Name AS name, Description AS description, SortOrder AS sortOrder
+       FROM dbo.${table}
+       WHERE IsActive = 1
+       ORDER BY SortOrder, Name;`,
+    );
+  }
+
+  sendJson(response, 200, { ok: true, lookups });
+}
+
+async function listUsers(response: ServerResponse) {
+  const users = await queryRowsWithParams(`
+    SELECT
+      u.Id AS id,
+      u.AuthProviderUserId AS authProviderUserId,
+      u.Name AS name,
+      u.Email AS email,
+      s.Code AS accountStatusCode,
+      s.Name AS accountStatusName,
+      u.CreatedAt AS createdAt,
+      u.UpdatedAt AS updatedAt
+    FROM dbo.Users u
+    INNER JOIN dbo.AccountStatuses s ON s.Id = u.AccountStatusId
+    ORDER BY u.Id DESC;
+  `);
+
+  sendJson(response, 200, { ok: true, users });
+}
+
+async function createUser(request: IncomingMessage, response: ServerResponse) {
+  const body = await readJsonBody<UserBody>(request);
+  const auth = await getOptionalAuth(request);
+  const name = getRequiredString(body, "name", 200);
+  const email = getRequiredString(body, "email", 320).toLowerCase();
+  const authProviderUserId = getOptionalString(body, "authProviderUserId", 200);
+  const accountStatusId = await lookupId(
+    "AccountStatuses",
+    getOptionalString(body, "accountStatusCode", 80) ?? "unsubscribed",
+  );
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Users (AuthProviderUserId, Name, Email, AccountStatusId, CreatedByUserId, UpdatedByUserId)
+      OUTPUT
+        INSERTED.Id AS id,
+        INSERTED.AuthProviderUserId AS authProviderUserId,
+        INSERTED.Name AS name,
+        INSERTED.Email AS email,
+        INSERTED.AccountStatusId AS accountStatusId,
+        INSERTED.CreatedAt AS createdAt,
+        INSERTED.UpdatedAt AS updatedAt
+      VALUES (@authProviderUserId, @name, @email, @accountStatusId, @createdByUserId, @updatedByUserId);
+    `,
+    [
+      varcharParam("authProviderUserId", authProviderUserId, 200),
+      nvarcharParam("name", name, 200),
+      nvarcharParam("email", email, 320),
+      intParam("accountStatusId", accountStatusId),
+      intParam("createdByUserId", auth?.userId),
+      intParam("updatedByUserId", auth?.userId),
+    ],
+  );
+
+  sendJson(response, 201, { ok: true, user: rows[0] });
+}
+
+async function updateUser(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<UserBody>(request);
+  const name = getOptionalString(body, "name", 200);
+  const accountStatusCode = getOptionalString(body, "accountStatusCode", 80);
+  const accountStatusId = accountStatusCode
+    ? await lookupId("AccountStatuses", accountStatusCode)
+    : undefined;
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Users
+      SET
+        Name = COALESCE(@name, Name),
+        AccountStatusId = COALESCE(@accountStatusId, AccountStatusId),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.Name AS name, INSERTED.Email AS email, INSERTED.AccountStatusId AS accountStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      nvarcharParam("name", name, 200),
+      intParam("accountStatusId", accountStatusId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(404, "User not found.");
+  }
+
+  sendJson(response, 200, { ok: true, user: rows[0] });
+}
+
+async function deleteUser(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const suspendedStatusId = await lookupId("AccountStatuses", "suspended");
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Users
+      SET AccountStatusId = @statusId, UpdatedByUserId = @updatedByUserId, UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.Name AS name, INSERTED.Email AS email, INSERTED.AccountStatusId AS accountStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam("statusId", suspendedStatusId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(404, "User not found.");
+  }
+
+  sendJson(response, 200, { ok: true, user: rows[0] });
+}
+
+async function listCompanies(response: ServerResponse) {
+  const companies = await queryRowsWithParams(`
+    SELECT
+      c.Id AS id,
+      c.LegalName AS legalName,
+      ct.Code AS companyTypeCode,
+      ct.Name AS companyTypeName,
+      vs.Code AS verificationStatusCode,
+      vs.Name AS verificationStatusName,
+      c.CreatedAt AS createdAt,
+      c.UpdatedAt AS updatedAt
+    FROM dbo.Companies c
+    INNER JOIN dbo.CompanyTypes ct ON ct.Id = c.CompanyTypeId
+    INNER JOIN dbo.AccountStatuses vs ON vs.Id = c.VerificationStatusId
+    ORDER BY c.Id DESC;
+  `);
+
+  sendJson(response, 200, { ok: true, companies });
+}
+
+async function createCompany(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<CompanyBody>(request);
+  const legalName = getRequiredString(body, "legalName", 240);
+  const companyTypeId = await lookupId(
+    "CompanyTypes",
+    getRequiredString(body, "companyTypeCode", 80),
+  );
+  const verificationStatusId = await lookupId(
+    "AccountStatuses",
+    getOptionalString(body, "verificationStatusCode", 80) ??
+      "pending_verification",
+  );
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Companies (LegalName, CompanyTypeId, VerificationStatusId, CreatedByUserId, UpdatedByUserId)
+      OUTPUT INSERTED.Id AS id, INSERTED.LegalName AS legalName, INSERTED.CompanyTypeId AS companyTypeId, INSERTED.VerificationStatusId AS verificationStatusId
+      VALUES (@legalName, @companyTypeId, @verificationStatusId, @createdByUserId, @updatedByUserId);
+    `,
+    [
+      nvarcharParam("legalName", legalName, 240),
+      intParam("companyTypeId", companyTypeId),
+      intParam("verificationStatusId", verificationStatusId),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  sendJson(response, 201, { ok: true, company: rows[0] });
+}
+
+async function updateCompany(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<CompanyBody>(request);
+  const legalName = getOptionalString(body, "legalName", 240);
+  const companyTypeCode = getOptionalString(body, "companyTypeCode", 80);
+  const verificationStatusCode = getOptionalString(
+    body,
+    "verificationStatusCode",
+    80,
+  );
+  const companyTypeId = companyTypeCode
+    ? await lookupId("CompanyTypes", companyTypeCode)
+    : undefined;
+  const verificationStatusId = verificationStatusCode
+    ? await lookupId("AccountStatuses", verificationStatusCode)
+    : undefined;
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Companies
+      SET
+        LegalName = COALESCE(@legalName, LegalName),
+        CompanyTypeId = COALESCE(@companyTypeId, CompanyTypeId),
+        VerificationStatusId = COALESCE(@verificationStatusId, VerificationStatusId),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.LegalName AS legalName, INSERTED.CompanyTypeId AS companyTypeId, INSERTED.VerificationStatusId AS verificationStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      nvarcharParam("legalName", legalName, 240),
+      intParam("companyTypeId", companyTypeId),
+      intParam("verificationStatusId", verificationStatusId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(404, "Company not found.");
+  }
+
+  sendJson(response, 200, { ok: true, company: rows[0] });
+}
+
+async function deleteCompany(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const inactiveStatusId = await lookupId("AccountStatuses", "inactive");
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Companies
+      SET VerificationStatusId = @statusId, UpdatedByUserId = @updatedByUserId, UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.LegalName AS legalName, INSERTED.VerificationStatusId AS verificationStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam("statusId", inactiveStatusId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(404, "Company not found.");
+  }
+
+  sendJson(response, 200, { ok: true, company: rows[0] });
+}
+
+async function listCompanyMembers(response: ServerResponse, companyId: number) {
+  const members = await queryRowsWithParams(
+    `
+      SELECT
+        cm.Id AS id,
+        cm.UserId AS userId,
+        u.Name AS userName,
+        u.Email AS userEmail,
+        cm.CompanyId AS companyId,
+        mr.Code AS memberRoleCode,
+        pt.Code AS permissionTierCode,
+        ms.Code AS memberStatusCode,
+        cm.TransactionApprovalLimit AS transactionApprovalLimit,
+        cm.CanApproveTransactions AS canApproveTransactions,
+        cm.CanExecuteTransactions AS canExecuteTransactions
+      FROM dbo.CompanyMembers cm
+      INNER JOIN dbo.Users u ON u.Id = cm.UserId
+      INNER JOIN dbo.MemberRoles mr ON mr.Id = cm.MemberRoleId
+      INNER JOIN dbo.PermissionTiers pt ON pt.Id = cm.PermissionTierId
+      INNER JOIN dbo.AccountStatuses ms ON ms.Id = cm.MemberStatusId
+      WHERE cm.CompanyId = @companyId
+      ORDER BY cm.Id DESC;
+    `,
+    [intParam("companyId", companyId)],
+  );
+
+  sendJson(response, 200, { ok: true, members });
+}
+
+async function createCompanyMember(
+  request: IncomingMessage,
+  response: ServerResponse,
+  companyId: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<MemberBody>(request);
+  const userId = getBodyInt(body, "userId");
+  const memberRoleId = await lookupId(
+    "MemberRoles",
+    getOptionalString(body, "memberRoleCode", 80) ?? "viewer",
+  );
+  const permissionTierId = await lookupId(
+    "PermissionTiers",
+    getOptionalString(body, "permissionTierCode", 80) ?? "view_only",
+  );
+  const memberStatusId = await lookupId(
+    "AccountStatuses",
+    getOptionalString(body, "memberStatusCode", 80) ?? "active",
+  );
+  const transactionApprovalLimit = getOptionalNumber(
+    body,
+    "transactionApprovalLimit",
+  );
+  const canApproveTransactions =
+    getOptionalBoolean(body, "canApproveTransactions") ?? false;
+  const canExecuteTransactions =
+    getOptionalBoolean(body, "canExecuteTransactions") ?? false;
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.CompanyMembers (
+        UserId, CompanyId, MemberRoleId, PermissionTierId, MemberStatusId,
+        TransactionApprovalLimit, CanApproveTransactions, CanExecuteTransactions,
+        CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.UserId AS userId, INSERTED.CompanyId AS companyId
+      VALUES (
+        @userId, @companyId, @memberRoleId, @permissionTierId, @memberStatusId,
+        @transactionApprovalLimit, @canApproveTransactions, @canExecuteTransactions,
+        @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("userId", userId),
+      intParam("companyId", companyId),
+      intParam("memberRoleId", memberRoleId),
+      intParam("permissionTierId", permissionTierId),
+      intParam("memberStatusId", memberStatusId),
+      decimalParam("transactionApprovalLimit", transactionApprovalLimit),
+      bitParam("canApproveTransactions", canApproveTransactions),
+      bitParam("canExecuteTransactions", canExecuteTransactions),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  sendJson(response, 201, { ok: true, member: rows[0] });
+}
+
+async function deleteCompanyMember(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const inactiveStatusId = await lookupId("AccountStatuses", "inactive");
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.CompanyMembers
+      SET MemberStatusId = @statusId, UpdatedByUserId = @updatedByUserId, UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.UserId AS userId, INSERTED.CompanyId AS companyId, INSERTED.MemberStatusId AS memberStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam("statusId", inactiveStatusId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(404, "Company member not found.");
+  }
+
+  sendJson(response, 200, { ok: true, member: rows[0] });
+}
+
+async function listLocations(response: ServerResponse, companyId?: number) {
+  const locations = await queryRowsWithParams(
+    `
+      SELECT
+        l.Id AS id,
+        l.CompanyId AS companyId,
+        lt.Code AS locationTypeCode,
+        l.Name AS name,
+        l.AddressLine1 AS addressLine1,
+        l.AddressLine2 AS addressLine2,
+        l.City AS city,
+        l.StateProvince AS stateProvince,
+        l.PostalCode AS postalCode,
+        l.CountryCode AS countryCode,
+        l.Latitude AS latitude,
+        l.Longitude AS longitude,
+        l.IsDefault AS isDefault
+      FROM dbo.Locations l
+      INNER JOIN dbo.LocationTypes lt ON lt.Id = l.LocationTypeId
+      WHERE (@companyId IS NULL OR l.CompanyId = @companyId)
+      ORDER BY l.Id DESC;
+    `,
+    [intParam("companyId", companyId)],
+  );
+
+  sendJson(response, 200, { ok: true, locations });
+}
+
+async function createLocation(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+  routeCompanyId?: number,
+) {
+  const body = await readJsonBody<LocationBody>(request);
+  const companyId = routeCompanyId ?? getBodyInt(body, "companyId");
+  const locationTypeId = await lookupId(
+    "LocationTypes",
+    getOptionalString(body, "locationTypeCode", 80) ?? "delivery",
+  );
+  const name = getRequiredString(body, "name", 160);
+  const addressLine1 = getRequiredString(body, "addressLine1", 240);
+  const addressLine2 = getOptionalString(body, "addressLine2", 240);
+  const city = getRequiredString(body, "city", 120);
+  const stateProvince = getOptionalString(body, "stateProvince", 120);
+  const postalCode = getOptionalString(body, "postalCode", 40);
+  const countryCode = getRequiredString(body, "countryCode", 2).toUpperCase();
+  const latitude = getOptionalNumber(body, "latitude");
+  const longitude = getOptionalNumber(body, "longitude");
+  const isDefault = getOptionalBoolean(body, "isDefault") ?? false;
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Locations (
+        CompanyId, LocationTypeId, Name, AddressLine1, AddressLine2, City, StateProvince,
+        PostalCode, CountryCode, Latitude, Longitude, IsDefault, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.CompanyId AS companyId, INSERTED.Name AS name
+      VALUES (
+        @companyId, @locationTypeId, @name, @addressLine1, @addressLine2, @city, @stateProvince,
+        @postalCode, @countryCode, @latitude, @longitude, @isDefault, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("companyId", companyId),
+      intParam("locationTypeId", locationTypeId),
+      nvarcharParam("name", name, 160),
+      nvarcharParam("addressLine1", addressLine1, 240),
+      nvarcharParam("addressLine2", addressLine2, 240),
+      nvarcharParam("city", city, 120),
+      nvarcharParam("stateProvince", stateProvince, 120),
+      nvarcharParam("postalCode", postalCode, 40),
+      varcharParam("countryCode", countryCode, 2),
+      decimalParam("latitude", latitude),
+      decimalParam("longitude", longitude),
+      bitParam("isDefault", isDefault),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  sendJson(response, 201, { ok: true, location: rows[0] });
+}
+
+async function updateLocation(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<LocationBody>(request);
+  const name = getOptionalString(body, "name", 160);
+  const addressLine1 = getOptionalString(body, "addressLine1", 240);
+  const city = getOptionalString(body, "city", 120);
+  const isDefault = getOptionalBoolean(body, "isDefault");
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Locations
+      SET
+        Name = COALESCE(@name, Name),
+        AddressLine1 = COALESCE(@addressLine1, AddressLine1),
+        City = COALESCE(@city, City),
+        IsDefault = COALESCE(@isDefault, IsDefault),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.CompanyId AS companyId, INSERTED.Name AS name
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      nvarcharParam("name", name, 160),
+      nvarcharParam("addressLine1", addressLine1, 240),
+      nvarcharParam("city", city, 120),
+      bitParam("isDefault", isDefault),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(404, "Location not found.");
+  }
+
+  sendJson(response, 200, { ok: true, location: rows[0] });
+}
+
+async function deleteLocation(response: ServerResponse, id: number) {
+  const rows = await queryRowsWithParams(
+    "DELETE FROM dbo.Locations OUTPUT DELETED.Id AS id, DELETED.CompanyId AS companyId, DELETED.Name AS name WHERE Id = @id;",
+    [intParam("id", id)],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(404, "Location not found.");
+  }
+
+  sendJson(response, 200, { ok: true, location: rows[0] });
+}
+
+async function listListings(response: ServerResponse, url: URL) {
+  const sellerCompanyId = url.searchParams.get("sellerCompanyId")
+    ? Number(url.searchParams.get("sellerCompanyId"))
+    : undefined;
+  const statusCode = url.searchParams.get("statusCode") ?? undefined;
+  const search = url.searchParams.get("search") ?? undefined;
+
+  const listings = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        l.Id AS id,
+        l.SellerCompanyId AS sellerCompanyId,
+        c.LegalName AS sellerCompanyName,
+        l.LocationId AS locationId,
+        l.Title AS title,
+        l.Slug AS slug,
+        mt.Code AS materialTypeCode,
+        l.Quantity AS quantity,
+        l.QuantityUnit AS quantityUnit,
+        l.MinimumOrderQuantity AS minimumOrderQuantity,
+        l.PricePerUnit AS pricePerUnit,
+        l.CurrencyCode AS currencyCode,
+        ls.Code AS listingStatusCode,
+        l.CarbonIntensityKgCo2e AS carbonIntensityKgCo2e,
+        l.Description AS description
+      FROM dbo.Listings l
+      INNER JOIN dbo.Companies c ON c.Id = l.SellerCompanyId
+      INNER JOIN dbo.MaterialTypes mt ON mt.Id = l.MaterialTypeId
+      INNER JOIN dbo.ListingStatuses ls ON ls.Id = l.ListingStatusId
+      WHERE (@sellerCompanyId IS NULL OR l.SellerCompanyId = @sellerCompanyId)
+        AND (@statusCode IS NULL OR ls.Code = @statusCode)
+        AND (@search IS NULL OR l.Title LIKE '%' + @search + '%' OR l.Description LIKE '%' + @search + '%')
+      ORDER BY l.Id DESC;
+    `,
+    [
+      intParam(
+        "sellerCompanyId",
+        Number.isInteger(sellerCompanyId) &&
+          sellerCompanyId &&
+          sellerCompanyId > 0
+          ? sellerCompanyId
+          : undefined,
+      ),
+      varcharParam(
+        "statusCode",
+        statusCode ? normalizeCode(statusCode) : undefined,
+        80,
+      ),
+      nvarcharParam("search", search, 160),
+    ],
+  );
+
+  sendJson(response, 200, { ok: true, listings });
+}
+
+async function createListing(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<ListingBody>(request);
+  const title = getRequiredString(body, "title", 200);
+  const sellerCompanyId = getBodyInt(body, "sellerCompanyId");
+  const locationId = getBodyInt(body, "locationId");
+  const materialTypeId = await lookupId(
+    "MaterialTypes",
+    getRequiredString(body, "materialTypeCode", 80),
+  );
+  const listingStatusId = await lookupId(
+    "ListingStatuses",
+    getOptionalString(body, "listingStatusCode", 80) ?? "draft",
+  );
+  const slug =
+    getOptionalString(body, "slug", 180) ?? `${slugify(title)}-${Date.now()}`;
+  const quantity = getOptionalNumber(body, "quantity");
+  const minimumOrderQuantity = getOptionalNumber(body, "minimumOrderQuantity");
+  const pricePerUnit = getOptionalNumber(body, "pricePerUnit");
+
+  if (
+    quantity === undefined ||
+    minimumOrderQuantity === undefined ||
+    pricePerUnit === undefined
+  ) {
+    throw new ApiError(
+      400,
+      "quantity, minimumOrderQuantity, and pricePerUnit are required.",
+    );
+  }
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Listings (
+        SellerCompanyId, LocationId, Title, Slug, MaterialTypeId, Quantity, QuantityUnit,
+        MinimumOrderQuantity, PricePerUnit, CurrencyCode, ListingStatusId, CarbonIntensityKgCo2e,
+        Description, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.Slug AS slug
+      VALUES (
+        @sellerCompanyId, @locationId, @title, @slug, @materialTypeId, @quantity, @quantityUnit,
+        @minimumOrderQuantity, @pricePerUnit, @currencyCode, @listingStatusId, @carbonIntensityKgCo2e,
+        @description, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("sellerCompanyId", sellerCompanyId),
+      intParam("locationId", locationId),
+      nvarcharParam("title", title, 200),
+      varcharParam("slug", slug, 180),
+      intParam("materialTypeId", materialTypeId),
+      decimalParam("quantity", quantity),
+      varcharParam(
+        "quantityUnit",
+        getRequiredString(body, "quantityUnit", 40),
+        40,
+      ),
+      decimalParam("minimumOrderQuantity", minimumOrderQuantity),
+      moneyParam("pricePerUnit", pricePerUnit),
+      varcharParam(
+        "currencyCode",
+        getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? "USD",
+        3,
+      ),
+      intParam("listingStatusId", listingStatusId),
+      decimalParam(
+        "carbonIntensityKgCo2e",
+        getOptionalNumber(body, "carbonIntensityKgCo2e"),
+      ),
+      nvarcharParam(
+        "description",
+        getOptionalString(body, "description", 4000),
+        4000,
+      ),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  sendJson(response, 201, { ok: true, listing: rows[0] });
+}
+
+async function updateListing(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<ListingBody>(request);
+  const title = getOptionalString(body, "title", 200);
+  const statusCode = getOptionalString(body, "listingStatusCode", 80);
+  const listingStatusId = statusCode
+    ? await lookupId("ListingStatuses", statusCode)
+    : undefined;
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Listings
+      SET
+        Title = COALESCE(@title, Title),
+        Quantity = COALESCE(@quantity, Quantity),
+        MinimumOrderQuantity = COALESCE(@minimumOrderQuantity, MinimumOrderQuantity),
+        PricePerUnit = COALESCE(@pricePerUnit, PricePerUnit),
+        ListingStatusId = COALESCE(@listingStatusId, ListingStatusId),
+        Description = COALESCE(@description, Description),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.Slug AS slug, INSERTED.ListingStatusId AS listingStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      nvarcharParam("title", title, 200),
+      decimalParam("quantity", getOptionalNumber(body, "quantity")),
+      decimalParam(
+        "minimumOrderQuantity",
+        getOptionalNumber(body, "minimumOrderQuantity"),
+      ),
+      moneyParam("pricePerUnit", getOptionalNumber(body, "pricePerUnit")),
+      intParam("listingStatusId", listingStatusId),
+      nvarcharParam(
+        "description",
+        getOptionalString(body, "description", 4000),
+        4000,
+      ),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(404, "Listing not found.");
+  }
+
+  sendJson(response, 200, { ok: true, listing: rows[0] });
+}
+
+async function deleteListing(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const closedStatusId = await lookupId("ListingStatuses", "closed");
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Listings
+      SET ListingStatusId = @statusId, UpdatedByUserId = @updatedByUserId, UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.Slug AS slug, INSERTED.ListingStatusId AS listingStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam("statusId", closedStatusId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(404, "Listing not found.");
+  }
+
+  sendJson(response, 200, { ok: true, listing: rows[0] });
+}
+
+async function listListingDocuments(response: ServerResponse, url: URL) {
+  const listingId = url.searchParams.get("listingId")
+    ? Number(url.searchParams.get("listingId"))
+    : undefined;
+
+  const documents = await queryRowsWithParams(
+    `
+      SELECT
+        d.Id AS id,
+        d.ListingId AS listingId,
+        dt.Code AS documentTypeCode,
+        dt.Name AS documentTypeName,
+        d.FileName AS fileName,
+        d.FileUrl AS fileUrl,
+        vs.Code AS verificationStatusCode,
+        vs.Name AS verificationStatusName,
+        d.UploadedByUserId AS uploadedByUserId,
+        d.CreatedAt AS createdAt,
+        d.UpdatedAt AS updatedAt
+      FROM dbo.ListingDocuments d
+      INNER JOIN dbo.DocumentTypes dt ON dt.Id = d.DocumentTypeId
+      INNER JOIN dbo.AccountStatuses vs ON vs.Id = d.VerificationStatusId
+      WHERE (@listingId IS NULL OR d.ListingId = @listingId)
+      ORDER BY d.Id DESC;
+    `,
+    [
+      intParam(
+        "listingId",
+        Number.isInteger(listingId) && listingId && listingId > 0
+          ? listingId
+          : undefined,
+      ),
+    ],
+  );
+
+  sendJson(response, 200, { ok: true, documents });
+}
+
+async function createListingDocument(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<ListingDocumentBody>(request);
+  const listingId = getBodyInt(body, "listingId");
+  const documentTypeId = await lookupId(
+    "DocumentTypes",
+    getOptionalString(body, "documentTypeCode", 80) ?? "other",
+  );
+  const verificationStatusId = await lookupId(
+    "AccountStatuses",
+    getOptionalString(body, "verificationStatusCode", 80) ??
+      "pending_verification",
+  );
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.ListingDocuments (
+        ListingId, DocumentTypeId, FileName, FileUrl, VerificationStatusId,
+        UploadedByUserId, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.ListingId AS listingId, INSERTED.FileName AS fileName, INSERTED.FileUrl AS fileUrl
+      VALUES (
+        @listingId, @documentTypeId, @fileName, @fileUrl, @verificationStatusId,
+        @uploadedByUserId, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("listingId", listingId),
+      intParam("documentTypeId", documentTypeId),
+      nvarcharParam("fileName", getRequiredString(body, "fileName", 240), 240),
+      nvarcharParam("fileUrl", getRequiredString(body, "fileUrl", 1000), 1000),
+      intParam("verificationStatusId", verificationStatusId),
+      intParam("uploadedByUserId", auth.userId),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "created",
+    recordTypeCode: "listing",
+    recordId: listingId,
+    newValue: rows[0],
+    reason: "Listing document created.",
+  });
+
+  sendJson(response, 201, { ok: true, document: rows[0] });
+}
+
+async function updateListingDocument(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<ListingDocumentBody>(request);
+  const documentTypeCode = getOptionalString(body, "documentTypeCode", 80);
+  const verificationStatusCode = getOptionalString(
+    body,
+    "verificationStatusCode",
+    80,
+  );
+  const documentTypeId = documentTypeCode
+    ? await lookupId("DocumentTypes", documentTypeCode)
+    : undefined;
+  const verificationStatusId = verificationStatusCode
+    ? await lookupId("AccountStatuses", verificationStatusCode)
+    : undefined;
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.ListingDocuments
+      SET
+        DocumentTypeId = COALESCE(@documentTypeId, DocumentTypeId),
+        FileName = COALESCE(@fileName, FileName),
+        FileUrl = COALESCE(@fileUrl, FileUrl),
+        VerificationStatusId = COALESCE(@verificationStatusId, VerificationStatusId),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.ListingId AS listingId, INSERTED.FileName AS fileName, INSERTED.FileUrl AS fileUrl
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam("documentTypeId", documentTypeId),
+      nvarcharParam("fileName", getOptionalString(body, "fileName", 240), 240),
+      nvarcharParam("fileUrl", getOptionalString(body, "fileUrl", 1000), 1000),
+      intParam("verificationStatusId", verificationStatusId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) throw new ApiError(404, "Listing document not found.");
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: verificationStatusCode ? "status_changed" : "updated",
+    recordTypeCode: "listing",
+    recordId: rows[0].listingId as number,
+    newValue: rows[0],
+    reason: "Listing document updated.",
+  });
+
+  sendJson(response, 200, { ok: true, document: rows[0] });
+}
+
+async function deleteListingDocument(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const rows = await queryRowsWithParams(
+    `
+      DELETE FROM dbo.ListingDocuments
+      OUTPUT DELETED.Id AS id, DELETED.ListingId AS listingId, DELETED.FileName AS fileName
+      WHERE Id = @id;
+    `,
+    [intParam("id", id)],
+  );
+
+  if (!rows[0]) throw new ApiError(404, "Listing document not found.");
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "status_changed",
+    recordTypeCode: "listing",
+    recordId: rows[0].listingId as number,
+    previousValue: rows[0],
+    reason: "Listing document deleted.",
+  });
+
+  sendJson(response, 200, { ok: true, document: rows[0] });
+}
+
+async function listQuotes(response: ServerResponse, url: URL) {
+  const listingId = url.searchParams.get("listingId")
+    ? Number(url.searchParams.get("listingId"))
+    : undefined;
+  const buyerCompanyId = url.searchParams.get("buyerCompanyId")
+    ? Number(url.searchParams.get("buyerCompanyId"))
+    : undefined;
+  const sellerCompanyId = url.searchParams.get("sellerCompanyId")
+    ? Number(url.searchParams.get("sellerCompanyId"))
+    : undefined;
+  const statusCode = url.searchParams.get("statusCode") ?? undefined;
+
+  const quotes = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        q.Id AS id,
+        q.ListingId AS listingId,
+        l.Title AS listingTitle,
+        q.BuyerCompanyId AS buyerCompanyId,
+        bc.LegalName AS buyerCompanyName,
+        q.SellerCompanyId AS sellerCompanyId,
+        sc.LegalName AS sellerCompanyName,
+        q.Quantity AS quantity,
+        q.QuantityUnit AS quantityUnit,
+        q.UnitPrice AS unitPrice,
+        q.CurrencyCode AS currencyCode,
+        q.DeliveryTerms AS deliveryTerms,
+        qs.Code AS quoteStatusCode,
+        qs.Name AS quoteStatusName,
+        q.ExpiresAt AS expiresAt,
+        q.CreatedAt AS createdAt,
+        q.UpdatedAt AS updatedAt
+      FROM dbo.Quotes q
+      INNER JOIN dbo.Listings l ON l.Id = q.ListingId
+      INNER JOIN dbo.Companies bc ON bc.Id = q.BuyerCompanyId
+      INNER JOIN dbo.Companies sc ON sc.Id = q.SellerCompanyId
+      INNER JOIN dbo.QuoteStatuses qs ON qs.Id = q.QuoteStatusId
+      WHERE (@listingId IS NULL OR q.ListingId = @listingId)
+        AND (@buyerCompanyId IS NULL OR q.BuyerCompanyId = @buyerCompanyId)
+        AND (@sellerCompanyId IS NULL OR q.SellerCompanyId = @sellerCompanyId)
+        AND (@statusCode IS NULL OR qs.Code = @statusCode)
+      ORDER BY q.Id DESC;
+    `,
+    [
+      intParam("listingId", Number.isInteger(listingId) ? listingId : undefined),
+      intParam(
+        "buyerCompanyId",
+        Number.isInteger(buyerCompanyId) ? buyerCompanyId : undefined,
+      ),
+      intParam(
+        "sellerCompanyId",
+        Number.isInteger(sellerCompanyId) ? sellerCompanyId : undefined,
+      ),
+      varcharParam(
+        "statusCode",
+        statusCode ? normalizeCode(statusCode) : undefined,
+        80,
+      ),
+    ],
+  );
+
+  sendJson(response, 200, { ok: true, quotes });
+}
+
+async function createQuote(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<QuoteBody>(request);
+  const listingId = getBodyInt(body, "listingId");
+  const buyerCompanyId = getBodyInt(body, "buyerCompanyId");
+  const listingRows = await queryRowsWithParams<{
+    sellerCompanyId: number;
+    quantityUnit: string;
+    pricePerUnit: number;
+    currencyCode: string;
+  }>(
+    `
+      SELECT SellerCompanyId AS sellerCompanyId, QuantityUnit AS quantityUnit,
+        PricePerUnit AS pricePerUnit, CurrencyCode AS currencyCode
+      FROM dbo.Listings
+      WHERE Id = @listingId;
+    `,
+    [intParam("listingId", listingId)],
+  );
+  const listing = listingRows[0];
+  if (!listing) throw new ApiError(404, "Listing not found.");
+
+  const quoteStatusId = await lookupId(
+    "QuoteStatuses",
+    getOptionalString(body, "quoteStatusCode", 80) ?? "draft",
+  );
+  const quantity = getOptionalNumber(body, "quantity");
+  if (quantity === undefined) throw new ApiError(400, "quantity is required.");
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Quotes (
+        ListingId, BuyerCompanyId, SellerCompanyId, Quantity, QuantityUnit,
+        UnitPrice, CurrencyCode, DeliveryTerms, QuoteStatusId, ExpiresAt,
+        CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.ListingId AS listingId, INSERTED.BuyerCompanyId AS buyerCompanyId, INSERTED.SellerCompanyId AS sellerCompanyId
+      VALUES (
+        @listingId, @buyerCompanyId, @sellerCompanyId, @quantity, @quantityUnit,
+        @unitPrice, @currencyCode, @deliveryTerms, @quoteStatusId, @expiresAt,
+        @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("listingId", listingId),
+      intParam("buyerCompanyId", buyerCompanyId),
+      intParam("sellerCompanyId", getOptionalInt(body, "sellerCompanyId") ?? listing.sellerCompanyId),
+      decimalParam("quantity", quantity),
+      varcharParam("quantityUnit", getOptionalString(body, "quantityUnit", 40) ?? listing.quantityUnit, 40),
+      moneyParam("unitPrice", getOptionalNumber(body, "unitPrice") ?? Number(listing.pricePerUnit)),
+      varcharParam("currencyCode", getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? listing.currencyCode, 3),
+      nvarcharParam("deliveryTerms", getOptionalString(body, "deliveryTerms", 500), 500),
+      intParam("quoteStatusId", quoteStatusId),
+      dateTimeParam("expiresAt", getOptionalDate(body, "expiresAt")),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "created",
+    recordTypeCode: "quote",
+    recordId: rows[0].id as number,
+    newValue: rows[0],
+    reason: "Quote created.",
+  });
+
+  sendJson(response, 201, { ok: true, quote: rows[0] });
+}
+
+async function updateQuote(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<QuoteBody>(request);
+  const quoteStatusCode = getOptionalString(body, "quoteStatusCode", 80);
+  const quoteStatusId = quoteStatusCode
+    ? await lookupId("QuoteStatuses", quoteStatusCode)
+    : undefined;
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Quotes
+      SET
+        Quantity = COALESCE(@quantity, Quantity),
+        QuantityUnit = COALESCE(@quantityUnit, QuantityUnit),
+        UnitPrice = COALESCE(@unitPrice, UnitPrice),
+        DeliveryTerms = COALESCE(@deliveryTerms, DeliveryTerms),
+        QuoteStatusId = COALESCE(@quoteStatusId, QuoteStatusId),
+        ExpiresAt = COALESCE(@expiresAt, ExpiresAt),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.ListingId AS listingId, INSERTED.BuyerCompanyId AS buyerCompanyId, INSERTED.SellerCompanyId AS sellerCompanyId, INSERTED.QuoteStatusId AS quoteStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      decimalParam("quantity", getOptionalNumber(body, "quantity")),
+      varcharParam("quantityUnit", getOptionalString(body, "quantityUnit", 40), 40),
+      moneyParam("unitPrice", getOptionalNumber(body, "unitPrice")),
+      nvarcharParam("deliveryTerms", getOptionalString(body, "deliveryTerms", 500), 500),
+      intParam("quoteStatusId", quoteStatusId),
+      dateTimeParam("expiresAt", getOptionalDate(body, "expiresAt")),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) throw new ApiError(404, "Quote not found.");
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: quoteStatusCode ? "status_changed" : "updated",
+    recordTypeCode: "quote",
+    recordId: id,
+    newValue: rows[0],
+    reason: "Quote updated.",
+  });
+
+  sendJson(response, 200, { ok: true, quote: rows[0] });
+}
+
+async function listOrders(response: ServerResponse, url: URL) {
+  const buyerCompanyId = url.searchParams.get("buyerCompanyId")
+    ? Number(url.searchParams.get("buyerCompanyId"))
+    : undefined;
+  const sellerCompanyId = url.searchParams.get("sellerCompanyId")
+    ? Number(url.searchParams.get("sellerCompanyId"))
+    : undefined;
+  const statusCode = url.searchParams.get("statusCode") ?? undefined;
+
+  const orders = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        o.Id AS id,
+        o.QuoteId AS quoteId,
+        o.ListingId AS listingId,
+        l.Title AS listingTitle,
+        o.BuyerCompanyId AS buyerCompanyId,
+        bc.LegalName AS buyerCompanyName,
+        o.SellerCompanyId AS sellerCompanyId,
+        sc.LegalName AS sellerCompanyName,
+        os.Code AS orderStatusCode,
+        os.Name AS orderStatusName,
+        src.Code AS creationSourceCode,
+        o.TotalAmount AS totalAmount,
+        o.CurrencyCode AS currencyCode,
+        o.EscrowRequired AS escrowRequired,
+        o.DirectOrderReason AS directOrderReason,
+        o.CreatedAt AS createdAt,
+        o.UpdatedAt AS updatedAt
+      FROM dbo.Orders o
+      LEFT JOIN dbo.Listings l ON l.Id = o.ListingId
+      INNER JOIN dbo.Companies bc ON bc.Id = o.BuyerCompanyId
+      INNER JOIN dbo.Companies sc ON sc.Id = o.SellerCompanyId
+      INNER JOIN dbo.OrderStatuses os ON os.Id = o.OrderStatusId
+      INNER JOIN dbo.OrderCreationSources src ON src.Id = o.CreationSourceId
+      WHERE (@buyerCompanyId IS NULL OR o.BuyerCompanyId = @buyerCompanyId)
+        AND (@sellerCompanyId IS NULL OR o.SellerCompanyId = @sellerCompanyId)
+        AND (@statusCode IS NULL OR os.Code = @statusCode)
+      ORDER BY o.Id DESC;
+    `,
+    [
+      intParam(
+        "buyerCompanyId",
+        Number.isInteger(buyerCompanyId) ? buyerCompanyId : undefined,
+      ),
+      intParam(
+        "sellerCompanyId",
+        Number.isInteger(sellerCompanyId) ? sellerCompanyId : undefined,
+      ),
+      varcharParam(
+        "statusCode",
+        statusCode ? normalizeCode(statusCode) : undefined,
+        80,
+      ),
+    ],
+  );
+
+  sendJson(response, 200, { ok: true, orders });
+}
+
+async function createOrder(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<OrderBody>(request);
+  const quoteId = getOptionalInt(body, "quoteId");
+  const listingId = getOptionalInt(body, "listingId");
+  const buyerCompanyId = getBodyInt(body, "buyerCompanyId");
+  const directOrderReason = getOptionalString(body, "directOrderReason", 1000);
+  const creationSourceCode =
+    getOptionalString(body, "creationSourceCode", 80) ??
+    (quoteId ? "quote_acceptance" : "admin_direct");
+
+  if (!quoteId && !listingId && creationSourceCode !== "admin_direct") {
+    throw new ApiError(400, "listingId or quoteId is required.");
+  }
+  if (creationSourceCode === "admin_direct" && !auth.isAdmin) {
+    throw new ApiError(403, "Only admins can create direct orders.");
+  }
+  if (creationSourceCode === "admin_direct" && !directOrderReason) {
+    throw new ApiError(400, "directOrderReason is required for admin direct orders.");
+  }
+
+  const quoteRows = quoteId
+    ? await queryRowsWithParams<{
+        listingId: number;
+        buyerCompanyId: number;
+        sellerCompanyId: number;
+        quantity: number;
+        unitPrice: number;
+        currencyCode: string;
+      }>(
+        `SELECT ListingId AS listingId, BuyerCompanyId AS buyerCompanyId, SellerCompanyId AS sellerCompanyId,
+          Quantity AS quantity, UnitPrice AS unitPrice, CurrencyCode AS currencyCode
+         FROM dbo.Quotes WHERE Id = @quoteId;`,
+        [intParam("quoteId", quoteId)],
+      )
+    : [];
+  const quote = quoteRows[0];
+  if (quoteId && !quote) throw new ApiError(404, "Quote not found.");
+
+  const listingRows =
+    listingId || quote?.listingId
+      ? await queryRowsWithParams<{
+          sellerCompanyId: number;
+          pricePerUnit: number;
+          currencyCode: string;
+          minimumOrderQuantity: number;
+        }>(
+          `SELECT SellerCompanyId AS sellerCompanyId, PricePerUnit AS pricePerUnit,
+            CurrencyCode AS currencyCode, MinimumOrderQuantity AS minimumOrderQuantity
+           FROM dbo.Listings WHERE Id = @listingId;`,
+          [intParam("listingId", listingId ?? quote?.listingId)],
+        )
+      : [];
+  const listing = listingRows[0];
+  if ((listingId || quote?.listingId) && !listing) {
+    throw new ApiError(404, "Listing not found.");
+  }
+
+  const totalAmount =
+    getOptionalNumber(body, "totalAmount") ??
+    (quote ? Number(quote.quantity) * Number(quote.unitPrice) : undefined);
+  if (totalAmount === undefined) {
+    throw new ApiError(400, "totalAmount is required when no quote is provided.");
+  }
+
+  const escrowRequired =
+    getOptionalBoolean(body, "escrowRequired") ?? totalAmount > 1000;
+  const orderStatusId = await lookupId(
+    "OrderStatuses",
+    getOptionalString(body, "orderStatusCode", 80) ??
+      (escrowRequired ? "escrow_required" : "in_progress"),
+  );
+  const creationSourceId = await lookupId(
+    "OrderCreationSources",
+    creationSourceCode,
+  );
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Orders (
+        QuoteId, ListingId, BuyerCompanyId, SellerCompanyId, CreationSourceId,
+        OrderStatusId, TotalAmount, CurrencyCode, EscrowRequired, DirectOrderReason,
+        CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.QuoteId AS quoteId, INSERTED.ListingId AS listingId,
+        INSERTED.BuyerCompanyId AS buyerCompanyId, INSERTED.SellerCompanyId AS sellerCompanyId,
+        INSERTED.TotalAmount AS totalAmount, INSERTED.EscrowRequired AS escrowRequired
+      VALUES (
+        @quoteId, @listingId, @buyerCompanyId, @sellerCompanyId, @creationSourceId,
+        @orderStatusId, @totalAmount, @currencyCode, @escrowRequired, @directOrderReason,
+        @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("quoteId", quoteId),
+      intParam("listingId", listingId ?? quote?.listingId),
+      intParam("buyerCompanyId", quote?.buyerCompanyId ?? buyerCompanyId),
+      intParam("sellerCompanyId", getOptionalInt(body, "sellerCompanyId") ?? quote?.sellerCompanyId ?? listing?.sellerCompanyId),
+      intParam("creationSourceId", creationSourceId),
+      intParam("orderStatusId", orderStatusId),
+      moneyParam("totalAmount", totalAmount),
+      varcharParam("currencyCode", getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? quote?.currencyCode ?? listing?.currencyCode ?? "USD", 3),
+      bitParam("escrowRequired", escrowRequired),
+      nvarcharParam("directOrderReason", directOrderReason, 1000),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "created",
+    recordTypeCode: "order",
+    recordId: rows[0].id as number,
+    newValue: rows[0],
+    reason: creationSourceCode === "admin_direct" ? directOrderReason : "Order created.",
+  });
+
+  sendJson(response, 201, { ok: true, order: rows[0] });
+}
+
+async function updateOrder(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<OrderBody>(request);
+  const orderStatusCode = getOptionalString(body, "orderStatusCode", 80);
+  const orderStatusId = orderStatusCode
+    ? await lookupId("OrderStatuses", orderStatusCode)
+    : undefined;
+  const totalAmount = getOptionalNumber(body, "totalAmount");
+  const escrowRequired =
+    getOptionalBoolean(body, "escrowRequired") ??
+    (totalAmount === undefined ? undefined : totalAmount > 1000);
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Orders
+      SET
+        OrderStatusId = COALESCE(@orderStatusId, OrderStatusId),
+        TotalAmount = COALESCE(@totalAmount, TotalAmount),
+        EscrowRequired = COALESCE(@escrowRequired, EscrowRequired),
+        DirectOrderReason = COALESCE(@directOrderReason, DirectOrderReason),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.OrderStatusId AS orderStatusId, INSERTED.TotalAmount AS totalAmount, INSERTED.EscrowRequired AS escrowRequired
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam("orderStatusId", orderStatusId),
+      moneyParam("totalAmount", totalAmount),
+      bitParam("escrowRequired", escrowRequired),
+      nvarcharParam("directOrderReason", getOptionalString(body, "directOrderReason", 1000), 1000),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) throw new ApiError(404, "Order not found.");
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: orderStatusCode ? "status_changed" : "updated",
+    recordTypeCode: "order",
+    recordId: id,
+    newValue: rows[0],
+    reason: "Order updated.",
+  });
+
+  sendJson(response, 200, { ok: true, order: rows[0] });
+}
+
+async function listNotifications(response: ServerResponse, url: URL) {
+  const userId = url.searchParams.get("userId")
+    ? Number(url.searchParams.get("userId"))
+    : undefined;
+  const companyId = url.searchParams.get("companyId")
+    ? Number(url.searchParams.get("companyId"))
+    : undefined;
+  const statusCode = url.searchParams.get("statusCode") ?? undefined;
+  const categoryCode = url.searchParams.get("categoryCode") ?? undefined;
+
+  const notifications = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        n.Id AS id,
+        n.UserId AS userId,
+        n.CompanyId AS companyId,
+        rt.Code AS relatedRecordTypeCode,
+        n.RelatedRecordId AS relatedRecordId,
+        nc.Code AS notificationChannelCode,
+        cat.Code AS notificationCategoryCode,
+        ns.Code AS notificationStatusCode,
+        n.Subject AS subject,
+        n.Body AS body,
+        n.SentAt AS sentAt,
+        n.ReadAt AS readAt,
+        n.CreatedAt AS createdAt,
+        n.UpdatedAt AS updatedAt
+      FROM dbo.Notifications n
+      LEFT JOIN dbo.RecordTypes rt ON rt.Id = n.RelatedRecordTypeId
+      INNER JOIN dbo.NotificationChannels nc ON nc.Id = n.NotificationChannelId
+      INNER JOIN dbo.NotificationCategories cat ON cat.Id = n.NotificationCategoryId
+      INNER JOIN dbo.NotificationStatuses ns ON ns.Id = n.NotificationStatusId
+      WHERE (@userId IS NULL OR n.UserId = @userId)
+        AND (@companyId IS NULL OR n.CompanyId = @companyId)
+        AND (@statusCode IS NULL OR ns.Code = @statusCode)
+        AND (@categoryCode IS NULL OR cat.Code = @categoryCode)
+      ORDER BY n.Id DESC;
+    `,
+    [
+      intParam("userId", Number.isInteger(userId) ? userId : undefined),
+      intParam("companyId", Number.isInteger(companyId) ? companyId : undefined),
+      varcharParam("statusCode", statusCode ? normalizeCode(statusCode) : undefined, 80),
+      varcharParam("categoryCode", categoryCode ? normalizeCode(categoryCode) : undefined, 80),
+    ],
+  );
+
+  sendJson(response, 200, { ok: true, notifications });
+}
+
+async function createNotification(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<NotificationBody>(request);
+  const relatedRecordTypeCode = getOptionalString(body, "relatedRecordTypeCode", 80);
+  const relatedRecordTypeId = relatedRecordTypeCode
+    ? await lookupId("RecordTypes", relatedRecordTypeCode)
+    : undefined;
+  const channelId = await lookupId(
+    "NotificationChannels",
+    getOptionalString(body, "notificationChannelCode", 80) ?? "in_app",
+  );
+  const categoryId = await lookupId(
+    "NotificationCategories",
+    getOptionalString(body, "notificationCategoryCode", 80) ?? "system",
+  );
+  const statusId = await lookupId(
+    "NotificationStatuses",
+    getOptionalString(body, "notificationStatusCode", 80) ?? "queued",
+  );
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Notifications (
+        UserId, CompanyId, RelatedRecordTypeId, RelatedRecordId,
+        NotificationChannelId, NotificationCategoryId, NotificationStatusId,
+        Subject, Body, SentAt, ReadAt, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.UserId AS userId, INSERTED.CompanyId AS companyId, INSERTED.Subject AS subject
+      VALUES (
+        @userId, @companyId, @relatedRecordTypeId, @relatedRecordId,
+        @notificationChannelId, @notificationCategoryId, @notificationStatusId,
+        @subject, @body, @sentAt, @readAt, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("userId", getOptionalInt(body, "userId")),
+      intParam("companyId", getOptionalInt(body, "companyId")),
+      intParam("relatedRecordTypeId", relatedRecordTypeId),
+      intParam("relatedRecordId", getOptionalInt(body, "relatedRecordId")),
+      intParam("notificationChannelId", channelId),
+      intParam("notificationCategoryId", categoryId),
+      intParam("notificationStatusId", statusId),
+      nvarcharParam("subject", getRequiredString(body, "subject", 240), 240),
+      nvarcharParam("body", getRequiredString(body, "body", 4000), 4000),
+      dateTimeParam("sentAt", getOptionalDate(body, "sentAt")),
+      dateTimeParam("readAt", getOptionalDate(body, "readAt")),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "created",
+    recordTypeCode: "notification",
+    recordId: rows[0].id as number,
+    newValue: rows[0],
+    reason: "Notification created.",
+  });
+
+  sendJson(response, 201, { ok: true, notification: rows[0] });
+}
+
+async function updateNotification(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<NotificationBody>(request);
+  const statusCode = getOptionalString(body, "notificationStatusCode", 80);
+  const statusId = statusCode
+    ? await lookupId("NotificationStatuses", statusCode)
+    : undefined;
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Notifications
+      SET
+        NotificationStatusId = COALESCE(@notificationStatusId, NotificationStatusId),
+        Subject = COALESCE(@subject, Subject),
+        Body = COALESCE(@body, Body),
+        SentAt = COALESCE(@sentAt, SentAt),
+        ReadAt = COALESCE(@readAt, ReadAt),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.UserId AS userId, INSERTED.CompanyId AS companyId, INSERTED.Subject AS subject
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam("notificationStatusId", statusId),
+      nvarcharParam("subject", getOptionalString(body, "subject", 240), 240),
+      nvarcharParam("body", getOptionalString(body, "body", 4000), 4000),
+      dateTimeParam("sentAt", getOptionalDate(body, "sentAt")),
+      dateTimeParam("readAt", getOptionalDate(body, "readAt")),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) throw new ApiError(404, "Notification not found.");
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: statusCode ? "status_changed" : "updated",
+    recordTypeCode: "notification",
+    recordId: id,
+    newValue: rows[0],
+    reason: "Notification updated.",
+  });
+
+  sendJson(response, 200, { ok: true, notification: rows[0] });
+}
+
+async function listNotificationPreferences(response: ServerResponse, url: URL) {
+  const userId = url.searchParams.get("userId")
+    ? Number(url.searchParams.get("userId"))
+    : undefined;
+  const companyId = url.searchParams.get("companyId")
+    ? Number(url.searchParams.get("companyId"))
+    : undefined;
+
+  const preferences = await queryRowsWithParams(
+    `
+      SELECT
+        p.Id AS id,
+        p.UserId AS userId,
+        p.CompanyId AS companyId,
+        nc.Code AS notificationChannelCode,
+        cat.Code AS notificationCategoryCode,
+        p.Enabled AS enabled,
+        p.IsCompanyDefault AS isCompanyDefault,
+        p.CreatedAt AS createdAt,
+        p.UpdatedAt AS updatedAt
+      FROM dbo.NotificationPreferences p
+      INNER JOIN dbo.NotificationChannels nc ON nc.Id = p.NotificationChannelId
+      INNER JOIN dbo.NotificationCategories cat ON cat.Id = p.NotificationCategoryId
+      WHERE (@userId IS NULL OR p.UserId = @userId)
+        AND (@companyId IS NULL OR p.CompanyId = @companyId)
+      ORDER BY p.Id DESC;
+    `,
+    [
+      intParam("userId", Number.isInteger(userId) ? userId : undefined),
+      intParam("companyId", Number.isInteger(companyId) ? companyId : undefined),
+    ],
+  );
+
+  sendJson(response, 200, { ok: true, preferences });
+}
+
+async function createNotificationPreference(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<NotificationPreferenceBody>(request);
+  const userId = getOptionalInt(body, "userId");
+  const companyId = getOptionalInt(body, "companyId");
+  if (!userId && !companyId) {
+    throw new ApiError(400, "userId or companyId is required.");
+  }
+  const channelId = await lookupId(
+    "NotificationChannels",
+    getOptionalString(body, "notificationChannelCode", 80) ?? "in_app",
+  );
+  const categoryId = await lookupId(
+    "NotificationCategories",
+    getOptionalString(body, "notificationCategoryCode", 80) ?? "system",
+  );
+  const enabled = getOptionalBoolean(body, "enabled") ?? true;
+  const isCompanyDefault = getOptionalBoolean(body, "isCompanyDefault") ?? Boolean(companyId && !userId);
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.NotificationPreferences (
+        UserId, CompanyId, NotificationChannelId, NotificationCategoryId,
+        Enabled, IsCompanyDefault, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.UserId AS userId, INSERTED.CompanyId AS companyId, INSERTED.Enabled AS enabled, INSERTED.IsCompanyDefault AS isCompanyDefault
+      VALUES (
+        @userId, @companyId, @notificationChannelId, @notificationCategoryId,
+        @enabled, @isCompanyDefault, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("userId", userId),
+      intParam("companyId", companyId),
+      intParam("notificationChannelId", channelId),
+      intParam("notificationCategoryId", categoryId),
+      bitParam("enabled", enabled),
+      bitParam("isCompanyDefault", isCompanyDefault),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "created",
+    recordTypeCode: "notification",
+    recordId: rows[0].id as number,
+    newValue: rows[0],
+    reason: "Notification preference created.",
+  });
+
+  sendJson(response, 201, { ok: true, preference: rows[0] });
+}
+
+async function updateNotificationPreference(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<NotificationPreferenceBody>(request);
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.NotificationPreferences
+      SET
+        Enabled = COALESCE(@enabled, Enabled),
+        IsCompanyDefault = COALESCE(@isCompanyDefault, IsCompanyDefault),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.UserId AS userId, INSERTED.CompanyId AS companyId, INSERTED.Enabled AS enabled, INSERTED.IsCompanyDefault AS isCompanyDefault
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      bitParam("enabled", getOptionalBoolean(body, "enabled")),
+      bitParam("isCompanyDefault", getOptionalBoolean(body, "isCompanyDefault")),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) throw new ApiError(404, "Notification preference not found.");
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "updated",
+    recordTypeCode: "notification",
+    recordId: id,
+    newValue: rows[0],
+    reason: "Notification preference updated.",
+  });
+
+  sendJson(response, 200, { ok: true, preference: rows[0] });
+}
+
+async function deleteNotificationPreference(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const rows = await queryRowsWithParams(
+    `
+      DELETE FROM dbo.NotificationPreferences
+      OUTPUT DELETED.Id AS id, DELETED.UserId AS userId, DELETED.CompanyId AS companyId
+      WHERE Id = @id;
+    `,
+    [intParam("id", id)],
+  );
+
+  if (!rows[0]) throw new ApiError(404, "Notification preference not found.");
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "status_changed",
+    recordTypeCode: "notification",
+    recordId: id,
+    previousValue: rows[0],
+    reason: "Notification preference deleted.",
+  });
+
+  sendJson(response, 200, { ok: true, preference: rows[0] });
+}
+
+async function listAuditLogs(
+  request: IncomingMessage,
+  response: ServerResponse,
+  url: URL,
+  auth: AuthContext,
+) {
+  requireAdmin(auth);
+  const recordTypeCode = url.searchParams.get("recordTypeCode") ?? undefined;
+  const actionTypeCode = url.searchParams.get("actionTypeCode") ?? undefined;
+  const actorUserId = url.searchParams.get("actorUserId")
+    ? Number(url.searchParams.get("actorUserId"))
+    : undefined;
+  const recordId = url.searchParams.get("recordId")
+    ? Number(url.searchParams.get("recordId"))
+    : undefined;
+
+  const auditLogs = await queryRowsWithParams(
+    `
+      SELECT TOP (500)
+        a.Id AS id,
+        a.ActorUserId AS actorUserId,
+        u.Name AS actorUserName,
+        a.ActorCompanyId AS actorCompanyId,
+        at.Code AS actorTypeCode,
+        act.Code AS actionTypeCode,
+        rt.Code AS recordTypeCode,
+        a.RecordId AS recordId,
+        a.PreviousValue AS previousValue,
+        a.NewValue AS newValue,
+        a.Reason AS reason,
+        a.IpAddress AS ipAddress,
+        a.UserAgent AS userAgent,
+        a.CreatedAt AS createdAt
+      FROM dbo.AuditLogs a
+      LEFT JOIN dbo.Users u ON u.Id = a.ActorUserId
+      INNER JOIN dbo.ActorTypes at ON at.Id = a.ActorTypeId
+      INNER JOIN dbo.AuditActionTypes act ON act.Id = a.ActionTypeId
+      INNER JOIN dbo.RecordTypes rt ON rt.Id = a.RecordTypeId
+      WHERE (@recordTypeCode IS NULL OR rt.Code = @recordTypeCode)
+        AND (@actionTypeCode IS NULL OR act.Code = @actionTypeCode)
+        AND (@actorUserId IS NULL OR a.ActorUserId = @actorUserId)
+        AND (@recordId IS NULL OR a.RecordId = @recordId)
+      ORDER BY a.Id DESC;
+    `,
+    [
+      varcharParam("recordTypeCode", recordTypeCode ? normalizeCode(recordTypeCode) : undefined, 80),
+      varcharParam("actionTypeCode", actionTypeCode ? normalizeCode(actionTypeCode) : undefined, 80),
+      intParam("actorUserId", Number.isInteger(actorUserId) ? actorUserId : undefined),
+      intParam("recordId", Number.isInteger(recordId) ? recordId : undefined),
+    ],
+  );
+
+  if (url.searchParams.get("export") === "true") {
+    await writeAuditLog({
+      auth,
+      request,
+      actionTypeCode: "exported",
+      recordTypeCode: "user",
+      reason: "Audit logs exported.",
+    });
+  }
+
+  sendJson(response, 200, { ok: true, auditLogs });
+}
+
+async function listBuyerProfiles(
+  response: ServerResponse,
+  url: URL,
+  auth: AuthContext,
+) {
+  const requestedCompanyId = url.searchParams.get("companyId")
+    ? Number(url.searchParams.get("companyId"))
+    : undefined;
+  const companyId = auth.isAdmin ? requestedCompanyId : auth.companyId;
+
+  const buyerProfiles = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        bp.Id AS id, bp.CompanyId AS companyId, c.LegalName AS companyName,
+        onboarding.Code AS onboardingStatusCode,
+        subscription.Code AS subscriptionStatusCode,
+        billing.Code AS billingStatusCode,
+        approval.Code AS approvalStatusCode,
+        bp.CreatedAt AS createdAt, bp.UpdatedAt AS updatedAt
+      FROM dbo.BuyerProfiles bp
+      INNER JOIN dbo.Companies c ON c.Id = bp.CompanyId
+      INNER JOIN dbo.AccountStatuses onboarding ON onboarding.Id = bp.OnboardingStatusId
+      INNER JOIN dbo.AccountStatuses subscription ON subscription.Id = bp.SubscriptionStatusId
+      INNER JOIN dbo.AccountStatuses billing ON billing.Id = bp.BillingStatusId
+      INNER JOIN dbo.AccountStatuses approval ON approval.Id = bp.ApprovalStatusId
+      WHERE (@companyId IS NULL OR bp.CompanyId = @companyId)
+      ORDER BY bp.Id DESC;
+    `,
+    [intParam("companyId", Number.isInteger(companyId) ? companyId : undefined)],
+  );
+
+  sendJson(response, 200, { ok: true, buyerProfiles });
+}
+
+async function updateBuyerProfile(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<ProfileStatusBody>(request);
+  const profile = (
+    await queryRowsWithParams<{ companyId: number }>(
+      "SELECT CompanyId AS companyId FROM dbo.BuyerProfiles WHERE Id = @id;",
+      [intParam("id", id)],
+    )
+  )[0];
+  if (!profile) throw new ApiError(404, "Buyer profile not found.");
+  if (!auth.isAdmin && profile.companyId !== auth.companyId) {
+    throw new ApiError(403, "You cannot update another company's buyer profile.");
+  }
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.BuyerProfiles
+      SET
+        OnboardingStatusId = COALESCE(@onboardingStatusId, OnboardingStatusId),
+        SubscriptionStatusId = COALESCE(@subscriptionStatusId, SubscriptionStatusId),
+        BillingStatusId = COALESCE(@billingStatusId, BillingStatusId),
+        ApprovalStatusId = COALESCE(@approvalStatusId, ApprovalStatusId),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.CompanyId AS companyId,
+        INSERTED.OnboardingStatusId AS onboardingStatusId,
+        INSERTED.SubscriptionStatusId AS subscriptionStatusId,
+        INSERTED.BillingStatusId AS billingStatusId,
+        INSERTED.ApprovalStatusId AS approvalStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam(
+        "onboardingStatusId",
+        body.onboardingStatusCode ? await lookupId("AccountStatuses", body.onboardingStatusCode) : undefined,
+      ),
+      intParam(
+        "subscriptionStatusId",
+        body.subscriptionStatusCode ? await lookupId("AccountStatuses", body.subscriptionStatusCode) : undefined,
+      ),
+      intParam(
+        "billingStatusId",
+        body.billingStatusCode ? await lookupId("AccountStatuses", body.billingStatusCode) : undefined,
+      ),
+      intParam(
+        "approvalStatusId",
+        body.approvalStatusCode ? await lookupId("AccountStatuses", body.approvalStatusCode) : undefined,
+      ),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "updated",
+    recordTypeCode: "company",
+    recordId: profile.companyId,
+    newValue: rows[0],
+    reason: "Buyer profile updated.",
+  });
+
+  sendJson(response, 200, { ok: true, buyerProfile: rows[0] });
+}
+
+async function listSellerProfiles(
+  response: ServerResponse,
+  url: URL,
+  auth: AuthContext,
+) {
+  const requestedCompanyId = url.searchParams.get("companyId")
+    ? Number(url.searchParams.get("companyId"))
+    : undefined;
+  const companyId = auth.isAdmin ? requestedCompanyId : auth.companyId;
+
+  const sellerProfiles = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        sp.Id AS id, sp.CompanyId AS companyId, c.LegalName AS companyName,
+        onboarding.Code AS onboardingStatusCode,
+        subscription.Code AS subscriptionStatusCode,
+        payout.Code AS payoutStatusCode,
+        approval.Code AS approvalStatusCode,
+        sp.CreatedAt AS createdAt, sp.UpdatedAt AS updatedAt
+      FROM dbo.SellerProfiles sp
+      INNER JOIN dbo.Companies c ON c.Id = sp.CompanyId
+      INNER JOIN dbo.AccountStatuses onboarding ON onboarding.Id = sp.OnboardingStatusId
+      INNER JOIN dbo.AccountStatuses subscription ON subscription.Id = sp.SubscriptionStatusId
+      INNER JOIN dbo.PayoutStatuses payout ON payout.Id = sp.PayoutStatusId
+      INNER JOIN dbo.AccountStatuses approval ON approval.Id = sp.ApprovalStatusId
+      WHERE (@companyId IS NULL OR sp.CompanyId = @companyId)
+      ORDER BY sp.Id DESC;
+    `,
+    [intParam("companyId", Number.isInteger(companyId) ? companyId : undefined)],
+  );
+
+  sendJson(response, 200, { ok: true, sellerProfiles });
+}
+
+async function updateSellerProfile(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<ProfileStatusBody>(request);
+  const profile = (
+    await queryRowsWithParams<{ companyId: number }>(
+      "SELECT CompanyId AS companyId FROM dbo.SellerProfiles WHERE Id = @id;",
+      [intParam("id", id)],
+    )
+  )[0];
+  if (!profile) throw new ApiError(404, "Seller profile not found.");
+  if (!auth.isAdmin && profile.companyId !== auth.companyId) {
+    throw new ApiError(403, "You cannot update another company's seller profile.");
+  }
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.SellerProfiles
+      SET
+        OnboardingStatusId = COALESCE(@onboardingStatusId, OnboardingStatusId),
+        SubscriptionStatusId = COALESCE(@subscriptionStatusId, SubscriptionStatusId),
+        PayoutStatusId = COALESCE(@payoutStatusId, PayoutStatusId),
+        ApprovalStatusId = COALESCE(@approvalStatusId, ApprovalStatusId),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.CompanyId AS companyId,
+        INSERTED.OnboardingStatusId AS onboardingStatusId,
+        INSERTED.SubscriptionStatusId AS subscriptionStatusId,
+        INSERTED.PayoutStatusId AS payoutStatusId,
+        INSERTED.ApprovalStatusId AS approvalStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam(
+        "onboardingStatusId",
+        body.onboardingStatusCode ? await lookupId("AccountStatuses", body.onboardingStatusCode) : undefined,
+      ),
+      intParam(
+        "subscriptionStatusId",
+        body.subscriptionStatusCode ? await lookupId("AccountStatuses", body.subscriptionStatusCode) : undefined,
+      ),
+      intParam(
+        "payoutStatusId",
+        body.payoutStatusCode ? await lookupId("PayoutStatuses", body.payoutStatusCode) : undefined,
+      ),
+      intParam(
+        "approvalStatusId",
+        body.approvalStatusCode ? await lookupId("AccountStatuses", body.approvalStatusCode) : undefined,
+      ),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "updated",
+    recordTypeCode: "company",
+    recordId: profile.companyId,
+    newValue: rows[0],
+    reason: "Seller profile updated.",
+  });
+
+  sendJson(response, 200, { ok: true, sellerProfile: rows[0] });
+}
+
+async function listCarriers(response: ServerResponse) {
+  const carriers = await queryRowsWithParams(`
+    SELECT Id AS id, Code AS code, Name AS name, Description AS description,
+      IsActive AS isActive, SortOrder AS sortOrder, CreatedAt AS createdAt, UpdatedAt AS updatedAt
+    FROM dbo.Carriers
+    ORDER BY SortOrder, Name;
+  `);
+
+  sendJson(response, 200, { ok: true, carriers });
+}
+
+async function createCarrier(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  requireAdmin(auth);
+  const body = await readJsonBody<CarrierBody>(request);
+  const name = getRequiredString(body, "name", 160);
+  const code = getOptionalString(body, "code", 80) ?? slugify(name);
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Carriers (Code, Name, Description, IsActive, SortOrder, CreatedByUserId, UpdatedByUserId)
+      OUTPUT INSERTED.Id AS id, INSERTED.Code AS code, INSERTED.Name AS name, INSERTED.IsActive AS isActive
+      VALUES (@code, @name, @description, @isActive, @sortOrder, @createdByUserId, @updatedByUserId);
+    `,
+    [
+      varcharParam("code", normalizeCode(code), 80),
+      nvarcharParam("name", name, 160),
+      nvarcharParam("description", getOptionalString(body, "description", 500), 500),
+      bitParam("isActive", getOptionalBoolean(body, "isActive") ?? true),
+      intParam("sortOrder", Math.trunc(getOptionalNumber(body, "sortOrder") ?? 0)),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "created",
+    recordTypeCode: "shipment",
+    recordId: rows[0].id as number,
+    newValue: rows[0],
+    reason: "Carrier integration created.",
+  });
+
+  sendJson(response, 201, { ok: true, carrier: rows[0] });
+}
+
+async function updateCarrier(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  requireAdmin(auth);
+  const body = await readJsonBody<CarrierBody>(request);
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Carriers
+      SET
+        Name = COALESCE(@name, Name),
+        Description = COALESCE(@description, Description),
+        IsActive = COALESCE(@isActive, IsActive),
+        SortOrder = COALESCE(@sortOrder, SortOrder),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.Code AS code, INSERTED.Name AS name, INSERTED.IsActive AS isActive
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      nvarcharParam("name", getOptionalString(body, "name", 160), 160),
+      nvarcharParam("description", getOptionalString(body, "description", 500), 500),
+      bitParam("isActive", getOptionalBoolean(body, "isActive")),
+      intParam(
+        "sortOrder",
+        getOptionalNumber(body, "sortOrder") === undefined
+          ? undefined
+          : Math.trunc(getOptionalNumber(body, "sortOrder") ?? 0),
+      ),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) throw new ApiError(404, "Carrier not found.");
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "updated",
+    recordTypeCode: "shipment",
+    recordId: id,
+    newValue: rows[0],
+    reason: "Carrier integration updated.",
+  });
+
+  sendJson(response, 200, { ok: true, carrier: rows[0] });
+}
+
+async function deleteCarrier(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  requireAdmin(auth);
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Carriers
+      SET IsActive = 0, UpdatedByUserId = @updatedByUserId, UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.Code AS code, INSERTED.Name AS name, INSERTED.IsActive AS isActive
+      WHERE Id = @id;
+    `,
+    [intParam("id", id), intParam("updatedByUserId", auth.userId)],
+  );
+
+  if (!rows[0]) throw new ApiError(404, "Carrier not found.");
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "status_changed",
+    recordTypeCode: "shipment",
+    recordId: id,
+    newValue: rows[0],
+    reason: "Carrier integration deactivated.",
+  });
+
+  sendJson(response, 200, { ok: true, carrier: rows[0] });
+}
+
+async function listShipments(response: ServerResponse, url: URL) {
+  const orderId = url.searchParams.get("orderId")
+    ? Number(url.searchParams.get("orderId"))
+    : undefined;
+  const statusCode = url.searchParams.get("statusCode") ?? undefined;
+
+  const shipments = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        s.Id AS id, s.OrderId AS orderId, s.CarrierId AS carrierId, c.Code AS carrierCode,
+        c.Name AS carrierName, s.TrackingNumber AS trackingNumber,
+        s.OriginLocationId AS originLocationId, s.DestinationLocationId AS destinationLocationId,
+        ss.Code AS shipmentStatusCode, ss.Name AS shipmentStatusName,
+        s.ShippingCost AS shippingCost, s.CarbonImpactKgCo2e AS carbonImpactKgCo2e,
+        s.PickupScheduledAt AS pickupScheduledAt, s.DeliveryConfirmedAt AS deliveryConfirmedAt,
+        s.CreatedAt AS createdAt, s.UpdatedAt AS updatedAt
+      FROM dbo.Shipments s
+      LEFT JOIN dbo.Carriers c ON c.Id = s.CarrierId
+      INNER JOIN dbo.ShipmentStatuses ss ON ss.Id = s.ShipmentStatusId
+      WHERE (@orderId IS NULL OR s.OrderId = @orderId)
+        AND (@statusCode IS NULL OR ss.Code = @statusCode)
+      ORDER BY s.Id DESC;
+    `,
+    [
+      intParam("orderId", Number.isInteger(orderId) ? orderId : undefined),
+      varcharParam("statusCode", statusCode ? normalizeCode(statusCode) : undefined, 80),
+    ],
+  );
+
+  sendJson(response, 200, { ok: true, shipments });
+}
+
+async function createShipment(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<ShipmentBody>(request);
+  const carrierCode = getOptionalString(body, "carrierCode", 80);
+  const carrierId = getOptionalInt(body, "carrierId") ?? (carrierCode ? await lookupId("Carriers", carrierCode) : undefined);
+  const shipmentStatusId = await lookupId(
+    "ShipmentStatuses",
+    getOptionalString(body, "shipmentStatusCode", 80) ?? "scheduled",
+  );
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Shipments (
+        OrderId, CarrierId, TrackingNumber, OriginLocationId, DestinationLocationId,
+        ShipmentStatusId, ShippingCost, CarbonImpactKgCo2e, PickupScheduledAt,
+        DeliveryConfirmedAt, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.CarrierId AS carrierId, INSERTED.ShipmentStatusId AS shipmentStatusId
+      VALUES (
+        @orderId, @carrierId, @trackingNumber, @originLocationId, @destinationLocationId,
+        @shipmentStatusId, @shippingCost, @carbonImpactKgCo2e, @pickupScheduledAt,
+        @deliveryConfirmedAt, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("orderId", getBodyInt(body, "orderId")),
+      intParam("carrierId", carrierId),
+      varcharParam("trackingNumber", getOptionalString(body, "trackingNumber", 160), 160),
+      intParam("originLocationId", getOptionalInt(body, "originLocationId")),
+      intParam("destinationLocationId", getOptionalInt(body, "destinationLocationId")),
+      intParam("shipmentStatusId", shipmentStatusId),
+      moneyParam("shippingCost", getOptionalNumber(body, "shippingCost")),
+      decimalParam("carbonImpactKgCo2e", getOptionalNumber(body, "carbonImpactKgCo2e")),
+      dateTimeParam("pickupScheduledAt", getOptionalDate(body, "pickupScheduledAt")),
+      dateTimeParam("deliveryConfirmedAt", getOptionalDate(body, "deliveryConfirmedAt")),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "created",
+    recordTypeCode: "shipment",
+    recordId: rows[0].id as number,
+    newValue: rows[0],
+    reason: "Shipment created.",
+  });
+
+  sendJson(response, 201, { ok: true, shipment: rows[0] });
+}
+
+async function updateShipment(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<ShipmentBody>(request);
+  const statusCode = getOptionalString(body, "shipmentStatusCode", 80);
+  const statusId = statusCode ? await lookupId("ShipmentStatuses", statusCode) : undefined;
+  const carrierCode = getOptionalString(body, "carrierCode", 80);
+  const carrierId = getOptionalInt(body, "carrierId") ?? (carrierCode ? await lookupId("Carriers", carrierCode) : undefined);
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Shipments
+      SET
+        CarrierId = COALESCE(@carrierId, CarrierId),
+        TrackingNumber = COALESCE(@trackingNumber, TrackingNumber),
+        OriginLocationId = COALESCE(@originLocationId, OriginLocationId),
+        DestinationLocationId = COALESCE(@destinationLocationId, DestinationLocationId),
+        ShipmentStatusId = COALESCE(@shipmentStatusId, ShipmentStatusId),
+        ShippingCost = COALESCE(@shippingCost, ShippingCost),
+        CarbonImpactKgCo2e = COALESCE(@carbonImpactKgCo2e, CarbonImpactKgCo2e),
+        PickupScheduledAt = COALESCE(@pickupScheduledAt, PickupScheduledAt),
+        DeliveryConfirmedAt = COALESCE(@deliveryConfirmedAt, DeliveryConfirmedAt),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.ShipmentStatusId AS shipmentStatusId, INSERTED.DeliveryConfirmedAt AS deliveryConfirmedAt
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam("carrierId", carrierId),
+      varcharParam("trackingNumber", getOptionalString(body, "trackingNumber", 160), 160),
+      intParam("originLocationId", getOptionalInt(body, "originLocationId")),
+      intParam("destinationLocationId", getOptionalInt(body, "destinationLocationId")),
+      intParam("shipmentStatusId", statusId),
+      moneyParam("shippingCost", getOptionalNumber(body, "shippingCost")),
+      decimalParam("carbonImpactKgCo2e", getOptionalNumber(body, "carbonImpactKgCo2e")),
+      dateTimeParam("pickupScheduledAt", getOptionalDate(body, "pickupScheduledAt")),
+      dateTimeParam("deliveryConfirmedAt", getOptionalDate(body, "deliveryConfirmedAt")),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) throw new ApiError(404, "Shipment not found.");
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: statusCode ? "status_changed" : "updated",
+    recordTypeCode: "shipment",
+    recordId: id,
+    newValue: rows[0],
+    reason: "Shipment updated.",
+  });
+
+  sendJson(response, 200, { ok: true, shipment: rows[0] });
+}
+
+async function listEscrows(response: ServerResponse, url: URL) {
+  const orderId = url.searchParams.get("orderId")
+    ? Number(url.searchParams.get("orderId"))
+    : undefined;
+
+  const escrows = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        e.Id AS id, e.OrderId AS orderId, ep.Code AS escrowProviderCode,
+        e.ProviderEscrowId AS providerEscrowId, e.Amount AS amount, e.CurrencyCode AS currencyCode,
+        es.Code AS escrowStatusCode, e.ThresholdAmount AS thresholdAmount,
+        rr.Code AS releaseRuleCode, e.DisputeLocked AS disputeLocked,
+        e.CreatedAt AS createdAt, e.UpdatedAt AS updatedAt
+      FROM dbo.Escrows e
+      INNER JOIN dbo.EscrowProviders ep ON ep.Id = e.EscrowProviderId
+      INNER JOIN dbo.EscrowStatuses es ON es.Id = e.EscrowStatusId
+      INNER JOIN dbo.EscrowReleaseRules rr ON rr.Id = e.ReleaseRuleId
+      WHERE (@orderId IS NULL OR e.OrderId = @orderId)
+      ORDER BY e.Id DESC;
+    `,
+    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined)],
+  );
+
+  sendJson(response, 200, { ok: true, escrows });
+}
+
+async function createEscrow(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<EscrowBody>(request);
+  const orderId = getBodyInt(body, "orderId");
+  const order = (
+    await queryRowsWithParams<{ totalAmount: number; currencyCode: string; escrowRequired: boolean }>(
+      "SELECT TotalAmount AS totalAmount, CurrencyCode AS currencyCode, EscrowRequired AS escrowRequired FROM dbo.Orders WHERE Id = @orderId;",
+      [intParam("orderId", orderId)],
+    )
+  )[0];
+  if (!order) throw new ApiError(404, "Order not found.");
+
+  const amount = getOptionalNumber(body, "amount") ?? Number(order.totalAmount);
+  const statusCode =
+    getOptionalString(body, "escrowStatusCode", 80) ??
+    (order.escrowRequired ? "funding_required" : "not_required");
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Escrows (
+        OrderId, EscrowProviderId, ProviderEscrowId, Amount, CurrencyCode, EscrowStatusId,
+        ThresholdAmount, ReleaseRuleId, DisputeLocked, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.Amount AS amount, INSERTED.EscrowStatusId AS escrowStatusId
+      VALUES (
+        @orderId, @escrowProviderId, @providerEscrowId, @amount, @currencyCode, @escrowStatusId,
+        @thresholdAmount, @releaseRuleId, @disputeLocked, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("orderId", orderId),
+      intParam("escrowProviderId", await lookupId("EscrowProviders", getOptionalString(body, "escrowProviderCode", 80) ?? "demo_escrow")),
+      varcharParam("providerEscrowId", getOptionalString(body, "providerEscrowId", 200), 200),
+      moneyParam("amount", amount),
+      varcharParam("currencyCode", getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? order.currencyCode, 3),
+      intParam("escrowStatusId", await lookupId("EscrowStatuses", statusCode)),
+      moneyParam("thresholdAmount", getOptionalNumber(body, "thresholdAmount") ?? 1000),
+      intParam("releaseRuleId", await lookupId("EscrowReleaseRules", getOptionalString(body, "releaseRuleCode", 80) ?? "delivery_confirmation")),
+      bitParam("disputeLocked", getOptionalBoolean(body, "disputeLocked") ?? false),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "escrow_triggered",
+    recordTypeCode: "escrow",
+    recordId: rows[0].id as number,
+    newValue: rows[0],
+    reason: "Escrow record created.",
+  });
+
+  sendJson(response, 201, { ok: true, escrow: rows[0] });
+}
+
+async function updateEscrow(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<EscrowBody>(request);
+  const statusCode = getOptionalString(body, "escrowStatusCode", 80);
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Escrows
+      SET
+        ProviderEscrowId = COALESCE(@providerEscrowId, ProviderEscrowId),
+        Amount = COALESCE(@amount, Amount),
+        EscrowStatusId = COALESCE(@escrowStatusId, EscrowStatusId),
+        ReleaseRuleId = COALESCE(@releaseRuleId, ReleaseRuleId),
+        DisputeLocked = COALESCE(@disputeLocked, DisputeLocked),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.Amount AS amount, INSERTED.EscrowStatusId AS escrowStatusId, INSERTED.DisputeLocked AS disputeLocked
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      varcharParam("providerEscrowId", getOptionalString(body, "providerEscrowId", 200), 200),
+      moneyParam("amount", getOptionalNumber(body, "amount")),
+      intParam("escrowStatusId", statusCode ? await lookupId("EscrowStatuses", statusCode) : undefined),
+      intParam("releaseRuleId", getOptionalString(body, "releaseRuleCode", 80) ? await lookupId("EscrowReleaseRules", getOptionalString(body, "releaseRuleCode", 80) ?? "") : undefined),
+      bitParam("disputeLocked", getOptionalBoolean(body, "disputeLocked")),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  if (!rows[0]) throw new ApiError(404, "Escrow not found.");
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: statusCode === "released" ? "escrow_released" : statusCode ? "status_changed" : "updated",
+    recordTypeCode: "escrow",
+    recordId: id,
+    newValue: rows[0],
+    reason: "Escrow updated.",
+  });
+
+  sendJson(response, 200, { ok: true, escrow: rows[0] });
+}
+
+async function listPayments(response: ServerResponse, url: URL) {
+  const orderId = url.searchParams.get("orderId") ? Number(url.searchParams.get("orderId")) : undefined;
+  const payments = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        p.Id AS id, p.OrderId AS orderId, p.EscrowId AS escrowId, p.PayerCompanyId AS payerCompanyId,
+        c.LegalName AS payerCompanyName, p.ProviderPaymentId AS providerPaymentId,
+        p.Amount AS amount, p.CurrencyCode AS currencyCode, ps.Code AS paymentStatusCode,
+        pt.Code AS paymentTypeCode, p.CreatedAt AS createdAt, p.UpdatedAt AS updatedAt
+      FROM dbo.Payments p
+      INNER JOIN dbo.Companies c ON c.Id = p.PayerCompanyId
+      INNER JOIN dbo.PaymentStatuses ps ON ps.Id = p.PaymentStatusId
+      INNER JOIN dbo.PaymentTypes pt ON pt.Id = p.PaymentTypeId
+      WHERE (@orderId IS NULL OR p.OrderId = @orderId)
+      ORDER BY p.Id DESC;
+    `,
+    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined)],
+  );
+  sendJson(response, 200, { ok: true, payments });
+}
+
+async function createPayment(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<PaymentBody>(request);
+  const orderId = getBodyInt(body, "orderId");
+  const order = (
+    await queryRowsWithParams<{ totalAmount: number; currencyCode: string }>(
+      "SELECT TotalAmount AS totalAmount, CurrencyCode AS currencyCode FROM dbo.Orders WHERE Id = @orderId;",
+      [intParam("orderId", orderId)],
+    )
+  )[0];
+  if (!order) throw new ApiError(404, "Order not found.");
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Payments (
+        OrderId, EscrowId, PayerCompanyId, ProviderPaymentId, Amount, CurrencyCode,
+        PaymentStatusId, PaymentTypeId, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.Amount AS amount, INSERTED.PaymentStatusId AS paymentStatusId
+      VALUES (
+        @orderId, @escrowId, @payerCompanyId, @providerPaymentId, @amount, @currencyCode,
+        @paymentStatusId, @paymentTypeId, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("orderId", orderId),
+      intParam("escrowId", getOptionalInt(body, "escrowId")),
+      intParam("payerCompanyId", getBodyInt(body, "payerCompanyId")),
+      varcharParam("providerPaymentId", getOptionalString(body, "providerPaymentId", 200), 200),
+      moneyParam("amount", getOptionalNumber(body, "amount") ?? Number(order.totalAmount)),
+      varcharParam("currencyCode", getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? order.currencyCode, 3),
+      intParam("paymentStatusId", await lookupId("PaymentStatuses", getOptionalString(body, "paymentStatusCode", 80) ?? "pending")),
+      intParam("paymentTypeId", await lookupId("PaymentTypes", getOptionalString(body, "paymentTypeCode", 80) ?? "buyer_funding")),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({ auth, request, actionTypeCode: "created", recordTypeCode: "payment", recordId: rows[0].id as number, newValue: rows[0], reason: "Payment created." });
+  sendJson(response, 201, { ok: true, payment: rows[0] });
+}
+
+async function updatePayment(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<PaymentBody>(request);
+  const statusCode = getOptionalString(body, "paymentStatusCode", 80);
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Payments
+      SET
+        ProviderPaymentId = COALESCE(@providerPaymentId, ProviderPaymentId),
+        Amount = COALESCE(@amount, Amount),
+        PaymentStatusId = COALESCE(@paymentStatusId, PaymentStatusId),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.Amount AS amount, INSERTED.PaymentStatusId AS paymentStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      varcharParam("providerPaymentId", getOptionalString(body, "providerPaymentId", 200), 200),
+      moneyParam("amount", getOptionalNumber(body, "amount")),
+      intParam("paymentStatusId", statusCode ? await lookupId("PaymentStatuses", statusCode) : undefined),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+  if (!rows[0]) throw new ApiError(404, "Payment not found.");
+  await writeAuditLog({ auth, request, actionTypeCode: statusCode ? "status_changed" : "updated", recordTypeCode: "payment", recordId: id, newValue: rows[0], reason: "Payment updated." });
+  sendJson(response, 200, { ok: true, payment: rows[0] });
+}
+
+async function listPayouts(response: ServerResponse, url: URL) {
+  const orderId = url.searchParams.get("orderId") ? Number(url.searchParams.get("orderId")) : undefined;
+  const payouts = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        p.Id AS id, p.OrderId AS orderId, p.EscrowId AS escrowId, p.SellerCompanyId AS sellerCompanyId,
+        c.LegalName AS sellerCompanyName, p.ProviderPayoutId AS providerPayoutId,
+        p.Amount AS amount, p.CurrencyCode AS currencyCode, ps.Code AS payoutStatusCode,
+        p.CreatedAt AS createdAt, p.UpdatedAt AS updatedAt
+      FROM dbo.Payouts p
+      INNER JOIN dbo.Companies c ON c.Id = p.SellerCompanyId
+      INNER JOIN dbo.PayoutStatuses ps ON ps.Id = p.PayoutStatusId
+      WHERE (@orderId IS NULL OR p.OrderId = @orderId)
+      ORDER BY p.Id DESC;
+    `,
+    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined)],
+  );
+  sendJson(response, 200, { ok: true, payouts });
+}
+
+async function createPayout(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<PayoutBody>(request);
+  const orderId = getBodyInt(body, "orderId");
+  const order = (
+    await queryRowsWithParams<{ sellerCompanyId: number; totalAmount: number; currencyCode: string }>(
+      "SELECT SellerCompanyId AS sellerCompanyId, TotalAmount AS totalAmount, CurrencyCode AS currencyCode FROM dbo.Orders WHERE Id = @orderId;",
+      [intParam("orderId", orderId)],
+    )
+  )[0];
+  if (!order) throw new ApiError(404, "Order not found.");
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Payouts (
+        OrderId, EscrowId, SellerCompanyId, ProviderPayoutId, Amount, CurrencyCode,
+        PayoutStatusId, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.Amount AS amount, INSERTED.PayoutStatusId AS payoutStatusId
+      VALUES (
+        @orderId, @escrowId, @sellerCompanyId, @providerPayoutId, @amount, @currencyCode,
+        @payoutStatusId, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("orderId", orderId),
+      intParam("escrowId", getOptionalInt(body, "escrowId")),
+      intParam("sellerCompanyId", getOptionalInt(body, "sellerCompanyId") ?? order.sellerCompanyId),
+      varcharParam("providerPayoutId", getOptionalString(body, "providerPayoutId", 200), 200),
+      moneyParam("amount", getOptionalNumber(body, "amount") ?? Number(order.totalAmount)),
+      varcharParam("currencyCode", getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? order.currencyCode, 3),
+      intParam("payoutStatusId", await lookupId("PayoutStatuses", getOptionalString(body, "payoutStatusCode", 80) ?? "pending")),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({ auth, request, actionTypeCode: "created", recordTypeCode: "payment", recordId: rows[0].id as number, newValue: rows[0], reason: "Payout created." });
+  sendJson(response, 201, { ok: true, payout: rows[0] });
+}
+
+async function updatePayout(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<PayoutBody>(request);
+  const statusCode = getOptionalString(body, "payoutStatusCode", 80);
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Payouts
+      SET
+        ProviderPayoutId = COALESCE(@providerPayoutId, ProviderPayoutId),
+        Amount = COALESCE(@amount, Amount),
+        PayoutStatusId = COALESCE(@payoutStatusId, PayoutStatusId),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.Amount AS amount, INSERTED.PayoutStatusId AS payoutStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      varcharParam("providerPayoutId", getOptionalString(body, "providerPayoutId", 200), 200),
+      moneyParam("amount", getOptionalNumber(body, "amount")),
+      intParam("payoutStatusId", statusCode ? await lookupId("PayoutStatuses", statusCode) : undefined),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+  if (!rows[0]) throw new ApiError(404, "Payout not found.");
+  await writeAuditLog({ auth, request, actionTypeCode: statusCode ? "status_changed" : "updated", recordTypeCode: "payment", recordId: id, newValue: rows[0], reason: "Payout updated." });
+  sendJson(response, 200, { ok: true, payout: rows[0] });
+}
+
+async function listContracts(response: ServerResponse, url: URL) {
+  const companyId = url.searchParams.get("companyId") ? Number(url.searchParams.get("companyId")) : undefined;
+  const contracts = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        c.Id AS id, c.BuyerCompanyId AS buyerCompanyId, bc.LegalName AS buyerCompanyName,
+        c.SellerCompanyId AS sellerCompanyId, sc.LegalName AS sellerCompanyName,
+        c.ListingId AS listingId, src.Code AS contractSourceCode, st.Code AS contractStatusCode,
+        c.Title AS title, c.RenewalTerms AS renewalTerms, c.RenewalDate AS renewalDate,
+        c.SignedDocumentUrl AS signedDocumentUrl, c.CreatedAt AS createdAt, c.UpdatedAt AS updatedAt
+      FROM dbo.Contracts c
+      INNER JOIN dbo.Companies bc ON bc.Id = c.BuyerCompanyId
+      INNER JOIN dbo.Companies sc ON sc.Id = c.SellerCompanyId
+      INNER JOIN dbo.ContractSources src ON src.Id = c.ContractSourceId
+      INNER JOIN dbo.ContractStatuses st ON st.Id = c.ContractStatusId
+      WHERE (@companyId IS NULL OR c.BuyerCompanyId = @companyId OR c.SellerCompanyId = @companyId)
+      ORDER BY c.Id DESC;
+    `,
+    [intParam("companyId", Number.isInteger(companyId) ? companyId : undefined)],
+  );
+  sendJson(response, 200, { ok: true, contracts });
+}
+
+async function createContract(request: IncomingMessage, response: ServerResponse, auth: AuthContext) {
+  const body = await readJsonBody<ContractBody>(request);
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Contracts (
+        BuyerCompanyId, SellerCompanyId, ListingId, ContractSourceId, ContractStatusId,
+        Title, RenewalTerms, RenewalDate, SignedDocumentUrl, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.ContractStatusId AS contractStatusId
+      VALUES (
+        @buyerCompanyId, @sellerCompanyId, @listingId, @contractSourceId, @contractStatusId,
+        @title, @renewalTerms, @renewalDate, @signedDocumentUrl, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("buyerCompanyId", getBodyInt(body, "buyerCompanyId")),
+      intParam("sellerCompanyId", getBodyInt(body, "sellerCompanyId")),
+      intParam("listingId", getOptionalInt(body, "listingId")),
+      intParam("contractSourceId", await lookupId("ContractSources", getOptionalString(body, "contractSourceCode", 80) ?? (getOptionalInt(body, "listingId") ? "platform_listing" : "custom_off_platform"))),
+      intParam("contractStatusId", await lookupId("ContractStatuses", getOptionalString(body, "contractStatusCode", 80) ?? "draft")),
+      nvarcharParam("title", getRequiredString(body, "title", 220), 220),
+      nvarcharParam("renewalTerms", getOptionalString(body, "renewalTerms", 1000), 1000),
+      dateTimeParam("renewalDate", getOptionalDate(body, "renewalDate")),
+      nvarcharParam("signedDocumentUrl", getOptionalString(body, "signedDocumentUrl", 1000), 1000),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+  await writeAuditLog({ auth, request, actionTypeCode: "created", recordTypeCode: "contract", recordId: rows[0].id as number, newValue: rows[0], reason: "Contract created." });
+  sendJson(response, 201, { ok: true, contract: rows[0] });
+}
+
+async function updateContract(request: IncomingMessage, response: ServerResponse, id: number, auth: AuthContext) {
+  const body = await readJsonBody<ContractBody>(request);
+  const statusCode = getOptionalString(body, "contractStatusCode", 80);
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Contracts
+      SET
+        ContractStatusId = COALESCE(@contractStatusId, ContractStatusId),
+        Title = COALESCE(@title, Title),
+        RenewalTerms = COALESCE(@renewalTerms, RenewalTerms),
+        RenewalDate = COALESCE(@renewalDate, RenewalDate),
+        SignedDocumentUrl = COALESCE(@signedDocumentUrl, SignedDocumentUrl),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.ContractStatusId AS contractStatusId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam("contractStatusId", statusCode ? await lookupId("ContractStatuses", statusCode) : undefined),
+      nvarcharParam("title", getOptionalString(body, "title", 220), 220),
+      nvarcharParam("renewalTerms", getOptionalString(body, "renewalTerms", 1000), 1000),
+      dateTimeParam("renewalDate", getOptionalDate(body, "renewalDate")),
+      nvarcharParam("signedDocumentUrl", getOptionalString(body, "signedDocumentUrl", 1000), 1000),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+  if (!rows[0]) throw new ApiError(404, "Contract not found.");
+  await writeAuditLog({ auth, request, actionTypeCode: statusCode ? "status_changed" : "updated", recordTypeCode: "contract", recordId: id, newValue: rows[0], reason: "Contract updated." });
+  sendJson(response, 200, { ok: true, contract: rows[0] });
+}
+
+async function listSignatures(response: ServerResponse, url: URL) {
+  const contractId = url.searchParams.get("contractId") ? Number(url.searchParams.get("contractId")) : undefined;
+  const signatures = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        s.Id AS id, s.ContractId AS contractId, s.SignerUserId AS signerUserId,
+        u.Name AS signerUserName, s.SignerCompanyId AS signerCompanyId,
+        c.LegalName AS signerCompanyName, s.ProviderSignatureId AS providerSignatureId,
+        st.Code AS signatureStatusCode, s.SignedDocumentUrl AS signedDocumentUrl,
+        s.SignedAt AS signedAt, s.CreatedAt AS createdAt, s.UpdatedAt AS updatedAt
+      FROM dbo.Signatures s
+      INNER JOIN dbo.Users u ON u.Id = s.SignerUserId
+      INNER JOIN dbo.Companies c ON c.Id = s.SignerCompanyId
+      INNER JOIN dbo.SignatureStatuses st ON st.Id = s.SignatureStatusId
+      WHERE (@contractId IS NULL OR s.ContractId = @contractId)
+      ORDER BY s.Id DESC;
+    `,
+    [intParam("contractId", Number.isInteger(contractId) ? contractId : undefined)],
+  );
+  sendJson(response, 200, { ok: true, signatures });
+}
+
+async function createSignature(request: IncomingMessage, response: ServerResponse, auth: AuthContext) {
+  const body = await readJsonBody<SignatureBody>(request);
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Signatures (
+        ContractId, SignerUserId, SignerCompanyId, ProviderSignatureId, SignatureStatusId,
+        SignedDocumentUrl, SignedAt, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.ContractId AS contractId, INSERTED.SignerUserId AS signerUserId, INSERTED.SignatureStatusId AS signatureStatusId
+      VALUES (
+        @contractId, @signerUserId, @signerCompanyId, @providerSignatureId, @signatureStatusId,
+        @signedDocumentUrl, @signedAt, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("contractId", getBodyInt(body, "contractId")),
+      intParam("signerUserId", getBodyInt(body, "signerUserId")),
+      intParam("signerCompanyId", getBodyInt(body, "signerCompanyId")),
+      varcharParam("providerSignatureId", getOptionalString(body, "providerSignatureId", 200), 200),
+      intParam("signatureStatusId", await lookupId("SignatureStatuses", getOptionalString(body, "signatureStatusCode", 80) ?? "not_sent")),
+      nvarcharParam("signedDocumentUrl", getOptionalString(body, "signedDocumentUrl", 1000), 1000),
+      dateTimeParam("signedAt", getOptionalDate(body, "signedAt")),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+  await writeAuditLog({ auth, request, actionTypeCode: "created", recordTypeCode: "contract", recordId: rows[0].contractId as number, newValue: rows[0], reason: "Signature record created." });
+  sendJson(response, 201, { ok: true, signature: rows[0] });
+}
+
+async function updateSignature(request: IncomingMessage, response: ServerResponse, id: number, auth: AuthContext) {
+  const body = await readJsonBody<SignatureBody>(request);
+  const statusCode = getOptionalString(body, "signatureStatusCode", 80);
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Signatures
+      SET
+        ProviderSignatureId = COALESCE(@providerSignatureId, ProviderSignatureId),
+        SignatureStatusId = COALESCE(@signatureStatusId, SignatureStatusId),
+        SignedDocumentUrl = COALESCE(@signedDocumentUrl, SignedDocumentUrl),
+        SignedAt = COALESCE(@signedAt, SignedAt),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.ContractId AS contractId, INSERTED.SignatureStatusId AS signatureStatusId, INSERTED.SignedAt AS signedAt
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      varcharParam("providerSignatureId", getOptionalString(body, "providerSignatureId", 200), 200),
+      intParam("signatureStatusId", statusCode ? await lookupId("SignatureStatuses", statusCode) : undefined),
+      nvarcharParam("signedDocumentUrl", getOptionalString(body, "signedDocumentUrl", 1000), 1000),
+      dateTimeParam("signedAt", getOptionalDate(body, "signedAt")),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+  if (!rows[0]) throw new ApiError(404, "Signature not found.");
+  await writeAuditLog({ auth, request, actionTypeCode: statusCode ? "status_changed" : "updated", recordTypeCode: "contract", recordId: rows[0].contractId as number, newValue: rows[0], reason: "Signature updated." });
+  sendJson(response, 200, { ok: true, signature: rows[0] });
+}
+
+async function listDisputes(response: ServerResponse, url: URL) {
+  const orderId = url.searchParams.get("orderId") ? Number(url.searchParams.get("orderId")) : undefined;
+  const disputes = await queryRowsWithParams(
+    `
+      SELECT TOP (100)
+        d.Id AS id, d.OrderId AS orderId, d.EscrowId AS escrowId, d.ShipmentId AS shipmentId,
+        d.OpenedByUserId AS openedByUserId, it.Code AS issueTypeCode,
+        st.Code AS disputeStatusCode, d.Summary AS summary, d.ResolutionNotes AS resolutionNotes,
+        d.CreatedAt AS createdAt, d.UpdatedAt AS updatedAt
+      FROM dbo.Disputes d
+      INNER JOIN dbo.DisputeIssueTypes it ON it.Id = d.IssueTypeId
+      INNER JOIN dbo.DisputeStatuses st ON st.Id = d.DisputeStatusId
+      WHERE (@orderId IS NULL OR d.OrderId = @orderId)
+      ORDER BY d.Id DESC;
+    `,
+    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined)],
+  );
+  sendJson(response, 200, { ok: true, disputes });
+}
+
+async function createDispute(request: IncomingMessage, response: ServerResponse, auth: AuthContext) {
+  const body = await readJsonBody<DisputeBody>(request);
+  const orderId = getOptionalInt(body, "orderId");
+  const escrowId = getOptionalInt(body, "escrowId");
+  const shipmentId = getOptionalInt(body, "shipmentId");
+  if (!orderId && !escrowId && !shipmentId) throw new ApiError(400, "orderId, escrowId, or shipmentId is required.");
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Disputes (
+        OrderId, EscrowId, ShipmentId, OpenedByUserId, IssueTypeId, DisputeStatusId,
+        Summary, ResolutionNotes, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.DisputeStatusId AS disputeStatusId, INSERTED.Summary AS summary
+      VALUES (
+        @orderId, @escrowId, @shipmentId, @openedByUserId, @issueTypeId, @disputeStatusId,
+        @summary, @resolutionNotes, @createdByUserId, @updatedByUserId
+      );
+    `,
+    [
+      intParam("orderId", orderId),
+      intParam("escrowId", escrowId),
+      intParam("shipmentId", shipmentId),
+      intParam("openedByUserId", getOptionalInt(body, "openedByUserId") ?? auth.userId),
+      intParam("issueTypeId", await lookupId("DisputeIssueTypes", getOptionalString(body, "issueTypeCode", 80) ?? "quality")),
+      intParam("disputeStatusId", await lookupId("DisputeStatuses", getOptionalString(body, "disputeStatusCode", 80) ?? "open")),
+      nvarcharParam("summary", getRequiredString(body, "summary", 500), 500),
+      nvarcharParam("resolutionNotes", getOptionalString(body, "resolutionNotes", 4000), 4000),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+  await writeAuditLog({ auth, request, actionTypeCode: "created", recordTypeCode: "dispute", recordId: rows[0].id as number, newValue: rows[0], reason: "Dispute created." });
+  sendJson(response, 201, { ok: true, dispute: rows[0] });
+}
+
+async function updateDispute(request: IncomingMessage, response: ServerResponse, id: number, auth: AuthContext) {
+  const body = await readJsonBody<DisputeBody>(request);
+  const statusCode = getOptionalString(body, "disputeStatusCode", 80);
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.Disputes
+      SET
+        DisputeStatusId = COALESCE(@disputeStatusId, DisputeStatusId),
+        Summary = COALESCE(@summary, Summary),
+        ResolutionNotes = COALESCE(@resolutionNotes, ResolutionNotes),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.DisputeStatusId AS disputeStatusId, INSERTED.Summary AS summary
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam("disputeStatusId", statusCode ? await lookupId("DisputeStatuses", statusCode) : undefined),
+      nvarcharParam("summary", getOptionalString(body, "summary", 500), 500),
+      nvarcharParam("resolutionNotes", getOptionalString(body, "resolutionNotes", 4000), 4000),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+  if (!rows[0]) throw new ApiError(404, "Dispute not found.");
+  await writeAuditLog({ auth, request, actionTypeCode: statusCode ? "status_changed" : "updated", recordTypeCode: "dispute", recordId: id, newValue: rows[0], reason: "Dispute updated." });
+  sendJson(response, 200, { ok: true, dispute: rows[0] });
+}
+
+export async function handleApiRoute(
+  request: IncomingMessage,
+  response: ServerResponse,
+  requestUrl: URL,
+) {
+  const method = ensureMethod(request.method);
+
+  if (method === "GET" && requestUrl.pathname === "/api/lookups") {
+    await listLookups(response);
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/onboarding") {
+    if (method === "POST") {
+      await completeOnboarding(
+        request,
+        response,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/stripe/onboarding") {
+    if (method === "POST") {
+      await startStripeOnboarding(
+        request,
+        response,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/users") {
+    if (method === "GET") {
+      await listUsers(response);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createUser(request, response);
+      return true;
+    }
+  }
+
+  const userMatch = matchPath(requestUrl.pathname, "/api/users/:id");
+  if (userMatch.matched) {
+    const auth = await requireSessionAuth(request);
+    const id = parseId(userMatch.params.id, "User ID");
+
+    if (method === "PATCH") {
+      await updateUser(request, response, id, auth);
+      return true;
+    }
+
+    if (method === "DELETE") {
+      await deleteUser(response, id, auth);
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/companies") {
+    if (method === "GET") {
+      await listCompanies(response);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createCompany(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const companyMatch = matchPath(requestUrl.pathname, "/api/companies/:id");
+  if (companyMatch.matched) {
+    const id = parseId(companyMatch.params.id, "Company ID");
+
+    if (method === "PATCH") {
+      await updateCompany(
+        request,
+        response,
+        id,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+
+    if (method === "DELETE") {
+      await deleteCompany(response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const companyMembersMatch = matchPath(
+    requestUrl.pathname,
+    "/api/companies/:id/members",
+  );
+  if (companyMembersMatch.matched) {
+    const companyId = parseId(companyMembersMatch.params.id, "Company ID");
+
+    if (method === "GET") {
+      await listCompanyMembers(response, companyId);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createCompanyMember(
+        request,
+        response,
+        companyId,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  const memberMatch = matchPath(
+    requestUrl.pathname,
+    "/api/company-members/:id",
+  );
+  if (memberMatch.matched && method === "DELETE") {
+    await deleteCompanyMember(
+      response,
+      parseId(memberMatch.params.id, "Company member ID"),
+      await requireSessionAuth(request),
+    );
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/locations") {
+    if (method === "GET") {
+      const companyId = requestUrl.searchParams.get("companyId")
+        ? Number(requestUrl.searchParams.get("companyId"))
+        : undefined;
+      await listLocations(response, companyId);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createLocation(
+        request,
+        response,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  const companyLocationsMatch = matchPath(
+    requestUrl.pathname,
+    "/api/companies/:id/locations",
+  );
+  if (companyLocationsMatch.matched) {
+    const companyId = parseId(companyLocationsMatch.params.id, "Company ID");
+
+    if (method === "GET") {
+      await listLocations(response, companyId);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createLocation(
+        request,
+        response,
+        await requireSessionAuth(request),
+        companyId,
+      );
+      return true;
+    }
+  }
+
+  const locationMatch = matchPath(requestUrl.pathname, "/api/locations/:id");
+  if (locationMatch.matched) {
+    const id = parseId(locationMatch.params.id, "Location ID");
+
+    if (method === "PATCH") {
+      await updateLocation(
+        request,
+        response,
+        id,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+
+    if (method === "DELETE") {
+      await requireSessionAuth(request);
+      await deleteLocation(response, id);
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/listings") {
+    if (method === "GET") {
+      await listListings(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createListing(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const listingMatch = matchPath(requestUrl.pathname, "/api/listings/:id");
+  if (listingMatch.matched) {
+    const id = parseId(listingMatch.params.id, "Listing ID");
+
+    if (method === "PATCH") {
+      await updateListing(
+        request,
+        response,
+        id,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+
+    if (method === "DELETE") {
+      await deleteListing(response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/listing-documents") {
+    if (method === "GET") {
+      await listListingDocuments(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createListingDocument(
+        request,
+        response,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  const listingDocumentMatch = matchPath(
+    requestUrl.pathname,
+    "/api/listing-documents/:id",
+  );
+  if (listingDocumentMatch.matched) {
+    const id = parseId(
+      listingDocumentMatch.params.id,
+      "Listing document ID",
+    );
+
+    if (method === "PATCH") {
+      await updateListingDocument(
+        request,
+        response,
+        id,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+
+    if (method === "DELETE") {
+      await deleteListingDocument(
+        request,
+        response,
+        id,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/buyer-profiles") {
+    if (method === "GET") {
+      await listBuyerProfiles(response, requestUrl, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const buyerProfileMatch = matchPath(requestUrl.pathname, "/api/buyer-profiles/:id");
+  if (buyerProfileMatch.matched) {
+    const id = parseId(buyerProfileMatch.params.id, "Buyer profile ID");
+
+    if (method === "PATCH") {
+      await updateBuyerProfile(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/seller-profiles") {
+    if (method === "GET") {
+      await listSellerProfiles(response, requestUrl, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const sellerProfileMatch = matchPath(requestUrl.pathname, "/api/seller-profiles/:id");
+  if (sellerProfileMatch.matched) {
+    const id = parseId(sellerProfileMatch.params.id, "Seller profile ID");
+
+    if (method === "PATCH") {
+      await updateSellerProfile(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/quotes") {
+    if (method === "GET") {
+      await listQuotes(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createQuote(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const quoteMatch = matchPath(requestUrl.pathname, "/api/quotes/:id");
+  if (quoteMatch.matched) {
+    const id = parseId(quoteMatch.params.id, "Quote ID");
+
+    if (method === "PATCH") {
+      await updateQuote(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/orders") {
+    if (method === "GET") {
+      await listOrders(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createOrder(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const orderMatch = matchPath(requestUrl.pathname, "/api/orders/:id");
+  if (orderMatch.matched) {
+    const id = parseId(orderMatch.params.id, "Order ID");
+
+    if (method === "PATCH") {
+      await updateOrder(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/notifications") {
+    if (method === "GET") {
+      await listNotifications(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createNotification(
+        request,
+        response,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  const notificationMatch = matchPath(
+    requestUrl.pathname,
+    "/api/notifications/:id",
+  );
+  if (notificationMatch.matched) {
+    const id = parseId(notificationMatch.params.id, "Notification ID");
+
+    if (method === "PATCH") {
+      await updateNotification(
+        request,
+        response,
+        id,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/notification-preferences") {
+    if (method === "GET") {
+      await listNotificationPreferences(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createNotificationPreference(
+        request,
+        response,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  const notificationPreferenceMatch = matchPath(
+    requestUrl.pathname,
+    "/api/notification-preferences/:id",
+  );
+  if (notificationPreferenceMatch.matched) {
+    const id = parseId(
+      notificationPreferenceMatch.params.id,
+      "Notification preference ID",
+    );
+
+    if (method === "PATCH") {
+      await updateNotificationPreference(
+        request,
+        response,
+        id,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+
+    if (method === "DELETE") {
+      await deleteNotificationPreference(
+        request,
+        response,
+        id,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/carriers") {
+    if (method === "GET") {
+      await listCarriers(response);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createCarrier(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const carrierMatch = matchPath(requestUrl.pathname, "/api/carriers/:id");
+  if (carrierMatch.matched) {
+    const id = parseId(carrierMatch.params.id, "Carrier ID");
+
+    if (method === "PATCH") {
+      await updateCarrier(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+
+    if (method === "DELETE") {
+      await deleteCarrier(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/shipments") {
+    if (method === "GET") {
+      await listShipments(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createShipment(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const shipmentMatch = matchPath(requestUrl.pathname, "/api/shipments/:id");
+  if (shipmentMatch.matched) {
+    const id = parseId(shipmentMatch.params.id, "Shipment ID");
+
+    if (method === "PATCH") {
+      await updateShipment(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/escrows") {
+    if (method === "GET") {
+      await listEscrows(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createEscrow(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const escrowMatch = matchPath(requestUrl.pathname, "/api/escrows/:id");
+  if (escrowMatch.matched) {
+    const id = parseId(escrowMatch.params.id, "Escrow ID");
+
+    if (method === "PATCH") {
+      await updateEscrow(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/payments") {
+    if (method === "GET") {
+      await listPayments(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createPayment(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const paymentMatch = matchPath(requestUrl.pathname, "/api/payments/:id");
+  if (paymentMatch.matched) {
+    const id = parseId(paymentMatch.params.id, "Payment ID");
+
+    if (method === "PATCH") {
+      await updatePayment(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/payouts") {
+    if (method === "GET") {
+      await listPayouts(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createPayout(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const payoutMatch = matchPath(requestUrl.pathname, "/api/payouts/:id");
+  if (payoutMatch.matched) {
+    const id = parseId(payoutMatch.params.id, "Payout ID");
+
+    if (method === "PATCH") {
+      await updatePayout(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/contracts") {
+    if (method === "GET") {
+      await listContracts(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createContract(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const contractMatch = matchPath(requestUrl.pathname, "/api/contracts/:id");
+  if (contractMatch.matched) {
+    const id = parseId(contractMatch.params.id, "Contract ID");
+
+    if (method === "PATCH") {
+      await updateContract(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/signatures") {
+    if (method === "GET") {
+      await listSignatures(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createSignature(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const signatureMatch = matchPath(requestUrl.pathname, "/api/signatures/:id");
+  if (signatureMatch.matched) {
+    const id = parseId(signatureMatch.params.id, "Signature ID");
+
+    if (method === "PATCH") {
+      await updateSignature(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/disputes") {
+    if (method === "GET") {
+      await listDisputes(response, requestUrl);
+      return true;
+    }
+
+    if (method === "POST") {
+      await createDispute(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const disputeMatch = matchPath(requestUrl.pathname, "/api/disputes/:id");
+  if (disputeMatch.matched) {
+    const id = parseId(disputeMatch.params.id, "Dispute ID");
+
+    if (method === "PATCH") {
+      await updateDispute(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/audit-logs" && method === "GET") {
+    await listAuditLogs(
+      request,
+      response,
+      requestUrl,
+      await requireSessionAuth(request),
+    );
+    return true;
+  }
+
+  return false;
+}

@@ -14,12 +14,12 @@ import {
 import { Button } from "@eco-globe/ui";
 import {
   buildDemoUser,
-  clearDemoUser,
   getUserRoles,
   useDemoUser,
   writeDemoUser,
   type UserRole,
 } from "@/lib/demo-user";
+import { logoutBackendUser } from "@/lib/backend-auth";
 
 const PORTAL_HREF: Record<UserRole, string> = {
   buyer: "/buyer/browse",
@@ -64,10 +64,11 @@ export function HeaderUserMenu({
     return () => window.removeEventListener("mousedown", onClick);
   }, [open]);
 
-  const handleLogout = () => {
-    clearDemoUser();
+  const handleLogout = async () => {
+    await logoutBackendUser(user?.token);
     setOpen(false);
-    router.push("/");
+    router.replace("/");
+    router.refresh();
   };
 
   // Activate a role. When the account already holds it, this is a plain
@@ -222,7 +223,7 @@ export function HeaderUserMenu({
           <div className="my-2" style={{ borderTop: "1px solid #F0F0F0" }} />
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => void handleLogout()}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
             role="menuitem"
           >

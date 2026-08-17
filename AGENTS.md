@@ -11,8 +11,8 @@ A feedstock and biomass marketplace platform connecting sellers with buyers thro
 - **Monorepo**: Turborepo with pnpm workspaces
 - **Web**: Next.js 15 (App Router, Turbopack), React 19, Tailwind CSS v4
 - **Mobile**: Expo (React Native) with Expo Router, NativeWind
-- **Backend**: Convex (real-time database, serverless functions)
-- **Auth**: Better Auth via `@convex-dev/better-auth` (Convex integration)
+- **Backend**: Azure-hosted API service with Azure SQL as the relational source of truth
+- **Auth**: Azure-backed bearer sessions with company/member role validation and RBAC foundations
 - **UI**: shadcn/ui pattern with `@eco-globe/ui` shared package (CVA + tailwind-merge)
 - **Language**: TypeScript everywhere
 
@@ -33,7 +33,7 @@ apps/
   web/          → Next.js (all 4 portals via route groups)
   mobile/       → Expo React Native app
 packages/
-  backend/      → Convex schema, functions, auth (shared by web + mobile)
+  backend/      → Azure API service and SQL schema/migrations
   ui/           → Shared UI components (shadcn/ui pattern)
   shared/       → Shared types, constants, utilities
   typescript-config/ → Shared tsconfig presets
@@ -45,16 +45,14 @@ packages/
 - **Modular pages**: Each page imports a component — avoid inline page logic
 - **Portal route groups**: Web portals use Next.js route groups: `(public)`, `(seller)`, `(buyer)`, `(admin)`
 - **Portal isolation**: Portals share core services but maintain separate route trees and layouts
-- **Convex as single backend**: All data, auth, and server logic lives in `packages/backend/convex/`
-- **Auth flow**: Better Auth + Convex plugin → JWT-based auth → `ConvexBetterAuthProvider` wraps app
-- **Build-safe env**: `apps/web/.env` has placeholder Convex URLs for build; real values go in `.env.local`
+- **Azure SQL as source of truth**: Marketplace, transaction, escrow, logistics, contracts, notifications, and audit records should be modeled relationally
+- **API boundary**: Web, admin, and mobile clients should call the backend API rather than embedding database logic in UI components
+- **Build-safe env**: Local `.env.local` files should contain only development-safe API URLs and secrets references
 
 ### Auth Setup
 
-- **Client**: `apps/web/src/lib/auth-client.ts` — `createAuthClient` with cross-domain + convex plugins
-- **Server**: `apps/web/src/lib/auth-server.ts` — `convexBetterAuthNextJs` for SSR/server actions
-- **Route handler**: `apps/web/src/app/api/auth/[...all]/route.ts` — mounts Better Auth endpoints
-- **Backend**: `packages/backend/convex/auth.ts` — Convex-side auth with Better Auth
+- Auth and RBAC are implemented against the Azure-backed API layer; extend the existing bearer-session and company/member permission model rather than adding client-side auth state.
+- Buyer, seller, and admin permissions should follow the company/member model in `docs/DATABASE_DESIGN_PLAN.md`.
 
 ## Commands
 
@@ -65,7 +63,7 @@ pnpm dev
 # Development (specific apps)
 pnpm dev:web          # Next.js only
 pnpm dev:mobile       # Expo only
-pnpm dev:convex       # Convex dev server only
+pnpm dev:api          # Backend API only
 
 # Build
 pnpm build            # Build all
@@ -83,16 +81,16 @@ pnpm format
 # Clean
 pnpm clean
 
-# Convex
-pnpm --filter=@eco-globe/backend convex dev      # Start Convex dev
-pnpm --filter=@eco-globe/backend convex deploy    # Deploy to production
+# Backend API
+pnpm --filter=@eco-globe/backend build
+pnpm --filter=@eco-globe/backend start
 ```
 
 ## Environment Setup
 
-1. Copy `apps/web/.env.local.example` to `apps/web/.env.local`
-2. Run `pnpm --filter=@eco-globe/backend convex dev` to get your Convex URL
-3. Set `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL` in `.env.local`
+1. Copy local environment examples to `.env.local` as they are added.
+2. Set API URLs and Azure-backed secret references for local development.
+3. Keep production secrets in Azure Key Vault.
 
 ## Documentation
 
