@@ -43,7 +43,13 @@ export interface BackendCompanyMembership {
 export interface DemoUser {
   /** Backend user id from Azure SQL. */
   id?: number;
-  /** Bearer session token issued by the backend auth API. */
+  /**
+   * In-memory marker for the server-managed cookie session.
+   *
+   * The raw bearer token is never persisted in browser storage. Keeping this
+   * marker on the client preserves the existing component contract while all
+   * authenticated requests are sent through the same-origin backend proxy.
+   */
   token?: string;
   sessionExpiresAt?: string;
   activeCompanyId?: number;
@@ -77,13 +83,31 @@ export function hasRole(user: DemoUser, role: UserRole): boolean {
 
 const KEY = "ecoglobe.demoUser";
 const EVENT = "ecoglobe.demoUser.changed";
+export const COOKIE_SESSION_TOKEN = "__ecoglobe_cookie_session__";
+
+function withCookieSessionMarker(user: DemoUser): DemoUser {
+  return { ...user, token: COOKIE_SESSION_TOKEN, sessionExpiresAt: undefined };
+}
+
+function storageUser(
+  user: DemoUser,
+): Omit<DemoUser, "token" | "sessionExpiresAt"> {
+  const { token: _token, sessionExpiresAt: _expiresAt, ...safeUser } = user;
+  return safeUser;
+}
 
 export function readDemoUser(): DemoUser | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as DemoUser;
+    const parsed = JSON.parse(raw) as DemoUser;
+    // Migrate older builds that stored the bearer token in localStorage.
+    const safeUser = storageUser(parsed);
+    if (parsed.token || parsed.sessionExpiresAt) {
+      localStorage.setItem(KEY, JSON.stringify(safeUser));
+    }
+    return withCookieSessionMarker(safeUser);
   } catch {
     return null;
   }
@@ -91,8 +115,9 @@ export function readDemoUser(): DemoUser | null {
 
 export function writeDemoUser(user: DemoUser | null) {
   if (typeof window === "undefined") return;
-  if (user) localStorage.setItem(KEY, JSON.stringify(user));
-  else localStorage.removeItem(KEY);
+  if (user) {
+    localStorage.setItem(KEY, JSON.stringify(storageUser(user)));
+  } else localStorage.removeItem(KEY);
   window.dispatchEvent(new CustomEvent(EVENT));
 }
 
@@ -130,7 +155,7 @@ const BUYER_FACILITIES: Facility[] = [
     label: "Allen Parkway Houston",
     address: "7777 Allen Parkway, Houston, TX 77019",
     lat: 29.7609,
-    lng: -95.4010,
+    lng: -95.401,
   },
   {
     id: "buyer-huldy",

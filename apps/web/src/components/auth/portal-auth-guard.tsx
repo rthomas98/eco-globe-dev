@@ -40,7 +40,7 @@ export function PortalAuthGuard({
       setAccess("checking");
       const localUser = readDemoUser();
 
-      if (!localUser?.token) {
+      if (!localUser) {
         redirectToLogin();
         return;
       }
