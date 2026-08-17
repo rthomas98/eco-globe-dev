@@ -42,10 +42,10 @@ import {
 import { NotificationsPanel } from "../seller/notifications-panel";
 import {
   buildDemoUser,
-  clearDemoUser,
   readDemoUser,
   writeDemoUser,
 } from "@/lib/demo-user";
+import { logoutBackendUser } from "@/lib/backend-auth";
 
 interface NavIcon {
   href: string;
@@ -310,10 +310,11 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const handleLogout = () => {
-    clearDemoUser();
+  const handleLogout = async () => {
+    await logoutBackendUser(readDemoUser()?.token);
     setUserMenuOpen(false);
-    router.push("/login");
+    router.replace("/");
+    router.refresh();
   };
 
   const handleSwitchToSeller = () => {

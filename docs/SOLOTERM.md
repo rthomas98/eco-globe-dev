@@ -8,7 +8,7 @@ EcoGlobe includes a root `solo.yml` so the local development stack can be loaded
 | ---------------- | -------------------- | --------------------------------------------------------------- |
 | Web App          | Starts automatically | http://localhost:4040                                           |
 | Admin App        | Starts automatically | http://localhost:4041                                           |
-| Convex Backend   | Starts automatically | Uses the deployment configured in `packages/backend/.env.local` |
+| Backend API      | Manual               | http://localhost:4050                                           |
 | Mobile App       | Manual               | Expo development server                                         |
 | Type Check       | Manual               | Runs the monorepo TypeScript checks                             |
 | Production Build | Manual               | Builds the monorepo with Turborepo                              |
@@ -16,7 +16,7 @@ EcoGlobe includes a root `solo.yml` so the local development stack can be loaded
 ## Setup
 
 1. Install the workspace dependencies with `pnpm install`.
-2. Configure the Convex values described in `apps/web/.env.local.example`.
+2. Configure the backend API and Azure SQL values as local environment examples are added.
 3. Add the EcoGlobe repository folder as a project in SoloTerm.
 4. Review and trust the commands imported from `solo.yml`.
 

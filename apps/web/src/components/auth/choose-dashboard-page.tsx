@@ -49,8 +49,7 @@ export function ChooseDashboardPage() {
   const choose = (role: UserRole) => {
     writeDemoUser(
       buildDemoUser(role, {
-        name: user?.name,
-        email: user?.email,
+        ...user,
         roles: available,
       }),
     );

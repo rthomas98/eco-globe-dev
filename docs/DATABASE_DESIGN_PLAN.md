@@ -12,6 +12,94 @@ The database should be designed around three principles:
 - Orders are the center of the transaction lifecycle.
 - Every important action should be traceable through audit history.
 
+## Primary Key Decision
+
+For an Azure SQL implementation, primary keys and foreign keys should use integer identity fields.
+
+The database planning graph below uses `int id PK` and `int *_id FK` to reflect the preferred SQL design:
+
+- Primary keys should be integer identity values.
+- Foreign keys should reference those integer primary keys.
+- External IDs from auth providers, payment providers, escrow providers, document storage, and carriers should be stored as separate string fields.
+- Lookup/reference values should use dedicated lookup tables where the values need governance, reporting consistency, or admin configuration.
+
+This keeps referential integrity clear, improves indexing efficiency, and aligns better with a traditional SQL database design.
+
+The Azure SQL schema should use integer identity keys for internal relational records. External system identifiers should be stored separately and should not become the internal primary keys.
+
+## Standard Support Fields
+
+Every operational table should include consistent support fields for troubleshooting, support, and diagnostics.
+
+Recommended field names:
+
+| Field | Type | Purpose |
+| --- | --- | --- |
+| `created_by_user_id` | `int FK` | User who created the record. Nullable for system imports or automated records. |
+| `created_at` | `datetime` | Date and time the record was created. |
+| `updated_by_user_id` | `int FK` | User who last edited the record. Nullable for system automation. |
+| `updated_at` | `datetime` | Date and time the record was last edited. |
+
+These fields should be applied consistently across core business tables such as companies, profiles, locations, listings, documents, quotes, orders, shipments, escrows, payments, payouts, contracts, signatures, notifications, disputes, and audit-related records.
+
+Lookup tables may also include these fields when EcoGlobe admins can add or edit lookup values over time.
+
+## Lookup Table Decision
+
+Status, type, role, source, and category values should generally use integer lookup IDs instead of freeform strings.
+
+This applies to fields such as:
+
+- Account status.
+- Company type.
+- Verification status.
+- Member role.
+- Member status.
+- Onboarding status.
+- Subscription status.
+- Billing status.
+- Approval status.
+- Payout status.
+- Location type.
+- Listing status.
+- Document type.
+- Document verification status.
+- Quote status.
+- Order status.
+- Order creation source.
+- Shipment status.
+- Escrow provider.
+- Escrow status.
+- Escrow release rule.
+- Payment status.
+- Payment type.
+- Contract source.
+- Contract status.
+- Signature status.
+- Notification channel.
+- Notification category.
+- Notification status.
+- Dispute issue type.
+- Dispute status.
+- Audit action type.
+- Record type.
+- Actor type.
+
+Recommended lookup table pattern:
+
+| Field | Type | Purpose |
+| --- | --- | --- |
+| `id` | `int PK` | Internal lookup ID. |
+| `code` | `varchar` | Stable system code, such as `pending_review`. |
+| `name` | `varchar` | User-facing label, such as `Pending Review`. |
+| `description` | `varchar` | Optional explanation. |
+| `is_active` | `bit` | Whether the lookup value is active. |
+| `sort_order` | `int` | Display order in menus and admin screens. |
+
+Using lookup tables gives EcoGlobe more flexibility to add, rename, deactivate, or report on statuses without changing application code for every new business requirement.
+
+Not every string field should become a lookup. Descriptive values and external provider values should stay as strings, including file URLs, tracking numbers, provider transaction IDs, notes, addresses, and document storage paths.
+
 ## Core Design Decision
 
 A company should be able to act as a buyer, seller, or both.
@@ -20,198 +108,220 @@ That means the database should not treat buyer and seller as completely separate
 
 This supports real-world marketplace behavior where a company may sell one material stream while buying another feedstock from a different supplier.
 
+EcoGlobe will support three account states:
+
+- Subscribed buyer.
+- Subscribed seller.
+- Unsubscribed user for general accounts.
+
+Within subscribed buyer accounts, permissions need to be tiered. The most important permission boundary is transaction authority: who can approve and execute transactions, especially for large dollar amounts.
+
+Admins also need controlled override ability. They should be able to create orders directly without requiring a quote first, while those actions are clearly recorded in the audit trail.
+
 ## High-Level Relationship Graph
+
+For readability, the ERD does not repeat the standard support fields on every table. Unless noted otherwise, operational tables should still include `created_by_user_id`, `created_at`, `updated_by_user_id`, and `updated_at`.
 
 ```mermaid
 erDiagram
     USERS {
-        string id PK
+        int id PK
+        string auth_provider_user_id
         string name
         string email
-        string status
-        datetime created_at
+        int account_status_id FK
     }
 
     COMPANIES {
-        string id PK
+        int id PK
         string legal_name
-        string company_type "buyer, seller, both"
-        string verification_status
-        datetime created_at
+        int company_type_id FK
+        int verification_status_id FK
     }
 
     COMPANY_MEMBERS {
-        string id PK
-        string user_id FK
-        string company_id FK
-        string role
-        string permissions
-        string status
+        int id PK
+        int user_id FK
+        int company_id FK
+        int member_role_id FK
+        int permission_tier_id FK
+        int member_status_id FK
+        number transaction_approval_limit
     }
 
     BUYER_PROFILES {
-        string id PK
-        string company_id FK
-        string onboarding_status
-        string billing_status
-        string approval_status
+        int id PK
+        int company_id FK
+        int onboarding_status_id FK
+        int subscription_status_id FK
+        int billing_status_id FK
+        int approval_status_id FK
     }
 
     SELLER_PROFILES {
-        string id PK
-        string company_id FK
-        string onboarding_status
-        string payout_status
-        string approval_status
+        int id PK
+        int company_id FK
+        int onboarding_status_id FK
+        int subscription_status_id FK
+        int payout_status_id FK
+        int approval_status_id FK
     }
 
     LOCATIONS {
-        string id PK
-        string company_id FK
-        string type "billing, pickup, delivery, facility"
+        int id PK
+        int company_id FK
+        int location_type_id FK
         string address
         number latitude
         number longitude
     }
 
     LISTINGS {
-        string id PK
-        string seller_company_id FK
-        string location_id FK
+        int id PK
+        int seller_company_id FK
+        int location_id FK
         string title
-        string material_type
+        int material_type_id FK
         number quantity
         number moq
         number price_per_unit
-        string status
+        int listing_status_id FK
     }
 
     LISTING_DOCUMENTS {
-        string id PK
-        string listing_id FK
-        string document_type
+        int id PK
+        int listing_id FK
+        int document_type_id FK
         string file_url
-        string verification_status
+        int verification_status_id FK
     }
 
     QUOTES {
-        string id PK
-        string listing_id FK
-        string buyer_company_id FK
-        string seller_company_id FK
+        int id PK
+        int listing_id FK
+        int buyer_company_id FK
+        int seller_company_id FK
         number quantity
         number price
         string delivery_terms
-        string status
+        int quote_status_id FK
         datetime expires_at
     }
 
     ORDERS {
-        string id PK
-        string quote_id FK
-        string listing_id FK
-        string buyer_company_id FK
-        string seller_company_id FK
-        string status
+        int id PK
+        int quote_id FK
+        int listing_id FK
+        int buyer_company_id FK
+        int seller_company_id FK
+        int created_by_user_id FK
+        int creation_source_id FK
+        int order_status_id FK
         number total_amount
-        datetime created_at
+        boolean escrow_required
     }
 
     SHIPMENTS {
-        string id PK
-        string order_id FK
-        string carrier
+        int id PK
+        int order_id FK
+        int carrier_id FK
         string tracking_number
-        string route_status
+        int shipment_status_id FK
         number carbon_impact
         datetime delivery_confirmed_at
     }
 
     ESCROWS {
-        string id PK
-        string order_id FK
-        string provider
+        int id PK
+        int order_id FK
+        int escrow_provider_id FK
+        string provider_escrow_id
         number amount
-        string status
-        string release_rule
+        int escrow_status_id FK
+        number threshold_amount
+        int release_rule_id FK
         boolean dispute_locked
     }
 
     PAYMENTS {
-        string id PK
-        string order_id FK
-        string escrow_id FK
-        string payer_company_id FK
+        int id PK
+        int order_id FK
+        int escrow_id FK
+        int payer_company_id FK
+        string provider_payment_id
         number amount
-        string status
-        string payment_type
+        int payment_status_id FK
+        int payment_type_id FK
     }
 
     PAYOUTS {
-        string id PK
-        string order_id FK
-        string escrow_id FK
-        string seller_company_id FK
+        int id PK
+        int order_id FK
+        int escrow_id FK
+        int seller_company_id FK
+        string provider_payout_id
         number amount
-        string status
+        int payout_status_id FK
     }
 
     CONTRACTS {
-        string id PK
-        string buyer_company_id FK
-        string seller_company_id FK
-        string listing_id FK
-        string status
+        int id PK
+        int buyer_company_id FK
+        int seller_company_id FK
+        int listing_id FK
+        int contract_source_id FK
+        int contract_status_id FK
         string renewal_terms
         datetime renewal_date
     }
 
     SIGNATURES {
-        string id PK
-        string contract_id FK
-        string signer_user_id FK
-        string signer_company_id FK
-        string status
+        int id PK
+        int contract_id FK
+        int signer_user_id FK
+        int signer_company_id FK
+        string provider_signature_id
+        int signature_status_id FK
         datetime signed_at
     }
 
     NOTIFICATIONS {
-        string id PK
-        string user_id FK
-        string company_id FK
-        string related_record_type
-        string related_record_id
-        string channel
-        string status
+        int id PK
+        int user_id FK
+        int company_id FK
+        int related_record_type_id FK
+        int related_record_id
+        int notification_channel_id FK
+        int notification_status_id FK
     }
 
     NOTIFICATION_PREFERENCES {
-        string id PK
-        string user_id FK
-        string company_id FK
-        string channel
-        string category
+        int id PK
+        int user_id FK
+        int company_id FK
+        int notification_channel_id FK
+        int notification_category_id FK
         boolean enabled
     }
 
     DISPUTES {
-        string id PK
-        string order_id FK
-        string escrow_id FK
-        string shipment_id FK
-        string opened_by_user_id FK
-        string issue_type
-        string status
+        int id PK
+        int order_id FK
+        int escrow_id FK
+        int shipment_id FK
+        int opened_by_user_id FK
+        int issue_type_id FK
+        int dispute_status_id FK
     }
 
     AUDIT_LOGS {
-        string id PK
-        string actor_user_id FK
-        string actor_company_id FK
-        string action
-        string record_type
-        string record_id
-        datetime created_at
+        int id PK
+        int actor_user_id FK
+        int actor_company_id FK
+        int action_type_id FK
+        int record_type_id FK
+        int record_id
+        int actor_type_id FK
     }
 
     USERS ||--o{ COMPANY_MEMBERS : joins
@@ -270,8 +380,31 @@ erDiagram
 | `users` | Stores login identity, name, email, and account status. |
 | `companies` | Stores the business entity. A company can be a buyer, seller, or both. |
 | `companyMembers` | Connects users to companies and controls role-based access. |
-| `buyerProfiles` | Stores buyer-specific onboarding, billing, approval, and purchasing readiness. |
-| `sellerProfiles` | Stores seller-specific onboarding, payout, approval, and listing readiness. |
+| `buyerProfiles` | Stores buyer-specific onboarding, subscription status, billing, approval, and purchasing readiness. |
+| `sellerProfiles` | Stores seller-specific onboarding, subscription status, payout, approval, and listing readiness. |
+
+### Roles, Subscriptions, and Permissions
+
+EcoGlobe should separate account type from user permission.
+
+Account type answers what the company can do on the platform:
+
+- Subscribed buyer.
+- Subscribed seller.
+- Unsubscribed user/general account.
+
+Permissions answer what a specific user can do inside a company account:
+
+- View marketplace activity.
+- Request quotes.
+- Approve transactions.
+- Execute transactions.
+- Manage billing or payout settings.
+- Manage company users and permissions.
+
+For subscribed buyer accounts, transaction permissions should support amount-based approval rules. For example, one user may be allowed to request quotes, while another user is required to approve or execute orders above a certain dollar amount.
+
+This matters because EcoGlobe transactions can become large, and the platform needs clear controls around who is authorized to commit company funds.
 
 ### Marketplace and Feedstock Records
 
@@ -286,9 +419,9 @@ erDiagram
 | Table | Purpose |
 | --- | --- |
 | `quotes` | Stores proposed pricing, volume, delivery terms, expiration, and buyer/seller acceptance. |
-| `orders` | Stores the accepted transaction between buyer and seller from inquiry through completion. |
+| `orders` | Stores the accepted transaction between buyer and seller from inquiry through completion. Orders can come from an accepted quote or be created directly by an admin. |
 | `shipments` | Stores carrier, route, tracking, delivery confirmation, and carbon impact. |
-| `escrows` | Stores held funds, provider status, release rules, and dispute locks. |
+| `escrows` | Stores held funds, provider status, release rules, and dispute locks. Escrow is required for orders above $1,000. |
 | `payments` | Stores buyer funding, payment status, payment type, and escrow funding activity. |
 | `payouts` | Stores seller payout records, payout status, fees, and release timing. |
 
@@ -296,7 +429,7 @@ erDiagram
 
 | Table | Purpose |
 | --- | --- |
-| `contracts` | Stores recurring feedstock supply agreements, terms, milestones, and renewal dates. |
+| `contracts` | Stores recurring feedstock supply agreements, terms, milestones, and renewal dates. Contracts may link to a listing or support custom/off-platform deals. |
 | `signatures` | Stores signer status, signed timestamps, signer identity, and signed document references. |
 
 ### Communications, Disputes, and Oversight
@@ -304,7 +437,7 @@ erDiagram
 | Table | Purpose |
 | --- | --- |
 | `notifications` | Stores in-app, email, and SMS alerts with delivery status. |
-| `notificationPreferences` | Stores user and company preferences by channel and notification category. |
+| `notificationPreferences` | Stores company-wide defaults and user-level overrides by channel and notification category. |
 | `disputes` | Stores issues tied to orders, escrows, shipments, and resolution status. |
 | `auditLogs` | Stores every important action across buyer, seller, admin, and system automation. |
 
@@ -319,6 +452,7 @@ flowchart LR
     E --> F[Seller responds with quote]
     F --> G[Buyer accepts quote]
     G --> H[Order created]
+    AA[Admin creates order directly] --> H
     H --> I[Escrow funded]
     I --> J[Shipment scheduled]
     J --> K[Delivery confirmed]
@@ -333,6 +467,72 @@ flowchart LR
     O --> P[Admin review]
     P --> Q[Resolve, refund, or release]
 ```
+
+## Escrow Rule
+
+Escrow should not be optional for normal transactions above the defined threshold.
+
+Current rule:
+
+- Orders above `$1,000` require escrow.
+- Test or sample transactions below `$1,000` do not require escrow.
+
+The order record should store whether escrow is required at the time the order is created. This avoids confusion if the platform threshold changes later.
+
+The escrow record should then track funding, release triggers, dispute locks, and payout readiness.
+
+## Contract Rule
+
+Contracts should support two paths:
+
+- Listing-based contracts, where the contract is connected to a platform listing.
+- Custom contracts, where the contract covers an off-platform or pre-negotiated deal.
+
+Custom contracts are allowed because both parties may want to use EcoGlobe's escrow, documentation, and reporting infrastructure even when the material was negotiated outside the marketplace listing flow.
+
+Requirement:
+
+- Off-platform/custom contracts should still require both parties to be registered EcoGlobe users.
+- Both companies should be represented in the platform.
+- The contract should clearly record whether it came from a platform listing or a custom/off-platform workflow.
+
+## Notification Rule
+
+Notifications should be user-specific by default.
+
+Admins should be able to set company-wide notification defaults, and individual users should be able to override their own preferences through a notification settings menu.
+
+This creates a practical hierarchy:
+
+1. Platform-required notifications that cannot be disabled for compliance or transaction safety.
+2. Company-wide defaults controlled by admins or company managers.
+3. User-level overrides controlled by individual users.
+
+Examples of notifications that may need stronger controls:
+
+- Order approval required.
+- Escrow funding required.
+- Escrow released.
+- Payment failed.
+- Delivery confirmed.
+- Dispute opened.
+- Permission changed.
+
+## Admin Direct Order Rule
+
+Quotes should remain the normal marketplace path, but admins must be able to create an order directly.
+
+Direct admin-created orders should be used for exceptions, operational support, custom deals, or cases where the transaction has already been agreed to outside the standard quote flow.
+
+The database should record:
+
+- Whether the order came from a quote or an admin direct action.
+- Which admin created the order.
+- Which buyer and seller were attached.
+- Why the direct order was created.
+- Whether escrow is required based on the order amount.
+
+This should always generate an audit log entry.
 
 ## Status History and Audit Trail
 
@@ -358,6 +558,43 @@ Later, we may also add focused history tables such as:
 
 The first version can start with `auditLogs`, then split into more specialized history tables as the workflows mature.
 
+## Required Audit Coverage
+
+The admin audit trail should capture every compliance-relevant action.
+
+Required audit categories:
+
+- Quote lifecycle events.
+- Order lifecycle events.
+- Transaction approvals.
+- Transaction execution.
+- Escrow trigger events.
+- Escrow release events.
+- Payment events.
+- Payout events.
+- User access changes.
+- Permission changes.
+- Admin actions taken on behalf of users.
+- Admin actions taken outside standard workflows.
+
+Every audit record should include:
+
+- Timestamp.
+- Acting user ID.
+- Acting company ID when applicable.
+- Whether the actor was a user, admin, or system automation.
+- Record type.
+- Record ID.
+- Action performed.
+- Previous value when applicable.
+- New value when applicable.
+- Reason or note when required.
+
+Access rule:
+
+- Audit logs should be visible to admins only.
+- Audit logs should be exportable for compliance, dispute resolution, and internal review.
+
 ## Recommended Build Phases
 
 ### Phase 1: Backend Foundation
@@ -371,11 +608,13 @@ Recommended scope:
 - `companyMembers`
 - `buyerProfiles`
 - `sellerProfiles`
+- tiered buyer permissions
 - `locations`
 - `listings`
 - `listingDocuments`
 - `quotes`
 - `orders`
+- admin direct order creation
 - `notifications`
 - `notificationPreferences`
 - `auditLogs`
@@ -393,6 +632,7 @@ Recommended scope:
 - `payments`
 - `payouts`
 - `disputes`
+- escrow threshold enforcement
 - status event tracking
 - delivery confirmation
 - admin review queues
@@ -407,6 +647,7 @@ Recommended scope:
 
 - `contracts`
 - `signatures`
+- custom/off-platform contract support
 - contract milestones
 - renewal management
 - sustainability milestones
@@ -418,9 +659,9 @@ This phase supports recurring supply agreements, e-signatures, renewal tracking,
 
 ## Implementation Notes
 
-The current backend schema is still early and mainly covers sellers, buyers, listings, and orders. The frontend now shows a much broader platform surface, including escrow, logistics, notifications, contracts, e-signatures, documents, and admin operations.
+The Azure SQL dev/demo baseline now covers the broader transaction-management model, including identity, companies, listings, quotes, orders, logistics, escrow, payments, contracts, signatures, notifications, disputes, and audit logs.
 
-Before coding, the team should agree that the backend model needs to grow from a simple marketplace schema into a full transaction-management schema.
+The current backend API foundation can verify Azure SQL connectivity and inspect the schema. The next implementation work is to add authenticated business endpoints and replace frontend demo data incrementally.
 
 The recommended approach is:
 
@@ -429,22 +670,28 @@ The recommended approach is:
 3. Treat orders as the center of the transaction.
 4. Attach escrow, payment, shipment, dispute, contract, and notification records to orders.
 5. Track important status changes in audit history from the beginning.
-6. Build in phases so the team does not overbuild before demo needs are clear.
+6. Keep the current SQL baseline versioned and move to formal migrations before production.
 
-## Questions for Team Review
+## Confirmed Team Decisions
 
-These are the questions worth confirming before implementation:
+These decisions have been confirmed and should guide implementation:
 
-- Should company roles be limited to buyer, seller, and both, or do we need more granular role types?
-- Should quotes always come before orders, or should admins be able to create an order directly?
-- Should every order require escrow, or should escrow be optional for some transaction types?
-- Should contracts always link to listings, or can a contract cover custom/off-platform materials?
-- Should notifications be user-specific only, or should some notifications be company-wide?
-- What records must be included in the admin audit trail for compliance?
+- EcoGlobe will support subscribed buyers, subscribed sellers, and unsubscribed general users.
+- Subscribed buyer accounts need tiered permissions for approval and execution of transactions, especially for large amounts.
+- Admins can create orders directly without requiring a quote first.
+- Escrow applies to all orders above `$1,000`.
+- Test or sample transactions below `$1,000` do not require escrow.
+- Contracts can link to platform listings or support custom/off-platform agreements.
+- Off-platform contracts still require both parties to be registered users on EcoGlobe.
+- Notifications are user-specific by default.
+- Admins can define company-wide notification defaults.
+- Individual users can override their own notification preferences.
+- The audit trail must capture transaction lifecycle events, user access changes, permission changes, admin actions, escrow events, and payment events.
+- Audit logs must include timestamps and user IDs for every action.
+- Audit logs should be admin-only and exportable.
 
 ## Recommended Team Decision
 
 Use this database model as the planning baseline.
 
 The first backend implementation should focus on Phase 1 only, while leaving the table structure clean enough to add Phase 2 and Phase 3 without major rework.
-
