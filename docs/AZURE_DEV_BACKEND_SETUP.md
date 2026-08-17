@@ -196,11 +196,12 @@ Use the endpoint catalog or OpenAPI document as the current route source of trut
 Backend auth behavior:
 
 - Passwords are stored as salted PBKDF2 hashes in `UserPasswords`.
-- Sessions store only SHA-256 token hashes in `UserSessions`; raw bearer tokens are returned once at login.
+- Sessions store only SHA-256 token hashes in `UserSessions`; the browser-facing Next.js proxy stores the raw session token only in an `HttpOnly`, expiring cookie and never exposes it to client JavaScript.
 - `POST /auth/register` creates a password-backed user.
-- `POST /auth/login` returns a bearer token plus user/company context.
-- Protected write endpoints require `Authorization: Bearer <token>`.
-- `POST /auth/logout` revokes the bearer session.
+- `POST /auth/login` returns user/company context through the web proxy; native/API clients may use the one-time bearer token directly.
+- Browser requests use `/api/backend/*`, which forwards the `HttpOnly` cookie to the backend and revalidates `/auth/session` on protected portal entry.
+- Native/API clients use `Authorization: Bearer <token>` for protected endpoints.
+- `POST /auth/logout` revokes the server session and clears the browser cookie.
 - `POST /auth/dev/seed-demo-users` seeds demo buyer, seller, and admin accounts in non-production environments.
 - `GET /auth/dev/browser-test` opens a browser-visible smoke test page in non-production environments.
 - CORS/OPTIONS support is enabled for browser-based frontend and preview testing.

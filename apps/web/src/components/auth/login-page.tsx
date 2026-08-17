@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
 import { AuthLayout } from "./auth-layout";
-import { BackendApiError, inferRequestedRole, writeBackendLoginSession } from "@/lib/backend-auth";
+import { BackendApiError, writeBackendLoginSession } from "@/lib/backend-auth";
 import type { UserRole } from "@/lib/demo-user";
 
 export function LoginPage() {
@@ -21,13 +21,10 @@ export function LoginPage() {
     if (!email.trim() || !password.trim() || status === "loading") return;
     setStatus("loading");
     setError("");
-    const requestedRole = inferRequestedRole(email);
-
     try {
       const user = await writeBackendLoginSession({
         email,
         password,
-        role: requestedRole,
       });
       const role: UserRole = user.role;
       const dest =

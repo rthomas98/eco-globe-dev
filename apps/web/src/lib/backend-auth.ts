@@ -2,6 +2,7 @@
 
 import {
   buildDemoUser,
+  COOKIE_SESSION_TOKEN,
   clearDemoUser,
   readDemoUser,
   writeDemoUser,
@@ -9,10 +10,6 @@ import {
   type DemoUser,
   type UserRole,
 } from "./demo-user";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
-  "http://127.0.0.1:4050";
 
 type BackendUser = {
   id: number;
@@ -26,7 +23,7 @@ type BackendUser = {
 
 type LoginResponse = {
   ok: true;
-  token: string;
+  token?: string;
   expiresAt: string;
   user: BackendUser;
 };
@@ -66,36 +63,40 @@ function normalizeRole(
   return isUserRole(value) ? value : fallback;
 }
 
-export function inferRequestedRole(email: string): UserRole | undefined {
-  const normalized = email.trim().toLowerCase();
-  if (normalized.includes("seller")) return "seller";
-  if (normalized.includes("buyer")) return "buyer";
-  if (normalized.includes("admin")) return "admin";
-  return undefined;
-}
-
 async function apiFetch<T>(
   path: string,
   options: RequestInit & { token?: string } = {},
 ): Promise<T> {
   const { token, headers, ...requestOptions } = options;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`/api/backend${path}`, {
     ...requestOptions,
+    credentials: "same-origin",
     headers: {
       "content-type": "application/json",
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(token && token !== COOKIE_SESSION_TOKEN
+        ? { authorization: `Bearer ${token}` }
+        : {}),
       ...headers,
     },
   });
 
   if (!response.ok) {
     const text = await response.text();
-    const body = text ? JSON.parse(text) : undefined;
+    let body: unknown;
+    try {
+      body = text ? JSON.parse(text) : undefined;
+    } catch {
+      body = undefined;
+    }
+    const record =
+      body && typeof body === "object"
+        ? (body as Record<string, unknown>)
+        : undefined;
     const message =
-      typeof body?.error === "string"
-        ? body.error
-        : typeof body?.message === "string"
-          ? body.message
+      typeof record?.error === "string"
+        ? record.error
+        : typeof record?.message === "string"
+          ? record.message
           : "The EcoGlobe backend did not accept this request.";
     throw new BackendApiError(message, response.status);
   }
@@ -138,8 +139,7 @@ export function buildDemoUserFromBackend(
   const role = normalizeRole(response.user.activeRoleCode, fallbackRole);
   return buildDemoUser(role, {
     id: response.user.id,
-    token: response.token,
-    sessionExpiresAt: response.expiresAt,
+    token: COOKIE_SESSION_TOKEN,
     activeCompanyId: response.user.activeCompanyId,
     accountStatusCode: response.user.accountStatusCode,
     companies: response.user.companies,
@@ -151,7 +151,7 @@ export function buildDemoUserFromBackend(
 
 function mergeDemoUserFromSession(
   backendUser: BackendUser,
-  token: string,
+  token: string | undefined,
   fallbackRole: UserRole,
   fallbackRoles: UserRole[] = [fallbackRole],
 ) {
@@ -160,7 +160,7 @@ function mergeDemoUserFromSession(
   const nextUser = buildDemoUser(role, {
     ...existingUser,
     id: backendUser.id,
-    token,
+    token: token ?? COOKIE_SESSION_TOKEN,
     activeCompanyId: backendUser.activeCompanyId,
     accountStatusCode: backendUser.accountStatusCode,
     companies: backendUser.companies,
@@ -223,11 +223,11 @@ export async function logoutBackendUser(token: string | undefined) {
   }
 }
 
-export async function refreshBackendSession(token: string) {
+export async function refreshBackendSession(token?: string) {
   const existingUser = readDemoUser();
   const response = await apiFetch<SessionResponse>("/auth/session", {
     method: "GET",
-    token,
+    token: token ?? COOKIE_SESSION_TOKEN,
   });
   const authorizedRoles = rolesFromBackend(response.user, []);
   const pendingRoles =
@@ -244,7 +244,7 @@ export async function refreshBackendSession(token: string) {
   const user = buildDemoUser(selectedRole, {
     ...existingUser,
     id: response.user.id,
-    token,
+    token: token ?? COOKIE_SESSION_TOKEN,
     activeCompanyId: response.user.activeCompanyId,
     accountStatusCode: response.user.accountStatusCode,
     companies: response.user.companies,
@@ -271,7 +271,7 @@ export async function writeBackendLoginSession({
   const response = await loginBackendUser({ email, password, role });
   const demoUser = buildDemoUserFromBackend(
     response,
-    role ?? inferRequestedRole(email) ?? "buyer",
+    role ?? normalizeRole(response.user.activeRoleCode, "buyer"),
     fallbackRoles,
   );
   writeDemoUser(demoUser);
@@ -289,7 +289,7 @@ export async function completeBackendOnboarding({
   website,
   address,
 }: {
-  token: string;
+  token?: string;
   role: "buyer" | "seller" | "both";
   activeRole: UserRole;
   fallbackRoles?: UserRole[];
@@ -310,7 +310,7 @@ export async function completeBackendOnboarding({
     };
   }>("/api/onboarding", {
     method: "POST",
-    token,
+    token: token ?? COOKIE_SESSION_TOKEN,
     body: JSON.stringify({
       role,
       activeRole,
@@ -336,7 +336,7 @@ export async function startBackendStripeOnboarding({
   returnUrl,
   refreshUrl,
 }: {
-  token: string;
+  token?: string;
   role: "buyer" | "seller";
   returnUrl?: string;
   refreshUrl?: string;
@@ -353,7 +353,7 @@ export async function startBackendStripeOnboarding({
     message: string;
   }>("/api/stripe/onboarding", {
     method: "POST",
-    token,
+    token: token ?? COOKIE_SESSION_TOKEN,
     body: JSON.stringify({
       role,
       returnUrl,

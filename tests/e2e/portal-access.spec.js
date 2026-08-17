@@ -1,7 +1,6 @@
 const { test, expect } = require("@playwright/test");
 
 const baseUrl = process.env.ECOGLOBE_WEB_BASE_URL ?? "http://localhost:4040";
-const apiBaseUrl = process.env.ECOGLOBE_API_BASE_URL ?? "http://127.0.0.1:4050";
 
 function backendUser(role) {
   const companyTypeCode = role === "admin" ? "both" : role;
@@ -44,7 +43,7 @@ async function installSession(page, role) {
       }),
     );
   }, user);
-  await page.route(`${apiBaseUrl}/auth/session`, async (route) => {
+  await page.route(`${baseUrl}/api/backend/auth/session`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -98,7 +97,7 @@ test("an expired or revoked backend session is cleared and redirected", async ({
       }),
     );
   });
-  await page.route(`${apiBaseUrl}/auth/session`, async (route) => {
+  await page.route(`${baseUrl}/api/backend/auth/session`, async (route) => {
     await route.fulfill({
       status: 401,
       contentType: "application/json",
@@ -115,4 +114,20 @@ test("an expired or revoked backend session is cleared and redirected", async ({
   expect(
     await page.evaluate(() => localStorage.getItem("ecoglobe.demoUser")),
   ).toBeNull();
+});
+
+test("legacy bearer tokens are removed from browser storage before session revalidation", async ({
+  page,
+}) => {
+  await installSession(page, "buyer");
+  await page.goto(`${baseUrl}/buyer/browse`);
+
+  const stored = await page.evaluate(() => {
+    const raw = localStorage.getItem("ecoglobe.demoUser");
+    return raw ? JSON.parse(raw) : null;
+  });
+
+  expect(stored).not.toBeNull();
+  expect(stored.token).toBeUndefined();
+  expect(stored.sessionExpiresAt).toBeUndefined();
 });
