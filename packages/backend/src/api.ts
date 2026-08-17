@@ -488,6 +488,65 @@ function requireAdmin(auth: AuthContext) {
   }
 }
 
+function requireUserAccess(auth: AuthContext, userId: number) {
+  if (!auth.isAdmin && auth.userId !== userId) {
+    throw new ApiError(403, "You cannot access another user's records.");
+  }
+}
+
+function requireCompanyAccess(auth: AuthContext, companyId: number) {
+  if (!auth.isAdmin && auth.companyId !== companyId) {
+    throw new ApiError(403, "You cannot access another company's records.");
+  }
+}
+
+async function requireCompanyManager(auth: AuthContext, companyId: number) {
+  if (auth.isAdmin) return;
+  requireCompanyAccess(auth, companyId);
+  const rows = await queryRowsWithParams<{ roleCode: string }>(
+    `
+      SELECT mr.Code AS roleCode
+      FROM dbo.CompanyMembers cm
+      INNER JOIN dbo.MemberRoles mr ON mr.Id = cm.MemberRoleId
+      INNER JOIN dbo.AccountStatuses ms ON ms.Id = cm.MemberStatusId
+      WHERE cm.CompanyId = @companyId AND cm.UserId = @userId AND ms.Code = 'active';
+    `,
+    [intParam("companyId", companyId), intParam("userId", auth.userId)],
+  );
+  if (!rows[0] || !["owner", "admin"].includes(rows[0].roleCode)) {
+    throw new ApiError(403, "Company owner or admin access is required.");
+  }
+}
+
+async function requireResourceCompany(
+  auth: AuthContext,
+  query: string,
+  params: ReturnType<typeof intParam>[],
+  label: string,
+) {
+  const rows = await queryRowsWithParams<{ companyId: number }>(query, params);
+  const resource = rows[0];
+  if (!resource) throw new ApiError(404, `${label} not found.`);
+  requireCompanyAccess(auth, resource.companyId);
+  return resource.companyId;
+}
+
+async function requireOrderAccess(auth: AuthContext, orderId: number) {
+  const rows = await queryRowsWithParams<{
+    buyerCompanyId: number;
+    sellerCompanyId: number;
+  }>(
+    "SELECT BuyerCompanyId AS buyerCompanyId, SellerCompanyId AS sellerCompanyId FROM dbo.Orders WHERE Id = @orderId;",
+    [intParam("orderId", orderId)],
+  );
+  const order = rows[0];
+  if (!order) throw new ApiError(404, "Order not found.");
+  if (!auth.isAdmin && auth.companyId !== order.buyerCompanyId && auth.companyId !== order.sellerCompanyId) {
+    throw new ApiError(403, "You cannot access another company's order.");
+  }
+  return order;
+}
+
 async function writeAuditLog({
   auth,
   request,
@@ -576,22 +635,6 @@ async function lookupIdTx(
   }
 
   return rows[0].id;
-}
-
-async function getOptionalAuth(
-  request: IncomingMessage,
-): Promise<AuthContext | undefined> {
-  const session = await getSessionFromToken(getBearerToken(request));
-
-  if (!session) {
-    return undefined;
-  }
-
-  return {
-    userId: session.id,
-    companyId: session.activeCompanyId,
-    isAdmin: session.activeRoleCode === "admin",
-  };
 }
 
 function getOptionalNestedString(
@@ -1259,7 +1302,7 @@ async function listLookups(response: ServerResponse) {
   sendJson(response, 200, { ok: true, lookups });
 }
 
-async function listUsers(response: ServerResponse) {
+async function listUsers(response: ServerResponse, auth: AuthContext) {
   const users = await queryRowsWithParams(`
     SELECT
       u.Id AS id,
@@ -1272,15 +1315,26 @@ async function listUsers(response: ServerResponse) {
       u.UpdatedAt AS updatedAt
     FROM dbo.Users u
     INNER JOIN dbo.AccountStatuses s ON s.Id = u.AccountStatusId
+    WHERE (@isAdmin = 1 OR u.Id = @userId OR EXISTS (
+      SELECT 1 FROM dbo.CompanyMembers cm
+      WHERE cm.UserId = u.Id AND cm.CompanyId = @companyId
+    ))
     ORDER BY u.Id DESC;
-  `);
+  `, [
+    bitParam("isAdmin", auth.isAdmin),
+    intParam("userId", auth.userId),
+    intParam("companyId", auth.companyId),
+  ]);
 
   sendJson(response, 200, { ok: true, users });
 }
 
-async function createUser(request: IncomingMessage, response: ServerResponse) {
+async function createUser(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
   const body = await readJsonBody<UserBody>(request);
-  const auth = await getOptionalAuth(request);
   const name = getRequiredString(body, "name", 200);
   const email = getRequiredString(body, "email", 320).toLowerCase();
   const authProviderUserId = getOptionalString(body, "authProviderUserId", 200);
@@ -1307,8 +1361,8 @@ async function createUser(request: IncomingMessage, response: ServerResponse) {
       nvarcharParam("name", name, 200),
       nvarcharParam("email", email, 320),
       intParam("accountStatusId", accountStatusId),
-      intParam("createdByUserId", auth?.userId),
-      intParam("updatedByUserId", auth?.userId),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
     ],
   );
 
@@ -1321,6 +1375,7 @@ async function updateUser(
   id: number,
   auth: AuthContext,
 ) {
+  requireUserAccess(auth, id);
   const body = await readJsonBody<UserBody>(request);
   const name = getOptionalString(body, "name", 200);
   const accountStatusCode = getOptionalString(body, "accountStatusCode", 80);
@@ -1359,6 +1414,7 @@ async function deleteUser(
   id: number,
   auth: AuthContext,
 ) {
+  requireUserAccess(auth, id);
   const suspendedStatusId = await lookupId("AccountStatuses", "suspended");
   const rows = await queryRowsWithParams(
     `
@@ -1381,7 +1437,7 @@ async function deleteUser(
   sendJson(response, 200, { ok: true, user: rows[0] });
 }
 
-async function listCompanies(response: ServerResponse) {
+async function listCompanies(response: ServerResponse, auth: AuthContext) {
   const companies = await queryRowsWithParams(`
     SELECT
       c.Id AS id,
@@ -1395,8 +1451,12 @@ async function listCompanies(response: ServerResponse) {
     FROM dbo.Companies c
     INNER JOIN dbo.CompanyTypes ct ON ct.Id = c.CompanyTypeId
     INNER JOIN dbo.AccountStatuses vs ON vs.Id = c.VerificationStatusId
+    WHERE (@isAdmin = 1 OR c.Id = @companyId)
     ORDER BY c.Id DESC;
-  `);
+  `, [
+    bitParam("isAdmin", auth.isAdmin),
+    intParam("companyId", auth.companyId),
+  ]);
 
   sendJson(response, 200, { ok: true, companies });
 }
@@ -1417,6 +1477,13 @@ async function createCompany(
     getOptionalString(body, "verificationStatusCode", 80) ??
       "pending_verification",
   );
+  if (!auth.isAdmin && getOptionalString(body, "verificationStatusCode", 80) && getOptionalString(body, "verificationStatusCode", 80) !== "pending_verification") {
+    throw new ApiError(403, "Only admins can set company verification status.");
+  }
+
+  // A newly-created company is immediately owned by the authenticated user.
+  // The onboarding flow uses the same owner semantics, so no orphan tenant can
+  // be created by the generic API endpoint.
 
   const rows = await queryRowsWithParams(
     `
@@ -1433,6 +1500,36 @@ async function createCompany(
     ],
   );
 
+  if (!rows[0]) throw new ApiError(500, "Company could not be created.");
+  const ownerRoleId = await lookupId("MemberRoles", "owner");
+  const executorTierId = await lookupId("PermissionTiers", "executor");
+  const activeStatusId = await lookupId("AccountStatuses", "active");
+  await queryRowsWithParams(
+    `
+      INSERT INTO dbo.CompanyMembers (
+        UserId, CompanyId, MemberRoleId, PermissionTierId, MemberStatusId,
+        CanApproveTransactions, CanExecuteTransactions, CreatedByUserId, UpdatedByUserId
+      ) VALUES (@userId, @companyId, @memberRoleId, @permissionTierId, @memberStatusId, 1, 1, @createdByUserId, @updatedByUserId);
+    `,
+    [
+      intParam("userId", auth.userId),
+      intParam("companyId", rows[0].id as number),
+      intParam("memberRoleId", ownerRoleId),
+      intParam("permissionTierId", executorTierId),
+      intParam("memberStatusId", activeStatusId),
+      intParam("createdByUserId", auth.userId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+  await queryRowsWithParams(
+    `
+      UPDATE dbo.UserSessions
+      SET ActiveCompanyId = @companyId, UpdatedByUserId = @userId, UpdatedAt = SYSUTCDATETIME()
+      WHERE UserId = @userId AND RevokedAt IS NULL AND ExpiresAt > SYSUTCDATETIME();
+    `,
+    [intParam("companyId", rows[0].id as number), intParam("userId", auth.userId)],
+  );
+
   sendJson(response, 201, { ok: true, company: rows[0] });
 }
 
@@ -1442,6 +1539,7 @@ async function updateCompany(
   id: number,
   auth: AuthContext,
 ) {
+  await requireCompanyManager(auth, id);
   const body = await readJsonBody<CompanyBody>(request);
   const legalName = getOptionalString(body, "legalName", 240);
   const companyTypeCode = getOptionalString(body, "companyTypeCode", 80);
@@ -1456,6 +1554,9 @@ async function updateCompany(
   const verificationStatusId = verificationStatusCode
     ? await lookupId("AccountStatuses", verificationStatusCode)
     : undefined;
+  if (!auth.isAdmin && verificationStatusCode) {
+    throw new ApiError(403, "Only admins can change company verification status.");
+  }
 
   const rows = await queryRowsWithParams(
     `
@@ -1490,6 +1591,7 @@ async function deleteCompany(
   id: number,
   auth: AuthContext,
 ) {
+  await requireCompanyManager(auth, id);
   const inactiveStatusId = await lookupId("AccountStatuses", "inactive");
   const rows = await queryRowsWithParams(
     `
@@ -1512,7 +1614,8 @@ async function deleteCompany(
   sendJson(response, 200, { ok: true, company: rows[0] });
 }
 
-async function listCompanyMembers(response: ServerResponse, companyId: number) {
+async function listCompanyMembers(response: ServerResponse, companyId: number, auth: AuthContext) {
+  requireCompanyAccess(auth, companyId);
   const members = await queryRowsWithParams(
     `
       SELECT
@@ -1547,6 +1650,7 @@ async function createCompanyMember(
   companyId: number,
   auth: AuthContext,
 ) {
+  await requireCompanyManager(auth, companyId);
   const body = await readJsonBody<MemberBody>(request);
   const userId = getBodyInt(body, "userId");
   const memberRoleId = await lookupId(
@@ -1606,6 +1710,12 @@ async function deleteCompanyMember(
   id: number,
   auth: AuthContext,
 ) {
+  const company = (await queryRowsWithParams<{ companyId: number }>(
+    "SELECT CompanyId AS companyId FROM dbo.CompanyMembers WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!company) throw new ApiError(404, "Company member not found.");
+  await requireCompanyManager(auth, company.companyId);
   const inactiveStatusId = await lookupId("AccountStatuses", "inactive");
   const rows = await queryRowsWithParams(
     `
@@ -1628,7 +1738,12 @@ async function deleteCompanyMember(
   sendJson(response, 200, { ok: true, member: rows[0] });
 }
 
-async function listLocations(response: ServerResponse, companyId?: number) {
+async function listLocations(response: ServerResponse, companyId: number | undefined, auth: AuthContext) {
+  if (!auth.isAdmin) {
+    if (!auth.companyId) throw new ApiError(403, "An active company is required.");
+    if (companyId !== undefined) requireCompanyAccess(auth, companyId);
+    companyId = auth.companyId;
+  }
   const locations = await queryRowsWithParams(
     `
       SELECT
@@ -1664,6 +1779,7 @@ async function createLocation(
 ) {
   const body = await readJsonBody<LocationBody>(request);
   const companyId = routeCompanyId ?? getBodyInt(body, "companyId");
+  requireCompanyAccess(auth, companyId);
   const locationTypeId = await lookupId(
     "LocationTypes",
     getOptionalString(body, "locationTypeCode", 80) ?? "delivery",
@@ -1718,6 +1834,12 @@ async function updateLocation(
   id: number,
   auth: AuthContext,
 ) {
+  await requireResourceCompany(
+    auth,
+    "SELECT CompanyId AS companyId FROM dbo.Locations WHERE Id = @id;",
+    [intParam("id", id)],
+    "Location",
+  );
   const body = await readJsonBody<LocationBody>(request);
   const name = getOptionalString(body, "name", 160);
   const addressLine1 = getOptionalString(body, "addressLine1", 240);
@@ -1754,7 +1876,13 @@ async function updateLocation(
   sendJson(response, 200, { ok: true, location: rows[0] });
 }
 
-async function deleteLocation(response: ServerResponse, id: number) {
+async function deleteLocation(response: ServerResponse, id: number, auth: AuthContext) {
+  await requireResourceCompany(
+    auth,
+    "SELECT CompanyId AS companyId FROM dbo.Locations WHERE Id = @id;",
+    [intParam("id", id)],
+    "Location",
+  );
   const rows = await queryRowsWithParams(
     "DELETE FROM dbo.Locations OUTPUT DELETED.Id AS id, DELETED.CompanyId AS companyId, DELETED.Name AS name WHERE Id = @id;",
     [intParam("id", id)],
@@ -1831,6 +1959,15 @@ async function createListing(
   const title = getRequiredString(body, "title", 200);
   const sellerCompanyId = getBodyInt(body, "sellerCompanyId");
   const locationId = getBodyInt(body, "locationId");
+  requireCompanyAccess(auth, sellerCompanyId);
+  const location = (await queryRowsWithParams<{ companyId: number }>(
+    "SELECT CompanyId AS companyId FROM dbo.Locations WHERE Id = @locationId;",
+    [intParam("locationId", locationId)],
+  ))[0];
+  if (!location) throw new ApiError(404, "Location not found.");
+  if (location.companyId !== sellerCompanyId) {
+    throw new ApiError(403, "A listing location must belong to the seller company.");
+  }
   const materialTypeId = await lookupId(
     "MaterialTypes",
     getRequiredString(body, "materialTypeCode", 80),
@@ -1913,6 +2050,12 @@ async function updateListing(
   id: number,
   auth: AuthContext,
 ) {
+  await requireResourceCompany(
+    auth,
+    "SELECT SellerCompanyId AS companyId FROM dbo.Listings WHERE Id = @id;",
+    [intParam("id", id)],
+    "Listing",
+  );
   const body = await readJsonBody<ListingBody>(request);
   const title = getOptionalString(body, "title", 200);
   const statusCode = getOptionalString(body, "listingStatusCode", 80);
@@ -1966,6 +2109,12 @@ async function deleteListing(
   id: number,
   auth: AuthContext,
 ) {
+  await requireResourceCompany(
+    auth,
+    "SELECT SellerCompanyId AS companyId FROM dbo.Listings WHERE Id = @id;",
+    [intParam("id", id)],
+    "Listing",
+  );
   const closedStatusId = await lookupId("ListingStatuses", "closed");
   const rows = await queryRowsWithParams(
     `
@@ -2033,6 +2182,12 @@ async function createListingDocument(
 ) {
   const body = await readJsonBody<ListingDocumentBody>(request);
   const listingId = getBodyInt(body, "listingId");
+  await requireResourceCompany(
+    auth,
+    "SELECT SellerCompanyId AS companyId FROM dbo.Listings WHERE Id = @listingId;",
+    [intParam("listingId", listingId)],
+    "Listing",
+  );
   const documentTypeId = await lookupId(
     "DocumentTypes",
     getOptionalString(body, "documentTypeCode", 80) ?? "other",
@@ -2086,6 +2241,15 @@ async function updateListingDocument(
   id: number,
   auth: AuthContext,
 ) {
+  await requireResourceCompany(
+    auth,
+    `SELECT l.SellerCompanyId AS companyId
+       FROM dbo.ListingDocuments d
+       INNER JOIN dbo.Listings l ON l.Id = d.ListingId
+       WHERE d.Id = @id;`,
+    [intParam("id", id)],
+    "Listing document",
+  );
   const body = await readJsonBody<ListingDocumentBody>(request);
   const documentTypeCode = getOptionalString(body, "documentTypeCode", 80);
   const verificationStatusCode = getOptionalString(
@@ -2144,6 +2308,15 @@ async function deleteListingDocument(
   id: number,
   auth: AuthContext,
 ) {
+  await requireResourceCompany(
+    auth,
+    `SELECT l.SellerCompanyId AS companyId
+       FROM dbo.ListingDocuments d
+       INNER JOIN dbo.Listings l ON l.Id = d.ListingId
+       WHERE d.Id = @id;`,
+    [intParam("id", id)],
+    "Listing document",
+  );
   const rows = await queryRowsWithParams(
     `
       DELETE FROM dbo.ListingDocuments
@@ -2168,7 +2341,7 @@ async function deleteListingDocument(
   sendJson(response, 200, { ok: true, document: rows[0] });
 }
 
-async function listQuotes(response: ServerResponse, url: URL) {
+async function listQuotes(response: ServerResponse, url: URL, auth: AuthContext) {
   const listingId = url.searchParams.get("listingId")
     ? Number(url.searchParams.get("listingId"))
     : undefined;
@@ -2208,6 +2381,7 @@ async function listQuotes(response: ServerResponse, url: URL) {
       WHERE (@listingId IS NULL OR q.ListingId = @listingId)
         AND (@buyerCompanyId IS NULL OR q.BuyerCompanyId = @buyerCompanyId)
         AND (@sellerCompanyId IS NULL OR q.SellerCompanyId = @sellerCompanyId)
+        AND (@isAdmin = 1 OR q.BuyerCompanyId = @authCompanyId OR q.SellerCompanyId = @authCompanyId)
         AND (@statusCode IS NULL OR qs.Code = @statusCode)
       ORDER BY q.Id DESC;
     `,
@@ -2226,6 +2400,8 @@ async function listQuotes(response: ServerResponse, url: URL) {
         statusCode ? normalizeCode(statusCode) : undefined,
         80,
       ),
+      bitParam("isAdmin", auth.isAdmin),
+      intParam("authCompanyId", auth.companyId),
     ],
   );
 
@@ -2240,6 +2416,7 @@ async function createQuote(
   const body = await readJsonBody<QuoteBody>(request);
   const listingId = getBodyInt(body, "listingId");
   const buyerCompanyId = getBodyInt(body, "buyerCompanyId");
+  requireCompanyAccess(auth, buyerCompanyId);
   const listingRows = await queryRowsWithParams<{
     sellerCompanyId: number;
     quantityUnit: string;
@@ -2256,6 +2433,9 @@ async function createQuote(
   );
   const listing = listingRows[0];
   if (!listing) throw new ApiError(404, "Listing not found.");
+  if (getOptionalInt(body, "sellerCompanyId") !== undefined && getOptionalInt(body, "sellerCompanyId") !== listing.sellerCompanyId) {
+    throw new ApiError(403, "The quote seller company must match the listing.");
+  }
 
   const quoteStatusId = await lookupId(
     "QuoteStatuses",
@@ -2313,6 +2493,12 @@ async function updateQuote(
   id: number,
   auth: AuthContext,
 ) {
+  await requireResourceCompany(
+    auth,
+    "SELECT BuyerCompanyId AS companyId FROM dbo.Quotes WHERE Id = @id;",
+    [intParam("id", id)],
+    "Quote",
+  );
   const body = await readJsonBody<QuoteBody>(request);
   const quoteStatusCode = getOptionalString(body, "quoteStatusCode", 80);
   const quoteStatusId = quoteStatusCode
@@ -2361,7 +2547,7 @@ async function updateQuote(
   sendJson(response, 200, { ok: true, quote: rows[0] });
 }
 
-async function listOrders(response: ServerResponse, url: URL) {
+async function listOrders(response: ServerResponse, url: URL, auth: AuthContext) {
   const buyerCompanyId = url.searchParams.get("buyerCompanyId")
     ? Number(url.searchParams.get("buyerCompanyId"))
     : undefined;
@@ -2398,6 +2584,7 @@ async function listOrders(response: ServerResponse, url: URL) {
       INNER JOIN dbo.OrderCreationSources src ON src.Id = o.CreationSourceId
       WHERE (@buyerCompanyId IS NULL OR o.BuyerCompanyId = @buyerCompanyId)
         AND (@sellerCompanyId IS NULL OR o.SellerCompanyId = @sellerCompanyId)
+        AND (@isAdmin = 1 OR o.BuyerCompanyId = @authCompanyId OR o.SellerCompanyId = @authCompanyId)
         AND (@statusCode IS NULL OR os.Code = @statusCode)
       ORDER BY o.Id DESC;
     `,
@@ -2415,6 +2602,8 @@ async function listOrders(response: ServerResponse, url: URL) {
         statusCode ? normalizeCode(statusCode) : undefined,
         80,
       ),
+      bitParam("isAdmin", auth.isAdmin),
+      intParam("authCompanyId", auth.companyId),
     ],
   );
 
@@ -2430,6 +2619,7 @@ async function createOrder(
   const quoteId = getOptionalInt(body, "quoteId");
   const listingId = getOptionalInt(body, "listingId");
   const buyerCompanyId = getBodyInt(body, "buyerCompanyId");
+  requireCompanyAccess(auth, buyerCompanyId);
   const directOrderReason = getOptionalString(body, "directOrderReason", 1000);
   const creationSourceCode =
     getOptionalString(body, "creationSourceCode", 80) ??
@@ -2462,6 +2652,9 @@ async function createOrder(
     : [];
   const quote = quoteRows[0];
   if (quoteId && !quote) throw new ApiError(404, "Quote not found.");
+  if (quote && !auth.isAdmin && quote.buyerCompanyId !== auth.companyId) {
+    throw new ApiError(403, "You cannot create an order for another company.");
+  }
 
   const listingRows =
     listingId || quote?.listingId
@@ -2552,6 +2745,12 @@ async function updateOrder(
   id: number,
   auth: AuthContext,
 ) {
+  await requireResourceCompany(
+    auth,
+    "SELECT BuyerCompanyId AS companyId FROM dbo.Orders WHERE Id = @id;",
+    [intParam("id", id)],
+    "Order",
+  );
   const body = await readJsonBody<OrderBody>(request);
   const orderStatusCode = getOptionalString(body, "orderStatusCode", 80);
   const orderStatusId = orderStatusCode
@@ -2600,7 +2799,7 @@ async function updateOrder(
   sendJson(response, 200, { ok: true, order: rows[0] });
 }
 
-async function listNotifications(response: ServerResponse, url: URL) {
+async function listNotifications(response: ServerResponse, url: URL, auth: AuthContext) {
   const userId = url.searchParams.get("userId")
     ? Number(url.searchParams.get("userId"))
     : undefined;
@@ -2634,6 +2833,7 @@ async function listNotifications(response: ServerResponse, url: URL) {
       INNER JOIN dbo.NotificationStatuses ns ON ns.Id = n.NotificationStatusId
       WHERE (@userId IS NULL OR n.UserId = @userId)
         AND (@companyId IS NULL OR n.CompanyId = @companyId)
+        AND (@isAdmin = 1 OR n.UserId = @authUserId OR n.CompanyId = @authCompanyId)
         AND (@statusCode IS NULL OR ns.Code = @statusCode)
         AND (@categoryCode IS NULL OR cat.Code = @categoryCode)
       ORDER BY n.Id DESC;
@@ -2643,6 +2843,9 @@ async function listNotifications(response: ServerResponse, url: URL) {
       intParam("companyId", Number.isInteger(companyId) ? companyId : undefined),
       varcharParam("statusCode", statusCode ? normalizeCode(statusCode) : undefined, 80),
       varcharParam("categoryCode", categoryCode ? normalizeCode(categoryCode) : undefined, 80),
+      bitParam("isAdmin", auth.isAdmin),
+      intParam("authUserId", auth.userId),
+      intParam("authCompanyId", auth.companyId),
     ],
   );
 
@@ -2655,6 +2858,12 @@ async function createNotification(
   auth: AuthContext,
 ) {
   const body = await readJsonBody<NotificationBody>(request);
+  const requestedUserId = getOptionalInt(body, "userId") ?? (auth.isAdmin ? undefined : auth.userId);
+  const requestedCompanyId = getOptionalInt(body, "companyId");
+  if (!auth.isAdmin && requestedUserId !== undefined && requestedUserId !== auth.userId) {
+    throw new ApiError(403, "You cannot create notifications for another user.");
+  }
+  if (!auth.isAdmin && requestedCompanyId !== undefined) requireCompanyAccess(auth, requestedCompanyId);
   const relatedRecordTypeCode = getOptionalString(body, "relatedRecordTypeCode", 80);
   const relatedRecordTypeId = relatedRecordTypeCode
     ? await lookupId("RecordTypes", relatedRecordTypeCode)
@@ -2687,8 +2896,8 @@ async function createNotification(
       );
     `,
     [
-      intParam("userId", getOptionalInt(body, "userId")),
-      intParam("companyId", getOptionalInt(body, "companyId")),
+      intParam("userId", requestedUserId),
+      intParam("companyId", requestedCompanyId),
       intParam("relatedRecordTypeId", relatedRecordTypeId),
       intParam("relatedRecordId", getOptionalInt(body, "relatedRecordId")),
       intParam("notificationChannelId", channelId),
@@ -2722,6 +2931,14 @@ async function updateNotification(
   id: number,
   auth: AuthContext,
 ) {
+  const notification = (await queryRowsWithParams<{ userId: number | null; companyId: number | null }>(
+    "SELECT UserId AS userId, CompanyId AS companyId FROM dbo.Notifications WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!notification) throw new ApiError(404, "Notification not found.");
+  if (!auth.isAdmin && notification.userId !== auth.userId && notification.companyId !== auth.companyId) {
+    throw new ApiError(403, "You cannot update another user's notification.");
+  }
   const body = await readJsonBody<NotificationBody>(request);
   const statusCode = getOptionalString(body, "notificationStatusCode", 80);
   const statusId = statusCode
@@ -2768,7 +2985,7 @@ async function updateNotification(
   sendJson(response, 200, { ok: true, notification: rows[0] });
 }
 
-async function listNotificationPreferences(response: ServerResponse, url: URL) {
+async function listNotificationPreferences(response: ServerResponse, url: URL, auth: AuthContext) {
   const userId = url.searchParams.get("userId")
     ? Number(url.searchParams.get("userId"))
     : undefined;
@@ -2793,11 +3010,15 @@ async function listNotificationPreferences(response: ServerResponse, url: URL) {
       INNER JOIN dbo.NotificationCategories cat ON cat.Id = p.NotificationCategoryId
       WHERE (@userId IS NULL OR p.UserId = @userId)
         AND (@companyId IS NULL OR p.CompanyId = @companyId)
+        AND (@isAdmin = 1 OR p.UserId = @authUserId OR p.CompanyId = @authCompanyId)
       ORDER BY p.Id DESC;
     `,
     [
       intParam("userId", Number.isInteger(userId) ? userId : undefined),
       intParam("companyId", Number.isInteger(companyId) ? companyId : undefined),
+      bitParam("isAdmin", auth.isAdmin),
+      intParam("authUserId", auth.userId),
+      intParam("authCompanyId", auth.companyId),
     ],
   );
 
@@ -2815,6 +3036,10 @@ async function createNotificationPreference(
   if (!userId && !companyId) {
     throw new ApiError(400, "userId or companyId is required.");
   }
+  if (!auth.isAdmin && userId !== undefined && userId !== auth.userId) {
+    throw new ApiError(403, "You cannot create preferences for another user.");
+  }
+  if (!auth.isAdmin && companyId !== undefined) requireCompanyAccess(auth, companyId);
   const channelId = await lookupId(
     "NotificationChannels",
     getOptionalString(body, "notificationChannelCode", 80) ?? "in_app",
@@ -2869,6 +3094,14 @@ async function updateNotificationPreference(
   id: number,
   auth: AuthContext,
 ) {
+  const preference = (await queryRowsWithParams<{ userId: number | null; companyId: number | null }>(
+    "SELECT UserId AS userId, CompanyId AS companyId FROM dbo.NotificationPreferences WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!preference) throw new ApiError(404, "Notification preference not found.");
+  if (!auth.isAdmin && preference.userId !== auth.userId && preference.companyId !== auth.companyId) {
+    throw new ApiError(403, "You cannot update another user's notification preference.");
+  }
   const body = await readJsonBody<NotificationPreferenceBody>(request);
   const rows = await queryRowsWithParams(
     `
@@ -2910,6 +3143,14 @@ async function deleteNotificationPreference(
   id: number,
   auth: AuthContext,
 ) {
+  const preference = (await queryRowsWithParams<{ userId: number | null; companyId: number | null }>(
+    "SELECT UserId AS userId, CompanyId AS companyId FROM dbo.NotificationPreferences WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!preference) throw new ApiError(404, "Notification preference not found.");
+  if (!auth.isAdmin && preference.userId !== auth.userId && preference.companyId !== auth.companyId) {
+    throw new ApiError(403, "You cannot delete another user's notification preference.");
+  }
   const rows = await queryRowsWithParams(
     `
       DELETE FROM dbo.NotificationPreferences
@@ -3341,7 +3582,7 @@ async function deleteCarrier(
   sendJson(response, 200, { ok: true, carrier: rows[0] });
 }
 
-async function listShipments(response: ServerResponse, url: URL) {
+async function listShipments(response: ServerResponse, url: URL, auth: AuthContext) {
   const orderId = url.searchParams.get("orderId")
     ? Number(url.searchParams.get("orderId"))
     : undefined;
@@ -3358,15 +3599,19 @@ async function listShipments(response: ServerResponse, url: URL) {
         s.PickupScheduledAt AS pickupScheduledAt, s.DeliveryConfirmedAt AS deliveryConfirmedAt,
         s.CreatedAt AS createdAt, s.UpdatedAt AS updatedAt
       FROM dbo.Shipments s
+      INNER JOIN dbo.Orders o ON o.Id = s.OrderId
       LEFT JOIN dbo.Carriers c ON c.Id = s.CarrierId
       INNER JOIN dbo.ShipmentStatuses ss ON ss.Id = s.ShipmentStatusId
       WHERE (@orderId IS NULL OR s.OrderId = @orderId)
+        AND (@isAdmin = 1 OR o.BuyerCompanyId = @authCompanyId OR o.SellerCompanyId = @authCompanyId)
         AND (@statusCode IS NULL OR ss.Code = @statusCode)
       ORDER BY s.Id DESC;
     `,
     [
       intParam("orderId", Number.isInteger(orderId) ? orderId : undefined),
       varcharParam("statusCode", statusCode ? normalizeCode(statusCode) : undefined, 80),
+      bitParam("isAdmin", auth.isAdmin),
+      intParam("authCompanyId", auth.companyId),
     ],
   );
 
@@ -3380,6 +3625,8 @@ async function createShipment(
 ) {
   const body = await readJsonBody<ShipmentBody>(request);
   const carrierCode = getOptionalString(body, "carrierCode", 80);
+  const orderId = getBodyInt(body, "orderId");
+  await requireOrderAccess(auth, orderId);
   const carrierId = getOptionalInt(body, "carrierId") ?? (carrierCode ? await lookupId("Carriers", carrierCode) : undefined);
   const shipmentStatusId = await lookupId(
     "ShipmentStatuses",
@@ -3401,7 +3648,7 @@ async function createShipment(
       );
     `,
     [
-      intParam("orderId", getBodyInt(body, "orderId")),
+      intParam("orderId", orderId),
       intParam("carrierId", carrierId),
       varcharParam("trackingNumber", getOptionalString(body, "trackingNumber", 160), 160),
       intParam("originLocationId", getOptionalInt(body, "originLocationId")),
@@ -3435,6 +3682,12 @@ async function updateShipment(
   id: number,
   auth: AuthContext,
 ) {
+  const shipmentOrder = (await queryRowsWithParams<{ orderId: number }>(
+    "SELECT OrderId AS orderId FROM dbo.Shipments WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!shipmentOrder) throw new ApiError(404, "Shipment not found.");
+  await requireOrderAccess(auth, shipmentOrder.orderId);
   const body = await readJsonBody<ShipmentBody>(request);
   const statusCode = getOptionalString(body, "shipmentStatusCode", 80);
   const statusId = statusCode ? await lookupId("ShipmentStatuses", statusCode) : undefined;
@@ -3489,7 +3742,7 @@ async function updateShipment(
   sendJson(response, 200, { ok: true, shipment: rows[0] });
 }
 
-async function listEscrows(response: ServerResponse, url: URL) {
+async function listEscrows(response: ServerResponse, url: URL, auth: AuthContext) {
   const orderId = url.searchParams.get("orderId")
     ? Number(url.searchParams.get("orderId"))
     : undefined;
@@ -3503,13 +3756,15 @@ async function listEscrows(response: ServerResponse, url: URL) {
         rr.Code AS releaseRuleCode, e.DisputeLocked AS disputeLocked,
         e.CreatedAt AS createdAt, e.UpdatedAt AS updatedAt
       FROM dbo.Escrows e
+      INNER JOIN dbo.Orders o ON o.Id = e.OrderId
       INNER JOIN dbo.EscrowProviders ep ON ep.Id = e.EscrowProviderId
       INNER JOIN dbo.EscrowStatuses es ON es.Id = e.EscrowStatusId
       INNER JOIN dbo.EscrowReleaseRules rr ON rr.Id = e.ReleaseRuleId
       WHERE (@orderId IS NULL OR e.OrderId = @orderId)
+        AND (@isAdmin = 1 OR o.BuyerCompanyId = @authCompanyId OR o.SellerCompanyId = @authCompanyId)
       ORDER BY e.Id DESC;
     `,
-    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined)],
+    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined), bitParam("isAdmin", auth.isAdmin), intParam("authCompanyId", auth.companyId)],
   );
 
   sendJson(response, 200, { ok: true, escrows });
@@ -3522,6 +3777,7 @@ async function createEscrow(
 ) {
   const body = await readJsonBody<EscrowBody>(request);
   const orderId = getBodyInt(body, "orderId");
+  await requireOrderAccess(auth, orderId);
   const order = (
     await queryRowsWithParams<{ totalAmount: number; currencyCode: string; escrowRequired: boolean }>(
       "SELECT TotalAmount AS totalAmount, CurrencyCode AS currencyCode, EscrowRequired AS escrowRequired FROM dbo.Orders WHERE Id = @orderId;",
@@ -3580,6 +3836,12 @@ async function updateEscrow(
   id: number,
   auth: AuthContext,
 ) {
+  const escrowOrder = (await queryRowsWithParams<{ orderId: number }>(
+    "SELECT OrderId AS orderId FROM dbo.Escrows WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!escrowOrder) throw new ApiError(404, "Escrow not found.");
+  await requireOrderAccess(auth, escrowOrder.orderId);
   const body = await readJsonBody<EscrowBody>(request);
   const statusCode = getOptionalString(body, "escrowStatusCode", 80);
   const rows = await queryRowsWithParams(
@@ -3622,7 +3884,7 @@ async function updateEscrow(
   sendJson(response, 200, { ok: true, escrow: rows[0] });
 }
 
-async function listPayments(response: ServerResponse, url: URL) {
+async function listPayments(response: ServerResponse, url: URL, auth: AuthContext) {
   const orderId = url.searchParams.get("orderId") ? Number(url.searchParams.get("orderId")) : undefined;
   const payments = await queryRowsWithParams(
     `
@@ -3632,13 +3894,15 @@ async function listPayments(response: ServerResponse, url: URL) {
         p.Amount AS amount, p.CurrencyCode AS currencyCode, ps.Code AS paymentStatusCode,
         pt.Code AS paymentTypeCode, p.CreatedAt AS createdAt, p.UpdatedAt AS updatedAt
       FROM dbo.Payments p
+      INNER JOIN dbo.Orders o ON o.Id = p.OrderId
       INNER JOIN dbo.Companies c ON c.Id = p.PayerCompanyId
       INNER JOIN dbo.PaymentStatuses ps ON ps.Id = p.PaymentStatusId
       INNER JOIN dbo.PaymentTypes pt ON pt.Id = p.PaymentTypeId
       WHERE (@orderId IS NULL OR p.OrderId = @orderId)
+        AND (@isAdmin = 1 OR o.BuyerCompanyId = @authCompanyId OR o.SellerCompanyId = @authCompanyId)
       ORDER BY p.Id DESC;
     `,
-    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined)],
+    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined), bitParam("isAdmin", auth.isAdmin), intParam("authCompanyId", auth.companyId)],
   );
   sendJson(response, 200, { ok: true, payments });
 }
@@ -3650,6 +3914,7 @@ async function createPayment(
 ) {
   const body = await readJsonBody<PaymentBody>(request);
   const orderId = getBodyInt(body, "orderId");
+  await requireOrderAccess(auth, orderId);
   const order = (
     await queryRowsWithParams<{ totalAmount: number; currencyCode: string }>(
       "SELECT TotalAmount AS totalAmount, CurrencyCode AS currencyCode FROM dbo.Orders WHERE Id = @orderId;",
@@ -3694,6 +3959,12 @@ async function updatePayment(
   id: number,
   auth: AuthContext,
 ) {
+  const paymentOrder = (await queryRowsWithParams<{ orderId: number }>(
+    "SELECT OrderId AS orderId FROM dbo.Payments WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!paymentOrder) throw new ApiError(404, "Payment not found.");
+  await requireOrderAccess(auth, paymentOrder.orderId);
   const body = await readJsonBody<PaymentBody>(request);
   const statusCode = getOptionalString(body, "paymentStatusCode", 80);
   const rows = await queryRowsWithParams(
@@ -3721,7 +3992,7 @@ async function updatePayment(
   sendJson(response, 200, { ok: true, payment: rows[0] });
 }
 
-async function listPayouts(response: ServerResponse, url: URL) {
+async function listPayouts(response: ServerResponse, url: URL, auth: AuthContext) {
   const orderId = url.searchParams.get("orderId") ? Number(url.searchParams.get("orderId")) : undefined;
   const payouts = await queryRowsWithParams(
     `
@@ -3731,12 +4002,14 @@ async function listPayouts(response: ServerResponse, url: URL) {
         p.Amount AS amount, p.CurrencyCode AS currencyCode, ps.Code AS payoutStatusCode,
         p.CreatedAt AS createdAt, p.UpdatedAt AS updatedAt
       FROM dbo.Payouts p
+      INNER JOIN dbo.Orders o ON o.Id = p.OrderId
       INNER JOIN dbo.Companies c ON c.Id = p.SellerCompanyId
       INNER JOIN dbo.PayoutStatuses ps ON ps.Id = p.PayoutStatusId
       WHERE (@orderId IS NULL OR p.OrderId = @orderId)
+        AND (@isAdmin = 1 OR o.BuyerCompanyId = @authCompanyId OR o.SellerCompanyId = @authCompanyId)
       ORDER BY p.Id DESC;
     `,
-    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined)],
+    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined), bitParam("isAdmin", auth.isAdmin), intParam("authCompanyId", auth.companyId)],
   );
   sendJson(response, 200, { ok: true, payouts });
 }
@@ -3755,6 +4028,7 @@ async function createPayout(
     )
   )[0];
   if (!order) throw new ApiError(404, "Order not found.");
+  await requireOrderAccess(auth, orderId);
 
   const rows = await queryRowsWithParams(
     `
@@ -3791,6 +4065,12 @@ async function updatePayout(
   id: number,
   auth: AuthContext,
 ) {
+  const payoutOrder = (await queryRowsWithParams<{ orderId: number }>(
+    "SELECT OrderId AS orderId FROM dbo.Payouts WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!payoutOrder) throw new ApiError(404, "Payout not found.");
+  await requireOrderAccess(auth, payoutOrder.orderId);
   const body = await readJsonBody<PayoutBody>(request);
   const statusCode = getOptionalString(body, "payoutStatusCode", 80);
   const rows = await queryRowsWithParams(
@@ -3818,7 +4098,7 @@ async function updatePayout(
   sendJson(response, 200, { ok: true, payout: rows[0] });
 }
 
-async function listContracts(response: ServerResponse, url: URL) {
+async function listContracts(response: ServerResponse, url: URL, auth: AuthContext) {
   const companyId = url.searchParams.get("companyId") ? Number(url.searchParams.get("companyId")) : undefined;
   const contracts = await queryRowsWithParams(
     `
@@ -3834,15 +4114,21 @@ async function listContracts(response: ServerResponse, url: URL) {
       INNER JOIN dbo.ContractSources src ON src.Id = c.ContractSourceId
       INNER JOIN dbo.ContractStatuses st ON st.Id = c.ContractStatusId
       WHERE (@companyId IS NULL OR c.BuyerCompanyId = @companyId OR c.SellerCompanyId = @companyId)
+        AND (@isAdmin = 1 OR c.BuyerCompanyId = @authCompanyId OR c.SellerCompanyId = @authCompanyId)
       ORDER BY c.Id DESC;
     `,
-    [intParam("companyId", Number.isInteger(companyId) ? companyId : undefined)],
+    [intParam("companyId", Number.isInteger(companyId) ? companyId : undefined), bitParam("isAdmin", auth.isAdmin), intParam("authCompanyId", auth.companyId)],
   );
   sendJson(response, 200, { ok: true, contracts });
 }
 
 async function createContract(request: IncomingMessage, response: ServerResponse, auth: AuthContext) {
   const body = await readJsonBody<ContractBody>(request);
+  const buyerCompanyId = getBodyInt(body, "buyerCompanyId");
+  const sellerCompanyId = getBodyInt(body, "sellerCompanyId");
+  if (!auth.isAdmin && auth.companyId !== buyerCompanyId && auth.companyId !== sellerCompanyId) {
+    throw new ApiError(403, "A contract must include your active company.");
+  }
   const rows = await queryRowsWithParams(
     `
       INSERT INTO dbo.Contracts (
@@ -3856,8 +4142,8 @@ async function createContract(request: IncomingMessage, response: ServerResponse
       );
     `,
     [
-      intParam("buyerCompanyId", getBodyInt(body, "buyerCompanyId")),
-      intParam("sellerCompanyId", getBodyInt(body, "sellerCompanyId")),
+      intParam("buyerCompanyId", buyerCompanyId),
+      intParam("sellerCompanyId", sellerCompanyId),
       intParam("listingId", getOptionalInt(body, "listingId")),
       intParam("contractSourceId", await lookupId("ContractSources", getOptionalString(body, "contractSourceCode", 80) ?? (getOptionalInt(body, "listingId") ? "platform_listing" : "custom_off_platform"))),
       intParam("contractStatusId", await lookupId("ContractStatuses", getOptionalString(body, "contractStatusCode", 80) ?? "draft")),
@@ -3874,6 +4160,14 @@ async function createContract(request: IncomingMessage, response: ServerResponse
 }
 
 async function updateContract(request: IncomingMessage, response: ServerResponse, id: number, auth: AuthContext) {
+  const contract = (await queryRowsWithParams<{ buyerCompanyId: number; sellerCompanyId: number }>(
+    "SELECT BuyerCompanyId AS buyerCompanyId, SellerCompanyId AS sellerCompanyId FROM dbo.Contracts WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!contract) throw new ApiError(404, "Contract not found.");
+  if (!auth.isAdmin && auth.companyId !== contract.buyerCompanyId && auth.companyId !== contract.sellerCompanyId) {
+    throw new ApiError(403, "You cannot update another company's contract.");
+  }
   const body = await readJsonBody<ContractBody>(request);
   const statusCode = getOptionalString(body, "contractStatusCode", 80);
   const rows = await queryRowsWithParams(
@@ -3905,7 +4199,7 @@ async function updateContract(request: IncomingMessage, response: ServerResponse
   sendJson(response, 200, { ok: true, contract: rows[0] });
 }
 
-async function listSignatures(response: ServerResponse, url: URL) {
+async function listSignatures(response: ServerResponse, url: URL, auth: AuthContext) {
   const contractId = url.searchParams.get("contractId") ? Number(url.searchParams.get("contractId")) : undefined;
   const signatures = await queryRowsWithParams(
     `
@@ -3920,15 +4214,22 @@ async function listSignatures(response: ServerResponse, url: URL) {
       INNER JOIN dbo.Companies c ON c.Id = s.SignerCompanyId
       INNER JOIN dbo.SignatureStatuses st ON st.Id = s.SignatureStatusId
       WHERE (@contractId IS NULL OR s.ContractId = @contractId)
+        AND (@isAdmin = 1 OR s.SignerUserId = @authUserId OR s.SignerCompanyId = @authCompanyId)
       ORDER BY s.Id DESC;
     `,
-    [intParam("contractId", Number.isInteger(contractId) ? contractId : undefined)],
+    [intParam("contractId", Number.isInteger(contractId) ? contractId : undefined), bitParam("isAdmin", auth.isAdmin), intParam("authUserId", auth.userId), intParam("authCompanyId", auth.companyId)],
   );
   sendJson(response, 200, { ok: true, signatures });
 }
 
 async function createSignature(request: IncomingMessage, response: ServerResponse, auth: AuthContext) {
   const body = await readJsonBody<SignatureBody>(request);
+  const signerUserId = getBodyInt(body, "signerUserId");
+  const signerCompanyId = getBodyInt(body, "signerCompanyId");
+  if (!auth.isAdmin) {
+    requireUserAccess(auth, signerUserId);
+    requireCompanyAccess(auth, signerCompanyId);
+  }
   const rows = await queryRowsWithParams(
     `
       INSERT INTO dbo.Signatures (
@@ -3943,8 +4244,8 @@ async function createSignature(request: IncomingMessage, response: ServerRespons
     `,
     [
       intParam("contractId", getBodyInt(body, "contractId")),
-      intParam("signerUserId", getBodyInt(body, "signerUserId")),
-      intParam("signerCompanyId", getBodyInt(body, "signerCompanyId")),
+      intParam("signerUserId", signerUserId),
+      intParam("signerCompanyId", signerCompanyId),
       varcharParam("providerSignatureId", getOptionalString(body, "providerSignatureId", 200), 200),
       intParam("signatureStatusId", await lookupId("SignatureStatuses", getOptionalString(body, "signatureStatusCode", 80) ?? "not_sent")),
       nvarcharParam("signedDocumentUrl", getOptionalString(body, "signedDocumentUrl", 1000), 1000),
@@ -3958,6 +4259,14 @@ async function createSignature(request: IncomingMessage, response: ServerRespons
 }
 
 async function updateSignature(request: IncomingMessage, response: ServerResponse, id: number, auth: AuthContext) {
+  const signature = (await queryRowsWithParams<{ signerUserId: number; signerCompanyId: number }>(
+    "SELECT SignerUserId AS signerUserId, SignerCompanyId AS signerCompanyId FROM dbo.Signatures WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!signature) throw new ApiError(404, "Signature not found.");
+  if (!auth.isAdmin && auth.userId !== signature.signerUserId && auth.companyId !== signature.signerCompanyId) {
+    throw new ApiError(403, "You cannot update another company's signature.");
+  }
   const body = await readJsonBody<SignatureBody>(request);
   const statusCode = getOptionalString(body, "signatureStatusCode", 80);
   const rows = await queryRowsWithParams(
@@ -3987,7 +4296,7 @@ async function updateSignature(request: IncomingMessage, response: ServerRespons
   sendJson(response, 200, { ok: true, signature: rows[0] });
 }
 
-async function listDisputes(response: ServerResponse, url: URL) {
+async function listDisputes(response: ServerResponse, url: URL, auth: AuthContext) {
   const orderId = url.searchParams.get("orderId") ? Number(url.searchParams.get("orderId")) : undefined;
   const disputes = await queryRowsWithParams(
     `
@@ -4000,9 +4309,13 @@ async function listDisputes(response: ServerResponse, url: URL) {
       INNER JOIN dbo.DisputeIssueTypes it ON it.Id = d.IssueTypeId
       INNER JOIN dbo.DisputeStatuses st ON st.Id = d.DisputeStatusId
       WHERE (@orderId IS NULL OR d.OrderId = @orderId)
+        AND (@isAdmin = 1 OR d.OpenedByUserId = @authUserId OR EXISTS (
+          SELECT 1 FROM dbo.Orders o
+          WHERE o.Id = d.OrderId AND (o.BuyerCompanyId = @authCompanyId OR o.SellerCompanyId = @authCompanyId)
+        ))
       ORDER BY d.Id DESC;
     `,
-    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined)],
+    [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined), bitParam("isAdmin", auth.isAdmin), intParam("authUserId", auth.userId), intParam("authCompanyId", auth.companyId)],
   );
   sendJson(response, 200, { ok: true, disputes });
 }
@@ -4013,6 +4326,17 @@ async function createDispute(request: IncomingMessage, response: ServerResponse,
   const escrowId = getOptionalInt(body, "escrowId");
   const shipmentId = getOptionalInt(body, "shipmentId");
   if (!orderId && !escrowId && !shipmentId) throw new ApiError(400, "orderId, escrowId, or shipmentId is required.");
+  if (orderId) await requireOrderAccess(auth, orderId);
+  if (!auth.isAdmin && escrowId) {
+    const escrowOrder = (await queryRowsWithParams<{ orderId: number }>("SELECT OrderId AS orderId FROM dbo.Escrows WHERE Id = @id;", [intParam("id", escrowId)]))[0];
+    if (!escrowOrder) throw new ApiError(404, "Escrow not found.");
+    await requireOrderAccess(auth, escrowOrder.orderId);
+  }
+  if (!auth.isAdmin && shipmentId) {
+    const shipmentOrder = (await queryRowsWithParams<{ orderId: number }>("SELECT OrderId AS orderId FROM dbo.Shipments WHERE Id = @id;", [intParam("id", shipmentId)]))[0];
+    if (!shipmentOrder) throw new ApiError(404, "Shipment not found.");
+    await requireOrderAccess(auth, shipmentOrder.orderId);
+  }
   const rows = await queryRowsWithParams(
     `
       INSERT INTO dbo.Disputes (
@@ -4043,6 +4367,20 @@ async function createDispute(request: IncomingMessage, response: ServerResponse,
 }
 
 async function updateDispute(request: IncomingMessage, response: ServerResponse, id: number, auth: AuthContext) {
+  const dispute = (await queryRowsWithParams<{ orderId: number | null; openedByUserId: number }>(
+    "SELECT OrderId AS orderId, OpenedByUserId AS openedByUserId FROM dbo.Disputes WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!dispute) throw new ApiError(404, "Dispute not found.");
+  if (!auth.isAdmin) {
+    if (dispute.openedByUserId === auth.userId) {
+      // opener may update their own dispute
+    } else if (dispute.orderId) {
+      await requireOrderAccess(auth, dispute.orderId);
+    } else {
+      throw new ApiError(403, "You cannot update this dispute.");
+    }
+  }
   const body = await readJsonBody<DisputeBody>(request);
   const statusCode = getOptionalString(body, "disputeStatusCode", 80);
   const rows = await queryRowsWithParams(
@@ -4106,12 +4444,14 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/users") {
     if (method === "GET") {
-      await listUsers(response);
+      await listUsers(response, await requireSessionAuth(request));
       return true;
     }
 
     if (method === "POST") {
-      await createUser(request, response);
+      const auth = await requireSessionAuth(request);
+      requireAdmin(auth);
+      await createUser(request, response, auth);
       return true;
     }
   }
@@ -4134,7 +4474,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/companies") {
     if (method === "GET") {
-      await listCompanies(response);
+      await listCompanies(response, await requireSessionAuth(request));
       return true;
     }
 
@@ -4172,7 +4512,7 @@ export async function handleApiRoute(
     const companyId = parseId(companyMembersMatch.params.id, "Company ID");
 
     if (method === "GET") {
-      await listCompanyMembers(response, companyId);
+      await listCompanyMembers(response, companyId, await requireSessionAuth(request));
       return true;
     }
 
@@ -4192,9 +4532,9 @@ export async function handleApiRoute(
     "/api/company-members/:id",
   );
   if (memberMatch.matched && method === "DELETE") {
-    await deleteCompanyMember(
-      response,
-      parseId(memberMatch.params.id, "Company member ID"),
+      await deleteCompanyMember(
+        response,
+        parseId(memberMatch.params.id, "Company member ID"),
       await requireSessionAuth(request),
     );
     return true;
@@ -4205,7 +4545,7 @@ export async function handleApiRoute(
       const companyId = requestUrl.searchParams.get("companyId")
         ? Number(requestUrl.searchParams.get("companyId"))
         : undefined;
-      await listLocations(response, companyId);
+      await listLocations(response, companyId, await requireSessionAuth(request));
       return true;
     }
 
@@ -4227,7 +4567,7 @@ export async function handleApiRoute(
     const companyId = parseId(companyLocationsMatch.params.id, "Company ID");
 
     if (method === "GET") {
-      await listLocations(response, companyId);
+      await listLocations(response, companyId, await requireSessionAuth(request));
       return true;
     }
 
@@ -4257,8 +4597,7 @@ export async function handleApiRoute(
     }
 
     if (method === "DELETE") {
-      await requireSessionAuth(request);
-      await deleteLocation(response, id);
+      await deleteLocation(response, id, await requireSessionAuth(request));
       return true;
     }
   }
@@ -4378,7 +4717,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/quotes") {
     if (method === "GET") {
-      await listQuotes(response, requestUrl);
+      await listQuotes(response, requestUrl, await requireSessionAuth(request));
       return true;
     }
 
@@ -4400,7 +4739,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/orders") {
     if (method === "GET") {
-      await listOrders(response, requestUrl);
+      await listOrders(response, requestUrl, await requireSessionAuth(request));
       return true;
     }
 
@@ -4422,7 +4761,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/notifications") {
     if (method === "GET") {
-      await listNotifications(response, requestUrl);
+      await listNotifications(response, requestUrl, await requireSessionAuth(request));
       return true;
     }
 
@@ -4456,7 +4795,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/notification-preferences") {
     if (method === "GET") {
-      await listNotificationPreferences(response, requestUrl);
+      await listNotificationPreferences(response, requestUrl, await requireSessionAuth(request));
       return true;
     }
 
@@ -4530,7 +4869,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/shipments") {
     if (method === "GET") {
-      await listShipments(response, requestUrl);
+      await listShipments(response, requestUrl, await requireSessionAuth(request));
       return true;
     }
 
@@ -4552,7 +4891,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/escrows") {
     if (method === "GET") {
-      await listEscrows(response, requestUrl);
+      await listEscrows(response, requestUrl, await requireSessionAuth(request));
       return true;
     }
 
@@ -4574,7 +4913,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/payments") {
     if (method === "GET") {
-      await listPayments(response, requestUrl);
+      await listPayments(response, requestUrl, await requireSessionAuth(request));
       return true;
     }
 
@@ -4596,7 +4935,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/payouts") {
     if (method === "GET") {
-      await listPayouts(response, requestUrl);
+      await listPayouts(response, requestUrl, await requireSessionAuth(request));
       return true;
     }
 
@@ -4618,7 +4957,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/contracts") {
     if (method === "GET") {
-      await listContracts(response, requestUrl);
+      await listContracts(response, requestUrl, await requireSessionAuth(request));
       return true;
     }
 
@@ -4640,7 +4979,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/signatures") {
     if (method === "GET") {
-      await listSignatures(response, requestUrl);
+      await listSignatures(response, requestUrl, await requireSessionAuth(request));
       return true;
     }
 
@@ -4662,7 +5001,7 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/disputes") {
     if (method === "GET") {
-      await listDisputes(response, requestUrl);
+      await listDisputes(response, requestUrl, await requireSessionAuth(request));
       return true;
     }
 
