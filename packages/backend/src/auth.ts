@@ -6,7 +6,13 @@ import {
 } from "node:crypto";
 import { promisify } from "node:util";
 import type { IncomingMessage } from "node:http";
-import { queryRowsWithParams, sql } from "./database.js";
+import {
+  queryRowsWithParams,
+  queryRowsWithParamsInTransaction,
+  runInTransaction,
+  sql,
+} from "./database.js";
+import { sendEcoGlobeEmail } from "./email.js";
 import { ApiError, type AuthContext } from "./http.js";
 
 const pbkdf2 = promisify(pbkdf2Callback);
@@ -14,6 +20,8 @@ const pbkdf2 = promisify(pbkdf2Callback);
 const PASSWORD_ITERATIONS = 210_000;
 const PASSWORD_KEY_LENGTH = 32;
 const SESSION_DAYS = 7;
+const EMAIL_VERIFICATION_HOURS = 24;
+const PASSWORD_RESET_MINUTES = 30;
 
 function getDemoPassword() {
   const password = process.env.ECOGLOBE_DEMO_PASSWORD?.trim();
@@ -33,6 +41,7 @@ type UserRecord = {
   name: string;
   email: string;
   accountStatusCode: string;
+  emailVerifiedAt?: Date | string | null;
 };
 
 type SessionRecord = {
@@ -44,6 +53,7 @@ type SessionRecord = {
   name: string;
   email: string;
   accountStatusCode: string;
+  emailVerifiedAt?: Date | string | null;
 };
 
 export type SessionUser = UserRecord & {
@@ -123,6 +133,32 @@ function getAuthorizedRoles(
 
 function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest();
+}
+
+function createAuthToken() {
+  const token = randomBytes(32).toString("base64url");
+  return { token, tokenHash: hashSessionToken(token) };
+}
+
+function webUrl(path: string, token: string) {
+  const baseUrl =
+    process.env.ECOGLOBE_WEB_URL?.trim().replace(/\/$/, "") ||
+    "http://localhost:4040";
+  return `${baseUrl}${path}?token=${encodeURIComponent(token)}`;
+}
+
+function escapeHtml(value: string) {
+  return value.replace(
+    /[&<>\"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character] ?? character,
+  );
 }
 
 async function hashPassword(
@@ -237,17 +273,253 @@ export async function createPasswordUser({
   return user;
 }
 
+async function issueVerificationToken(userId: number) {
+  const { token, tokenHash } = createAuthToken();
+  const expiresAt = new Date(
+    Date.now() + EMAIL_VERIFICATION_HOURS * 60 * 60 * 1000,
+  );
+
+  await queryRowsWithParams(
+    `
+      UPDATE dbo.Users
+      SET EmailVerificationTokenHash = @tokenHash,
+          EmailVerificationTokenExpiresAt = @expiresAt,
+          UpdatedAt = SYSUTCDATETIME()
+      WHERE Id = @userId;
+    `,
+    [
+      varBinaryParam("tokenHash", tokenHash, 32),
+      dateTimeParam("expiresAt", expiresAt),
+      intParam("userId", userId),
+    ],
+  );
+
+  return token;
+}
+
+async function issuePasswordResetToken(userId: number) {
+  const { token, tokenHash } = createAuthToken();
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_MINUTES * 60 * 1000);
+
+  await queryRowsWithParams(
+    `
+      UPDATE dbo.Users
+      SET PasswordResetTokenHash = @tokenHash,
+          PasswordResetTokenExpiresAt = @expiresAt,
+          UpdatedAt = SYSUTCDATETIME()
+      WHERE Id = @userId;
+    `,
+    [
+      varBinaryParam("tokenHash", tokenHash, 32),
+      dateTimeParam("expiresAt", expiresAt),
+      intParam("userId", userId),
+    ],
+  );
+
+  return token;
+}
+
+async function sendVerificationEmail(
+  user: Pick<UserRecord, "id" | "name" | "email">,
+) {
+  const token = await issueVerificationToken(user.id);
+  const link = webUrl("/verify-email", token);
+  const safeName = escapeHtml(user.name);
+  const safeLink = escapeHtml(link);
+
+  await sendEcoGlobeEmail({
+    to: user.email,
+    subject: "Verify your EcoGlobe email",
+    html: `<h1>Verify your EcoGlobe email</h1><p>Hi ${safeName},</p><p>Confirm your email address to finish setting up your EcoGlobe account.</p><p><a href="${safeLink}">Verify email address</a></p><p>This link expires in 24 hours.</p>`,
+    text: `Verify your EcoGlobe email: ${link}\n\nThis link expires in 24 hours.`,
+  });
+}
+
+export async function resendVerificationEmail(email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  const user = (
+    await queryRowsWithParams<UserRecord>(
+      `
+        SELECT u.Id AS id, u.Name AS name, u.Email AS email,
+               u.EmailVerifiedAt AS emailVerifiedAt,
+               s.Code AS accountStatusCode
+        FROM dbo.Users u
+        INNER JOIN dbo.AccountStatuses s ON s.Id = u.AccountStatusId
+        WHERE u.Email = @email;
+      `,
+      [textParam("email", normalizedEmail, 320)],
+    )
+  )[0];
+
+  if (!user || user.emailVerifiedAt) {
+    return { sent: false };
+  }
+
+  await sendVerificationEmail(user);
+  return { sent: true };
+}
+
+export async function verifyEmailToken(token: string) {
+  const tokenHash = hashSessionToken(token);
+  const verified = await queryRowsWithParams<{ id: number; email: string }>(
+    `
+      UPDATE dbo.Users
+      SET EmailVerifiedAt = SYSUTCDATETIME(),
+          EmailVerificationTokenHash = NULL,
+          EmailVerificationTokenExpiresAt = NULL,
+          UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.Email AS email
+      WHERE EmailVerificationTokenHash = @tokenHash
+        AND EmailVerificationTokenExpiresAt > SYSUTCDATETIME();
+    `,
+    [varBinaryParam("tokenHash", tokenHash, 32)],
+  );
+
+  if (!verified[0]) {
+    throw new ApiError(400, "This verification link is invalid or expired.");
+  }
+
+  return verified[0];
+}
+
+export async function requestPasswordReset(email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  const user = (
+    await queryRowsWithParams<UserRecord>(
+      `
+        SELECT u.Id AS id, u.Name AS name, u.Email AS email,
+               s.Code AS accountStatusCode
+        FROM dbo.Users u
+        INNER JOIN dbo.AccountStatuses s ON s.Id = u.AccountStatusId
+        WHERE u.Email = @email;
+      `,
+      [textParam("email", normalizedEmail, 320)],
+    )
+  )[0];
+
+  if (!user) {
+    return { sent: false };
+  }
+
+  const token = await issuePasswordResetToken(user.id);
+  const link = webUrl("/reset-password", token);
+  const safeName = escapeHtml(user.name);
+  const safeLink = escapeHtml(link);
+
+  await sendEcoGlobeEmail({
+    to: user.email,
+    subject: "Reset your EcoGlobe password",
+    html: `<h1>Reset your EcoGlobe password</h1><p>Hi ${safeName},</p><p>Use the link below to choose a new password.</p><p><a href="${safeLink}">Reset password</a></p><p>This link expires in 30 minutes.</p>`,
+    text: `Reset your EcoGlobe password: ${link}\n\nThis link expires in 30 minutes.`,
+  });
+
+  return { sent: true };
+}
+
+export async function resetPassword(token: string, password: string) {
+  if (password.length < 8) {
+    throw new ApiError(400, "password must be at least 8 characters.");
+  }
+
+  const tokenHash = hashSessionToken(token);
+  const { hash, salt, iterations } = await hashPassword(password);
+
+  await runInTransaction(async (transaction) => {
+    const consumed = await queryRowsWithParamsInTransaction<{ id: number }>(
+      transaction,
+      `
+        UPDATE dbo.Users
+        SET PasswordResetTokenHash = NULL,
+            PasswordResetTokenExpiresAt = NULL,
+            UpdatedAt = SYSUTCDATETIME()
+        OUTPUT INSERTED.Id AS id
+        WHERE PasswordResetTokenHash = @tokenHash
+          AND PasswordResetTokenExpiresAt > SYSUTCDATETIME();
+      `,
+      [varBinaryParam("tokenHash", tokenHash, 32)],
+    );
+
+    const user = consumed[0];
+    if (!user) {
+      throw new ApiError(400, "This reset link is invalid or expired.");
+    }
+
+    const updated = await queryRowsWithParamsInTransaction<{ userId: number }>(
+      transaction,
+      `
+        UPDATE dbo.UserPasswords
+        SET PasswordHash = @passwordHash,
+            PasswordSalt = @passwordSalt,
+            Iterations = @iterations,
+            PasswordUpdatedAt = SYSUTCDATETIME(),
+            UpdatedByUserId = @userId,
+            UpdatedAt = SYSUTCDATETIME()
+        OUTPUT INSERTED.UserId AS userId
+        WHERE UserId = @userId;
+      `,
+      [
+        varBinaryParam("passwordHash", hash, 64),
+        varBinaryParam("passwordSalt", salt, 32),
+        intParam("iterations", iterations),
+        intParam("userId", user.id),
+      ],
+    );
+
+    if (!updated[0]) {
+      throw new ApiError(500, "Unable to reset this password.");
+    }
+
+    await queryRowsWithParamsInTransaction(
+      transaction,
+      `
+        UPDATE dbo.UserSessions
+        SET RevokedAt = SYSUTCDATETIME(), UpdatedAt = SYSUTCDATETIME()
+        WHERE UserId = @userId AND RevokedAt IS NULL;
+      `,
+      [intParam("userId", user.id)],
+    );
+  });
+
+  return { ok: true };
+}
+
+export async function markUserEmailVerified(userId: number) {
+  await queryRowsWithParams(
+    `UPDATE dbo.Users SET EmailVerifiedAt = COALESCE(EmailVerifiedAt, SYSUTCDATETIME()), UpdatedAt = SYSUTCDATETIME() WHERE Id = @userId;`,
+    [intParam("userId", userId)],
+  );
+}
+
 async function ensurePasswordCredential(userId: number, password: string) {
   const existing = await queryRowsWithParams<{ id: number }>(
     "SELECT Id AS id FROM dbo.UserPasswords WHERE UserId = @userId;",
     [intParam("userId", userId)],
   );
 
+  const { hash, salt, iterations } = await hashPassword(password);
+
   if (existing[0]) {
+    await queryRowsWithParams(
+      `
+        UPDATE dbo.UserPasswords
+        SET PasswordHash = @passwordHash,
+            PasswordSalt = @passwordSalt,
+            Iterations = @iterations,
+            UpdatedByUserId = @updatedByUserId,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE UserId = @userId;
+      `,
+      [
+        intParam("userId", userId),
+        varBinaryParam("passwordHash", hash, 64),
+        varBinaryParam("passwordSalt", salt, 32),
+        intParam("iterations", iterations),
+        intParam("updatedByUserId", userId),
+      ],
+    );
     return;
   }
 
-  const { hash, salt, iterations } = await hashPassword(password);
   await queryRowsWithParams(
     `
       INSERT INTO dbo.UserPasswords (UserId, PasswordHash, PasswordSalt, Iterations, CreatedByUserId, UpdatedByUserId)
@@ -361,6 +633,7 @@ export async function loginWithPassword({
         u.Id AS id,
         u.Name AS name,
         u.Email AS email,
+        u.EmailVerifiedAt AS emailVerifiedAt,
         s.Code AS accountStatusCode,
         up.PasswordHash AS passwordHash,
         up.PasswordSalt AS passwordSalt,
@@ -392,6 +665,13 @@ export async function loginWithPassword({
     user.accountStatusCode === "inactive"
   ) {
     throw new ApiError(403, "This user account is not active.");
+  }
+
+  if (!user.emailVerifiedAt) {
+    throw new ApiError(
+      403,
+      "Please verify your email address before signing in.",
+    );
   }
 
   const companies = await getUserCompanies(user.id);
@@ -468,6 +748,7 @@ export async function getSessionFromToken(token: string | undefined) {
         s.ExpiresAt AS expiresAt,
         u.Name AS name,
         u.Email AS email,
+        u.EmailVerifiedAt AS emailVerifiedAt,
         us.Code AS accountStatusCode
       FROM dbo.UserSessions s
       INNER JOIN dbo.Users u ON u.Id = s.UserId
@@ -582,7 +863,7 @@ export async function seedDemoAuthAccounts() {
   for (const demo of demoUsers) {
     let user = (
       await queryRowsWithParams<UserRecord>(
-        "SELECT u.Id AS id, u.Name AS name, u.Email AS email, s.Code AS accountStatusCode FROM dbo.Users u INNER JOIN dbo.AccountStatuses s ON s.Id = u.AccountStatusId WHERE u.Email = @email;",
+        "SELECT u.Id AS id, u.Name AS name, u.Email AS email, u.EmailVerifiedAt AS emailVerifiedAt, s.Code AS accountStatusCode FROM dbo.Users u INNER JOIN dbo.AccountStatuses s ON s.Id = u.AccountStatusId WHERE u.Email = @email;",
         [textParam("email", demo.email, 320)],
       )
     )[0];
@@ -597,6 +878,8 @@ export async function seedDemoAuthAccounts() {
     } else {
       await ensurePasswordCredential(user.id, demoPassword);
     }
+
+    await markUserEmailVerified(user.id);
 
     const companyTypeId = await lookupId("CompanyTypes", demo.companyTypeCode);
     const company =

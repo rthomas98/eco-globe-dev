@@ -63,6 +63,11 @@ BEGIN
         Name NVARCHAR(200) NOT NULL,
         Email NVARCHAR(320) NOT NULL CONSTRAINT UQ_Users_Email UNIQUE,
         AccountStatusId INT NOT NULL,
+        EmailVerifiedAt DATETIME2 NULL,
+        EmailVerificationTokenHash VARBINARY(32) NULL,
+        EmailVerificationTokenExpiresAt DATETIME2 NULL,
+        PasswordResetTokenHash VARBINARY(32) NULL,
+        PasswordResetTokenExpiresAt DATETIME2 NULL,
         CreatedByUserId INT NULL,
         CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Users_CreatedAt DEFAULT (SYSUTCDATETIME()),
         UpdatedByUserId INT NULL,
@@ -72,6 +77,23 @@ BEGIN
         CONSTRAINT FK_Users_UpdatedBy FOREIGN KEY (UpdatedByUserId) REFERENCES dbo.Users(Id)
     );
 END;
+GO
+
+-- Email verification and password recovery are additive to preserve existing data.
+IF COL_LENGTH('dbo.Users', 'EmailVerifiedAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD EmailVerifiedAt DATETIME2 NULL;
+END;
+GO
+
+IF COL_LENGTH('dbo.Users', 'EmailVerificationTokenHash') IS NULL ALTER TABLE dbo.Users ADD EmailVerificationTokenHash VARBINARY(32) NULL;
+IF COL_LENGTH('dbo.Users', 'EmailVerificationTokenExpiresAt') IS NULL ALTER TABLE dbo.Users ADD EmailVerificationTokenExpiresAt DATETIME2 NULL;
+IF COL_LENGTH('dbo.Users', 'PasswordResetTokenHash') IS NULL ALTER TABLE dbo.Users ADD PasswordResetTokenHash VARBINARY(32) NULL;
+IF COL_LENGTH('dbo.Users', 'PasswordResetTokenExpiresAt') IS NULL ALTER TABLE dbo.Users ADD PasswordResetTokenExpiresAt DATETIME2 NULL;
+GO
+
+-- Existing accounts predate the verification gate; preserve their access.
+EXEC sp_executesql N'UPDATE dbo.Users SET EmailVerifiedAt = CreatedAt WHERE EmailVerifiedAt IS NULL;';
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_AccountStatuses_CreatedBy')
@@ -835,13 +857,29 @@ BEGIN
         Title NVARCHAR(220) NOT NULL,
         RenewalTerms NVARCHAR(1000) NULL,
         RenewalDate DATE NULL,
+        ProviderName VARCHAR(80) NULL,
+        ProviderEnvelopeId VARCHAR(200) NULL,
+        ProviderTemplateId VARCHAR(200) NULL,
         SignedDocumentUrl NVARCHAR(1000) NULL,
+        CompletionCertificateUrl NVARCHAR(1000) NULL,
+        CompletedAt DATETIME2 NULL,
         CreatedByUserId INT NULL CONSTRAINT FK_Contracts_CreatedBy REFERENCES dbo.Users(Id),
         CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Contracts_CreatedAt DEFAULT (SYSUTCDATETIME()),
         UpdatedByUserId INT NULL CONSTRAINT FK_Contracts_UpdatedBy REFERENCES dbo.Users(Id),
         UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_Contracts_UpdatedAt DEFAULT (SYSUTCDATETIME())
     );
 END;
+GO
+
+IF COL_LENGTH(N'dbo.Contracts', N'ProviderName') IS NULL ALTER TABLE dbo.Contracts ADD ProviderName VARCHAR(80) NULL;
+IF COL_LENGTH(N'dbo.Contracts', N'ProviderEnvelopeId') IS NULL ALTER TABLE dbo.Contracts ADD ProviderEnvelopeId VARCHAR(200) NULL;
+IF COL_LENGTH(N'dbo.Contracts', N'ProviderTemplateId') IS NULL ALTER TABLE dbo.Contracts ADD ProviderTemplateId VARCHAR(200) NULL;
+IF COL_LENGTH(N'dbo.Contracts', N'CompletionCertificateUrl') IS NULL ALTER TABLE dbo.Contracts ADD CompletionCertificateUrl NVARCHAR(1000) NULL;
+IF COL_LENGTH(N'dbo.Contracts', N'CompletedAt') IS NULL ALTER TABLE dbo.Contracts ADD CompletedAt DATETIME2 NULL;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_Contracts_ProviderEnvelopeId' AND object_id = OBJECT_ID(N'dbo.Contracts'))
+    CREATE UNIQUE INDEX UX_Contracts_ProviderEnvelopeId ON dbo.Contracts(ProviderEnvelopeId) WHERE ProviderEnvelopeId IS NOT NULL;
 GO
 
 IF OBJECT_ID(N'dbo.Signatures', N'U') IS NULL
@@ -851,14 +889,47 @@ BEGIN
         ContractId INT NOT NULL CONSTRAINT FK_Signatures_Contracts REFERENCES dbo.Contracts(Id),
         SignerUserId INT NOT NULL CONSTRAINT FK_Signatures_SignerUsers REFERENCES dbo.Users(Id),
         SignerCompanyId INT NOT NULL CONSTRAINT FK_Signatures_SignerCompanies REFERENCES dbo.Companies(Id),
+        ProviderName VARCHAR(80) NULL,
+        ProviderEnvelopeId VARCHAR(200) NULL,
         ProviderSignatureId VARCHAR(200) NULL,
+        ProviderRecipientId VARCHAR(200) NULL,
+        ProviderClientUserId VARCHAR(200) NULL,
         SignatureStatusId INT NOT NULL CONSTRAINT FK_Signatures_SignatureStatuses REFERENCES dbo.SignatureStatuses(Id),
         SignedDocumentUrl NVARCHAR(1000) NULL,
+        SentAt DATETIME2 NULL,
+        DeliveredAt DATETIME2 NULL,
         SignedAt DATETIME2 NULL,
+        DeclinedAt DATETIME2 NULL,
         CreatedByUserId INT NULL CONSTRAINT FK_Signatures_CreatedBy REFERENCES dbo.Users(Id),
         CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Signatures_CreatedAt DEFAULT (SYSUTCDATETIME()),
         UpdatedByUserId INT NULL CONSTRAINT FK_Signatures_UpdatedBy REFERENCES dbo.Users(Id),
         UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_Signatures_UpdatedAt DEFAULT (SYSUTCDATETIME())
+    );
+END;
+GO
+
+IF COL_LENGTH(N'dbo.Signatures', N'ProviderName') IS NULL ALTER TABLE dbo.Signatures ADD ProviderName VARCHAR(80) NULL;
+IF COL_LENGTH(N'dbo.Signatures', N'ProviderEnvelopeId') IS NULL ALTER TABLE dbo.Signatures ADD ProviderEnvelopeId VARCHAR(200) NULL;
+IF COL_LENGTH(N'dbo.Signatures', N'ProviderRecipientId') IS NULL ALTER TABLE dbo.Signatures ADD ProviderRecipientId VARCHAR(200) NULL;
+IF COL_LENGTH(N'dbo.Signatures', N'ProviderClientUserId') IS NULL ALTER TABLE dbo.Signatures ADD ProviderClientUserId VARCHAR(200) NULL;
+IF COL_LENGTH(N'dbo.Signatures', N'SentAt') IS NULL ALTER TABLE dbo.Signatures ADD SentAt DATETIME2 NULL;
+IF COL_LENGTH(N'dbo.Signatures', N'DeliveredAt') IS NULL ALTER TABLE dbo.Signatures ADD DeliveredAt DATETIME2 NULL;
+IF COL_LENGTH(N'dbo.Signatures', N'DeclinedAt') IS NULL ALTER TABLE dbo.Signatures ADD DeclinedAt DATETIME2 NULL;
+GO
+
+IF OBJECT_ID(N'dbo.SignatureWebhookEvents', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SignatureWebhookEvents (
+        Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SignatureWebhookEvents PRIMARY KEY,
+        ProviderName VARCHAR(80) NOT NULL,
+        ProviderEventId VARCHAR(64) NOT NULL CONSTRAINT UQ_SignatureWebhookEvents_ProviderEventId UNIQUE,
+        ProviderEnvelopeId VARCHAR(200) NOT NULL,
+        EventType VARCHAR(120) NOT NULL,
+        PayloadHash VARCHAR(64) NOT NULL,
+        ProcessingStatus VARCHAR(40) NOT NULL CONSTRAINT DF_SignatureWebhookEvents_ProcessingStatus DEFAULT ('received'),
+        ProcessingError NVARCHAR(2000) NULL,
+        ReceivedAt DATETIME2 NOT NULL CONSTRAINT DF_SignatureWebhookEvents_ReceivedAt DEFAULT (SYSUTCDATETIME()),
+        ProcessedAt DATETIME2 NULL
     );
 END;
 GO
@@ -1220,6 +1291,8 @@ USING (
         ('signature_pending', 'Signature pending', 'Contract waiting on signatures.', 20),
         ('active', 'Active', 'Contract active.', 30),
         ('renewal_due', 'Renewal due', 'Contract renewal due.', 70),
+        ('declined', 'Declined', 'A required signer declined the contract.', 80),
+        ('voided', 'Voided', 'The signature envelope was voided.', 85),
         ('expired', 'Expired', 'Contract expired.', 90)
 ) AS source (Code, Name, Description, SortOrder)
 ON target.Code = source.Code

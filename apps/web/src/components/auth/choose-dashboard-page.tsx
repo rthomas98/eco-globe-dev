@@ -45,6 +45,7 @@ export function ChooseDashboardPage() {
   // the page is reached without a session (e.g. direct navigation).
   const available = user ? getUserRoles(user) : (["buyer", "seller"] as UserRole[]);
   const options = OPTIONS.filter((o) => available.includes(o.role));
+  const hasMultiplePortalRoles = options.length > 1;
 
   const choose = (role: UserRole) => {
     writeDemoUser(
@@ -64,8 +65,9 @@ export function ChooseDashboardPage() {
             Where would you like to start?
           </h1>
           <p className="text-base text-neutral-700">
-            Your account has both buyer and seller access. Pick a dashboard to
-            begin — you can switch anytime from the account menu.
+            {hasMultiplePortalRoles
+              ? "Your account has both buyer and seller access. Pick a dashboard to begin — you can switch anytime from the account menu."
+              : "This account does not have access to the requested portal. Continue to the dashboard available for your account."}
           </p>
         </div>
 

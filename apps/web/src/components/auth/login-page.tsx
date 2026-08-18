@@ -33,7 +33,15 @@ export function LoginPage() {
           : role === "buyer"
             ? "/buyer/browse"
             : "/admin/dashboard";
-      router.push(dest);
+      const requestedDestination = new URLSearchParams(window.location.search).get("next");
+      const rolePrefix = `/${role}`;
+      const safeDestination =
+        requestedDestination &&
+        (requestedDestination === rolePrefix || requestedDestination.startsWith(`${rolePrefix}/`)) &&
+        !requestedDestination.startsWith("//")
+          ? requestedDestination
+          : dest;
+      router.push(safeDestination);
     } catch (err) {
       setError(
         err instanceof BackendApiError

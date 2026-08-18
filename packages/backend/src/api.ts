@@ -4107,7 +4107,10 @@ async function listContracts(response: ServerResponse, url: URL, auth: AuthConte
         c.SellerCompanyId AS sellerCompanyId, sc.LegalName AS sellerCompanyName,
         c.ListingId AS listingId, src.Code AS contractSourceCode, st.Code AS contractStatusCode,
         c.Title AS title, c.RenewalTerms AS renewalTerms, c.RenewalDate AS renewalDate,
-        c.SignedDocumentUrl AS signedDocumentUrl, c.CreatedAt AS createdAt, c.UpdatedAt AS updatedAt
+        c.ProviderName AS providerName, c.ProviderEnvelopeId AS providerEnvelopeId,
+        c.ProviderTemplateId AS providerTemplateId, c.SignedDocumentUrl AS signedDocumentUrl,
+        c.CompletionCertificateUrl AS completionCertificateUrl, c.CompletedAt AS completedAt,
+        c.CreatedAt AS createdAt, c.UpdatedAt AS updatedAt
       FROM dbo.Contracts c
       INNER JOIN dbo.Companies bc ON bc.Id = c.BuyerCompanyId
       INNER JOIN dbo.Companies sc ON sc.Id = c.SellerCompanyId
@@ -4206,18 +4209,25 @@ async function listSignatures(response: ServerResponse, url: URL, auth: AuthCont
       SELECT TOP (100)
         s.Id AS id, s.ContractId AS contractId, s.SignerUserId AS signerUserId,
         u.Name AS signerUserName, s.SignerCompanyId AS signerCompanyId,
-        c.LegalName AS signerCompanyName, s.ProviderSignatureId AS providerSignatureId,
+        c.LegalName AS signerCompanyName, s.ProviderName AS providerName,
+        s.ProviderEnvelopeId AS providerEnvelopeId, s.ProviderSignatureId AS providerSignatureId,
+        s.ProviderRecipientId AS providerRecipientId, s.ProviderClientUserId AS providerClientUserId,
         st.Code AS signatureStatusCode, s.SignedDocumentUrl AS signedDocumentUrl,
-        s.SignedAt AS signedAt, s.CreatedAt AS createdAt, s.UpdatedAt AS updatedAt
+        s.SentAt AS sentAt, s.DeliveredAt AS deliveredAt, s.SignedAt AS signedAt,
+        s.DeclinedAt AS declinedAt, s.CreatedAt AS createdAt, s.UpdatedAt AS updatedAt
       FROM dbo.Signatures s
       INNER JOIN dbo.Users u ON u.Id = s.SignerUserId
       INNER JOIN dbo.Companies c ON c.Id = s.SignerCompanyId
       INNER JOIN dbo.SignatureStatuses st ON st.Id = s.SignatureStatusId
       WHERE (@contractId IS NULL OR s.ContractId = @contractId)
-        AND (@isAdmin = 1 OR s.SignerUserId = @authUserId OR s.SignerCompanyId = @authCompanyId)
+        AND (@isAdmin = 1 OR EXISTS (
+          SELECT 1 FROM dbo.Contracts accessibleContract
+          WHERE accessibleContract.Id = s.ContractId
+            AND (accessibleContract.BuyerCompanyId = @authCompanyId OR accessibleContract.SellerCompanyId = @authCompanyId)
+        ))
       ORDER BY s.Id DESC;
     `,
-    [intParam("contractId", Number.isInteger(contractId) ? contractId : undefined), bitParam("isAdmin", auth.isAdmin), intParam("authUserId", auth.userId), intParam("authCompanyId", auth.companyId)],
+    [intParam("contractId", Number.isInteger(contractId) ? contractId : undefined), bitParam("isAdmin", auth.isAdmin), intParam("authCompanyId", auth.companyId)],
   );
   sendJson(response, 200, { ok: true, signatures });
 }

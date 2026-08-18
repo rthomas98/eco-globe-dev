@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle, AlertCircle, Mail, Loader2 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import {
+  BackendApiError,
+  resendBackendVerification,
+  verifyBackendEmail,
+} from "@/lib/backend-auth";
 import { AuthLayout } from "./auth-layout";
 
 type State = "verifying" | "success" | "expired" | "no-token";
@@ -12,22 +17,46 @@ type State = "verifying" | "success" | "expired" | "no-token";
 export function VerifyEmailPage() {
   const params = useSearchParams();
   const token = params.get("token");
+  const email = params.get("email") ?? "";
   const [state, setState] = useState<State>(token ? "verifying" : "no-token");
   const [resent, setResent] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!token) return;
-    const t = setTimeout(() => {
-      // Demo: treat any token starting with "x" as expired, everything else verifies.
-      setState(token.startsWith("x") ? "expired" : "success");
-    }, 1200);
-    return () => clearTimeout(t);
+    let active = true;
+    verifyBackendEmail(token)
+      .then(() => {
+        if (active) setState("success");
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(
+          err instanceof BackendApiError
+            ? err.message
+            : "This verification link is invalid or expired.",
+        );
+        setState("expired");
+      });
+    return () => {
+      active = false;
+    };
   }, [token]);
 
   const handleResend = async () => {
+    if (!email || resent) return;
     setResent(false);
-    await new Promise((r) => setTimeout(r, 400));
-    setResent(true);
+    setError("");
+    try {
+      await resendBackendVerification(email);
+      setResent(true);
+    } catch (err) {
+      setError(
+        err instanceof BackendApiError
+          ? err.message
+          : "Unable to resend the verification email.",
+      );
+    }
   };
 
   return (
@@ -35,7 +64,10 @@ export function VerifyEmailPage() {
       footerContent={
         <p className="text-sm text-neutral-500">
           Need help?{" "}
-          <Link href="/contact" className="font-medium text-neutral-900 underline">
+          <Link
+            href="/contact"
+            className="font-medium text-neutral-900 underline"
+          >
             Contact our team
           </Link>
         </p>
@@ -82,16 +114,20 @@ export function VerifyEmailPage() {
             This link expired
           </h1>
           <p className="max-w-[420px] text-sm text-neutral-600">
-            Verification links are valid for 24 hours. We can send a fresh one to
-            your inbox.
+            Verification links are valid for 24 hours. We can send a fresh one
+            to your inbox.
           </p>
+          {error && <p className="text-sm text-red-700">{error}</p>}
           <Button
             variant="primary"
             size="lg"
             className="w-full"
             onClick={handleResend}
+            disabled={!email || resent}
           >
-            {resent ? "Email sent — check your inbox" : "Resend verification email"}
+            {resent
+              ? "Email sent — check your inbox"
+              : "Resend verification email"}
           </Button>
         </div>
       )}
@@ -105,20 +141,26 @@ export function VerifyEmailPage() {
             Check your inbox
           </h1>
           <p className="max-w-[420px] text-sm text-neutral-600">
-            We sent a verification link to the email on file. Open it from any
-            device to confirm your account.
+            We sent a verification link
+            {email ? ` to ${email}` : " to your email"}. Open it from any device
+            to confirm your account.
           </p>
+          {error && <p className="text-sm text-red-700">{error}</p>}
           <Button
             variant="secondary"
             size="lg"
             className="w-full"
             onClick={handleResend}
+            disabled={!email || resent}
           >
             {resent ? "Email sent — check your inbox" : "Resend email"}
           </Button>
           <p className="text-xs text-neutral-500">
             Wrong address?{" "}
-            <Link href="/contact" className="font-medium text-neutral-900 underline">
+            <Link
+              href="/contact"
+              className="font-medium text-neutral-900 underline"
+            >
               Contact support
             </Link>{" "}
             to update it.

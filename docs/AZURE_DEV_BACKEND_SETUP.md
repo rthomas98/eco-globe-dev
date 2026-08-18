@@ -42,6 +42,29 @@ The following resources have been created in Azure:
 
 The budget currently exists without email notification recipients. Add notification contacts once the right recipient list is confirmed.
 
+## Resend Email Delivery
+
+The backend now has a server-only Resend adapter in `packages/backend/src/email.ts` and a local-only verification route:
+
+- `POST /auth/dev/email-test` sends a test message through Resend.
+- `RESEND_API_KEY` is read only by the backend and must be stored in Azure Key Vault or an untracked local environment file.
+- `RESEND_FROM_EMAIL` should be a verified sender on `ecoglobeworld.com` (the local example uses `noreply@ecoglobeworld.com`).
+- Local/test sends are pinned to `ECOGLOBE_EMAIL_TEST_RECIPIENT` (`kate@leapprosolutions.com`) while `ECOGLOBE_EMAIL_OVERRIDE_ALL=true`.
+- Set `ECOGLOBE_EMAIL_OVERRIDE_ALL=false` only when production code is ready to supply explicit recipients.
+
+Email verification and password recovery use the same server-only adapter:
+
+- `POST /auth/register` creates the account and sends a single-use email-verification link.
+- `POST /auth/verify-email` consumes the 24-hour verification link and marks the account verified.
+- `POST /auth/resend-verification` reissues a verification link with a generic response that does not reveal whether an account exists.
+- `POST /auth/request-password-reset` sends a 30-minute password-reset link with the same generic response behavior.
+- `POST /auth/reset-password` consumes the reset link, updates the PBKDF2 credential, and revokes all active sessions.
+- Token hashes and expiry timestamps live on `dbo.Users`; raw tokens are only sent in email links and are never stored.
+
+Set `ECOGLOBE_WEB_URL` to the browser origin used in email links (for example, `http://localhost:4040` locally or the deployed web origin in Azure). Apply the additive columns in `packages/backend/db/schema.sql` before enabling registration against an existing database.
+
+After the domain is verified in Resend and the API key is stored server-side, run the backend and call the dev route once. Confirm the returned Resend message id in the Resend email log and confirm delivery with the intended test recipient.
+
 ## Database Baseline
 
 The Azure SQL baseline is in:
@@ -179,6 +202,10 @@ The backend exposes a discoverable endpoint catalog at `GET /api/endpoints.json`
 Auth endpoints:
 
 - `POST /auth/register`
+- `POST /auth/verify-email`
+- `POST /auth/resend-verification`
+- `POST /auth/request-password-reset`
+- `POST /auth/reset-password`
 - `POST /auth/login`
 - `GET /auth/session`
 - `POST /auth/logout`
@@ -198,6 +225,9 @@ Backend auth behavior:
 - Passwords are stored as salted PBKDF2 hashes in `UserPasswords`.
 - Sessions store only SHA-256 token hashes in `UserSessions`; the browser-facing Next.js proxy stores the raw session token only in an `HttpOnly`, expiring cookie and never exposes it to client JavaScript.
 - `POST /auth/register` creates a password-backed user.
+- New accounts must verify their email before password login is allowed; pre-existing accounts are backfilled as verified by the additive schema migration.
+- Verification and reset tokens are single-use, stored as SHA-256 hashes, and expire after 24 hours and 30 minutes respectively.
+- Resetting a password revokes every active server session for that user.
 - `POST /auth/login` returns user/company context through the web proxy; native/API clients may use the one-time bearer token directly.
 - Browser requests use `/api/backend/*`, which forwards the `HttpOnly` cookie to the backend and revalidates `/auth/session` on protected portal entry.
 - Native/API clients use `Authorization: Bearer <token>` for protected endpoints.
