@@ -30,6 +30,7 @@ type LoginResponse = {
 
 type RegisterResponse = {
   ok: true;
+  verificationRequired?: boolean;
   user: {
     id: number;
     name: string;
@@ -201,6 +202,40 @@ export async function registerBackendUser({
   return apiFetch<RegisterResponse>("/auth/register", {
     method: "POST",
     body: JSON.stringify({ name, email, password, accountStatusCode }),
+  });
+}
+
+export async function verifyBackendEmail(token: string) {
+  return apiFetch<{ ok: true; user: { id: number; email: string } }>(
+    "/auth/verify-email",
+    {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    },
+  );
+}
+
+export async function resendBackendVerification(email: string) {
+  return apiFetch<{ ok: true; message: string }>("/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function requestBackendPasswordReset(email: string) {
+  return apiFetch<{ ok: true; message: string }>(
+    "/auth/request-password-reset",
+    {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    },
+  );
+}
+
+export async function resetBackendPassword(token: string, password: string) {
+  return apiFetch<{ ok: true }>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, password }),
   });
 }
 

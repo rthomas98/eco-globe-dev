@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, AlertCircle } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
+import { BackendApiError, resetBackendPassword } from "@/lib/backend-auth";
 import { AuthLayout } from "./auth-layout";
 
 export function ResetPasswordPage() {
@@ -16,6 +17,7 @@ export function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
 
   const validation = useMemo(() => {
     const length = pw.length >= 8;
@@ -26,14 +28,28 @@ export function ResetPasswordPage() {
   }, [pw, confirm]);
 
   const canSubmit =
-    validation.length && validation.upper && validation.number && validation.match && !submitting;
+    validation.length &&
+    validation.upper &&
+    validation.number &&
+    validation.match &&
+    !submitting;
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || !token) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setSubmitting(false);
-    setDone(true);
+    setError("");
+    try {
+      await resetBackendPassword(token, pw);
+      setDone(true);
+    } catch (err) {
+      setError(
+        err instanceof BackendApiError
+          ? err.message
+          : "Unable to update your password. Please request a new reset link.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!token) {
@@ -42,17 +58,24 @@ export function ResetPasswordPage() {
         footerContent={
           <p className="text-sm text-neutral-500">
             Lost the reset link?{" "}
-            <Link href="/forgot-password" className="font-medium text-neutral-900 underline">
+            <Link
+              href="/forgot-password"
+              className="font-medium text-neutral-900 underline"
+            >
               Request a new one
             </Link>
           </p>
         }
       >
         <div className="flex flex-col gap-6">
-          <div className="flex items-center gap-3 rounded-lg bg-amber-50 px-4 py-3" style={{ border: "1px solid #FDE68A" }}>
+          <div
+            className="flex items-center gap-3 rounded-lg bg-amber-50 px-4 py-3"
+            style={{ border: "1px solid #FDE68A" }}
+          >
             <AlertCircle className="size-5 text-amber-600" />
             <p className="text-sm text-amber-900">
-              This reset link is missing or invalid. Request a new one to continue.
+              This reset link is missing or invalid. Request a new one to
+              continue.
             </p>
           </div>
           <h1 className="text-2xl sm:text-[32px] font-bold leading-10 text-neutral-900">
@@ -74,7 +97,10 @@ export function ResetPasswordPage() {
         footerContent={
           <p className="text-sm text-neutral-500">
             Need help?{" "}
-            <Link href="/contact" className="font-medium text-neutral-900 underline">
+            <Link
+              href="/contact"
+              className="font-medium text-neutral-900 underline"
+            >
               Contact our team
             </Link>
           </p>
@@ -108,7 +134,10 @@ export function ResetPasswordPage() {
       footerContent={
         <p className="text-sm text-neutral-500">
           Remembered it?{" "}
-          <Link href="/login" className="font-medium text-neutral-900 underline">
+          <Link
+            href="/login"
+            className="font-medium text-neutral-900 underline"
+          >
             Back to login
           </Link>
         </p>
@@ -120,7 +149,8 @@ export function ResetPasswordPage() {
             Reset your password
           </h1>
           <p className="mt-2 text-sm text-neutral-500">
-            Pick something strong — at least 8 characters with a number and an uppercase letter.
+            Pick something strong — at least 8 characters with a number and an
+            uppercase letter.
           </p>
         </div>
         <div className="flex flex-col gap-5">
@@ -144,13 +174,16 @@ export function ResetPasswordPage() {
             <Rule ok={validation.number}>At least one number</Rule>
             <Rule ok={validation.match}>Passwords match</Rule>
           </ul>
+          {error && <p className="text-sm text-red-700">{error}</p>}
         </div>
         <Button
           variant="primary"
           size="lg"
           className="w-full"
           disabled={!canSubmit}
-          style={!canSubmit ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
+          style={
+            !canSubmit ? { opacity: 0.4, cursor: "not-allowed" } : undefined
+          }
           onClick={handleSubmit}
         >
           {submitting ? "Updating…" : "Update password"}
@@ -162,7 +195,9 @@ export function ResetPasswordPage() {
 
 function Rule({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
-    <li className={`flex items-center gap-1.5 ${ok ? "text-green-700" : "text-neutral-500"}`}>
+    <li
+      className={`flex items-center gap-1.5 ${ok ? "text-green-700" : "text-neutral-500"}`}
+    >
       <span
         className={`flex size-3.5 items-center justify-center rounded-full text-[10px] ${
           ok ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-400"

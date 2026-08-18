@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { handleApiRoute } from "./api.js";
 import { handleAuthRoute } from "./auth-routes.js";
+import { handleDocusignRoute } from "./docusign-routes.js";
 import { getDatabaseHealth, getSchemaTables } from "./database.js";
 import { ApiError, corsHeaders, sendHtml, sendJson } from "./http.js";
 
@@ -48,6 +49,32 @@ const endpointGroups = [
       },
       {
         method: "POST",
+        path: "/auth/verify-email",
+        auth: "Public",
+        description: "Consume a single-use email verification link.",
+      },
+      {
+        method: "POST",
+        path: "/auth/resend-verification",
+        auth: "Public",
+        description:
+          "Resend a verification link without revealing account existence.",
+      },
+      {
+        method: "POST",
+        path: "/auth/request-password-reset",
+        auth: "Public",
+        description:
+          "Send password reset instructions without revealing account existence.",
+      },
+      {
+        method: "POST",
+        path: "/auth/reset-password",
+        auth: "Public",
+        description: "Consume a single-use password reset link.",
+      },
+      {
+        method: "POST",
         path: "/auth/login",
         auth: "Public",
         description: "Create a bearer session.",
@@ -75,6 +102,12 @@ const endpointGroups = [
         path: "/auth/dev/browser-test",
         auth: "Dev only",
         description: "Browser-visible backend auth smoke test.",
+      },
+      {
+        method: "POST",
+        path: "/auth/dev/email-test",
+        auth: "Dev only",
+        description: "Send a Resend integration email (local/test only).",
       },
     ],
   },
@@ -375,6 +408,42 @@ const endpointGroups = [
         auth: "Bearer",
         description:
           "Update signature provider status, signed document URL, or signed timestamp.",
+      },
+      {
+        method: "GET",
+        path: "/api/docusign/status",
+        auth: "Admin bearer",
+        description: "Check DocuSign and immutable document-storage configuration.",
+      },
+      {
+        method: "POST",
+        path: "/api/contracts/:id/docusign-envelope",
+        auth: "Bearer",
+        description: "Create and send a DocuSign envelope for the contract's buyer and seller signers.",
+      },
+      {
+        method: "POST",
+        path: "/api/signatures/:id/docusign-view",
+        auth: "Bearer",
+        description: "Create a short-lived embedded DocuSign signing URL for the assigned signer.",
+      },
+      {
+        method: "POST",
+        path: "/api/docusign/envelopes/:id/sync",
+        auth: "Bearer",
+        description: "Reconcile envelope and recipient statuses from DocuSign.",
+      },
+      {
+        method: "POST",
+        path: "/api/docusign/webhook",
+        auth: "DocuSign HMAC",
+        description: "Receive idempotent DocuSign Connect events and archive completed documents.",
+      },
+      {
+        method: "GET",
+        path: "/api/contracts/:id/docusign-documents/:kind",
+        auth: "Bearer",
+        description: "Stream an authorized archived agreement or completion certificate.",
       },
     ],
   },
@@ -918,6 +987,12 @@ const server = createServer(async (request, response) => {
     const authHandled = await handleAuthRoute(request, response, requestUrl);
 
     if (authHandled) {
+      return;
+    }
+
+    const docusignHandled = await handleDocusignRoute(request, response, requestUrl);
+
+    if (docusignHandled) {
       return;
     }
 

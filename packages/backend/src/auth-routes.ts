@@ -4,8 +4,12 @@ import {
   getBearerToken,
   getSessionFromToken,
   loginWithPassword,
+  requestPasswordReset,
+  resendVerificationEmail,
+  resetPassword,
   revokeSession,
   seedDemoAuthAccounts,
+  verifyEmailToken,
 } from "./auth.js";
 import {
   ApiError,
@@ -15,6 +19,7 @@ import {
   sendHtml,
   sendJson,
 } from "./http.js";
+import { getEmailConfig, sendEcoGlobeEmail } from "./email.js";
 
 type RegisterBody = {
   name: string;
@@ -144,8 +149,54 @@ export async function handleAuthRoute(
       accountStatusCode:
         getOptionalString(body, "accountStatusCode", 80) ?? "unsubscribed",
     });
+    await resendVerificationEmail(user.email);
 
-    sendJson(response, 201, { ok: true, user });
+    sendJson(response, 201, { ok: true, user, verificationRequired: true });
+    return true;
+  }
+
+  if (requestUrl.pathname === "/auth/verify-email") {
+    requireMethod(request.method, "POST");
+    const body = await readJsonBody<{ token: string }>(request);
+    const token = getRequiredString(body, "token", 200);
+    const user = await verifyEmailToken(token);
+    sendJson(response, 200, { ok: true, user });
+    return true;
+  }
+
+  if (requestUrl.pathname === "/auth/resend-verification") {
+    requireMethod(request.method, "POST");
+    const body = await readJsonBody<{ email: string }>(request);
+    const email = getRequiredString(body, "email", 320);
+    await resendVerificationEmail(email);
+    sendJson(response, 200, {
+      ok: true,
+      message: "If an account exists, a verification email has been sent.",
+    });
+    return true;
+  }
+
+  if (requestUrl.pathname === "/auth/request-password-reset") {
+    requireMethod(request.method, "POST");
+    const body = await readJsonBody<{ email: string }>(request);
+    const email = getRequiredString(body, "email", 320);
+    await requestPasswordReset(email);
+    sendJson(response, 200, {
+      ok: true,
+      message: "If an account exists, reset instructions have been sent.",
+    });
+    return true;
+  }
+
+  if (requestUrl.pathname === "/auth/reset-password") {
+    requireMethod(request.method, "POST");
+    const body = await readJsonBody<{ token: string; password: string }>(
+      request,
+    );
+    const token = getRequiredString(body, "token", 200);
+    const password = getRequiredString(body, "password", 200);
+    await resetPassword(token, password);
+    sendJson(response, 200, { ok: true });
     return true;
   }
 
@@ -209,6 +260,45 @@ export async function handleAuthRoute(
     }
 
     sendHtml(response, 200, browserTestPage());
+    return true;
+  }
+
+  if (requestUrl.pathname === "/auth/dev/email-test") {
+    requireMethod(request.method, "POST");
+
+    if (process.env.NODE_ENV === "production") {
+      throw new ApiError(404, "Not found.");
+    }
+
+    const body = await readJsonBody<{
+      to?: string | string[];
+      subject?: string;
+      html?: string;
+      text?: string;
+    }>(request);
+    const subject =
+      getOptionalString(body, "subject", 240) ??
+      "EcoGlobe Resend integration test";
+    const html =
+      getOptionalString(body, "html", 20_000) ??
+      `<h1>EcoGlobe email integration is working</h1><p>This test was routed through Resend for Kate.</p>`;
+    const text =
+      getOptionalString(body, "text", 20_000) ??
+      "EcoGlobe email integration is working. This test was routed through Resend for Kate.";
+    const result = await sendEcoGlobeEmail({
+      to: body.to,
+      subject,
+      html,
+      text,
+    });
+
+    sendJson(response, 200, {
+      ok: true,
+      id: result.id,
+      from: result.payload.from,
+      to: result.payload.to,
+      overrideRecipients: getEmailConfig().overrideRecipients,
+    });
     return true;
   }
 

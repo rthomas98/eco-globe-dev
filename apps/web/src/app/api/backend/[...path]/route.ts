@@ -46,15 +46,18 @@ async function proxy(request: Request, { params }: RouteContext) {
       { status: 502 },
     );
   }
-  const responseBody = await backendResponse.text();
+  // The proxy intentionally forwards both successful and error responses, but
+  // capture the status before consuming the body so auth-specific handling is safe.
+  const backendOk = backendResponse.ok;
+  const responseBody = await backendResponse.arrayBuffer();
   const output = new NextResponse(responseBody, {
     status: backendResponse.status,
     headers: responseHeaders(backendResponse),
   });
 
-  if (pathname === "/auth/login" && backendResponse.ok) {
+  if (pathname === "/auth/login" && backendOk) {
     try {
-      const payload = JSON.parse(responseBody) as {
+      const payload = JSON.parse(new TextDecoder().decode(responseBody)) as {
         token?: string;
         expiresAt?: string;
       };

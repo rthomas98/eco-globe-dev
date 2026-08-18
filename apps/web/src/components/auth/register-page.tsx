@@ -6,12 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
 import { AuthLayout } from "./auth-layout";
-import {
-  BackendApiError,
-  registerBackendUser,
-  writeBackendLoginSession,
-} from "@/lib/backend-auth";
-import type { UserRole } from "@/lib/demo-user";
+import { BackendApiError, registerBackendUser } from "@/lib/backend-auth";
 
 type Role = "buyer" | "seller" | "both" | null;
 
@@ -77,9 +72,6 @@ export function RegisterPage() {
     if (!isFormValid || !role || status === "loading") return;
     if (!role) return;
     const name = `${firstName} ${lastName}`.trim();
-    const activeRole: UserRole = role === "seller" ? "seller" : "buyer";
-    const fallbackRoles: UserRole[] =
-      role === "both" ? ["buyer", "seller"] : [activeRole];
     const accountStatusCode =
       role === "seller"
         ? "subscribed_seller"
@@ -97,19 +89,7 @@ export function RegisterPage() {
         password,
         accountStatusCode,
       });
-      await writeBackendLoginSession({
-        email,
-        password,
-        role: activeRole,
-        fallbackRoles,
-      });
-      router.push(
-        role === "both"
-          ? "/choose-dashboard"
-          : role === "seller"
-            ? "/seller/onboarding"
-            : "/buyer/onboarding",
-      );
+      router.push(`/verify-email?email=${encodeURIComponent(email)}&sent=1`);
     } catch (err) {
       setError(
         err instanceof BackendApiError
