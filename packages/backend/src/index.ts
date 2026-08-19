@@ -947,12 +947,15 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && requestUrl.pathname === "/health") {
       const database = await getDatabaseHealth();
+      const healthy =
+        database.connected ||
+        (process.env.NODE_ENV !== "production" && !database.configured);
 
       sendJson(
         response,
-        database.connected || !database.configured ? 200 : 503,
+        healthy ? 200 : 503,
         {
-          ok: database.connected || !database.configured,
+          ok: healthy,
           service: "eco-globe-backend",
           database,
         },
