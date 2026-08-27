@@ -146,6 +146,8 @@ export interface ApiLocation {
   stateProvince: string | null;
   postalCode: string | null;
   countryCode: string;
+  latitude: number | null;
+  longitude: number | null;
   isDefault: boolean;
 }
 

@@ -15,14 +15,18 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
-import { useDemoUser, type Facility } from "@/lib/demo-user";
+import { readDemoUser, useDemoUser, type Facility } from "@/lib/demo-user";
 import { listings as ALL_LISTINGS, type Listing } from "@/components/public/browse-listings";
+import { recordListingInterest, useApiListings } from "@/lib/api-listings";
+import { useCustomListings } from "@/lib/custom-listings";
+import { fetchCompanyLocations } from "@/lib/api-portal";
 import { CarbonGauge } from "./carbon-gauge";
 import { ListingMap, type MapListing } from "@/components/public/listing-map";
 import { generateCarbonReport, type ReportScenario } from "./carbon-report";
 import {
   computeEmissionTons,
   distanceMiles,
+  geocodeAddress,
   toMetricTons,
   TRANSPORT_BY_STATE,
   TRANSPORT_LABEL,
@@ -43,6 +47,9 @@ interface Scenario {
   distanceSource: "profile" | "facility" | "manual";
   facilityId?: string;
   manualAddress: string;
+  /** Geocoded coordinates for the manual address (set asynchronously). */
+  manualLat?: number;
+  manualLng?: number;
   miles: number;
   // Step 2
   weightUnit: WeightUnit;
@@ -100,6 +107,12 @@ function newScenario(listing: Listing, defaultFacility?: Facility): Scenario {
   };
 }
 
+/** Listing coordinates, treating 0/0 (no location on file) as unknown. */
+function listingCoords(listing: Listing): { lat: number; lng: number } | null {
+  if (listing.lat === 0 && listing.lng === 0) return null;
+  return { lat: listing.lat, lng: listing.lng };
+}
+
 function updateScenario(s: Scenario, listing: Listing, facilities: Facility[]): Scenario {
   // Resolve buyer location
   let chosen: Facility | null = null;
@@ -109,14 +122,18 @@ function updateScenario(s: Scenario, listing: Listing, facilities: Facility[]): 
     chosen = facilities[0] ?? null;
   }
 
+  const origin = listingCoords(listing);
   let miles = 0;
-  if (chosen?.lat && chosen?.lng) {
-    miles = distanceMiles(
-      { lat: listing.lat, lng: listing.lng },
-      { lat: chosen.lat, lng: chosen.lng },
-    );
-  } else if (s.distanceSource === "manual" && s.manualAddress.trim()) {
-    miles = 14; // demo fallback so user sees a number
+  if (origin && chosen?.lat && chosen?.lng) {
+    miles = distanceMiles(origin, { lat: chosen.lat, lng: chosen.lng });
+  } else if (
+    origin &&
+    s.distanceSource === "manual" &&
+    s.manualLat !== undefined &&
+    s.manualLng !== undefined
+  ) {
+    // Real geocoded distance — no more placeholder miles.
+    miles = distanceMiles(origin, { lat: s.manualLat, lng: s.manualLng });
   }
   miles = Math.round(miles * 10) / 10;
 
@@ -158,12 +175,99 @@ export function CarbonCalculatorModal({
   onClose,
 }: Props) {
   const user = useDemoUser();
-  const facilities = user?.facilities ?? [];
+  const apiListings = useApiListings();
+  const customListings = useCustomListings();
+  const [liveFacilities, setLiveFacilities] = useState<Facility[]>([]);
+  const [listingGeoFix, setListingGeoFix] = useState<
+    Record<string, { lat: number; lng: number }>
+  >({});
+
+  // Live listings shadow their static twins; unknown ids fall back gracefully.
+  const listingPool = useMemo(() => {
+    const merged = [...apiListings, ...customListings, ...ALL_LISTINGS];
+    const seen = new Set<string>();
+    return merged
+      .filter((l) => (seen.has(l.id) ? false : (seen.add(l.id), true)))
+      .map((l) =>
+        listingGeoFix[l.id] && l.lat === 0 && l.lng === 0
+          ? { ...l, ...listingGeoFix[l.id] }
+          : l,
+      );
+  }, [apiListings, customListings, listingGeoFix]);
+
+  // The buyer's real delivery locations join the demo facilities; locations
+  // without stored coordinates are geocoded from their address.
+  useEffect(() => {
+    if (!open) return;
+    const session = readDemoUser();
+    if (!session?.activeCompanyId) return;
+    let cancelled = false;
+    fetchCompanyLocations(session.activeCompanyId)
+      .then(async (locations) => {
+        const mapped: Facility[] = [];
+        for (const location of locations) {
+          const address = [
+            location.addressLine1,
+            location.city,
+            location.stateProvince,
+            location.countryCode,
+          ]
+            .filter(Boolean)
+            .join(", ");
+          let lat = location.latitude ?? undefined;
+          let lng = location.longitude ?? undefined;
+          if (lat === undefined || lng === undefined) {
+            const geo = await geocodeAddress(address);
+            if (geo) {
+              lat = geo.lat;
+              lng = geo.lng;
+            }
+          }
+          mapped.push({ id: `loc-${location.id}`, label: location.name, address, lat, lng });
+        }
+        if (!cancelled) setLiveFacilities(mapped.filter((f) => f.lat && f.lng));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  const facilities = useMemo(
+    () => [...liveFacilities, ...(user?.facilities ?? [])],
+    [liveFacilities, user?.facilities],
+  );
+
   const initial = useMemo(() => {
     return (
-      ALL_LISTINGS.find((l) => l.id === initialListingId) ?? ALL_LISTINGS[0]
+      listingPool.find((l) => l.id === initialListingId) ?? listingPool[0]
     );
-  }, [initialListingId]);
+  }, [initialListingId, listingPool]);
+
+  // Listings whose location has no coordinates get geocoded from their
+  // human-readable location string.
+  useEffect(() => {
+    if (!open || !initial) return;
+    if (initial.lat !== 0 || initial.lng !== 0) return;
+    if (listingGeoFix[initial.id] || initial.location === "Location on request")
+      return;
+    let cancelled = false;
+    void geocodeAddress(initial.location).then((geo) => {
+      if (geo && !cancelled) {
+        setListingGeoFix((prev) => ({ ...prev, [initial.id]: geo }));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, initial, listingGeoFix]);
+
+  // High-intent interest signal for the seller's aggregate analytics.
+  useEffect(() => {
+    if (open && initial?.apiListingId) {
+      recordListingInterest(initial.apiListingId, "view");
+    }
+  }, [open, initial?.apiListingId]);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -171,6 +275,55 @@ export function CarbonCalculatorModal({
   const [bauTons, setBauTons] = useState<number | "">("");
   const [targetTons, setTargetTons] = useState<number | "">(2.5);
   const [recurrence, setRecurrence] = useState<Recurrence>("one-time");
+
+  // Geocode the manual address (debounced) and fold the real coordinates
+  // back into the active scenario's distance.
+  const [manualGeocodeState, setManualGeocodeState] = useState<
+    "idle" | "locating" | "located" | "not-found"
+  >("idle");
+
+  const activeScenario = scenarios[activeIdx];
+  useEffect(() => {
+    if (!open || !activeScenario) return;
+    if (
+      activeScenario.distanceSource !== "manual" ||
+      !activeScenario.manualAddress.trim()
+    ) {
+      setManualGeocodeState("idle");
+      return;
+    }
+    setManualGeocodeState("locating");
+    const address = activeScenario.manualAddress;
+    const timer = window.setTimeout(() => {
+      void geocodeAddress(address).then((geo) => {
+        setScenarios((prev) =>
+          prev.map((s2, i) => {
+            if (i !== activeIdx || s2.manualAddress !== address) return s2;
+            const scenarioListing =
+              listingPool.find((l) => l.id === s2.listingId) ?? initial;
+            if (!scenarioListing) return s2;
+            return updateScenario(
+              {
+                ...s2,
+                manualLat: geo?.lat,
+                manualLng: geo?.lng,
+              },
+              scenarioListing,
+              facilities,
+            );
+          }),
+        );
+        setManualGeocodeState(geo ? "located" : "not-found");
+      });
+    }, 600);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    open,
+    activeIdx,
+    activeScenario?.distanceSource,
+    activeScenario?.manualAddress,
+  ]);
 
   // Reset when opened — also runs distance through updateScenario so miles
   // is computed for the default facility right out of the gate.
@@ -196,7 +349,9 @@ export function CarbonCalculatorModal({
     setScenarios((prev) =>
       prev.map((s) => {
         if (s.miles > 0 || s.distanceSource === "manual") return s;
-        const listing = ALL_LISTINGS.find((l) => l.id === s.listingId)!;
+        const listing =
+          listingPool.find((l) => l.id === s.listingId) ?? initial;
+        if (!listing) return s;
         return updateScenario(
           {
             ...s,
@@ -223,10 +378,10 @@ export function CarbonCalculatorModal({
     };
   }, [open, onClose]);
 
-  if (!open || scenarios.length === 0) return null;
+  if (!open || scenarios.length === 0 || !initial) return null;
 
   const active = scenarios[activeIdx];
-  const listing = ALL_LISTINGS.find((l) => l.id === active.listingId)!;
+  const listing = listingPool.find((l) => l.id === active.listingId) ?? initial;
 
   const setActive = (patch: Partial<Scenario>) => {
     setScenarios((prev) =>
@@ -379,6 +534,7 @@ export function CarbonCalculatorModal({
                 listing={listing}
                 facilities={facilities}
                 onChange={setActive}
+                geocodeState={manualGeocodeState}
               />
             )}
             {step === 1 && (
@@ -394,6 +550,7 @@ export function CarbonCalculatorModal({
             {step === 3 && (
               <StepResult
                 active={active}
+                listing={listing}
                 targetTons={targetTons}
                 setTargetTons={setTargetTons}
                 onRename={renameScenario}
@@ -415,6 +572,8 @@ export function CarbonCalculatorModal({
                 targetTons={targetTons}
                 facilities={facilities}
                 user={user}
+                listingPool={listingPool}
+                fallbackListing={listing}
               />
             )}
           </div>
@@ -478,11 +637,13 @@ function StepDistance({
   listing,
   facilities,
   onChange,
+  geocodeState,
 }: {
   active: Scenario;
   listing: Listing;
   facilities: Facility[];
   onChange: (patch: Partial<Scenario>) => void;
+  geocodeState: "idle" | "locating" | "located" | "not-found";
 }) {
   const mapListing: MapListing = {
     id: listing.id,
@@ -680,7 +841,7 @@ function StepDistance({
                 Enter address manually
               </p>
               <p className="text-xs text-neutral-500">
-                Demo: any non-empty value resolves to a 14 mi placeholder.
+                We&apos;ll locate the address and compute the real distance.
               </p>
             </div>
           </label>
@@ -692,6 +853,19 @@ function StepDistance({
               onChange={(e) => onChange({ manualAddress: e.target.value })}
               className="mt-3 ml-7 w-[calc(100%-1.75rem)] rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-neutral-900/20"
             />
+          )}
+          {active.distanceSource === "manual" && geocodeState !== "idle" && (
+            <p
+              className={`mt-2 ml-7 text-xs ${
+                geocodeState === "not-found" ? "text-red-600" : "text-neutral-500"
+              }`}
+            >
+              {geocodeState === "locating"
+                ? "Locating address..."
+                : geocodeState === "located"
+                  ? `Address located — ${active.miles.toFixed(1)} mi from the feedstock.`
+                  : "We couldn't locate that address. Try adding a city and state."}
+            </p>
           )}
         </div>
       </div>
@@ -838,15 +1012,22 @@ function StepTransport({
 
 function StepResult({
   active,
+  listing,
   targetTons,
   setTargetTons,
   onRename,
 }: {
   active: Scenario;
+  listing: Listing;
   targetTons: number | "";
   setTargetTons: (n: number | "") => void;
   onRename: (name: string) => void;
 }) {
+  // Production footprint from the listing's declared carbon intensity
+  // (kg CO2e per ton, from the marketplace database).
+  const materialTons = listing.hasCarbonData
+    ? Math.round(listing.co2Num * active.metricTons) / 1000
+    : null;
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -866,6 +1047,19 @@ function StepResult({
           {active.emissionTons.toFixed(2)}
           <span className="ml-2 text-lg text-neutral-500">tons</span>
         </p>
+        {materialTons !== null && (
+          <p className="mt-2 text-sm text-neutral-600">
+            Transport only. Material production adds{" "}
+            <span className="font-bold text-neutral-900">
+              {materialTons.toFixed(2)} t CO₂eq
+            </span>{" "}
+            ({listing.co2Num} kg/t declared by the seller) — total{" "}
+            <span className="font-bold text-neutral-900">
+              {(active.emissionTons + materialTons).toFixed(2)} t CO₂eq
+            </span>
+            .
+          </p>
+        )}
         <div className="mt-6 grid grid-cols-3 gap-4 text-left">
           <div>
             <p className="text-xs text-neutral-500">Distance</p>
@@ -1037,6 +1231,8 @@ function StepRecommend({
   targetTons,
   facilities,
   user,
+  listingPool,
+  fallbackListing,
 }: {
   scenarios: Scenario[];
   bauTons: number | "";
@@ -1046,6 +1242,8 @@ function StepRecommend({
   targetTons: number | "";
   facilities: Facility[];
   user: ReturnType<typeof useDemoUser>;
+  listingPool: Listing[];
+  fallbackListing: Listing;
 }) {
   const best = scenarios[0];
   const second = scenarios[1];
@@ -1053,7 +1251,8 @@ function StepRecommend({
 
   const handleCreateReport = () => {
     const reportScenarios: ReportScenario[] = scenarios.map((s) => {
-      const listing = ALL_LISTINGS.find((l) => l.id === s.listingId)!;
+      const listing =
+        listingPool.find((l) => l.id === s.listingId) ?? fallbackListing;
       const facility = s.facilityId
         ? facilities.find((f) => f.id === s.facilityId)
         : s.distanceSource === "profile"
