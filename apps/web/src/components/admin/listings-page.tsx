@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchAllListings } from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 import {
   Search,
   SlidersHorizontal,
@@ -311,6 +313,38 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
 
 /* ─── Main Listings Page ─── */
 export function AdminListingsPage() {
+  const [listingRows, setListingRows] = useState<Listing[]>(listings);
+
+  // Live listings (all statuses for admins) render ahead of the demo rows.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchAllListings()
+      .then((apiListings) => {
+        if (cancelled || apiListings.length === 0) return;
+        const live: Listing[] = apiListings.map((listing) => ({
+          id: `LS-${listing.id}`,
+          product: listing.title,
+          category: listing.materialTypeCode.replace(/_/g, " "),
+          seller: listing.sellerCompanyName,
+          pricePerTon: `$${Number(listing.pricePerUnit).toFixed(2)}`,
+          availableQty: `${listing.quantity} ${listing.quantityUnit}`,
+          moq: `${listing.minimumOrderQuantity ?? "—"} ${listing.quantityUnit}`,
+          grade: "Standard",
+          carbonData: "Yes",
+          createdDate: "—",
+          status: listing.listingStatusCode === "published" ? "Active" : "Pending",
+        }));
+        setListingRows([...live, ...listings]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
@@ -356,7 +390,7 @@ export function AdminListingsPage() {
             </tr>
           </thead>
           <tbody>
-            {listings.map((listing) => (
+            {listingRows.map((listing) => (
               <tr key={listing.id} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedListing(listing)}>
                 <td className="py-3.5 text-sm text-neutral-900">{listing.id}</td>
                 <td className="py-3.5 text-sm text-neutral-900 max-w-[220px] truncate">{listing.product}</td>

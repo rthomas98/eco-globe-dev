@@ -9,6 +9,10 @@ import {
   type SellerNotification,
 } from "../seller/notifications-data";
 import { NotificationDetailDrawer } from "../seller/notification-detail-drawer";
+import {
+  markLiveNotificationRead,
+  useLiveNotifications,
+} from "@/components/notifications/use-live-notifications";
 
 const groupOrder: NotificationGroup[] = [
   "Earlier",
@@ -20,6 +24,8 @@ export function BuyerNotificationsPage() {
   const [tab, setTab] = useState<"all" | "unread">("all");
   const [selected, setSelected] = useState<SellerNotification | null>(null);
   const [readIds, setReadIds] = useState<string[]>([]);
+  const liveNotifications = useLiveNotifications();
+  const allNotifications = [...liveNotifications, ...buyerNotifications];
 
   const isUnread = (notification: SellerNotification) =>
     notification.unread && !readIds.includes(notification.id);
@@ -27,6 +33,7 @@ export function BuyerNotificationsPage() {
   const openNotification = (notification: SellerNotification) => {
     setSelected(notification);
     if (notification.unread) {
+      markLiveNotificationRead(notification.id);
       setReadIds((current) =>
         current.includes(notification.id)
           ? current
@@ -37,8 +44,8 @@ export function BuyerNotificationsPage() {
 
   const visible =
     tab === "unread"
-      ? buyerNotifications.filter((n) => isUnread(n))
-      : buyerNotifications;
+      ? allNotifications.filter((n) => isUnread(n))
+      : allNotifications;
 
   return (
     <BuyerLayout>

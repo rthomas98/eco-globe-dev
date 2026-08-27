@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { MoreHorizontal, X } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
-import { buildDemoUser, type Facility } from "@/lib/demo-user";
+import { buildDemoUser, readDemoUser, type Facility } from "@/lib/demo-user";
+import {
+  fetchCompany,
+  fetchCompanyLocations,
+  fetchCompanyMembers,
+} from "@/lib/api-portal";
 import { SellerLayout } from "./seller-layout";
 
 type Row = { label: string; value: React.ReactNode; action?: React.ReactNode };
@@ -305,6 +310,69 @@ export function SellerCompanyPage() {
   useEffect(() => {
     setCompany(readStored(COMPANY_KEY, defaultCompany));
     setFacilities(readStored(FACILITIES_KEY, defaultFacilities));
+
+    // Overlay the live company record from the backend.
+    const user = readDemoUser();
+    if (!user?.activeCompanyId) return;
+    const companyId = user.activeCompanyId;
+    let cancelled = false;
+    Promise.all([
+      fetchCompany(companyId),
+      fetchCompanyLocations(companyId),
+      fetchCompanyMembers(companyId),
+    ])
+      .then(([liveCompany, locations, members]) => {
+        if (cancelled) return;
+        const owner = members.find((m) => m.memberRoleCode === "owner");
+        const defaultLocation =
+          locations.find((l) => l.isDefault) ?? locations[0];
+        setCompany((prev) => ({
+          ...prev,
+          companyName: liveCompany.legalName,
+          logoText: liveCompany.legalName.slice(0, 3).toLowerCase(),
+          country: defaultLocation?.countryCode ?? prev.country,
+          businessAddress: defaultLocation
+            ? [
+                defaultLocation.addressLine1,
+                defaultLocation.city,
+                defaultLocation.stateProvince,
+                defaultLocation.postalCode,
+              ]
+                .filter(Boolean)
+                .join(", ")
+            : prev.businessAddress,
+          representativeName: owner?.userName ?? prev.representativeName,
+          representativeEmail: owner?.userEmail ?? prev.representativeEmail,
+          complianceStatus:
+            liveCompany.verificationStatusCode === "verified"
+              ? "Verified certification on file"
+              : `Verification ${liveCompany.verificationStatusCode.replace(/_/g, " ")}`,
+        }));
+        if (locations.length > 0) {
+          setFacilities(
+            locations.map((location) => ({
+              id: `loc-${location.id}`,
+              label: location.name,
+              address: [
+                location.addressLine1,
+                location.city,
+                location.stateProvince,
+                location.countryCode,
+              ]
+                .filter(Boolean)
+                .join(", "),
+              lat: undefined,
+              lng: undefined,
+            })),
+          );
+        }
+      })
+      .catch(() => {
+        // Stored/demo values remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const persistCompany = (next: SellerCompanyState) => {

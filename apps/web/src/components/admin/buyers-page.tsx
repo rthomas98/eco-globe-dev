@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchBuyerProfiles } from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 import {
   Search,
   SlidersHorizontal,
@@ -515,6 +517,38 @@ function AddBuyerDrawer({ onClose }: { onClose: () => void }) {
 
 /* ─── Main Buyers Page ─── */
 export function AdminBuyersPage() {
+  const [buyerRows, setBuyerRows] = useState<Buyer[]>(buyers);
+
+  // Live buyer companies render ahead of the demo rows.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchBuyerProfiles()
+      .then((profiles) => {
+        if (cancelled || profiles.length === 0) return;
+        const live: Buyer[] = profiles.map((profile) => ({
+          name: profile.companyName,
+          industry: "Marketplace buyer",
+          location: "—",
+          totalOrders: profile.onboardingStatusCode,
+          totalGMV: profile.approvalStatusCode.replace(/_/g, " "),
+          status:
+            profile.approvalStatusCode === "verified"
+              ? "Active"
+              : profile.subscriptionStatusCode === "subscribed_buyer"
+                ? "Pending"
+                : "Inactive",
+        }));
+        setBuyerRows([...live, ...buyers]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBuyer, setSelectedBuyer] = useState<Buyer | null>(null);
@@ -556,7 +590,7 @@ export function AdminBuyersPage() {
             </tr>
           </thead>
           <tbody>
-            {buyers.map((buyer, i) => (
+            {buyerRows.map((buyer, i) => (
               <tr key={i} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedBuyer(buyer)}>
                 <td className="py-3.5">
                   <div className="flex items-center gap-3">

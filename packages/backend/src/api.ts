@@ -1872,6 +1872,32 @@ async function createCompany(
   sendJson(response, 201, { ok: true, company: rows[0] });
 }
 
+async function getCompany(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  requireCompanyAccess(auth, id);
+  const rows = await queryRowsWithParams(
+    `
+      SELECT
+        c.Id AS id,
+        c.LegalName AS legalName,
+        ct.Code AS companyTypeCode,
+        vs.Code AS verificationStatusCode,
+        c.CreatedAt AS createdAt,
+        c.UpdatedAt AS updatedAt
+      FROM dbo.Companies c
+      INNER JOIN dbo.CompanyTypes ct ON ct.Id = c.CompanyTypeId
+      INNER JOIN dbo.AccountStatuses vs ON vs.Id = c.VerificationStatusId
+      WHERE c.Id = @id;
+    `,
+    [intParam("id", id)],
+  );
+  if (!rows[0]) throw new ApiError(404, "Company not found.");
+  sendJson(response, 200, { ok: true, company: rows[0] });
+}
+
 async function updateCompany(
   request: IncomingMessage,
   response: ServerResponse,
@@ -5398,6 +5424,11 @@ export async function handleApiRoute(
   const companyMatch = matchPath(requestUrl.pathname, "/api/companies/:id");
   if (companyMatch.matched) {
     const id = parseId(companyMatch.params.id, "Company ID");
+
+    if (method === "GET") {
+      await getCompany(response, id, await requireSessionAuth(request));
+      return true;
+    }
 
     if (method === "PATCH") {
       await updateCompany(

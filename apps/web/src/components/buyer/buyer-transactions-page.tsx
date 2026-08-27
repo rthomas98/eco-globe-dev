@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   SlidersHorizontal,
@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { BuyerLayout } from "./buyer-layout";
+import { fetchPayments, portalDate, portalMoney } from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 import {
   BuyerTransactionDetailPanel,
   type TransactionDetail,
@@ -412,12 +414,49 @@ const PAGE_SIZE = 20;
 
 export function BuyerTransactionsPage() {
   const [search, setSearch] = useState("");
+  const [rows, setRows] = useState<Transaction[]>(TRANSACTIONS);
+
+  // Live payments render ahead of the demo rows.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchPayments()
+      .then((payments) => {
+        if (cancelled || payments.length === 0) return;
+        const live: Transaction[] = payments.map((payment) => ({
+          id: `TX-${payment.id}`,
+          date: portalDate(payment.createdAt),
+          orderId: `EG-${payment.orderId}`,
+          seller: payment.payerCompanyName,
+          amount: portalMoney(payment.amount, payment.currencyCode),
+          type:
+            payment.paymentTypeCode === "refund"
+              ? "Refund"
+              : payment.escrowId
+                ? "Escrow funding"
+                : "Escrow released",
+          status:
+            payment.paymentStatusCode === "captured"
+              ? "Completed"
+              : payment.paymentStatusCode === "failed"
+                ? "Failed"
+                : "Processing",
+        }));
+        setRows([...live, ...TRANSACTIONS]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const filtered = TRANSACTIONS.filter((t) => {
+  const filtered = rows.filter((t) => {
     if (filters.statuses.length && !filters.statuses.includes(t.status))
       return false;
     if (search.trim()) {
@@ -439,7 +478,7 @@ export function BuyerTransactionsPage() {
   );
 
   const selected = selectedId
-    ? TRANSACTIONS.find((t) => t.id === selectedId) ?? null
+    ? rows.find((t) => t.id === selectedId) ?? null
     : null;
 
   return (

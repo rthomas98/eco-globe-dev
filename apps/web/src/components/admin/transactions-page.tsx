@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, SlidersHorizontal, DollarSign, AlertTriangle, CheckCircle2, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown, X, FileText, Download } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { ExportDropdown } from "./export-dropdown";
 import { DateRangeDropdown } from "./date-range-dropdown";
+import { fetchPayments, portalDate, portalMoney } from "@/lib/api-portal";
+import { fetchOrders } from "@/lib/api-orders";
+import { readDemoUser } from "@/lib/demo-user";
 
 type TxnStatus = "In Progress" | "Completed" | "Refunded";
 interface Transaction { id: string; date: string; orderId: string; buyer: string; seller: string; amount: string; type: string; status: TxnStatus; }
@@ -132,6 +135,44 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
 }
 
 export function TransactionsPage() {
+  const [rows, setRows] = useState<Transaction[]>(transactions);
+
+  // Live payments render ahead of the demo rows (admins see all).
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    Promise.all([fetchPayments(), fetchOrders()])
+      .then(([payments, orders]) => {
+        if (cancelled || payments.length === 0) return;
+        const orderById = new Map(orders.map((order) => [order.id, order]));
+        const live: Transaction[] = payments.map((payment) => {
+          const order = orderById.get(payment.orderId);
+          return {
+            id: `TX-${payment.id}`,
+            date: portalDate(payment.createdAt),
+            orderId: `EG-${payment.orderId}`,
+            buyer: order?.buyerCompanyName ?? payment.payerCompanyName,
+            seller: order?.sellerCompanyName ?? "Marketplace seller",
+            amount: portalMoney(payment.amount, payment.currencyCode),
+            type: payment.paymentTypeCode === "refund" ? "Refund" : "Escrow",
+            status:
+              payment.paymentStatusCode === "refunded"
+                ? "Refunded"
+                : payment.paymentStatusCode === "captured"
+                  ? "Completed"
+                  : "In Progress",
+          };
+        });
+        setRows([...live, ...transactions]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState("30d");
   const [activeTab, setActiveTab] = useState("All Transaction");
@@ -139,7 +180,7 @@ export function TransactionsPage() {
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const filteredTxns = transactions.filter((t) => {
+  const filteredTxns = rows.filter((t) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return t.id.toLowerCase().includes(q) || t.buyer.toLowerCase().includes(q) || t.seller.toLowerCase().includes(q) || t.orderId.toLowerCase().includes(q);

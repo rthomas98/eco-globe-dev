@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchSellerProfiles } from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 import {
   Search,
   SlidersHorizontal,
@@ -339,6 +341,38 @@ function SellerDetailDrawer({ seller, onClose }: { seller: Seller; onClose: () =
 
 /* ─── Main Sellers Page ─── */
 export function AdminSellersPage() {
+  const [sellerRows, setSellerRows] = useState<Seller[]>(sellers);
+
+  // Live seller companies render ahead of the demo rows.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchSellerProfiles()
+      .then((profiles) => {
+        if (cancelled || profiles.length === 0) return;
+        const live: Seller[] = profiles.map((profile) => ({
+          name: profile.companyName,
+          industry: "Marketplace seller",
+          location: "—",
+          totalOrders: profile.onboardingStatusCode,
+          totalGMV: profile.approvalStatusCode.replace(/_/g, " "),
+          status:
+            profile.approvalStatusCode === "verified"
+              ? "Active"
+              : profile.subscriptionStatusCode === "subscribed_seller"
+                ? "Pending"
+                : "Inactive",
+        }));
+        setSellerRows([...live, ...sellers]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
@@ -382,7 +416,7 @@ export function AdminSellersPage() {
             </tr>
           </thead>
           <tbody>
-            {sellers.map((seller, i) => (
+            {sellerRows.map((seller, i) => (
               <tr key={i} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedSeller(seller)}>
                 <td className="py-3.5">
                   <div className="flex items-center gap-3">

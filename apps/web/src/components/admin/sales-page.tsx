@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   ChevronDown,
@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { ExportDropdown } from "./export-dropdown";
+import { fetchOrders } from "@/lib/api-orders";
+import { fetchEscrows, portalDate, portalMoney } from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 import { DateRangeDropdown } from "./date-range-dropdown";
 
 /* ─── Types ─── */
@@ -344,13 +347,54 @@ function OrderDetailDrawer({ onClose }: { order: Order; onClose: () => void }) {
 
 /* ─── Main Sales Page ─── */
 export function SalesPage() {
+  const [orderRows, setOrderRows] = useState<Order[]>(orders);
+
+  // Live orders render ahead of the demo rows (admins see all).
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    Promise.all([fetchOrders(), fetchEscrows()])
+      .then(([apiOrders, escrows]) => {
+        if (cancelled || apiOrders.length === 0) return;
+        const escrowByOrder = new Map(escrows.map((e) => [e.orderId, e]));
+        const live: Order[] = apiOrders.map((order) => {
+          const escrow = escrowByOrder.get(order.id);
+          return {
+            id: `EG-${order.id}`,
+            buyer: order.buyerCompanyName,
+            seller: order.sellerCompanyName,
+            product: order.listingTitle ?? "Marketplace order",
+            category: "Marketplace",
+            qty: order.orderStatusCode.replace(/_/g, " "),
+            shippingType: "Delivery",
+            amount: portalMoney(order.totalAmount, order.currencyCode),
+            escrow: escrow?.escrowStatusCode === "released" ? "Released" : "Funded",
+            orderDate: portalDate(order.createdAt),
+            status:
+              order.orderStatusCode === "completed"
+                ? "Completed"
+                : escrow?.disputeLocked
+                  ? "Disputed"
+                  : "Processing",
+          };
+        });
+        setOrderRows([...live, ...orders]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState("30d");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const filteredOrders = orders.filter((o) => {
+  const filteredOrders = orderRows.filter((o) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (

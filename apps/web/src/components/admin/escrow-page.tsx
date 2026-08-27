@@ -6,10 +6,11 @@ import { Button } from "@eco-globe/ui";
 import { ExportDropdown } from "./export-dropdown";
 import { DateRangeDropdown } from "./date-range-dropdown";
 import {
-  escrowRecords,
+  type EscrowRecord,
   escrowStatusForAdmin,
   formatEscrowMoney,
 } from "@/components/escrow/escrow-demo-data";
+import { useEscrowRecords } from "@/components/escrow/use-live-escrows";
 
 type EscrowStatus = "In Progress" | "Ready to release" | "Disputed" | "Completed";
 interface EscrowItem {
@@ -34,7 +35,7 @@ interface EscrowItem {
   status: EscrowStatus;
 }
 
-const escrowItems: EscrowItem[] = escrowRecords.map((record) => ({
+const mapRecordToAdminItem = (record: EscrowRecord): EscrowItem => ({
   id: record.id,
   date: record.orderDate,
   escrow: record.status === "Released" ? "Escrow released" : "Funds held",
@@ -54,7 +55,7 @@ const escrowItems: EscrowItem[] = escrowRecords.map((record) => ({
   documents: record.documents,
   activity: record.activity,
   status: escrowStatusForAdmin(record.status),
-}));
+});
 
 function StatusBadge({ status }: { status: EscrowStatus }) {
   const s: Record<EscrowStatus, string> = {
@@ -153,6 +154,8 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
 }
 
 export function EscrowPage() {
+  const liveRecords = useEscrowRecords();
+  const escrowItems = liveRecords.map(mapRecordToAdminItem);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState("30d");
   const [showFilters, setShowFilters] = useState(false);
@@ -164,14 +167,14 @@ export function EscrowPage() {
     const q = searchQuery.toLowerCase();
     return item.id.toLowerCase().includes(q) || item.orderId.toLowerCase().includes(q) || item.buyer.toLowerCase().includes(q) || item.seller.toLowerCase().includes(q);
   });
-  const fundsOnHold = escrowRecords.reduce((sum, item) => sum + item.amountHeld, 0);
-  const pendingRelease = escrowRecords
+  const fundsOnHold = liveRecords.reduce((sum, item) => sum + item.amountHeld, 0);
+  const pendingRelease = liveRecords
     .filter((item) => item.status === "Held in escrow" || item.status === "Ready to release")
     .reduce((sum, item) => sum + item.amountHeld, 0);
-  const releasedFunds = escrowRecords
+  const releasedFunds = liveRecords
     .filter((item) => item.status === "Released")
     .reduce((sum, item) => sum + item.sellerPayout, 0);
-  const disputedFunds = escrowRecords
+  const disputedFunds = liveRecords
     .filter((item) => item.status === "Disputed")
     .reduce((sum, item) => sum + item.amountHeld, 0);
 
