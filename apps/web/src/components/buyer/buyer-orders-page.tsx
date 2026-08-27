@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   SlidersHorizontal,
@@ -21,6 +21,40 @@ import {
   BuyerOrderDetailPanel,
   type OrderDetail,
 } from "./buyer-order-detail-panel";
+import {
+  fetchOrders,
+  formatOrderDate,
+  formatOrderMoney,
+  listingImageForTitle,
+  type ApiOrder,
+} from "@/lib/api-orders";
+import { readDemoUser } from "@/lib/demo-user";
+
+const BUYER_STATUS_BY_CODE: Record<string, OrderStatus> = {
+  draft: "Awaiting seller confirmation",
+  approval_required: "Quote awaiting approval",
+  escrow_required: "Awaiting payment",
+  in_progress: "Processing",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
+function mapApiOrderToBuyerRow(order: ApiOrder): Order {
+  return {
+    id: `api-${order.id}`,
+    orderId: `EG-${order.id}`,
+    orderPlaced: formatOrderDate(order.createdAt),
+    shipping: "Delivery",
+    qty: "—",
+    total: formatOrderMoney(order.totalAmount, order.currencyCode),
+    status: BUYER_STATUS_BY_CODE[order.orderStatusCode] ?? "Processing",
+    category: "Marketplace",
+    seller: order.sellerCompanyName,
+    product: order.listingTitle ?? "Marketplace order",
+    productImage: listingImageForTitle(order.listingTitle),
+    productPrice: formatOrderMoney(order.totalAmount, order.currencyCode),
+  };
+}
 
 export function buildOrderDetail(order: Order): OrderDetail {
   const isQuoteAwaiting = order.status === "Quote awaiting approval";
@@ -883,6 +917,28 @@ export function BuyerOrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [orderList, setOrderList] = useState<Order[]>(orders);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+
+  // Live orders from the backend render ahead of the demo rows.
+  useEffect(() => {
+    const user = readDemoUser();
+    if (!user?.activeCompanyId) return;
+    let cancelled = false;
+    fetchOrders({ buyerCompanyId: user.activeCompanyId })
+      .then((apiOrders) => {
+        if (cancelled || apiOrders.length === 0) return;
+        const live = apiOrders.map(mapApiOrderToBuyerRow);
+        setOrderList((prev) => [
+          ...live,
+          ...prev.filter((o) => !live.some((l) => l.id === o.id)),
+        ]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleCancel = (id: string) => {
     setConfirmCancelId(id);

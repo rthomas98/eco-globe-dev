@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 export interface CartItem {
   id: string;
@@ -11,6 +17,8 @@ export interface CartItem {
   quantity: number;
   moq: number;
   image: string;
+  /** Numeric backend listing id when the item came from the live API. */
+  apiListingId?: number;
 }
 
 interface CartContextType {
@@ -27,9 +35,38 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | null>(null);
 
+const STORAGE_KEY = "ecoglobe.cart";
+
+function readStoredCart(): CartItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as CartItem[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    setItems(readStoredCart());
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated || typeof window === "undefined") return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch {
+      // Storage may be unavailable (private mode); the cart still works in-memory.
+    }
+  }, [items, hydrated]);
 
   const addItem = useCallback(
     (newItem: Omit<CartItem, "quantity"> & { quantity?: number }) => {

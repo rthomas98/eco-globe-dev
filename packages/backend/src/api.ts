@@ -176,6 +176,7 @@ type OrderBody = {
   sellerCompanyId?: number;
   creationSourceCode?: string;
   orderStatusCode?: string;
+  quantity?: number;
   totalAmount?: number;
   currencyCode?: string;
   escrowRequired?: boolean;
@@ -549,6 +550,66 @@ async function requireOrderAccess(auth: AuthContext, orderId: number) {
     throw new ApiError(403, "You cannot access another company's order.");
   }
   return order;
+}
+
+/**
+ * In-app notification fan-out for marketplace events. Best-effort: a failed
+ * notification never fails the transaction that triggered it.
+ */
+async function notifyCompanies({
+  actorUserId,
+  companyIds,
+  categoryCode,
+  subject,
+  body,
+  recordTypeCode,
+  recordId,
+}: {
+  actorUserId: number;
+  companyIds: Array<number | undefined>;
+  categoryCode: string;
+  subject: string;
+  body: string;
+  recordTypeCode: string;
+  recordId: number;
+}) {
+  try {
+    const channelId = await lookupId("NotificationChannels", "in_app");
+    const categoryId = await lookupId("NotificationCategories", categoryCode);
+    const statusId = await lookupId("NotificationStatuses", "sent");
+    const recordTypeId = await lookupId("RecordTypes", recordTypeCode);
+    const targets = [...new Set(companyIds.filter((id): id is number => !!id))];
+
+    for (const companyId of targets) {
+      await queryRowsWithParams(
+        `
+          INSERT INTO dbo.Notifications (
+            CompanyId, RelatedRecordTypeId, RelatedRecordId,
+            NotificationChannelId, NotificationCategoryId, NotificationStatusId,
+            Subject, Body, SentAt, CreatedByUserId, UpdatedByUserId
+          )
+          VALUES (
+            @companyId, @recordTypeId, @recordId,
+            @channelId, @categoryId, @statusId,
+            @subject, @body, SYSUTCDATETIME(), @actorUserId, @actorUserId
+          );
+        `,
+        [
+          intParam("companyId", companyId),
+          intParam("recordTypeId", recordTypeId),
+          intParam("recordId", recordId),
+          intParam("channelId", channelId),
+          intParam("categoryId", categoryId),
+          intParam("statusId", statusId),
+          nvarcharParam("subject", subject, 240),
+          nvarcharParam("body", body, 4000),
+          intParam("actorUserId", actorUserId),
+        ],
+      );
+    }
+  } catch (error) {
+    console.warn("Notification fan-out failed:", error);
+  }
 }
 
 /* ─── Status lifecycle guards ───
@@ -2923,6 +2984,16 @@ async function createQuote(
     reason: "Quote created.",
   });
 
+  await notifyCompanies({
+    actorUserId: auth.userId,
+    companyIds: [listing.sellerCompanyId],
+    categoryCode: "orders",
+    subject: `New quote request #${rows[0].id}`,
+    body: `A buyer requested a quote for ${quantity} ${getOptionalString(body, "quantityUnit", 40) ?? listing.quantityUnit} on one of your listings.`,
+    recordTypeCode: "quote",
+    recordId: rows[0].id as number,
+  });
+
   sendJson(response, 201, { ok: true, quote: rows[0] });
 }
 
@@ -3028,6 +3099,18 @@ async function updateQuote(
     newValue: rows[0],
     reason: "Quote updated.",
   });
+
+  if (quoteStatusCode && normalizeCode(quoteStatusCode) !== quote.quoteStatusCode) {
+    await notifyCompanies({
+      actorUserId: auth.userId,
+      companyIds: [quote.buyerCompanyId, quote.sellerCompanyId],
+      categoryCode: "orders",
+      subject: `Quote #${id} is now ${normalizeCode(quoteStatusCode)}`,
+      body: `Quote #${id} moved from ${quote.quoteStatusCode} to ${normalizeCode(quoteStatusCode)}.`,
+      recordTypeCode: "quote",
+      recordId: id,
+    });
+  }
 
   sendJson(response, 200, { ok: true, quote: rows[0] });
 }
@@ -3148,7 +3231,11 @@ async function createOrder(
   const directOrderReason = getOptionalString(body, "directOrderReason", 1000);
   const creationSourceCode =
     getOptionalString(body, "creationSourceCode", 80) ??
-    (quoteId ? "quote_acceptance" : "admin_direct");
+    (quoteId
+      ? "quote_acceptance"
+      : listingId && !auth.isAdmin
+        ? "listing_checkout"
+        : "admin_direct");
 
   if (!quoteId && !listingId && creationSourceCode !== "admin_direct") {
     throw new ApiError(400, "listingId or quoteId is required.");
@@ -3158,6 +3245,9 @@ async function createOrder(
   }
   if (creationSourceCode === "admin_direct" && !directOrderReason) {
     throw new ApiError(400, "directOrderReason is required for admin direct orders.");
+  }
+  if (creationSourceCode === "listing_checkout" && (!listingId || quoteId)) {
+    throw new ApiError(400, "Listing checkout orders require a listingId and no quote.");
   }
 
   const quoteRows = quoteId
@@ -3188,10 +3278,14 @@ async function createOrder(
           pricePerUnit: number;
           currencyCode: string;
           minimumOrderQuantity: number;
+          listingStatusCode: string;
         }>(
-          `SELECT SellerCompanyId AS sellerCompanyId, PricePerUnit AS pricePerUnit,
-            CurrencyCode AS currencyCode, MinimumOrderQuantity AS minimumOrderQuantity
-           FROM dbo.Listings WHERE Id = @listingId;`,
+          `SELECT l.SellerCompanyId AS sellerCompanyId, l.PricePerUnit AS pricePerUnit,
+            l.CurrencyCode AS currencyCode, l.MinimumOrderQuantity AS minimumOrderQuantity,
+            ls.Code AS listingStatusCode
+           FROM dbo.Listings l
+           INNER JOIN dbo.ListingStatuses ls ON ls.Id = l.ListingStatusId
+           WHERE l.Id = @listingId;`,
           [intParam("listingId", listingId ?? quote?.listingId)],
         )
       : [];
@@ -3200,9 +3294,29 @@ async function createOrder(
     throw new ApiError(404, "Listing not found.");
   }
 
+  // Direct checkout is priced server-side from the published listing.
+  let checkoutQuantity: number | undefined;
+  if (creationSourceCode === "listing_checkout" && listing) {
+    if (listing.listingStatusCode !== "published" && !auth.isAdmin) {
+      throw new ApiError(409, "Only published listings can be purchased.");
+    }
+    checkoutQuantity = getOptionalNumber(body, "quantity");
+    if (checkoutQuantity === undefined || checkoutQuantity <= 0) {
+      throw new ApiError(400, "quantity is required for listing checkout.");
+    }
+    if (checkoutQuantity < Number(listing.minimumOrderQuantity)) {
+      throw new ApiError(
+        400,
+        `Quantity is below this listing's minimum order of ${listing.minimumOrderQuantity}.`,
+      );
+    }
+  }
+
   const totalAmount =
-    getOptionalNumber(body, "totalAmount") ??
-    (quote ? Number(quote.quantity) * Number(quote.unitPrice) : undefined);
+    checkoutQuantity !== undefined && listing
+      ? checkoutQuantity * Number(listing.pricePerUnit)
+      : (getOptionalNumber(body, "totalAmount") ??
+        (quote ? Number(quote.quantity) * Number(quote.unitPrice) : undefined));
   if (totalAmount === undefined) {
     throw new ApiError(400, "totalAmount is required when no quote is provided.");
   }
@@ -3259,6 +3373,24 @@ async function createOrder(
     recordId: rows[0].id as number,
     newValue: rows[0],
     reason: creationSourceCode === "admin_direct" ? directOrderReason : "Order created.",
+  });
+
+  await notifyCompanies({
+    actorUserId: auth.userId,
+    companyIds: [
+      rows[0].buyerCompanyId as number,
+      rows[0].sellerCompanyId as number,
+    ],
+    categoryCode: "orders",
+    subject: `Order #${rows[0].id} placed`,
+    body: `Order #${rows[0].id} was created for ${rows[0].totalAmount} ${
+      getOptionalString(body, "currencyCode", 3)?.toUpperCase() ??
+      quote?.currencyCode ??
+      listing?.currencyCode ??
+      "USD"
+    }.${rows[0].escrowRequired ? " Escrow funding is required before fulfilment starts." : ""}`,
+    recordTypeCode: "order",
+    recordId: rows[0].id as number,
   });
 
   sendJson(response, 201, { ok: true, order: rows[0] });
@@ -3377,6 +3509,18 @@ async function updateOrder(
     newValue: rows[0],
     reason: "Order updated.",
   });
+
+  if (orderStatusCode && normalizeCode(orderStatusCode) !== order.orderStatusCode) {
+    await notifyCompanies({
+      actorUserId: auth.userId,
+      companyIds: [order.buyerCompanyId, order.sellerCompanyId],
+      categoryCode: "orders",
+      subject: `Order #${id} is now ${normalizeCode(orderStatusCode)}`,
+      body: `Order #${id} moved from ${order.orderStatusCode} to ${normalizeCode(orderStatusCode)}.`,
+      recordTypeCode: "order",
+      recordId: id,
+    });
+  }
 
   sendJson(response, 200, { ok: true, order: rows[0] });
 }
@@ -4571,6 +4715,18 @@ async function updateEscrow(
     newValue: rows[0],
     reason: "Escrow updated.",
   });
+
+  if (statusCode && normalizeCode(statusCode) !== escrow.escrowStatusCode) {
+    await notifyCompanies({
+      actorUserId: auth.userId,
+      companyIds: [escrowOrder.buyerCompanyId, escrowOrder.sellerCompanyId],
+      categoryCode: "payments",
+      subject: `Escrow for order #${escrow.orderId} is now ${normalizeCode(statusCode)}`,
+      body: `The escrow on order #${escrow.orderId} moved from ${escrow.escrowStatusCode} to ${normalizeCode(statusCode)}.`,
+      recordTypeCode: "escrow",
+      recordId: id,
+    });
+  }
 
   sendJson(response, 200, { ok: true, escrow: rows[0] });
 }

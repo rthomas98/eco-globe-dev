@@ -5,6 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/cart-context";
+import { placeCheckoutOrder } from "@/lib/api-orders";
+import { readDemoUser } from "@/lib/demo-user";
 import {
   Shield,
   Package,
@@ -857,7 +859,7 @@ function PaymentPickerModal({
 
 export function BuyerCheckoutPage() {
   const router = useRouter();
-  const { items } = useCart();
+  const { items, clearCart } = useCart();
   const product = items[0]
     ? {
         title: items[0].title,
@@ -867,6 +869,7 @@ export function BuyerCheckoutPage() {
         image: items[0].image,
       }
     : fallbackProduct;
+  const checkoutItem = items[0];
   const [step, setStep] = useState<Step>("shipping");
   const [shippingType, setShippingType] = useState<ShippingType>(null);
   const [pickup, setPickup] = useState<PickupData>({
@@ -912,6 +915,8 @@ export function BuyerCheckoutPage() {
   const [selectedBillingId, setSelectedBillingId] = useState<string | null>("addr-2");
 
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [placing, setPlacing] = useState(false);
+  const [placeError, setPlaceError] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -941,18 +946,48 @@ export function BuyerCheckoutPage() {
         : "Payment"
       : "Confirm Order";
 
+  // Places the real order against the backend: order -> escrow funding ->
+  // payment -> in_progress. Falls back to a local demo id only when the cart
+  // item did not come from the live API.
+  const finalizeOrder = async () => {
+    if (placing) return;
+    setPlacing(true);
+    setPlaceError("");
+    try {
+      const buyerCompanyId = readDemoUser()?.activeCompanyId;
+      if (checkoutItem?.apiListingId && buyerCompanyId) {
+        const result = await placeCheckoutOrder({
+          listingId: checkoutItem.apiListingId,
+          quantity: checkoutItem.quantity,
+          buyerCompanyId,
+        });
+        setOrderId(`EG-${result.order.id}`);
+      } else {
+        setOrderId(`EG-${Math.floor(20000 + Math.random() * 80000)}`);
+      }
+      clearCart();
+      setStep("success");
+    } catch (error) {
+      setPlaceError(
+        error instanceof Error
+          ? error.message
+          : "Unable to place this order. Please try again.",
+      );
+    } finally {
+      setPlacing(false);
+    }
+  };
+
   const handlePrimary = () => {
     if (step === "shipping" && canContinueShipping) {
       if (shippingType === "delivery") {
-        setOrderId(`EG-${Math.floor(20000 + Math.random() * 80000)}`);
-        setStep("success");
+        void finalizeOrder();
       } else {
         setStep("payment");
       }
     } else if (step === "payment" && canConfirmOrder) {
-      setOrderId(`EG-${Math.floor(20000 + Math.random() * 80000)}`);
-      setStep("success");
-    } else if (step === "success") router.push("/buyer/browse");
+      void finalizeOrder();
+    } else if (step === "success") router.push("/buyer/orders");
   };
 
   if (step === "success") {
@@ -1329,20 +1364,29 @@ export function BuyerCheckoutPage() {
               size="lg"
               className="w-full"
               disabled={
+                placing ||
                 (step === "shipping" && !canContinueShipping) ||
                 (step === "payment" && !canConfirmOrder)
               }
               style={
-                (step === "shipping" && !canContinueShipping) ||
-                (step === "payment" && !canConfirmOrder)
-                  ? { opacity: 0.4, cursor: "not-allowed" }
-                  : undefined
+                placing
+                  ? { opacity: 0.6, cursor: "wait" }
+                  : (step === "shipping" && !canContinueShipping) ||
+                      (step === "payment" && !canConfirmOrder)
+                    ? { opacity: 0.4, cursor: "not-allowed" }
+                    : undefined
               }
               onClick={handlePrimary}
             >
-              {primaryButtonLabel}
+              {placing ? "Placing order..." : primaryButtonLabel}
             </Button>
           </div>
+
+          {placeError && (
+            <p className="mt-3 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {placeError}
+            </p>
+          )}
 
           {shippingType === "delivery" && step === "shipping" && (
             <div

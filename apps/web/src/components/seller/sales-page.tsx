@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
+import {
+  fetchOrders,
+  formatOrderMoney,
+  type ApiOrder,
+} from "@/lib/api-orders";
+import { readDemoUser } from "@/lib/demo-user";
 import { Search, SlidersHorizontal, DollarSign, CheckCircle2, Clock, RefreshCw, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown, X, FileText, Download, Info } from "lucide-react";
 import { Button, Select } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
@@ -32,6 +38,26 @@ const orders: Order[] = [
 ];
 
 const tabs = ["All Order", "Action needed", "Processing", "Completed", "Disputes"];
+
+const SELLER_ACTION_BY_CODE: Record<string, Action> = {
+  draft: "Respond",
+  approval_required: "Send quote",
+  escrow_required: "View Detail",
+  in_progress: "Mark ready",
+  completed: "View Detail",
+  cancelled: "View Detail",
+};
+
+function mapApiOrderToSellerRow(order: ApiOrder): Order {
+  return {
+    id: `EG-${order.id}`,
+    buyer: order.buyerCompanyName,
+    product: `${order.listingTitle ?? "Marketplace order"} · ${formatOrderMoney(order.totalAmount, order.currencyCode)}`,
+    qty: order.orderStatusCode.replace(/_/g, " "),
+    shipping: "Delivery",
+    action: SELLER_ACTION_BY_CODE[order.orderStatusCode] ?? "View Detail",
+  };
+}
 
 function ActionButton({ action, onClick }: { action: Action; onClick: () => void }) {
   const isBlack = action !== "View Detail";
@@ -216,8 +242,31 @@ export function SellerSalesPage() {
   const [showBOLModal, setShowBOLModal] = useState(false);
   const [successModal, setSuccessModal] = useState<{title:string;message:string;status:string}|null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [orderRows, setOrderRows] = useState<Order[]>(orders);
 
-  const filtered = orders.filter((o) => !searchQuery.trim() || o.buyer.toLowerCase().includes(searchQuery.toLowerCase()) || o.product.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Live sales from the backend render ahead of the demo rows.
+  useEffect(() => {
+    const user = readDemoUser();
+    if (!user?.activeCompanyId) return;
+    let cancelled = false;
+    fetchOrders({ sellerCompanyId: user.activeCompanyId })
+      .then((apiOrders) => {
+        if (cancelled || apiOrders.length === 0) return;
+        const live = apiOrders.map(mapApiOrderToSellerRow);
+        setOrderRows((prev) => [
+          ...live,
+          ...prev.filter((o) => !live.some((l) => l.id === o.id)),
+        ]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = orderRows.filter((o) => !searchQuery.trim() || o.buyer.toLowerCase().includes(searchQuery.toLowerCase()) || o.product.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleAction = (action: string) => {
     if (action === "Send quote") setShowQuoteModal(true);

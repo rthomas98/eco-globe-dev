@@ -102,6 +102,7 @@ export function ProductDetailPage() {
       moq: product.minOrder,
       image: product.images[0],
       quantity: qty,
+      apiListingId: matchedListing?.apiListingId,
     });
   };
 

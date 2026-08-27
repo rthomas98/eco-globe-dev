@@ -1180,6 +1180,7 @@ MERGE dbo.OrderCreationSources AS target
 USING (
     VALUES
         ('quote_acceptance', 'Quote acceptance', 'Order created from accepted quote.', 10),
+        ('listing_checkout', 'Listing checkout', 'Buyer purchased directly from a published listing at the listed price.', 15),
         ('admin_direct', 'Admin direct', 'Order created directly by an admin.', 20),
         ('contract_milestone', 'Contract milestone', 'Order created from recurring contract milestone.', 30)
 ) AS source (Code, Name, Description, SortOrder)
