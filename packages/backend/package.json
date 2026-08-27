@@ -15,6 +15,7 @@
     "clean": "rm -rf dist node_modules"
   },
   "dependencies": {
+    "@azure/storage-blob": "^12.33.0",
     "dotenv": "^17.4.2",
     "mssql": "^12.7.0"
   },

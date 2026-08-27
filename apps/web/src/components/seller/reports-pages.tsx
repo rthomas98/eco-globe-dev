@@ -22,6 +22,12 @@ import { LineChart } from "../admin/line-chart";
 import { ExportDropdown } from "../admin/export-dropdown";
 import { DateRangeDropdown } from "../admin/date-range-dropdown";
 import { SellerLayout } from "./seller-layout";
+import {
+  fetchReportSummary,
+  portalMoney,
+  type ApiReportSummary,
+} from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -191,6 +197,47 @@ const sellerSalesOrders = [
   { id: "TS98779", buyer: "NutriCrops Inc", product: "Crop Nutrient Fortifiers", qty: "400 lb", shipping: "Delivery", grossAmount: "$8,300", fee: "$415", netAmount: "$7,885", createdDate: "03/30/2028", completedDate: "03/30/2028", status: "Completed" },
 ];
 
+
+/** Live totals from the backend, shown above the report demo data. */
+function LiveReportSummary() {
+  const [summary, setSummary] = useState<ApiReportSummary | null>(null);
+
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchReportSummary()
+      .then((next) => {
+        if (!cancelled) setSummary(next);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!summary) return null;
+
+  const tiles = [
+    { label: "Total orders", value: String(summary.totalOrders) },
+    { label: "Active", value: String(summary.activeOrders) },
+    { label: "Completed", value: String(summary.completedOrders) },
+    { label: "GMV", value: portalMoney(Number(summary.grossMerchandiseValue)) },
+    { label: "Escrow held", value: portalMoney(Number(summary.fundsHeld)) },
+    { label: "Escrow released", value: portalMoney(Number(summary.fundsReleased)) },
+  ];
+
+  return (
+    <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      {tiles.map((tile) => (
+        <div key={tile.label} className="rounded-xl bg-white p-4" style={{ border: "1px solid #F0F0F0" }}>
+          <p className="text-xs text-neutral-500">{tile.label}</p>
+          <p className="mt-1 text-lg font-bold text-neutral-900">{tile.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function SellerSalesReportPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState("yearly");
@@ -206,6 +253,7 @@ export function SellerSalesReportPage() {
 
   return (
     <SellerLayout title="Sales Reports">
+      <LiveReportSummary />
       <div className="flex h-full flex-col rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
         <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
           <h1 className="text-2xl font-bold text-neutral-900">Sales Reports</h1>

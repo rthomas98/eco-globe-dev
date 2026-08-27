@@ -1,10 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import {
   getBearerToken,
   getOptionalSessionAuth,
   getSessionFromToken,
   requireSessionAuth,
 } from "./auth.js";
+import { uploadDocument } from "./storage.js";
 import {
   queryRowsWithParams,
   queryRowsWithParamsInTransaction,
@@ -5390,6 +5392,221 @@ async function updateDispute(request: IncomingMessage, response: ServerResponse,
   sendJson(response, 200, { ok: true, dispute: rows[0] });
 }
 
+/* ─── Phase 5: uploads, reports, Stripe webhook ─── */
+
+async function uploadFile(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<{
+    fileName?: string;
+    contentType?: string;
+    dataBase64?: string;
+  }>(request);
+  const result = await uploadDocument({
+    fileName: getRequiredString(body, "fileName", 200),
+    contentType: getRequiredString(body, "contentType", 100),
+    dataBase64: getRequiredString(body, "dataBase64", 12_000_000),
+  });
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "created",
+    recordTypeCode: "notification",
+    recordId: 0,
+    newValue: { blobName: result.blobName, size: result.size },
+    reason: `Document uploaded: ${result.fileName}`,
+  });
+
+  sendJson(response, 201, { ok: true, file: result });
+}
+
+/**
+ * Live report aggregates: platform-wide for admins, company-scoped for
+ * everyone else.
+ */
+async function getReportSummary(
+  response: ServerResponse,
+  url: URL,
+  auth: AuthContext,
+) {
+  const requestedCompanyId = url.searchParams.get("companyId")
+    ? Number(url.searchParams.get("companyId"))
+    : undefined;
+  const companyId = auth.isAdmin
+    ? requestedCompanyId
+    : (requestedCompanyId ?? auth.companyId);
+  if (!auth.isAdmin && companyId !== auth.companyId) {
+    throw new ApiError(403, "You cannot access another company's reports.");
+  }
+
+  const totals = (await queryRowsWithParams<Record<string, unknown>>(
+    `
+      SELECT
+        COUNT(*) AS totalOrders,
+        SUM(CASE WHEN os.Code = 'completed' THEN 1 ELSE 0 END) AS completedOrders,
+        SUM(CASE WHEN os.Code IN ('in_progress','escrow_required','approval_required') THEN 1 ELSE 0 END) AS activeOrders,
+        SUM(CASE WHEN os.Code = 'cancelled' THEN 1 ELSE 0 END) AS cancelledOrders,
+        COALESCE(SUM(CASE WHEN os.Code <> 'cancelled' THEN o.TotalAmount ELSE 0 END), 0) AS grossMerchandiseValue
+      FROM dbo.Orders o
+      INNER JOIN dbo.OrderStatuses os ON os.Id = o.OrderStatusId
+      WHERE (@companyId IS NULL OR o.BuyerCompanyId = @companyId OR o.SellerCompanyId = @companyId);
+    `,
+    [intParam("companyId", companyId)],
+  ))[0];
+
+  const escrow = (await queryRowsWithParams<Record<string, unknown>>(
+    `
+      SELECT
+        COALESCE(SUM(CASE WHEN es.Code IN ('funded','release_pending','dispute_locked') THEN e.Amount ELSE 0 END), 0) AS fundsHeld,
+        COALESCE(SUM(CASE WHEN es.Code = 'released' THEN e.Amount ELSE 0 END), 0) AS fundsReleased,
+        SUM(CASE WHEN e.DisputeLocked = 1 THEN 1 ELSE 0 END) AS disputedEscrows
+      FROM dbo.Escrows e
+      INNER JOIN dbo.EscrowStatuses es ON es.Id = e.EscrowStatusId
+      INNER JOIN dbo.Orders o ON o.Id = e.OrderId
+      WHERE (@companyId IS NULL OR o.BuyerCompanyId = @companyId OR o.SellerCompanyId = @companyId);
+    `,
+    [intParam("companyId", companyId)],
+  ))[0];
+
+  const topListings = await queryRowsWithParams(
+    `
+      SELECT TOP (5)
+        l.Id AS listingId,
+        l.Title AS listingTitle,
+        COUNT(o.Id) AS orders,
+        COALESCE(SUM(o.TotalAmount), 0) AS revenue
+      FROM dbo.Orders o
+      INNER JOIN dbo.Listings l ON l.Id = o.ListingId
+      INNER JOIN dbo.OrderStatuses os ON os.Id = o.OrderStatusId
+      WHERE os.Code <> 'cancelled'
+        AND (@companyId IS NULL OR o.BuyerCompanyId = @companyId OR o.SellerCompanyId = @companyId)
+      GROUP BY l.Id, l.Title
+      ORDER BY revenue DESC;
+    `,
+    [intParam("companyId", companyId)],
+  );
+
+  sendJson(response, 200, {
+    ok: true,
+    summary: { ...totals, ...escrow, topListings },
+  });
+}
+
+async function readRawBody(request: IncomingMessage) {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+/**
+ * Stripe webhook: verifies the signature when STRIPE_WEBHOOK_SECRET is set
+ * and reconciles payment and payout-readiness state.
+ */
+async function handleStripeWebhook(
+  request: IncomingMessage,
+  response: ServerResponse,
+) {
+  const payload = await readRawBody(request);
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (secret) {
+    const signatureHeader = request.headers["stripe-signature"];
+    const header = Array.isArray(signatureHeader)
+      ? signatureHeader[0]
+      : signatureHeader;
+    if (!header) throw new ApiError(400, "Missing Stripe-Signature header.");
+    const parts = Object.fromEntries(
+      header.split(",").map((part) => part.split("=") as [string, string]),
+    );
+    const timestamp = parts.t;
+    const signature = parts.v1;
+    if (!timestamp || !signature) {
+      throw new ApiError(400, "Malformed Stripe-Signature header.");
+    }
+    const expected = createHmac("sha256", secret)
+      .update(`${timestamp}.${payload}`)
+      .digest("hex");
+    const expectedBuffer = Buffer.from(expected, "hex");
+    const actualBuffer = Buffer.from(signature, "hex");
+    if (
+      expectedBuffer.length !== actualBuffer.length ||
+      !timingSafeEqual(expectedBuffer, actualBuffer)
+    ) {
+      throw new ApiError(400, "Stripe webhook signature verification failed.");
+    }
+  }
+
+  let event: { type?: string; data?: { object?: Record<string, unknown> } };
+  try {
+    event = JSON.parse(payload);
+  } catch {
+    throw new ApiError(400, "Webhook payload must be valid JSON.");
+  }
+
+  const object = event.data?.object ?? {};
+
+  if (event.type === "payment_intent.succeeded" && typeof object.id === "string") {
+    const capturedId = await lookupId("PaymentStatuses", "captured");
+    await queryRowsWithParams(
+      `
+        UPDATE dbo.Payments
+        SET PaymentStatusId = @statusId, UpdatedAt = SYSUTCDATETIME()
+        WHERE ProviderPaymentId = @providerPaymentId;
+      `,
+      [
+        intParam("statusId", capturedId),
+        varcharParam("providerPaymentId", object.id, 200),
+      ],
+    );
+  }
+
+  if (event.type === "payment_intent.payment_failed" && typeof object.id === "string") {
+    const failedId = await lookupId("PaymentStatuses", "failed");
+    await queryRowsWithParams(
+      `
+        UPDATE dbo.Payments
+        SET PaymentStatusId = @statusId, UpdatedAt = SYSUTCDATETIME()
+        WHERE ProviderPaymentId = @providerPaymentId;
+      `,
+      [
+        intParam("statusId", failedId),
+        varcharParam("providerPaymentId", object.id, 200),
+      ],
+    );
+  }
+
+  if (
+    event.type === "account.updated" &&
+    typeof object.metadata === "object" &&
+    object.metadata !== null
+  ) {
+    const metadata = object.metadata as Record<string, unknown>;
+    const companyId = Number(metadata.ecoglobeCompanyId);
+    if (Number.isInteger(companyId) && companyId > 0) {
+      const payoutsEnabled = object.payouts_enabled === true;
+      const statusId = await lookupId(
+        "PayoutStatuses",
+        payoutsEnabled ? "scheduled" : "pending",
+      );
+      await queryRowsWithParams(
+        `
+          UPDATE dbo.SellerProfiles
+          SET PayoutStatusId = @statusId, UpdatedAt = SYSUTCDATETIME()
+          WHERE CompanyId = @companyId;
+        `,
+        [intParam("statusId", statusId), intParam("companyId", companyId)],
+      );
+    }
+  }
+
+  sendJson(response, 200, { ok: true, received: event.type ?? "unknown" });
+}
+
 /* ─── Phase 4: interest signals, wanted listings, saved searches ─── */
 
 const INTEREST_EVENT_TYPES = [
@@ -6066,6 +6283,25 @@ export async function handleApiRoute(
       parseId(interestMatch.params.id, "Listing ID"),
       await getOptionalSessionAuth(request),
     );
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/files" && method === "POST") {
+    await uploadFile(request, response, await requireSessionAuth(request));
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/reports/summary" && method === "GET") {
+    await getReportSummary(
+      response,
+      requestUrl,
+      await requireSessionAuth(request),
+    );
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/stripe/webhook" && method === "POST") {
+    await handleStripeWebhook(request, response);
     return true;
   }
 

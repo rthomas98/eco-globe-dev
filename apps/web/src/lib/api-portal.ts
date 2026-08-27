@@ -331,6 +331,52 @@ export async function createSavedSearch(input: {
   );
 }
 
+/* ── Admin moderation actions (Phase 5) ── */
+
+/** Approve (publish) or reject (return to draft) a submitted listing. */
+export async function moderateListing(
+  listingId: number,
+  decision: "approve" | "reject",
+) {
+  return proxySend(`/api/listings/${listingId}`, "PATCH", {
+    listingStatusCode: decision === "approve" ? "published" : "draft",
+  });
+}
+
+/** Mark a company's identity verification as passed. */
+export async function verifyCompany(companyId: number) {
+  return proxySend(`/api/companies/${companyId}`, "PATCH", {
+    verificationStatusCode: "verified",
+  });
+}
+
+/* ── Reports (Phase 5) ── */
+
+export interface ApiReportSummary {
+  totalOrders: number;
+  completedOrders: number;
+  activeOrders: number;
+  cancelledOrders: number;
+  grossMerchandiseValue: number;
+  fundsHeld: number;
+  fundsReleased: number;
+  disputedEscrows: number;
+  topListings: Array<{
+    listingId: number;
+    listingTitle: string;
+    orders: number;
+    revenue: number;
+  }>;
+}
+
+export async function fetchReportSummary(companyId?: number) {
+  const suffix = companyId ? `?companyId=${companyId}` : "";
+  const body = await proxyGet<{ ok: boolean; summary: ApiReportSummary }>(
+    `/api/reports/summary${suffix}`,
+  );
+  return body.summary;
+}
+
 /* ── Audit logs (admin) ── */
 
 export interface ApiAuditLog {

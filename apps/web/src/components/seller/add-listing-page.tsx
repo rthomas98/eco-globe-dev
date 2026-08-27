@@ -5,10 +5,24 @@ import { useRouter } from "next/navigation";
 import { X, Plus, Share2, Heart, FileText, Trash2 } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";
 import { ListingMap } from "../public/listing-map";
-import { useDemoUser } from "@/lib/demo-user";
+import { readDemoUser, useDemoUser } from "@/lib/demo-user";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
 import { addCustomListing } from "@/lib/custom-listings";
+import { fetchCompanyLocations } from "@/lib/api-portal";
 import type { Listing } from "@/components/public/browse-listings";
+
+/** Reads a File as raw base64 (no data-URL prefix). */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? "");
+      resolve(result.includes(",") ? result.slice(result.indexOf(",") + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 const TOTAL = 7;
@@ -157,7 +171,84 @@ export function AddListingPage() {
       sdsUrl: form.sdsName ? `#sds-${id}` : undefined,
       sellerFacilityId: form.facilityId || undefined,
     };
-    addCustomListing(newListing);
+    void submitToBackend(newListing, qtyNum, priceNum);
+  };
+
+  /**
+   * Creates the real listing (draft → submitted for review), uploads the SDS
+   * to Azure Blob storage, and attaches it as a listing document. Falls back
+   * to the local demo listing when the session has no company.
+   */
+  const submitToBackend = async (
+    localListing: Listing,
+    qtyNum: number,
+    priceNum: number,
+  ) => {
+    const user = readDemoUser();
+    try {
+      if (!user?.activeCompanyId) throw new Error("no company");
+      const locations = await fetchCompanyLocations(user.activeCompanyId);
+      const location = locations.find((l) => l.isDefault) ?? locations[0];
+      if (!location) throw new Error("no location");
+
+      const created = await fetch("/api/backend/api/listings", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: localListing.title,
+          sellerCompanyId: user.activeCompanyId,
+          locationId: location.id,
+          materialTypeCode: "industrial_byproduct",
+          quantity: qtyNum,
+          quantityUnit: "tons",
+          minimumOrderQuantity: parseFloat(form.moq || "1") || 1,
+          pricePerUnit: priceNum,
+        }),
+      });
+      if (!created.ok) throw new Error(`create failed ${created.status}`);
+      const listing = (await created.json()) as { listing: { id: number } };
+      const listingId = listing.listing.id;
+
+      if (form.sdsFile) {
+        const dataBase64 = await fileToBase64(form.sdsFile);
+        const uploaded = await fetch("/api/backend/api/files", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            fileName: form.sdsFile.name,
+            contentType: form.sdsFile.type || "application/pdf",
+            dataBase64,
+          }),
+        });
+        if (uploaded.ok) {
+          const file = (await uploaded.json()) as { file: { url: string } };
+          await fetch("/api/backend/api/listing-documents", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              listingId,
+              documentTypeCode: "sds",
+              fileName: form.sdsFile.name,
+              fileUrl: file.file.url,
+            }),
+          });
+        }
+      }
+
+      // Submit for EcoGlobe review.
+      await fetch(`/api/backend/api/listings/${listingId}`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ listingStatusCode: "pending_review" }),
+      });
+    } catch {
+      // Keep the local demo listing so the flow still completes offline.
+      addCustomListing(localListing);
+    }
     router.push("/seller/listings");
   };
 

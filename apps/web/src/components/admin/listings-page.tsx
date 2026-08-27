@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchAllListings } from "@/lib/api-portal";
+import { fetchAllListings, moderateListing } from "@/lib/api-portal";
 import { readDemoUser } from "@/lib/demo-user";
 import {
   Search,
@@ -24,6 +24,7 @@ type ListingStatus = "Pending" | "Active";
 
 interface Listing {
   id: string;
+  numericId?: number;
   product: string;
   category: string;
   seller: string;
@@ -314,6 +315,28 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
 /* ─── Main Listings Page ─── */
 export function AdminListingsPage() {
   const [listingRows, setListingRows] = useState<Listing[]>(listings);
+  const [moderatingId, setModeratingId] = useState<number | null>(null);
+
+  const handleModerate = async (
+    listing: Listing,
+    decision: "approve" | "reject",
+  ) => {
+    if (!listing.numericId || moderatingId) return;
+    setModeratingId(listing.numericId);
+    try {
+      await moderateListing(listing.numericId, decision);
+      setListingRows((prev) =>
+        prev.map((row) =>
+          row.numericId === listing.numericId
+            ? { ...row, status: decision === "approve" ? "Active" : "Pending" }
+            : row,
+        ),
+      );
+    } catch {
+      // Row state stays unchanged if the backend rejects the action.
+    }
+    setModeratingId(null);
+  };
 
   // Live listings (all statuses for admins) render ahead of the demo rows.
   useEffect(() => {
@@ -324,6 +347,7 @@ export function AdminListingsPage() {
         if (cancelled || apiListings.length === 0) return;
         const live: Listing[] = apiListings.map((listing) => ({
           id: `LS-${listing.id}`,
+          numericId: listing.id,
           product: listing.title,
           category: listing.materialTypeCode.replace(/_/g, " "),
           seller: listing.sellerCompanyName,
@@ -399,7 +423,29 @@ export function AdminListingsPage() {
                 <td className="py-3.5 text-sm text-neutral-900">{listing.pricePerTon}</td>
                 <td className="py-3.5 text-sm text-neutral-700">{listing.availableQty}</td>
                 <td className="py-3.5"><StatusBadge status={listing.status} /></td>
-                <td className="py-3.5"><button className="text-neutral-400 hover:text-neutral-700"><MoreHorizontal className="size-4" /></button></td>
+                <td className="py-3.5">
+                  {listing.numericId && listing.status === "Pending" ? (
+                    <span className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => void handleModerate(listing, "approve")}
+                        disabled={moderatingId === listing.numericId}
+                        className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-white"
+                      >
+                        {moderatingId === listing.numericId ? "..." : "Approve"}
+                      </button>
+                      <button
+                        onClick={() => void handleModerate(listing, "reject")}
+                        disabled={moderatingId === listing.numericId}
+                        className="rounded-full px-3 py-1 text-xs font-medium text-neutral-900"
+                        style={{ border: "1px solid #E0E0E0" }}
+                      >
+                        Reject
+                      </button>
+                    </span>
+                  ) : (
+                    <button className="text-neutral-400 hover:text-neutral-700"><MoreHorizontal className="size-4" /></button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
