@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   getBearerToken,
+  getOptionalSessionAuth,
   getSessionFromToken,
   requireSessionAuth,
 } from "./auth.js";
@@ -548,6 +549,114 @@ async function requireOrderAccess(auth: AuthContext, orderId: number) {
     throw new ApiError(403, "You cannot access another company's order.");
   }
   return order;
+}
+
+/* ─── Status lifecycle guards ───
+ * Every status-bearing record moves through a fixed transition map, and each
+ * target status may only be set by specific parties. Admins are still bound
+ * to the transition map but may set any target status.
+ */
+
+type TransactionParty = "buyer" | "seller";
+
+const QUOTE_TRANSITIONS: Record<string, string[]> = {
+  requested: ["sent", "declined", "expired"],
+  sent: ["accepted", "declined", "expired"],
+  accepted: [],
+  declined: [],
+  expired: [],
+};
+
+const QUOTE_STATUS_SETTERS: Record<string, TransactionParty[]> = {
+  requested: ["buyer"],
+  sent: ["seller"],
+  accepted: ["buyer"],
+  declined: ["buyer", "seller"],
+  expired: [],
+};
+
+const ORDER_TRANSITIONS: Record<string, string[]> = {
+  draft: ["approval_required", "escrow_required", "in_progress", "cancelled"],
+  approval_required: ["escrow_required", "in_progress", "cancelled"],
+  escrow_required: ["in_progress", "cancelled"],
+  in_progress: ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
+
+const ORDER_STATUS_SETTERS: Record<string, TransactionParty[]> = {
+  draft: ["buyer"],
+  approval_required: ["buyer"],
+  escrow_required: ["buyer"],
+  in_progress: ["buyer", "seller"],
+  completed: ["buyer"],
+  cancelled: ["buyer", "seller"],
+};
+
+const ESCROW_TRANSITIONS: Record<string, string[]> = {
+  not_required: ["funding_required"],
+  funding_required: ["funded", "not_required"],
+  funded: ["release_pending", "released", "dispute_locked"],
+  release_pending: ["released", "dispute_locked"],
+  released: [],
+  dispute_locked: ["funded", "release_pending"],
+};
+
+const ESCROW_STATUS_SETTERS: Record<string, TransactionParty[]> = {
+  not_required: ["buyer"],
+  funding_required: ["buyer", "seller"],
+  funded: ["buyer"],
+  release_pending: ["buyer", "seller"],
+  released: ["buyer"],
+  dispute_locked: ["buyer", "seller"],
+};
+
+const LISTING_TRANSITIONS: Record<string, string[]> = {
+  draft: ["pending_review", "closed"],
+  pending_review: ["published", "draft", "closed"],
+  published: ["paused", "closed"],
+  paused: ["published", "closed"],
+  closed: [],
+};
+
+function assertStatusTransition(
+  transitions: Record<string, string[]>,
+  fromCode: string,
+  toCode: string,
+  label: string,
+) {
+  if (fromCode === toCode) return;
+  if (!transitions[fromCode]?.includes(toCode)) {
+    throw new ApiError(
+      409,
+      `A ${label} cannot move from ${fromCode} to ${toCode}.`,
+    );
+  }
+}
+
+function transactionParty(
+  auth: AuthContext,
+  record: { buyerCompanyId: number; sellerCompanyId: number },
+): TransactionParty | undefined {
+  if (auth.companyId === record.buyerCompanyId) return "buyer";
+  if (auth.companyId === record.sellerCompanyId) return "seller";
+  return undefined;
+}
+
+function assertStatusSetter(
+  setters: Record<string, TransactionParty[]>,
+  toCode: string,
+  party: TransactionParty | undefined,
+  auth: AuthContext,
+  label: string,
+) {
+  if (auth.isAdmin) return;
+  if (!party || !setters[toCode]?.includes(party)) {
+    throw new ApiError(
+      403,
+      `Your role on this ${label} cannot set the status to ${toCode}.`,
+    );
+  }
 }
 
 async function writeAuditLog({
@@ -2064,7 +2173,11 @@ async function deleteLocation(response: ServerResponse, id: number, auth: AuthCo
   sendJson(response, 200, { ok: true, location: rows[0] });
 }
 
-async function listListings(response: ServerResponse, url: URL) {
+async function listListings(
+  response: ServerResponse,
+  url: URL,
+  auth: AuthContext | undefined,
+) {
   const sellerCompanyId = url.searchParams.get("sellerCompanyId")
     ? Number(url.searchParams.get("sellerCompanyId"))
     : undefined;
@@ -2103,6 +2216,11 @@ async function listListings(response: ServerResponse, url: URL) {
       WHERE (@sellerCompanyId IS NULL OR l.SellerCompanyId = @sellerCompanyId)
         AND (@statusCode IS NULL OR ls.Code = @statusCode)
         AND (@search IS NULL OR l.Title LIKE '%' + @search + '%' OR l.Description LIKE '%' + @search + '%')
+        AND (
+          ls.Code = 'published'
+          OR @isAdmin = 1
+          OR (@authCompanyId IS NOT NULL AND l.SellerCompanyId = @authCompanyId)
+        )
       ORDER BY l.Id DESC;
     `,
     [
@@ -2120,14 +2238,25 @@ async function listListings(response: ServerResponse, url: URL) {
         80,
       ),
       nvarcharParam("search", search, 160),
+      bitParam("isAdmin", auth?.isAdmin ?? false),
+      intParam("authCompanyId", auth?.companyId),
     ],
   );
 
   sendJson(response, 200, { ok: true, listings });
 }
 
-async function getListing(response: ServerResponse, id: number) {
-  const rows = await queryRowsWithParams(
+async function getListing(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext | undefined,
+) {
+  const rows = await queryRowsWithParams<
+    Record<string, unknown> & {
+      sellerCompanyId: number;
+      listingStatusCode: string;
+    }
+  >(
     `
       SELECT
         l.Id AS id,
@@ -2164,11 +2293,19 @@ async function getListing(response: ServerResponse, id: number) {
     [intParam("id", id)],
   );
 
-  if (!rows[0]) {
+  const listing = rows[0];
+  if (!listing) {
     throw new ApiError(404, "Listing not found.");
   }
 
-  sendJson(response, 200, { ok: true, listing: rows[0] });
+  // Unpublished listings are visible only to their seller and admins.
+  const canSeeUnpublished =
+    auth?.isAdmin || auth?.companyId === listing.sellerCompanyId;
+  if (listing.listingStatusCode !== "published" && !canSeeUnpublished) {
+    throw new ApiError(404, "Listing not found.");
+  }
+
+  sendJson(response, 200, { ok: true, listing });
 }
 
 async function createListing(
@@ -2280,6 +2417,35 @@ async function updateListing(
   const body = await readJsonBody<ListingBody>(request);
   const title = getOptionalString(body, "title", 200);
   const statusCode = getOptionalString(body, "listingStatusCode", 80);
+  if (statusCode) {
+    const currentStatus = (await queryRowsWithParams<{ code: string }>(
+      `
+        SELECT ls.Code AS code
+        FROM dbo.Listings l
+        INNER JOIN dbo.ListingStatuses ls ON ls.Id = l.ListingStatusId
+        WHERE l.Id = @id;
+      `,
+      [intParam("id", id)],
+    ))[0];
+    const toCode = normalizeCode(statusCode);
+    assertStatusTransition(
+      LISTING_TRANSITIONS,
+      currentStatus?.code ?? "draft",
+      toCode,
+      "listing",
+    );
+    // Publishing a submitted listing is EcoGlobe's review decision.
+    if (
+      toCode === "published" &&
+      currentStatus?.code === "pending_review" &&
+      !auth.isAdmin
+    ) {
+      throw new ApiError(
+        403,
+        "Listings are published by EcoGlobe review. Submit for review and wait for approval.",
+      );
+    }
+  }
   const listingStatusId = statusCode
     ? await lookupId("ListingStatuses", statusCode)
     : undefined;
@@ -2478,6 +2644,12 @@ async function updateListingDocument(
     "verificationStatusCode",
     80,
   );
+  if (verificationStatusCode && !auth.isAdmin) {
+    throw new ApiError(
+      403,
+      "Only EcoGlobe admins can change document verification status.",
+    );
+  }
   const documentTypeId = documentTypeCode
     ? await lookupId("DocumentTypes", documentTypeCode)
     : undefined;
@@ -2629,6 +2801,50 @@ async function listQuotes(response: ServerResponse, url: URL, auth: AuthContext)
   sendJson(response, 200, { ok: true, quotes });
 }
 
+async function getQuote(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const rows = await queryRowsWithParams<
+    Record<string, unknown> & { buyerCompanyId: number; sellerCompanyId: number }
+  >(
+    `
+      SELECT
+        q.Id AS id,
+        q.ListingId AS listingId,
+        l.Title AS listingTitle,
+        q.BuyerCompanyId AS buyerCompanyId,
+        bc.LegalName AS buyerCompanyName,
+        q.SellerCompanyId AS sellerCompanyId,
+        sc.LegalName AS sellerCompanyName,
+        q.Quantity AS quantity,
+        q.QuantityUnit AS quantityUnit,
+        q.UnitPrice AS unitPrice,
+        q.CurrencyCode AS currencyCode,
+        q.DeliveryTerms AS deliveryTerms,
+        qs.Code AS quoteStatusCode,
+        qs.Name AS quoteStatusName,
+        q.ExpiresAt AS expiresAt,
+        q.CreatedAt AS createdAt,
+        q.UpdatedAt AS updatedAt
+      FROM dbo.Quotes q
+      INNER JOIN dbo.Listings l ON l.Id = q.ListingId
+      INNER JOIN dbo.Companies bc ON bc.Id = q.BuyerCompanyId
+      INNER JOIN dbo.Companies sc ON sc.Id = q.SellerCompanyId
+      INNER JOIN dbo.QuoteStatuses qs ON qs.Id = q.QuoteStatusId
+      WHERE q.Id = @id;
+    `,
+    [intParam("id", id)],
+  );
+  const quote = rows[0];
+  if (!quote) throw new ApiError(404, "Quote not found.");
+  if (!auth.isAdmin && !transactionParty(auth, quote)) {
+    throw new ApiError(403, "You cannot access another company's quote.");
+  }
+  sendJson(response, 200, { ok: true, quote });
+}
+
 async function createQuote(
   request: IncomingMessage,
   response: ServerResponse,
@@ -2658,10 +2874,12 @@ async function createQuote(
     throw new ApiError(403, "The quote seller company must match the listing.");
   }
 
-  const quoteStatusId = await lookupId(
-    "QuoteStatuses",
-    getOptionalString(body, "quoteStatusCode", 80) ?? "draft",
-  );
+  const requestedStatusCode =
+    getOptionalString(body, "quoteStatusCode", 80) ?? "requested";
+  if (!auth.isAdmin && normalizeCode(requestedStatusCode) !== "requested") {
+    throw new ApiError(400, "New quotes must start in the requested status.");
+  }
+  const quoteStatusId = await lookupId("QuoteStatuses", requestedStatusCode);
   const quantity = getOptionalNumber(body, "quantity");
   if (quantity === undefined) throw new ApiError(400, "quantity is required.");
 
@@ -2714,14 +2932,60 @@ async function updateQuote(
   id: number,
   auth: AuthContext,
 ) {
-  await requireResourceCompany(
-    auth,
-    "SELECT BuyerCompanyId AS companyId FROM dbo.Quotes WHERE Id = @id;",
+  const quote = (await queryRowsWithParams<{
+    buyerCompanyId: number;
+    sellerCompanyId: number;
+    quoteStatusCode: string;
+  }>(
+    `
+      SELECT q.BuyerCompanyId AS buyerCompanyId, q.SellerCompanyId AS sellerCompanyId, qs.Code AS quoteStatusCode
+      FROM dbo.Quotes q
+      INNER JOIN dbo.QuoteStatuses qs ON qs.Id = q.QuoteStatusId
+      WHERE q.Id = @id;
+    `,
     [intParam("id", id)],
-    "Quote",
-  );
+  ))[0];
+  if (!quote) throw new ApiError(404, "Quote not found.");
+  const party = transactionParty(auth, quote);
+  if (!auth.isAdmin && !party) {
+    throw new ApiError(403, "You cannot access another company's quote.");
+  }
+
   const body = await readJsonBody<QuoteBody>(request);
   const quoteStatusCode = getOptionalString(body, "quoteStatusCode", 80);
+  if (quoteStatusCode) {
+    assertStatusTransition(
+      QUOTE_TRANSITIONS,
+      quote.quoteStatusCode,
+      normalizeCode(quoteStatusCode),
+      "quote",
+    );
+    assertStatusSetter(
+      QUOTE_STATUS_SETTERS,
+      normalizeCode(quoteStatusCode),
+      party,
+      auth,
+      "quote",
+    );
+  }
+
+  // Terms may only change while the quote is still being negotiated.
+  const editsTerms =
+    getOptionalNumber(body, "quantity") !== undefined ||
+    getOptionalNumber(body, "unitPrice") !== undefined ||
+    getOptionalString(body, "quantityUnit", 40) !== undefined ||
+    getOptionalString(body, "deliveryTerms", 500) !== undefined;
+  if (
+    editsTerms &&
+    !auth.isAdmin &&
+    !["requested", "sent"].includes(quote.quoteStatusCode)
+  ) {
+    throw new ApiError(
+      409,
+      `Quote terms cannot change once the quote is ${quote.quoteStatusCode}.`,
+    );
+  }
+
   const quoteStatusId = quoteStatusCode
     ? await lookupId("QuoteStatuses", quoteStatusCode)
     : undefined;
@@ -2829,6 +3093,46 @@ async function listOrders(response: ServerResponse, url: URL, auth: AuthContext)
   );
 
   sendJson(response, 200, { ok: true, orders });
+}
+
+async function getOrder(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  await requireOrderAccess(auth, id);
+  const rows = await queryRowsWithParams(
+    `
+      SELECT
+        o.Id AS id,
+        o.QuoteId AS quoteId,
+        o.ListingId AS listingId,
+        l.Title AS listingTitle,
+        o.BuyerCompanyId AS buyerCompanyId,
+        bc.LegalName AS buyerCompanyName,
+        o.SellerCompanyId AS sellerCompanyId,
+        sc.LegalName AS sellerCompanyName,
+        os.Code AS orderStatusCode,
+        os.Name AS orderStatusName,
+        src.Code AS creationSourceCode,
+        o.TotalAmount AS totalAmount,
+        o.CurrencyCode AS currencyCode,
+        o.EscrowRequired AS escrowRequired,
+        o.DirectOrderReason AS directOrderReason,
+        o.CreatedAt AS createdAt,
+        o.UpdatedAt AS updatedAt
+      FROM dbo.Orders o
+      LEFT JOIN dbo.Listings l ON l.Id = o.ListingId
+      INNER JOIN dbo.Companies bc ON bc.Id = o.BuyerCompanyId
+      INNER JOIN dbo.Companies sc ON sc.Id = o.SellerCompanyId
+      INNER JOIN dbo.OrderStatuses os ON os.Id = o.OrderStatusId
+      INNER JOIN dbo.OrderCreationSources src ON src.Id = o.CreationSourceId
+      WHERE o.Id = @id;
+    `,
+    [intParam("id", id)],
+  );
+  if (!rows[0]) throw new ApiError(404, "Order not found.");
+  sendJson(response, 200, { ok: true, order: rows[0] });
 }
 
 async function createOrder(
@@ -2966,20 +3270,77 @@ async function updateOrder(
   id: number,
   auth: AuthContext,
 ) {
-  await requireResourceCompany(
-    auth,
-    "SELECT BuyerCompanyId AS companyId FROM dbo.Orders WHERE Id = @id;",
+  const order = (await queryRowsWithParams<{
+    buyerCompanyId: number;
+    sellerCompanyId: number;
+    orderStatusCode: string;
+    escrowRequired: boolean;
+  }>(
+    `
+      SELECT o.BuyerCompanyId AS buyerCompanyId, o.SellerCompanyId AS sellerCompanyId,
+        os.Code AS orderStatusCode, o.EscrowRequired AS escrowRequired
+      FROM dbo.Orders o
+      INNER JOIN dbo.OrderStatuses os ON os.Id = o.OrderStatusId
+      WHERE o.Id = @id;
+    `,
     [intParam("id", id)],
-    "Order",
-  );
+  ))[0];
+  if (!order) throw new ApiError(404, "Order not found.");
+  const party = transactionParty(auth, order);
+  if (!auth.isAdmin && !party) {
+    throw new ApiError(403, "You cannot access another company's order.");
+  }
+
   const body = await readJsonBody<OrderBody>(request);
   const orderStatusCode = getOptionalString(body, "orderStatusCode", 80);
+  if (orderStatusCode) {
+    const toCode = normalizeCode(orderStatusCode);
+    assertStatusTransition(
+      ORDER_TRANSITIONS,
+      order.orderStatusCode,
+      toCode,
+      "order",
+    );
+    assertStatusSetter(ORDER_STATUS_SETTERS, toCode, party, auth, "order");
+
+    // An escrow-backed order can only start once its escrow is funded.
+    if (
+      toCode === "in_progress" &&
+      order.escrowRequired &&
+      order.orderStatusCode !== "in_progress"
+    ) {
+      const fundedEscrow = (await queryRowsWithParams<{ id: number }>(
+        `
+          SELECT TOP (1) e.Id AS id
+          FROM dbo.Escrows e
+          INNER JOIN dbo.EscrowStatuses es ON es.Id = e.EscrowStatusId
+          WHERE e.OrderId = @orderId AND es.Code IN ('funded', 'release_pending', 'released');
+        `,
+        [intParam("orderId", id)],
+      ))[0];
+      if (!fundedEscrow) {
+        throw new ApiError(
+          409,
+          "This order requires a funded escrow before it can move to in_progress.",
+        );
+      }
+    }
+  }
+
+  const totalAmount = getOptionalNumber(body, "totalAmount");
+  const requestedEscrowFlag = getOptionalBoolean(body, "escrowRequired");
+  if (!auth.isAdmin && (totalAmount !== undefined || requestedEscrowFlag !== undefined)) {
+    throw new ApiError(
+      403,
+      "Only admins can change the order total or escrow requirement after creation.",
+    );
+  }
+
   const orderStatusId = orderStatusCode
     ? await lookupId("OrderStatuses", orderStatusCode)
     : undefined;
-  const totalAmount = getOptionalNumber(body, "totalAmount");
   const escrowRequired =
-    getOptionalBoolean(body, "escrowRequired") ??
+    requestedEscrowFlag ??
     (totalAmount === undefined ? undefined : totalAmount > 1000);
 
   const rows = await queryRowsWithParams(
@@ -3991,6 +4352,35 @@ async function listEscrows(response: ServerResponse, url: URL, auth: AuthContext
   sendJson(response, 200, { ok: true, escrows });
 }
 
+async function getEscrow(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const rows = await queryRowsWithParams<
+    Record<string, unknown> & { orderId: number }
+  >(
+    `
+      SELECT
+        e.Id AS id, e.OrderId AS orderId, ep.Code AS escrowProviderCode,
+        e.ProviderEscrowId AS providerEscrowId, e.Amount AS amount, e.CurrencyCode AS currencyCode,
+        es.Code AS escrowStatusCode, e.ThresholdAmount AS thresholdAmount,
+        rr.Code AS releaseRuleCode, e.DisputeLocked AS disputeLocked,
+        e.CreatedAt AS createdAt, e.UpdatedAt AS updatedAt
+      FROM dbo.Escrows e
+      INNER JOIN dbo.EscrowProviders ep ON ep.Id = e.EscrowProviderId
+      INNER JOIN dbo.EscrowStatuses es ON es.Id = e.EscrowStatusId
+      INNER JOIN dbo.EscrowReleaseRules rr ON rr.Id = e.ReleaseRuleId
+      WHERE e.Id = @id;
+    `,
+    [intParam("id", id)],
+  );
+  const escrow = rows[0];
+  if (!escrow) throw new ApiError(404, "Escrow not found.");
+  await requireOrderAccess(auth, escrow.orderId);
+  sendJson(response, 200, { ok: true, escrow });
+}
+
 async function createEscrow(
   request: IncomingMessage,
   response: ServerResponse,
@@ -4057,14 +4447,94 @@ async function updateEscrow(
   id: number,
   auth: AuthContext,
 ) {
-  const escrowOrder = (await queryRowsWithParams<{ orderId: number }>(
-    "SELECT OrderId AS orderId FROM dbo.Escrows WHERE Id = @id;",
+  const escrow = (await queryRowsWithParams<{
+    orderId: number;
+    escrowStatusCode: string;
+    releaseRuleCode: string;
+    disputeLocked: boolean;
+  }>(
+    `
+      SELECT e.OrderId AS orderId, es.Code AS escrowStatusCode,
+        rr.Code AS releaseRuleCode, e.DisputeLocked AS disputeLocked
+      FROM dbo.Escrows e
+      INNER JOIN dbo.EscrowStatuses es ON es.Id = e.EscrowStatusId
+      INNER JOIN dbo.EscrowReleaseRules rr ON rr.Id = e.ReleaseRuleId
+      WHERE e.Id = @id;
+    `,
     [intParam("id", id)],
   ))[0];
-  if (!escrowOrder) throw new ApiError(404, "Escrow not found.");
-  await requireOrderAccess(auth, escrowOrder.orderId);
+  if (!escrow) throw new ApiError(404, "Escrow not found.");
+  const escrowOrder = await requireOrderAccess(auth, escrow.orderId);
+  const party = transactionParty(auth, escrowOrder);
+
   const body = await readJsonBody<EscrowBody>(request);
   const statusCode = getOptionalString(body, "escrowStatusCode", 80);
+  if (statusCode) {
+    const toCode = normalizeCode(statusCode);
+    assertStatusTransition(
+      ESCROW_TRANSITIONS,
+      escrow.escrowStatusCode,
+      toCode,
+      "escrow",
+    );
+    assertStatusSetter(ESCROW_STATUS_SETTERS, toCode, party, auth, "escrow");
+
+    if (toCode === "released" && escrow.escrowStatusCode !== "released") {
+      if (escrow.disputeLocked) {
+        throw new ApiError(
+          409,
+          "This escrow is dispute-locked and cannot be released until the dispute is resolved.",
+        );
+      }
+      if (escrow.releaseRuleCode === "admin_approval" && !auth.isAdmin) {
+        throw new ApiError(
+          403,
+          "This escrow releases only with EcoGlobe admin approval.",
+        );
+      }
+      if (escrow.releaseRuleCode === "delivery_confirmation" && !auth.isAdmin) {
+        const delivered = (await queryRowsWithParams<{ id: number }>(
+          `
+            SELECT TOP (1) s.Id AS id
+            FROM dbo.Shipments s
+            INNER JOIN dbo.ShipmentStatuses ss ON ss.Id = s.ShipmentStatusId
+            WHERE s.OrderId = @orderId AND ss.Code = 'delivered';
+          `,
+          [intParam("orderId", escrow.orderId)],
+        ))[0];
+        if (!delivered) {
+          throw new ApiError(
+            409,
+            "This escrow releases on delivery confirmation, and no shipment on the order is delivered yet.",
+          );
+        }
+      }
+      if (escrow.releaseRuleCode === "contract_milestone" && !auth.isAdmin) {
+        const activeContract = (await queryRowsWithParams<{ id: number }>(
+          `
+            SELECT TOP (1) c.Id AS id
+            FROM dbo.Contracts c
+            INNER JOIN dbo.ContractStatuses cs ON cs.Id = c.ContractStatusId
+            WHERE c.OrderId = @orderId AND cs.Code = 'active';
+          `,
+          [intParam("orderId", escrow.orderId)],
+        ))[0];
+        if (!activeContract) {
+          throw new ApiError(
+            409,
+            "This escrow releases on a contract milestone, and the order has no active contract.",
+          );
+        }
+      }
+    }
+  }
+
+  // Clearing a dispute lock is an admin action; parties may only set it.
+  const disputeLockedFlag = getOptionalBoolean(body, "disputeLocked");
+  if (disputeLockedFlag === false && !auth.isAdmin) {
+    throw new ApiError(403, "Only admins can clear an escrow dispute lock.");
+  }
+
   const rows = await queryRowsWithParams(
     `
       UPDATE dbo.Escrows
@@ -4126,6 +4596,34 @@ async function listPayments(response: ServerResponse, url: URL, auth: AuthContex
     [intParam("orderId", Number.isInteger(orderId) ? orderId : undefined), bitParam("isAdmin", auth.isAdmin), intParam("authCompanyId", auth.companyId)],
   );
   sendJson(response, 200, { ok: true, payments });
+}
+
+async function getPayment(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const rows = await queryRowsWithParams<
+    Record<string, unknown> & { orderId: number }
+  >(
+    `
+      SELECT
+        p.Id AS id, p.OrderId AS orderId, p.EscrowId AS escrowId, p.PayerCompanyId AS payerCompanyId,
+        c.LegalName AS payerCompanyName, p.ProviderPaymentId AS providerPaymentId,
+        p.Amount AS amount, p.CurrencyCode AS currencyCode, ps.Code AS paymentStatusCode,
+        pt.Code AS paymentTypeCode, p.CreatedAt AS createdAt, p.UpdatedAt AS updatedAt
+      FROM dbo.Payments p
+      INNER JOIN dbo.Companies c ON c.Id = p.PayerCompanyId
+      INNER JOIN dbo.PaymentStatuses ps ON ps.Id = p.PaymentStatusId
+      INNER JOIN dbo.PaymentTypes pt ON pt.Id = p.PaymentTypeId
+      WHERE p.Id = @id;
+    `,
+    [intParam("id", id)],
+  );
+  const payment = rows[0];
+  if (!payment) throw new ApiError(404, "Payment not found.");
+  await requireOrderAccess(auth, payment.orderId);
+  sendJson(response, 200, { ok: true, payment });
 }
 
 async function createPayment(
@@ -4593,6 +5091,27 @@ async function createDispute(request: IncomingMessage, response: ServerResponse,
       intParam("updatedByUserId", auth.userId),
     ],
   );
+  // Opening a dispute freezes any live escrow money on the affected order.
+  await queryRowsWithParams(
+    `
+      UPDATE e
+      SET e.DisputeLocked = 1,
+          e.EscrowStatusId = locked.Id,
+          e.UpdatedByUserId = @userId,
+          e.UpdatedAt = SYSUTCDATETIME()
+      FROM dbo.Escrows e
+      INNER JOIN dbo.EscrowStatuses es ON es.Id = e.EscrowStatusId
+      CROSS JOIN (SELECT Id FROM dbo.EscrowStatuses WHERE Code = 'dispute_locked') locked
+      WHERE (e.Id = @escrowId OR e.OrderId = @orderId)
+        AND es.Code IN ('funded', 'release_pending');
+    `,
+    [
+      intParam("escrowId", escrowId ?? -1),
+      intParam("orderId", orderId ?? -1),
+      intParam("userId", auth.userId),
+    ],
+  );
+
   await writeAuditLog({ auth, request, actionTypeCode: "created", recordTypeCode: "dispute", recordId: rows[0].id as number, newValue: rows[0], reason: "Dispute created." });
   sendJson(response, 201, { ok: true, dispute: rows[0] });
 }
@@ -4840,7 +5359,11 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/listings") {
     if (method === "GET") {
-      await listListings(response, requestUrl);
+      await listListings(
+        response,
+        requestUrl,
+        await getOptionalSessionAuth(request),
+      );
       return true;
     }
 
@@ -4855,7 +5378,7 @@ export async function handleApiRoute(
     const id = parseId(listingMatch.params.id, "Listing ID");
 
     if (method === "GET") {
-      await getListing(response, id);
+      await getListing(response, id, await getOptionalSessionAuth(request));
       return true;
     }
 
@@ -4972,6 +5495,11 @@ export async function handleApiRoute(
   if (quoteMatch.matched) {
     const id = parseId(quoteMatch.params.id, "Quote ID");
 
+    if (method === "GET") {
+      await getQuote(response, id, await requireSessionAuth(request));
+      return true;
+    }
+
     if (method === "PATCH") {
       await updateQuote(request, response, id, await requireSessionAuth(request));
       return true;
@@ -4993,6 +5521,11 @@ export async function handleApiRoute(
   const orderMatch = matchPath(requestUrl.pathname, "/api/orders/:id");
   if (orderMatch.matched) {
     const id = parseId(orderMatch.params.id, "Order ID");
+
+    if (method === "GET") {
+      await getOrder(response, id, await requireSessionAuth(request));
+      return true;
+    }
 
     if (method === "PATCH") {
       await updateOrder(request, response, id, await requireSessionAuth(request));
@@ -5146,6 +5679,11 @@ export async function handleApiRoute(
   if (escrowMatch.matched) {
     const id = parseId(escrowMatch.params.id, "Escrow ID");
 
+    if (method === "GET") {
+      await getEscrow(response, id, await requireSessionAuth(request));
+      return true;
+    }
+
     if (method === "PATCH") {
       await updateEscrow(request, response, id, await requireSessionAuth(request));
       return true;
@@ -5167,6 +5705,11 @@ export async function handleApiRoute(
   const paymentMatch = matchPath(requestUrl.pathname, "/api/payments/:id");
   if (paymentMatch.matched) {
     const id = parseId(paymentMatch.params.id, "Payment ID");
+
+    if (method === "GET") {
+      await getPayment(response, id, await requireSessionAuth(request));
+      return true;
+    }
 
     if (method === "PATCH") {
       await updatePayment(request, response, id, await requireSessionAuth(request));

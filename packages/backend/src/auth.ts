@@ -986,6 +986,24 @@ export async function requireSessionAuth(
   throw new ApiError(401, "Missing or invalid bearer session token.");
 }
 
+/**
+ * Like requireSessionAuth, but anonymous callers get `undefined` instead of a
+ * 401. Used by public read endpoints that widen results for signed-in users.
+ */
+export async function getOptionalSessionAuth(
+  request: IncomingMessage,
+): Promise<AuthContext | undefined> {
+  const session = await getSessionFromToken(getBearerToken(request));
+
+  if (!session) return undefined;
+
+  return {
+    userId: session.id,
+    companyId: session.activeCompanyId,
+    isAdmin: session.activeRoleCode === "admin",
+  };
+}
+
 export async function revokeSession(token: string | undefined) {
   if (!token) {
     throw new ApiError(401, "Missing bearer session token.");

@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Listing } from "@/components/public/browse-listings";
+import {
+  listings as staticListings,
+  type Listing,
+} from "@/components/public/browse-listings";
 
 /** Shape returned by the Azure backend's GET /api/listings. */
 export interface ApiListing {
@@ -62,34 +65,44 @@ export function mapApiListingToUi(api: ApiListing): Listing {
     api.sellerCompanyName.toLowerCase(),
   ];
 
+  // Seeded API listings share slugs with the curated demo catalogue — reuse
+  // that twin's imagery and merchandising while the API supplies live data.
+  const staticTwin = staticListings.find((listing) => listing.id === api.slug);
+
   return {
+    // Merchandising fields fall back to the curated twin when present.
     id: api.slug,
     title: api.title,
     location: formatLocation(api),
-    distance: "—",
+    distance: staticTwin?.distance ?? "—",
     moq: `${api.minimumOrderQuantity} ${api.quantityUnit}`,
     co2: hasCarbonData ? `${api.carbonIntensityKgCo2e} kg CO₂e` : "—",
     price: `${symbol}${api.pricePerUnit}`,
     unit: `/${singularUnit(api.quantityUnit)}`,
-    image: "/products/generated/bagasse.png",
-    tags,
-    lng: api.locationLongitude ?? 0,
-    lat: api.locationLatitude ?? 0,
+    image: staticTwin?.image ?? "/products/generated/bagasse.png",
+    tags: staticTwin?.tags ?? tags,
+    lng: api.locationLongitude ?? staticTwin?.lng ?? 0,
+    lat: api.locationLatitude ?? staticTwin?.lat ?? 0,
     category:
-      CATEGORY_BY_MATERIAL_TYPE[api.materialTypeCode] ?? "Industrial Byproducts",
-    grade: "Standard",
+      staticTwin?.category ??
+      CATEGORY_BY_MATERIAL_TYPE[api.materialTypeCode] ??
+      "Industrial Byproducts",
+    grade: staticTwin?.grade ?? "Standard",
     priceNum: api.pricePerUnit,
     co2Num: api.carbonIntensityKgCo2e ?? 0,
     qtyNum: api.quantity,
     hasCarbonData,
-    state: "Solid",
-    frequency: "One-time",
-    availabilityFrom: undefined,
-    availabilityTo: undefined,
+    state: staticTwin?.state ?? "Solid",
+    quality: staticTwin?.quality,
+    composition: staticTwin?.composition,
+    frequency: staticTwin?.frequency ?? "One-time",
+    availabilityFrom: staticTwin?.availabilityFrom,
+    availabilityTo: staticTwin?.availabilityTo,
     additionalSpecs: api.description
       ? [{ label: "Seller notes", value: api.description }]
-      : undefined,
-    sdsUrl: undefined,
+      : staticTwin?.additionalSpecs,
+    sdsUrl: staticTwin?.sdsUrl,
+    sellerFacilityId: staticTwin?.sellerFacilityId,
     sellerName: api.sellerCompanyName,
     apiListingId: api.id,
   };
