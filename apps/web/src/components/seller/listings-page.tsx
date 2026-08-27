@@ -371,30 +371,30 @@ export function ListingsPage() {
           <table className="w-full min-w-[800px]">
             <thead>
               <tr className="text-left" style={{ borderBottom: "1px solid #F0F0F0" }}>
-                <th className="pb-3 text-sm font-medium text-neutral-500">Listing Name</th>
-                <th className="pb-3 text-sm font-medium text-neutral-500">Category</th>
-                <th className="pb-3 text-sm font-medium text-neutral-500">Available</th>
-                <th className="pb-3 text-sm font-medium text-neutral-500">Price</th>
-                <th className="pb-3 text-sm font-medium text-neutral-500">Sustainability</th>
-                <th className="pb-3 text-sm font-medium text-neutral-500">Status</th>
-                <th className="pb-3"></th>
+                <th className="px-5 pt-4 pb-3 text-sm font-medium text-neutral-500">Listing Name</th>
+                <th className="px-5 pt-4 pb-3 text-sm font-medium text-neutral-500">Category</th>
+                <th className="px-5 pt-4 pb-3 text-sm font-medium text-neutral-500">Available</th>
+                <th className="px-5 pt-4 pb-3 text-sm font-medium text-neutral-500">Price</th>
+                <th className="px-5 pt-4 pb-3 text-sm font-medium text-neutral-500">Sustainability</th>
+                <th className="px-5 pt-4 pb-3 text-sm font-medium text-neutral-500">Status</th>
+                <th className="px-5 pt-4 pb-3"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((l, i) => (
                 <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedListing(l)}>
-                  <td className="py-3.5">
+                  <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
                       <div className="size-10 shrink-0 overflow-hidden rounded-lg"><img src={l.image} alt="" className="size-full object-cover" /></div>
                       <div><p className="text-sm font-medium text-neutral-900 max-w-[300px] truncate">{l.name}</p><p className="text-xs text-neutral-400">{l.id}</p></div>
                     </div>
                   </td>
-                  <td className="py-3.5 text-sm text-neutral-700">{l.category}</td>
-                  <td className="py-3.5 text-sm text-neutral-700">{l.available.toLocaleString()}</td>
-                  <td className="py-3.5 text-sm text-neutral-900">{l.price}</td>
-                  <td className="py-3.5"><SustainabilityDot type={l.sustainability} /></td>
-                  <td className="py-3.5"><StatusBadge status={l.status} /></td>
-                  <td className="py-3.5"><button type="button" className="text-neutral-400"><MoreHorizontal className="size-4" /></button></td>
+                  <td className="px-5 py-3.5 text-sm text-neutral-700">{l.category}</td>
+                  <td className="px-5 py-3.5 text-sm text-neutral-700">{l.available.toLocaleString()}</td>
+                  <td className="px-5 py-3.5 text-sm text-neutral-900">{l.price}</td>
+                  <td className="px-5 py-3.5"><SustainabilityDot type={l.sustainability} /></td>
+                  <td className="px-5 py-3.5"><StatusBadge status={l.status} /></td>
+                  <td className="px-5 py-3.5"><button type="button" className="text-neutral-400"><MoreHorizontal className="size-4" /></button></td>
                 </tr>
               ))}
             </tbody>
