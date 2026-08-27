@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
+  changeUserPassword,
   getBearerToken,
   getOptionalSessionAuth,
   getSessionFromToken,
@@ -75,7 +76,8 @@ type CompanyBody = {
 };
 
 type MemberBody = {
-  userId: number;
+  userId?: number;
+  email?: string;
   memberRoleCode?: string;
   permissionTierCode?: string;
   memberStatusCode?: string;
@@ -2019,7 +2021,31 @@ async function createCompanyMember(
 ) {
   await requireCompanyManager(auth, companyId);
   const body = await readJsonBody<MemberBody>(request);
-  const userId = getBodyInt(body, "userId");
+  let userId = getOptionalInt(body, "userId");
+  const email = getOptionalString(body, "email", 320);
+  if (!userId && email) {
+    const match = (await queryRowsWithParams<{ id: number }>(
+      "SELECT Id AS id FROM dbo.Users WHERE Email = @email;",
+      [nvarcharParam("email", email.trim().toLowerCase(), 320)],
+    ))[0];
+    if (!match) {
+      throw new ApiError(
+        404,
+        "No EcoGlobe account exists for that email. Ask them to register first, then invite them.",
+      );
+    }
+    userId = match.id;
+  }
+  if (!userId) {
+    throw new ApiError(400, "userId or email is required.");
+  }
+  const existing = (await queryRowsWithParams<{ id: number }>(
+    "SELECT Id AS id FROM dbo.CompanyMembers WHERE UserId = @userId AND CompanyId = @companyId;",
+    [intParam("userId", userId), intParam("companyId", companyId)],
+  ))[0];
+  if (existing) {
+    throw new ApiError(409, "That user is already a member of this company.");
+  }
   const memberRoleId = await lookupId(
     "MemberRoles",
     getOptionalString(body, "memberRoleCode", 80) ?? "viewer",
@@ -2070,6 +2096,133 @@ async function createCompanyMember(
   );
 
   sendJson(response, 201, { ok: true, member: rows[0] });
+}
+
+/* ── Listing favorites ── */
+
+async function listFavorites(response: ServerResponse, auth: AuthContext) {
+  const favorites = await queryRowsWithParams(
+    `
+      SELECT
+        f.Id AS id,
+        f.ListingId AS listingId,
+        f.CreatedAt AS createdAt,
+        l.Title AS title,
+        l.Slug AS slug,
+        l.PricePerUnit AS pricePerUnit,
+        l.Quantity AS quantity,
+        l.QuantityUnit AS quantityUnit,
+        l.CurrencyCode AS currencyCode,
+        ls.Code AS listingStatusCode,
+        loc.City AS locationCity,
+        loc.StateProvince AS locationStateProvince
+      FROM dbo.ListingFavorites f
+      INNER JOIN dbo.Listings l ON l.Id = f.ListingId
+      INNER JOIN dbo.ListingStatuses ls ON ls.Id = l.ListingStatusId
+      LEFT JOIN dbo.Locations loc ON loc.Id = l.LocationId
+      WHERE f.UserId = @userId
+      ORDER BY f.Id DESC;
+    `,
+    [intParam("userId", auth.userId)],
+  );
+  sendJson(response, 200, { ok: true, favorites });
+}
+
+async function setFavorite(
+  response: ServerResponse,
+  listingId: number,
+  auth: AuthContext,
+) {
+  const listing = (await queryRowsWithParams<{ id: number }>(
+    "SELECT Id AS id FROM dbo.Listings WHERE Id = @id;",
+    [intParam("id", listingId)],
+  ))[0];
+  if (!listing) throw new ApiError(404, "Listing not found.");
+  await queryRowsWithParams(
+    `
+      IF NOT EXISTS (
+        SELECT 1 FROM dbo.ListingFavorites
+        WHERE UserId = @userId AND ListingId = @listingId
+      )
+      INSERT INTO dbo.ListingFavorites (UserId, ListingId)
+      VALUES (@userId, @listingId);
+    `,
+    [intParam("userId", auth.userId), intParam("listingId", listingId)],
+  );
+  sendJson(response, 200, { ok: true, favorited: true });
+}
+
+async function removeFavorite(
+  response: ServerResponse,
+  listingId: number,
+  auth: AuthContext,
+) {
+  await queryRowsWithParams(
+    "DELETE FROM dbo.ListingFavorites WHERE UserId = @userId AND ListingId = @listingId;",
+    [intParam("userId", auth.userId), intParam("listingId", listingId)],
+  );
+  sendJson(response, 200, { ok: true, favorited: false });
+}
+
+async function updateCompanyMember(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const member = (await queryRowsWithParams<{ companyId: number }>(
+    "SELECT CompanyId AS companyId FROM dbo.CompanyMembers WHERE Id = @id;",
+    [intParam("id", id)],
+  ))[0];
+  if (!member) throw new ApiError(404, "Company member not found.");
+  await requireCompanyManager(auth, member.companyId);
+
+  const body = await readJsonBody<MemberBody>(request);
+  const memberRoleCode = getOptionalString(body, "memberRoleCode", 80);
+  const permissionTierCode = getOptionalString(body, "permissionTierCode", 80);
+  const memberStatusCode = getOptionalString(body, "memberStatusCode", 80);
+  const memberRoleId = memberRoleCode
+    ? await lookupId("MemberRoles", memberRoleCode)
+    : undefined;
+  const permissionTierId = permissionTierCode
+    ? await lookupId("PermissionTiers", permissionTierCode)
+    : undefined;
+  const memberStatusId = memberStatusCode
+    ? await lookupId("AccountStatuses", memberStatusCode)
+    : undefined;
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.CompanyMembers
+      SET
+        MemberRoleId = COALESCE(@memberRoleId, MemberRoleId),
+        PermissionTierId = COALESCE(@permissionTierId, PermissionTierId),
+        MemberStatusId = COALESCE(@memberStatusId, MemberStatusId),
+        UpdatedByUserId = @updatedByUserId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.UserId AS userId, INSERTED.CompanyId AS companyId
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      intParam("memberRoleId", memberRoleId),
+      intParam("permissionTierId", permissionTierId),
+      intParam("memberStatusId", memberStatusId),
+      intParam("updatedByUserId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "updated",
+    recordTypeCode: "company",
+    recordId: member.companyId,
+    newValue: rows[0],
+    reason: "Company member updated.",
+  });
+
+  sendJson(response, 200, { ok: true, member: rows[0] });
 }
 
 async function deleteCompanyMember(
@@ -6212,6 +6365,15 @@ export async function handleApiRoute(
     requestUrl.pathname,
     "/api/company-members/:id",
   );
+  if (memberMatch.matched && method === "PATCH") {
+    await updateCompanyMember(
+      request,
+      response,
+      parseId(memberMatch.params.id, "Company member ID"),
+      await requireSessionAuth(request),
+    );
+    return true;
+  }
   if (memberMatch.matched && method === "DELETE") {
       await deleteCompanyMember(
         response,
@@ -6329,6 +6491,43 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/stripe/webhook" && method === "POST") {
     await handleStripeWebhook(request, response);
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/favorites" && method === "GET") {
+    await listFavorites(response, await requireSessionAuth(request));
+    return true;
+  }
+
+  const favoriteMatch = matchPath(
+    requestUrl.pathname,
+    "/api/listings/:id/favorite",
+  );
+  if (favoriteMatch.matched) {
+    const listingId = parseId(favoriteMatch.params.id, "Listing ID");
+    if (method === "POST") {
+      await setFavorite(response, listingId, await requireSessionAuth(request));
+      return true;
+    }
+    if (method === "DELETE") {
+      await removeFavorite(response, listingId, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (
+    requestUrl.pathname === "/api/account/change-password" &&
+    method === "POST"
+  ) {
+    const auth = await requireSessionAuth(request);
+    const body = await readJsonBody<{
+      currentPassword?: string;
+      newPassword?: string;
+    }>(request);
+    const currentPassword = getRequiredString(body, "currentPassword", 200);
+    const newPassword = getRequiredString(body, "newPassword", 200);
+    await changeUserPassword(auth.userId, currentPassword, newPassword);
+    sendJson(response, 200, { ok: true });
     return true;
   }
 

@@ -566,6 +566,64 @@ export async function verifyEmailToken(token: string) {
   return verified[0];
 }
 
+/** Change a signed-in user's password after verifying the current one. */
+export async function changeUserPassword(
+  userId: number,
+  currentPassword: string,
+  newPassword: string,
+) {
+  if (newPassword.length < 8) {
+    throw new ApiError(400, "New password must be at least 8 characters.");
+  }
+  const rows = await queryRowsWithParams<{
+    passwordHash: Buffer;
+    passwordSalt: Buffer;
+    iterations: number;
+  }>(
+    `
+      SELECT
+        up.PasswordHash AS passwordHash,
+        up.PasswordSalt AS passwordSalt,
+        up.Iterations AS iterations
+      FROM dbo.UserPasswords up
+      WHERE up.UserId = @userId;
+    `,
+    [intParam("userId", userId)],
+  );
+  const record = rows[0];
+  if (
+    !record ||
+    !(await verifyPassword(
+      currentPassword,
+      record.passwordSalt,
+      record.passwordHash,
+      record.iterations,
+    ))
+  ) {
+    throw new ApiError(400, "Current password is incorrect.");
+  }
+
+  const { hash, salt, iterations } = await hashPassword(newPassword);
+  await queryRowsWithParams(
+    `
+      UPDATE dbo.UserPasswords
+      SET PasswordHash = @passwordHash,
+          PasswordSalt = @passwordSalt,
+          Iterations = @iterations,
+          PasswordUpdatedAt = SYSUTCDATETIME(),
+          UpdatedByUserId = @userId,
+          UpdatedAt = SYSUTCDATETIME()
+      WHERE UserId = @userId;
+    `,
+    [
+      varBinaryParam("passwordHash", hash, 64),
+      varBinaryParam("passwordSalt", salt, 32),
+      intParam("iterations", iterations),
+      intParam("userId", userId),
+    ],
+  );
+}
+
 export async function requestPasswordReset(email: string) {
   const normalizedEmail = normalizeEmail(email);
   const user = (

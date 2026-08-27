@@ -6,11 +6,33 @@ import { Heart, Search } from "lucide-react";
 import { Badge, Button } from "@eco-globe/ui";
 import { BuyerLayout } from "./buyer-layout";
 import { listings, type Listing } from "../public/browse-listings";
+import { useApiListings } from "@/lib/api-listings";
+import { useCustomListings } from "@/lib/custom-listings";
+import { fetchFavorites, setFavorite } from "@/lib/api-account";
+import { useDemoUser } from "@/lib/demo-user";
 
 const FAVORITES_KEY = "ecoglobe.favoriteListings";
 
 export function BuyerFavoritesPage() {
   const [ids, setIds] = useState<string[]>([]);
+  const [apiFavoriteIds, setApiFavoriteIds] = useState<number[]>([]);
+  const user = useDemoUser();
+  const apiListings = useApiListings();
+  const customListings = useCustomListings();
+
+  // Signed-in members: account favorites from the backend join the local list.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchFavorites()
+      .then((rows) => {
+        if (!cancelled) setApiFavoriteIds(rows.map((f) => f.listingId));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     try {
@@ -31,6 +53,8 @@ export function BuyerFavoritesPage() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
+  const pool: Listing[] = [...apiListings, ...customListings, ...listings];
+
   const toggle = (id: string) => {
     setIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
@@ -41,10 +65,22 @@ export function BuyerFavoritesPage() {
       }
       return next;
     });
+    // Backend favorites are keyed by numeric listing id.
+    const apiListingId = pool.find((l) => l.id === id)?.apiListingId;
+    if (user && apiListingId) {
+      setApiFavoriteIds((prev) => prev.filter((x) => x !== apiListingId));
+      void setFavorite(apiListingId, false).catch(() => {});
+    }
   };
 
-  const favorites: Listing[] = ids
-    .map((id) => listings.find((l) => l.id === id))
+  const favoriteIds = new Set([
+    ...ids,
+    ...apiFavoriteIds
+      .map((listingId) => pool.find((l) => l.apiListingId === listingId)?.id)
+      .filter((id): id is string => !!id),
+  ]);
+  const favorites: Listing[] = [...favoriteIds]
+    .map((id) => pool.find((l) => l.id === id))
     .filter((l): l is Listing => !!l);
 
   return (

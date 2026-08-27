@@ -4,10 +4,17 @@ import { useEffect, useState } from "react";
 import { Check, X, Eye, EyeOff, Minus, Plus, BellOff, ChevronUp, ChevronDown } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
-import { useDemoUser } from "@/lib/demo-user";
+import { readDemoUser, useDemoUser, writeDemoUser } from "@/lib/demo-user";
+import { TeamTab } from "@/components/account/team-tab";
+import {
+  changePassword,
+  fetchNotificationPreferences,
+  setNotificationPreference,
+  updateUserName,
+} from "@/lib/api-account";
 import { notificationPreferenceCategories } from "@/components/notifications/notifications-demo-data";
 
-type Tab = "profile" | "security" | "preferences";
+type Tab = "profile" | "team" | "security" | "preferences";
 
 interface ProfileData {
   firstName: string;
@@ -376,6 +383,13 @@ function ProfileTab({ profile, setProfile }: {
           onClose={() => setModal(null)}
           onSave={(firstName, lastName) => {
             setProfile((p) => ({ ...p, firstName, lastName }));
+            const fullNameNext = `${firstName} ${lastName}`.trim();
+            const session = readDemoUser();
+            if (session?.id && fullNameNext) {
+              void updateUserName(session.id, fullNameNext)
+                .then(() => writeDemoUser({ ...session, name: fullNameNext }))
+                .catch(() => {});
+            }
             setModal(null);
           }}
         />
@@ -521,7 +535,22 @@ function UpdatePasswordModal({ onClose }: { onClose: () => void }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const valid = current.trim() && next.trim() && next === confirm;
+
+  const save = async () => {
+    if (!valid || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await changePassword(current, next);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Password change failed.");
+    }
+    setSaving(false);
+  };
 
   return (
     <Modal
@@ -533,16 +562,19 @@ function UpdatePasswordModal({ onClose }: { onClose: () => void }) {
           <Button
             variant="primary"
             size="md"
-            disabled={!valid}
+            disabled={!valid || saving}
             style={!valid ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
-            onClick={onClose}
+            onClick={() => void save()}
           >
-            Save Change
+            {saving ? "Saving..." : "Save Change"}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
+        {error && (
+          <p className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
+        )}
         <Input label="Current password" id="cur" type="password" value={current} onChange={(e) => setCurrent(e.target.value)} />
         <Input label="New password" id="new" type="password" value={next} onChange={(e) => setNext(e.target.value)} />
         <Input label="Confirm new password" id="conf" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
@@ -684,13 +716,69 @@ function NotificationCategoryCard({ category, onToggle }: {
   );
 }
 
+const CHANNEL_CODES: Record<Channel, string> = {
+  email: "email",
+  sms: "sms",
+  inApp: "in_app",
+};
+
+/** FE category card ids map to backend NotificationCategories codes. */
+function categoryCode(catId: string): string {
+  const code = catId.toLowerCase();
+  return ["orders", "payments", "logistics", "compliance", "sustainability"].includes(code)
+    ? code
+    : "sustainability";
+}
+
 function PreferencesTab() {
   const [categories, setCategories] = useState<NotifCategory[]>(initialCategories);
   const [paused, setPaused] = useState(false);
+  const user = useDemoUser();
+
+  // Load persisted preferences: a disabled (category, channel) row turns that
+  // channel off for every item in the category.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    fetchNotificationPreferences()
+      .then((prefs) => {
+        if (cancelled) return;
+        setCategories((prev) =>
+          prev.map((c) => {
+            const disabledChannels = (
+              Object.keys(CHANNEL_CODES) as Channel[]
+            ).filter((channel) =>
+              prefs.some(
+                (p) =>
+                  p.userId === user.id &&
+                  p.notificationCategoryCode === categoryCode(c.id) &&
+                  p.notificationChannelCode === CHANNEL_CODES[channel] &&
+                  !p.enabled,
+              ),
+            );
+            if (disabledChannels.length === 0) return c;
+            return {
+              ...c,
+              items: c.items.map((it) => ({
+                ...it,
+                prefs: {
+                  ...it.prefs,
+                  ...Object.fromEntries(disabledChannels.map((ch) => [ch, false])),
+                },
+              })),
+            };
+          }),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const toggle = (catId: string) => (itemId: string, channel: Channel) => {
-    setCategories((prev) =>
-      prev.map((c) =>
+    setCategories((prev) => {
+      const next = prev.map((c) =>
         c.id !== catId
           ? c
           : {
@@ -699,8 +787,20 @@ function PreferencesTab() {
                 it.id !== itemId ? it : { ...it, prefs: { ...it.prefs, [channel]: !it.prefs[channel] } },
               ),
             },
-      ),
-    );
+      );
+      // Persist the category-level signal: enabled while any item still is.
+      const category = next.find((c) => c.id === catId);
+      if (user?.id && category) {
+        const enabled = category.items.some((it) => it.prefs[channel]);
+        void setNotificationPreference(
+          user.id,
+          categoryCode(catId),
+          CHANNEL_CODES[channel],
+          enabled,
+        ).catch(() => {});
+      }
+      return next;
+    });
   };
 
   return (
@@ -754,6 +854,7 @@ export function SellerAccountPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "profile", label: "Profile" },
+    { id: "team", label: "Team" },
     { id: "security", label: "Login & Security" },
     { id: "preferences", label: "Preferences" },
   ];
@@ -786,6 +887,13 @@ export function SellerAccountPage() {
           </div>
 
           {tab === "profile" && <ProfileTab profile={profile} setProfile={setProfile} />}
+          {tab === "team" && (
+            <TeamTab
+              companyId={user?.activeCompanyId}
+              currentUserId={user?.id}
+              operatorRole="seller_operator"
+            />
+          )}
           {tab === "security" && <SecurityTab />}
           {tab === "preferences" && <PreferencesTab />}
         </div>

@@ -12,6 +12,7 @@ import { useCart } from "@/components/cart/cart-context";
 import { getProductDetailById } from "./product-detail-data";
 import { listings as ALL_LISTINGS } from "./browse-listings";
 import { recordListingInterest, useApiListings } from "@/lib/api-listings";
+import { fetchFavorites, setFavorite } from "@/lib/api-account";
 import { useCustomListings } from "@/lib/custom-listings";
 import { useDemoUser } from "@/lib/demo-user";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
@@ -79,7 +80,21 @@ export function ProductDetailPage() {
     } catch {
       setIsFavorite(false);
     }
-  }, [product.id]);
+    // Signed-in members: the backend favorite wins over local storage.
+    const apiListingId = matchedListing?.apiListingId;
+    if (user && apiListingId) {
+      let cancelled = false;
+      fetchFavorites()
+        .then((favorites) => {
+          if (cancelled) return;
+          setIsFavorite(favorites.some((f) => f.listingId === apiListingId));
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [product.id, matchedListing?.apiListingId, user]);
 
   useEffect(() => {
     if (!shareStatus) return;
@@ -149,6 +164,10 @@ export function ProductDetailPage() {
         // Keep the visible state responsive even if storage is unavailable.
       }
       setFavoriteStatus(next ? "Added to favorites" : "Removed from favorites");
+      // Signed-in members persist favorites to their account.
+      if (user && matchedListing?.apiListingId) {
+        void setFavorite(matchedListing.apiListingId, next).catch(() => {});
+      }
       return next;
     });
   };
