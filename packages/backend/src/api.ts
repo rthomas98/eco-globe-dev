@@ -4477,6 +4477,20 @@ async function createShipment(
     reason: "Shipment created.",
   });
 
+  const shipmentOrderParties = await requireOrderAccess(auth, orderId);
+  await notifyCompanies({
+    actorUserId: auth.userId,
+    companyIds: [
+      shipmentOrderParties.buyerCompanyId,
+      shipmentOrderParties.sellerCompanyId,
+    ],
+    categoryCode: "logistics",
+    subject: `Shipment created for order #${orderId}`,
+    body: `A shipment was scheduled for order #${orderId}.`,
+    recordTypeCode: "shipment",
+    recordId: rows[0].id as number,
+  });
+
   sendJson(response, 201, { ok: true, shipment: rows[0] });
 }
 
@@ -4542,6 +4556,19 @@ async function updateShipment(
     newValue: rows[0],
     reason: "Shipment updated.",
   });
+
+  if (statusCode) {
+    const parties = await requireOrderAccess(auth, shipmentOrder.orderId);
+    await notifyCompanies({
+      actorUserId: auth.userId,
+      companyIds: [parties.buyerCompanyId, parties.sellerCompanyId],
+      categoryCode: "logistics",
+      subject: `Shipment for order #${shipmentOrder.orderId} is now ${normalizeCode(statusCode)}`,
+      body: `The shipment on order #${shipmentOrder.orderId} moved to ${normalizeCode(statusCode)}.`,
+      recordTypeCode: "shipment",
+      recordId: id,
+    });
+  }
 
   sendJson(response, 200, { ok: true, shipment: rows[0] });
 }

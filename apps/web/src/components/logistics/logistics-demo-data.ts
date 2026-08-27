@@ -221,3 +221,61 @@ export const routeOptimizationSummary = {
   optimizedShipments: 36,
   averageQuoteTime: "42 sec",
 };
+
+/* ── Live-shipment mapping (Phase 6A) ── */
+
+import type { ApiShipment } from "@/lib/api-fulfilment";
+import type { ApiOrder } from "@/lib/api-orders";
+
+const LIVE_STATUS_BY_CODE: Record<string, LogisticsStatus> = {
+  quote_pending: "Quote sent",
+  scheduled: "Booked",
+  in_transit: "In transit",
+  delivered: "Delivered",
+  exception: "Exception",
+};
+
+const NEXT_STEP_BY_CODE: Record<string, string> = {
+  quote_pending: "Awaiting buyer approval of the shipping quote.",
+  scheduled: "Upload the Bill of Lading to dispatch.",
+  in_transit: "Awaiting buyer delivery confirmation.",
+  delivered: "Delivered — escrow release available.",
+  exception: "Resolve the delivery exception with the carrier.",
+};
+
+/** Map a live backend shipment (joined with its order) to the UI shape. */
+export function mapLiveShipment(
+  shipment: ApiShipment,
+  order: ApiOrder | undefined,
+): LogisticsShipment {
+  const status = LIVE_STATUS_BY_CODE[shipment.shipmentStatusCode] ?? "Booked";
+  return {
+    id: `SHP-${shipment.id}`,
+    orderId: `EG-${shipment.orderId}`,
+    trackingId: shipment.trackingNumber ?? "—",
+    product: order?.listingTitle ?? "Marketplace order",
+    buyer: order?.buyerCompanyName ?? "Marketplace buyer",
+    seller: order?.sellerCompanyName ?? "Marketplace seller",
+    origin: "Seller facility",
+    destination: "Buyer facility",
+    distance: "—",
+    quantity: order ? `$${Number(order.totalAmount).toLocaleString()}` : "—",
+    carrier: shipment.carrierName ?? "EcoFreight",
+    service: "Standard freight",
+    status,
+    cost:
+      shipment.shippingCost != null
+        ? `$${Number(shipment.shippingCost).toLocaleString()}`
+        : "—",
+    eta: shipment.pickupScheduledAt
+      ? new Date(shipment.pickupScheduledAt).toLocaleDateString()
+      : "—",
+    carbonKg: Number(shipment.carbonImpactKgCo2e ?? 0),
+    optimizedCarbonKg: Number(shipment.carbonImpactKgCo2e ?? 0),
+    lastUpdate: new Date(shipment.updatedAt).toLocaleDateString(),
+    nextStep: NEXT_STEP_BY_CODE[shipment.shipmentStatusCode] ?? "—",
+    route: [],
+    documents: [],
+    sustainableOption: "Balanced",
+  };
+}

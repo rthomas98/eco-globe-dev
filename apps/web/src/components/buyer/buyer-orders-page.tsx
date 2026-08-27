@@ -29,6 +29,7 @@ import {
   type ApiOrder,
 } from "@/lib/api-orders";
 import { readDemoUser } from "@/lib/demo-user";
+import { cancelOrder, numericOrderId } from "@/lib/api-fulfilment";
 
 const BUYER_STATUS_BY_CODE: Record<string, OrderStatus> = {
   draft: "Awaiting seller confirmation",
@@ -946,6 +947,19 @@ export function BuyerOrdersPage() {
 
   const confirmCancel = () => {
     if (!confirmCancelId) return;
+    const target = orderList.find((o) => o.id === confirmCancelId);
+    const liveId = target ? numericOrderId(target.orderId) : null;
+    if (liveId) {
+      // Live orders cancel on the backend; the row updates optimistically
+      // and reverts if the API refuses (e.g. already completed).
+      void cancelOrder(liveId).catch(() => {
+        setOrderList((prev) =>
+          prev.map((o) =>
+            o.id === confirmCancelId ? { ...o, status: target!.status } : o,
+          ),
+        );
+      });
+    }
     setOrderList((prev) =>
       prev.map((o) =>
         o.id === confirmCancelId ? { ...o, status: "Cancelled" } : o,

@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchDisputes } from "@/lib/api-fulfilment";
+import { fetchOrders } from "@/lib/api-orders";
+import { readDemoUser } from "@/lib/demo-user";
 import Link from "next/link";
 import { AlertTriangle, Filter, ChevronRight } from "lucide-react";
 
@@ -41,8 +44,48 @@ const FILTERS: Array<DisputeStatus | "All"> = [
 
 export function AdminDisputesPage() {
   const [filter, setFilter] = useState<DisputeStatus | "All">("All");
-  const visible = disputes.filter((d) => filter === "All" || d.status === filter);
-  const counts = disputes.reduce<Record<string, number>>((acc, d) => {
+
+  const [rows, setRows] = useState<Dispute[]>(disputes);
+
+  // Live disputes render ahead of the demo rows.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    Promise.all([fetchDisputes(), fetchOrders()])
+      .then(([apiDisputes, orders]) => {
+        if (cancelled || apiDisputes.length === 0) return;
+        const orderById = new Map(orders.map((o) => [o.id, o]));
+        const live: Dispute[] = apiDisputes.map((d) => {
+          const order = d.orderId ? orderById.get(d.orderId) : undefined;
+          return {
+            id: `DSP-${d.id}`,
+            orderId: d.orderId ? `EG-${d.orderId}` : "—",
+            escrowId: d.escrowId ? `ESC-${d.escrowId}` : "—",
+            buyer: order?.buyerCompanyName ?? "Marketplace buyer",
+            seller: order?.sellerCompanyName ?? "Marketplace seller",
+            reason: d.summary,
+            amount: order ? `$${Number(order.totalAmount).toLocaleString()}` : "—",
+            opened: new Date(d.createdAt).toISOString().slice(0, 10),
+            status: d.disputeStatusCode === "open"
+              ? "Open"
+              : d.disputeStatusCode === "under_review"
+                ? "Under review"
+                : "Resolved",
+            severity: "High",
+            age: "—",
+            escrowAction: d.escrowId ? "Escrow locked pending resolution" : "No escrow on order",
+          };
+        });
+        setRows([...live, ...disputes]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const visible = rows.filter((d) => filter === "All" || d.status === filter);
+  const counts = rows.reduce<Record<string, number>>((acc, d) => {
     acc[d.status] = (acc[d.status] ?? 0) + 1;
     return acc;
   }, {});

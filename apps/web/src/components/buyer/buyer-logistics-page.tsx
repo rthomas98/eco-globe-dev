@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clock3,
@@ -15,8 +15,12 @@ import { BuyerLayout } from "./buyer-layout";
 import {
   carrierQuotes,
   logisticsShipments,
+  mapLiveShipment,
   type LogisticsShipment,
 } from "../logistics/logistics-demo-data";
+import { fetchShipments } from "@/lib/api-fulfilment";
+import { fetchOrders } from "@/lib/api-orders";
+import { readDemoUser } from "@/lib/demo-user";
 
 function StatCard({
   label,
@@ -88,7 +92,31 @@ function formatQuoteCost(value: number) {
 }
 
 export function BuyerLogisticsPage() {
+  const [shipmentRows, setShipmentRows] = useState(logisticsShipments);
   const [selected, setSelected] = useState(logisticsShipments[0]);
+
+  // Live shipments on this buyer's orders render ahead of the demo rows.
+  useEffect(() => {
+    const user = readDemoUser();
+    if (!user?.activeCompanyId) return;
+    let cancelled = false;
+    Promise.all([fetchShipments(), fetchOrders({ buyerCompanyId: user.activeCompanyId })])
+      .then(([shipments, orders]) => {
+        if (cancelled) return;
+        const orderById = new Map(orders.map((o) => [o.id, o]));
+        const live = shipments
+          .filter((s) => orderById.has(s.orderId))
+          .map((s) => mapLiveShipment(s, orderById.get(s.orderId)));
+        if (live.length > 0) {
+          setShipmentRows([...live, ...logisticsShipments]);
+          setSelected(live[0]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [confirmed, setConfirmed] = useState<Record<string, boolean>>({});
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [receiverName, setReceiverName] = useState("");
@@ -311,7 +339,7 @@ export function BuyerLogisticsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {logisticsShipments.map((shipment) => (
+                  {shipmentRows.map((shipment) => (
                     <tr
                       key={shipment.id}
                       onClick={() => setSelected(shipment)}

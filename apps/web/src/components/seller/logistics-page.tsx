@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   FileText,
@@ -12,14 +12,42 @@ import {
 } from "lucide-react";
 import { Button, Select } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
-import { carrierQuotes, logisticsShipments } from "../logistics/logistics-demo-data";
+import { carrierQuotes, logisticsShipments, mapLiveShipment } from "../logistics/logistics-demo-data";
+import { fetchShipments, numericOrderId, updateShipment } from "@/lib/api-fulfilment";
+import { fetchOrders } from "@/lib/api-orders";
+import { readDemoUser } from "@/lib/demo-user";
 
 type FulfillmentState = Record<string, "Needs quote" | "Booked" | "BOL uploaded" | "Dispatched">;
 
 export function SellerLogisticsPage() {
-  const sellerShipments = logisticsShipments.filter((shipment) =>
+  const demoShipments = logisticsShipments.filter((shipment) =>
     ["GulfStar Chemicals", "EcoPack Co.", "Metal Reclaim LLC", "TerraGenesis Biofuels"].includes(shipment.seller),
   );
+  const [sellerShipments, setSellerShipments] = useState(demoShipments);
+
+  // Live shipments on this seller's orders render ahead of the demo rows.
+  useEffect(() => {
+    const user = readDemoUser();
+    if (!user?.activeCompanyId) return;
+    let cancelled = false;
+    Promise.all([fetchShipments(), fetchOrders({ sellerCompanyId: user.activeCompanyId })])
+      .then(([shipments, orders]) => {
+        if (cancelled) return;
+        const orderById = new Map(orders.map((o) => [o.id, o]));
+        const live = shipments
+          .filter((s) => orderById.has(s.orderId))
+          .map((s) => mapLiveShipment(s, orderById.get(s.orderId)));
+        if (live.length > 0) {
+          setSellerShipments([...live, ...demoShipments]);
+          setSelected(live[0]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [states, setStates] = useState<FulfillmentState>({
     "SHP-50021": "Needs quote",
     "SHP-50018": "Booked",
@@ -30,7 +58,23 @@ export function SellerLogisticsPage() {
 
   const updateState = (id: string, state: FulfillmentState[string]) => {
     setStates((current) => ({ ...current, [id]: state }));
+    // Live shipments (SHP-<id>) persist the transition on the backend.
+    const match = /^SHP-(\d+)$/.exec(id);
+    if (match) {
+      const statusCode =
+        state === "Booked"
+          ? "scheduled"
+          : state === "BOL uploaded" || state === "Dispatched"
+            ? "in_transit"
+            : undefined;
+      if (statusCode) {
+        void updateShipment(Number(match[1]), { shipmentStatusCode: statusCode }).catch(
+          () => {},
+        );
+      }
+    }
   };
+  void numericOrderId;
 
   return (
     <SellerLayout title="Logistics & Shipping">

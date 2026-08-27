@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, MessageSquare, ChevronRight, Filter } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
+import { fetchDisputes, numericOrderId, updateDispute } from "@/lib/api-fulfilment";
+import { fetchOrders } from "@/lib/api-orders";
+import { readDemoUser } from "@/lib/demo-user";
 
 type DisputeStatus = "Open" | "Awaiting buyer" | "Under review" | "Resolved";
 
@@ -35,8 +38,47 @@ export function SellerDisputesPage() {
   const [filter, setFilter] = useState<DisputeStatus | "All">("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const filtered = disputes.filter((d) => filter === "All" || d.status === filter);
-  const selected = disputes.find((d) => d.id === selectedId) ?? filtered[0] ?? null;
+  const [rows, setRows] = useState<Dispute[]>(disputes);
+
+  // Live disputes render ahead of the demo rows.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    Promise.all([fetchDisputes(), fetchOrders()])
+      .then(([apiDisputes, orders]) => {
+        if (cancelled || apiDisputes.length === 0) return;
+        const orderById = new Map(orders.map((o) => [o.id, o]));
+        const live: Dispute[] = apiDisputes.map((d) => {
+          const order = d.orderId ? orderById.get(d.orderId) : undefined;
+          return {
+            id: `DSP-${d.id}`,
+            orderId: d.orderId ? `EG-${d.orderId}` : "—",
+            escrowId: d.escrowId ? `ESC-${d.escrowId}` : "—",
+            buyer: order?.buyerCompanyName ?? "Marketplace buyer",
+
+            reason: d.summary,
+            amount: order ? `$${Number(order.totalAmount).toLocaleString()}` : "—",
+            opened: new Date(d.createdAt).toISOString().slice(0, 10),
+            status: d.disputeStatusCode === "open"
+              ? "Open"
+              : d.disputeStatusCode === "under_review"
+                ? "Under review"
+                : "Resolved",
+            unread: 0,
+            escrowNote: d.escrowId ? "Escrow is locked until this dispute resolves." : "No escrow is attached to this order.",
+          };
+        });
+        setRows([...live, ...disputes]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = rows.filter((d) => filter === "All" || d.status === filter);
+  const selected = rows.find((d) => d.id === selectedId) ?? filtered[0] ?? null;
+  void numericOrderId;
 
   return (
     <SellerLayout title="Disputes">
@@ -145,6 +187,20 @@ function DisputeStatusBadge({ status }: { status: DisputeStatus }) {
 
 function DisputeDetail({ dispute }: { dispute: Dispute }) {
   const [reply, setReply] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const sendResponse = () => {
+    const match = /^DSP-(\d+)$/.exec(dispute.id);
+    if (match) {
+      // Live disputes persist the seller response as resolution notes.
+      void updateDispute(Number(match[1]), {
+        resolutionNotes: reply.trim(),
+        disputeStatusCode: "under_review",
+      }).catch(() => {});
+    }
+    setSent(true);
+    setReply("");
+  };
   const conversation = [
     { who: "buyer", name: dispute.buyer, time: dispute.opened + " 09:14 AM", msg: dispute.reason + ". Please review and respond within 24h." },
     { who: "seller", name: "You", time: dispute.opened + " 11:42 AM", msg: "Acknowledged — pulling delivery records now. Will respond by EOD." },
@@ -218,9 +274,9 @@ function DisputeDetail({ dispute }: { dispute: Dispute }) {
             <Button variant="secondary" size="md">
               Save draft
             </Button>
-            <Button variant="primary" size="md" disabled={!reply.trim()}>
+            <Button variant="primary" size="md" disabled={!reply.trim()} onClick={sendResponse}>
               <MessageSquare className="size-4" />
-              Send response
+              {sent ? "Response sent" : "Send response"}
             </Button>
           </div>
         </div>
