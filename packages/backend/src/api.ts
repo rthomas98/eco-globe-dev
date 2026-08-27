@@ -5439,6 +5439,171 @@ async function updateSignature(request: IncomingMessage, response: ServerRespons
   sendJson(response, 200, { ok: true, signature: rows[0] });
 }
 
+/* ── Platform settings ── */
+
+async function listPlatformSettings(response: ServerResponse, auth: AuthContext) {
+  requireAdmin(auth);
+  const settings = await queryRowsWithParams(
+    `
+      SELECT SettingKey AS settingKey, SettingValue AS settingValue, UpdatedAt AS updatedAt
+      FROM dbo.PlatformSettings
+      ORDER BY SettingKey;
+    `,
+    [],
+  );
+  sendJson(response, 200, { ok: true, settings });
+}
+
+async function upsertPlatformSetting(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  requireAdmin(auth);
+  const body = await readJsonBody<{ key?: string; value?: unknown }>(request);
+  const key = getRequiredString(body, "key", 120);
+  if (body.value === undefined) {
+    throw new ApiError(400, "value is required.");
+  }
+  const value = JSON.stringify(body.value);
+  const rows = await queryRowsWithParams(
+    `
+      MERGE dbo.PlatformSettings AS target
+      USING (SELECT @key AS SettingKey) AS source
+      ON target.SettingKey = source.SettingKey
+      WHEN MATCHED THEN UPDATE SET
+        SettingValue = @value,
+        UpdatedByUserId = @userId,
+        UpdatedAt = SYSUTCDATETIME()
+      WHEN NOT MATCHED THEN INSERT (SettingKey, SettingValue, UpdatedByUserId)
+      VALUES (@key, @value, @userId)
+      OUTPUT INSERTED.SettingKey AS settingKey, INSERTED.SettingValue AS settingValue;
+    `,
+    [
+      varcharParam("key", key, 120),
+      { name: "value", type: sql.NVarChar(sql.MAX), value },
+      intParam("userId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "updated",
+    recordTypeCode: "notification",
+    recordId: 0,
+    newValue: rows[0],
+    reason: `Platform setting '${key}' updated.`,
+  });
+
+  sendJson(response, 200, { ok: true, setting: rows[0] });
+}
+
+/* ── Dispute messages ── */
+
+/** The dispute's order parties, with the caller's role on it enforced. */
+async function requireDisputeParty(auth: AuthContext, disputeId: number) {
+  const dispute = (await queryRowsWithParams<{
+    id: number;
+    orderId: number | null;
+    buyerCompanyId: number | null;
+    sellerCompanyId: number | null;
+    openedByUserId: number;
+  }>(
+    `
+      SELECT d.Id AS id, d.OrderId AS orderId, d.OpenedByUserId AS openedByUserId,
+        o.BuyerCompanyId AS buyerCompanyId, o.SellerCompanyId AS sellerCompanyId
+      FROM dbo.Disputes d
+      LEFT JOIN dbo.Orders o ON o.Id = d.OrderId
+      WHERE d.Id = @id;
+    `,
+    [intParam("id", disputeId)],
+  ))[0];
+  if (!dispute) throw new ApiError(404, "Dispute not found.");
+
+  let senderRole: "buyer" | "seller" | "admin" | null = null;
+  if (auth.isAdmin) senderRole = "admin";
+  else if (auth.companyId && auth.companyId === dispute.buyerCompanyId) senderRole = "buyer";
+  else if (auth.companyId && auth.companyId === dispute.sellerCompanyId) senderRole = "seller";
+  else if (auth.userId === dispute.openedByUserId) senderRole = "buyer";
+  if (!senderRole) {
+    throw new ApiError(403, "Only the dispute parties and EcoGlobe can view this conversation.");
+  }
+  return { dispute, senderRole };
+}
+
+async function listDisputeMessages(
+  response: ServerResponse,
+  disputeId: number,
+  auth: AuthContext,
+) {
+  await requireDisputeParty(auth, disputeId);
+  const messages = await queryRowsWithParams(
+    `
+      SELECT
+        m.Id AS id,
+        m.DisputeId AS disputeId,
+        m.SenderUserId AS senderUserId,
+        u.Name AS senderName,
+        m.SenderRole AS senderRole,
+        m.Body AS body,
+        m.CreatedAt AS createdAt
+      FROM dbo.DisputeMessages m
+      INNER JOIN dbo.Users u ON u.Id = m.SenderUserId
+      WHERE m.DisputeId = @disputeId
+      ORDER BY m.Id ASC;
+    `,
+    [intParam("disputeId", disputeId)],
+  );
+  sendJson(response, 200, { ok: true, messages });
+}
+
+async function createDisputeMessage(
+  request: IncomingMessage,
+  response: ServerResponse,
+  disputeId: number,
+  auth: AuthContext,
+) {
+  const { dispute, senderRole } = await requireDisputeParty(auth, disputeId);
+  const body = await readJsonBody<{ body?: string }>(request);
+  const text = getRequiredString(body, "body", 2000);
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.DisputeMessages (DisputeId, SenderUserId, SenderRole, Body)
+      OUTPUT INSERTED.Id AS id, INSERTED.DisputeId AS disputeId,
+        INSERTED.SenderUserId AS senderUserId, INSERTED.SenderRole AS senderRole,
+        INSERTED.Body AS body, INSERTED.CreatedAt AS createdAt
+      VALUES (@disputeId, @userId, @senderRole, @body);
+    `,
+    [
+      intParam("disputeId", disputeId),
+      intParam("userId", auth.userId),
+      varcharParam("senderRole", senderRole, 20),
+      nvarcharParam("body", text, 2000),
+    ],
+  );
+
+  // The other side of the conversation hears about the new message.
+  const targets =
+    senderRole === "buyer"
+      ? [dispute.sellerCompanyId ?? undefined]
+      : senderRole === "seller"
+        ? [dispute.buyerCompanyId ?? undefined]
+        : [dispute.buyerCompanyId ?? undefined, dispute.sellerCompanyId ?? undefined];
+  await notifyCompanies({
+    actorUserId: auth.userId,
+    companyIds: targets,
+    categoryCode: "orders",
+    subject: `New message on dispute DSP-${disputeId}`,
+    body: text.length > 140 ? `${text.slice(0, 140)}...` : text,
+    recordTypeCode: "dispute",
+    recordId: disputeId,
+  });
+
+  sendJson(response, 201, { ok: true, message: rows[0] });
+}
+
 async function listDisputes(response: ServerResponse, url: URL, auth: AuthContext) {
   const orderId = url.searchParams.get("orderId") ? Number(url.searchParams.get("orderId")) : undefined;
   const disputes = await queryRowsWithParams(
@@ -7028,12 +7193,44 @@ export async function handleApiRoute(
     }
   }
 
+  const disputeMessagesMatch = matchPath(
+    requestUrl.pathname,
+    "/api/disputes/:id/messages",
+  );
+  if (disputeMessagesMatch.matched) {
+    const disputeId = parseId(disputeMessagesMatch.params.id, "Dispute ID");
+    if (method === "GET") {
+      await listDisputeMessages(response, disputeId, await requireSessionAuth(request));
+      return true;
+    }
+    if (method === "POST") {
+      await createDisputeMessage(
+        request,
+        response,
+        disputeId,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
   const disputeMatch = matchPath(requestUrl.pathname, "/api/disputes/:id");
   if (disputeMatch.matched) {
     const id = parseId(disputeMatch.params.id, "Dispute ID");
 
     if (method === "PATCH") {
       await updateDispute(request, response, id, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  if (requestUrl.pathname === "/api/platform-settings") {
+    if (method === "GET") {
+      await listPlatformSettings(response, await requireSessionAuth(request));
+      return true;
+    }
+    if (method === "POST") {
+      await upsertPlatformSetting(request, response, await requireSessionAuth(request));
       return true;
     }
   }

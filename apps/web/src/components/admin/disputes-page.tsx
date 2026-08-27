@@ -1,7 +1,10 @@
 "use client";
 
+import React from "react";
+
 import { useEffect, useState } from "react";
 import { fetchDisputes } from "@/lib/api-fulfilment";
+import { DisputeThread } from "@/components/disputes/dispute-thread";
 import { fetchOrders } from "@/lib/api-orders";
 import { readDemoUser } from "@/lib/demo-user";
 import Link from "next/link";
@@ -11,6 +14,7 @@ type DisputeStatus = "Open" | "Awaiting seller" | "Awaiting buyer" | "Under revi
 type Severity = "High" | "Medium" | "Low";
 
 interface Dispute {
+  live?: boolean;
   id: string;
   orderId: string;
   escrowId: string;
@@ -44,6 +48,7 @@ const FILTERS: Array<DisputeStatus | "All"> = [
 
 export function AdminDisputesPage() {
   const [filter, setFilter] = useState<DisputeStatus | "All">("All");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [rows, setRows] = useState<Dispute[]>(disputes);
 
@@ -59,6 +64,7 @@ export function AdminDisputesPage() {
           const order = d.orderId ? orderById.get(d.orderId) : undefined;
           return {
             id: `DSP-${d.id}`,
+            live: true,
             orderId: d.orderId ? `EG-${d.orderId}` : "—",
             escrowId: d.escrowId ? `ESC-${d.escrowId}` : "—",
             buyer: order?.buyerCompanyName ?? "Marketplace buyer",
@@ -146,17 +152,31 @@ export function AdminDisputesPage() {
               </tr>
             </thead>
             <tbody>
-              {visible.map((d, i) => (
+              {visible.map((d, i) => {
+                const liveMatch = d.live ? /^DSP-(\d+)$/.exec(d.id) : null;
+                const liveId = liveMatch ? Number(liveMatch[1]) : null;
+                return (
+                <React.Fragment key={d.id}>
                 <tr
-                  key={d.id}
-                  style={{ borderBottom: i === visible.length - 1 ? undefined : "1px solid #F4F4F5" }}
-                  className="hover:bg-neutral-50"
+                  style={{ borderBottom: i === visible.length - 1 && expandedId !== d.id ? undefined : "1px solid #F4F4F5" }}
+                  className={`hover:bg-neutral-50 ${liveId !== null ? "cursor-pointer" : ""}`}
+                  onClick={() =>
+                    liveId !== null &&
+                    setExpandedId((current) => (current === d.id ? null : d.id))
+                  }
                 >
                   <td className="px-5 py-4">
                     <div className="flex items-start gap-2">
                       <AlertTriangle className="mt-0.5 size-4 text-amber-500" />
                       <div>
-                        <p className="font-mono text-xs text-neutral-500">{d.id}</p>
+                        <p className="font-mono text-xs text-neutral-500">
+                          {d.id}
+                          {liveId !== null && (
+                            <span className="ml-2 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-700">
+                              Live
+                            </span>
+                          )}
+                        </p>
                         <p className="text-sm font-medium text-neutral-900">{d.reason}</p>
                       </div>
                     </div>
@@ -187,12 +207,27 @@ export function AdminDisputesPage() {
                   </td>
                   <td className="px-5 py-4 text-sm text-neutral-700">{d.age}</td>
                   <td className="px-5 py-4 text-right">
-                    <Link href={`/admin/sales/${d.orderId}`} className="text-neutral-400 hover:text-neutral-900">
+                    <Link
+                      href={`/admin/sales/${d.orderId}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-neutral-400 hover:text-neutral-900"
+                    >
                       <ChevronRight className="size-4" />
                     </Link>
                   </td>
                 </tr>
-              ))}
+                {liveId !== null && expandedId === d.id && (
+                  <tr style={{ borderBottom: i === visible.length - 1 ? undefined : "1px solid #F4F4F5" }}>
+                    <td colSpan={9} className="bg-neutral-50/60 px-8 py-6">
+                      <div className="max-w-[720px]">
+                        <DisputeThread disputeId={liveId} viewerRole="admin" />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

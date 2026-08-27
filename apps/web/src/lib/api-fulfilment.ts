@@ -114,6 +114,30 @@ export interface ApiDispute {
   updatedAt: string;
 }
 
+export interface ApiDisputeMessage {
+  id: number;
+  disputeId: number;
+  senderUserId: number;
+  senderName: string;
+  senderRole: string;
+  body: string;
+  createdAt: string;
+}
+
+export async function fetchDisputeMessages(disputeId: number) {
+  const body = await proxy<{ ok: boolean; messages: ApiDisputeMessage[] }>(
+    `/api/disputes/${disputeId}/messages`,
+  );
+  return Array.isArray(body.messages) ? body.messages : [];
+}
+
+export async function sendDisputeMessage(disputeId: number, text: string) {
+  return proxy<{ ok: boolean; message: ApiDisputeMessage }>(
+    `/api/disputes/${disputeId}/messages`,
+    { method: "POST", json: { body: text } },
+  );
+}
+
 export async function fetchDisputes() {
   const body = await proxy<{ ok: boolean; disputes: ApiDispute[] }>(
     "/api/disputes",

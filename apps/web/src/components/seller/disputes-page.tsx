@@ -6,12 +6,14 @@ import { AlertTriangle, MessageSquare, ChevronRight, Filter } from "lucide-react
 import { Button } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
 import { fetchDisputes, numericOrderId, updateDispute } from "@/lib/api-fulfilment";
+import { DisputeThread } from "@/components/disputes/dispute-thread";
 import { fetchOrders } from "@/lib/api-orders";
 import { readDemoUser } from "@/lib/demo-user";
 
 type DisputeStatus = "Open" | "Awaiting buyer" | "Under review" | "Resolved";
 
 interface Dispute {
+  live?: boolean;
   id: string;
   orderId: string;
   escrowId: string;
@@ -52,6 +54,7 @@ export function SellerDisputesPage() {
           const order = d.orderId ? orderById.get(d.orderId) : undefined;
           return {
             id: `DSP-${d.id}`,
+            live: true,
             orderId: d.orderId ? `EG-${d.orderId}` : "—",
             escrowId: d.escrowId ? `ESC-${d.escrowId}` : "—",
             buyer: order?.buyerCompanyName ?? "Marketplace buyer",
@@ -201,6 +204,11 @@ function DisputeDetail({ dispute }: { dispute: Dispute }) {
     setSent(true);
     setReply("");
   };
+  const liveDisputeId = (() => {
+    if (!dispute.live) return null;
+    const match = /^DSP-(\d+)$/.exec(dispute.id);
+    return match ? Number(match[1]) : null;
+  })();
   const conversation = [
     { who: "buyer", name: dispute.buyer, time: dispute.opened + " 09:14 AM", msg: dispute.reason + ". Please review and respond within 24h." },
     { who: "seller", name: "You", time: dispute.opened + " 11:42 AM", msg: "Acknowledged — pulling delivery records now. Will respond by EOD." },
@@ -233,6 +241,11 @@ function DisputeDetail({ dispute }: { dispute: Dispute }) {
         </p>
       </section>
 
+      {liveDisputeId !== null && (
+        <DisputeThread disputeId={liveDisputeId} viewerRole="seller" />
+      )}
+
+      {liveDisputeId === null && (<>
       <section>
         <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-neutral-500">
           Conversation
@@ -281,6 +294,7 @@ function DisputeDetail({ dispute }: { dispute: Dispute }) {
           </div>
         </div>
       </section>
+      </>)}
     </div>
   );
 }

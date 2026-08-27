@@ -1,21 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { usePlatformSetting } from "@/lib/api-platform-settings";
 import { Trash2, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
 
 /* ═══════════════════════════════════════════
    SHARED HELPERS
    ═══════════════════════════════════════════ */
-function useLocalStorage<T>(key: string, defaultValue: T): [T, (v: T) => void] {
-  const [value, setValue] = useState<T>(defaultValue);
-  useEffect(() => {
-    const stored = localStorage.getItem(key);
-    if (stored) setValue(JSON.parse(stored));
-  }, [key]);
-  const set = (v: T) => { setValue(v); localStorage.setItem(key, JSON.stringify(v)); };
-  return [value, set];
-}
+// Settings persist to the PlatformSettings table; localStorage stays on as
+// an instant-paint cache. Same keys as the old local-only implementation.
+const useLocalStorage = usePlatformSetting;
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (

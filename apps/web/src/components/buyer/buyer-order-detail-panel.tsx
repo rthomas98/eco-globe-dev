@@ -18,8 +18,10 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { DisputeThread } from "@/components/disputes/dispute-thread";
 import {
   confirmOrderDelivery,
+  fetchDisputes,
   fileDispute,
   numericOrderId,
 } from "@/lib/api-fulfilment";
@@ -248,6 +250,25 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
     }
     setActionBusy(false);
   };
+  const [liveDisputeId, setLiveDisputeId] = useState<number | null>(null);
+
+  // A filed dispute on a live order surfaces its conversation in the panel.
+  useEffect(() => {
+    setLiveDisputeId(null);
+    if (!liveOrderId) return;
+    let cancelled = false;
+    fetchDisputes()
+      .then((all) => {
+        if (cancelled) return;
+        const match = all.find((d) => d.orderId === liveOrderId);
+        if (match) setLiveDisputeId(match.id);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [liveOrderId, activeModal]);
+
   const [requestText, setRequestText] = useState("");
   const [paymentScreenOpen, setPaymentScreenOpen] = useState(false);
   const [issueType, setIssueType] = useState("");
@@ -517,6 +538,18 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
                       {order.quote.sellerNote}
                     </p>
                   </div>
+                </section>
+              )}
+
+              {liveDisputeId !== null && (
+                <section
+                  className="rounded-2xl bg-white p-6"
+                  style={{ border: "1px solid #F0F0F0" }}
+                >
+                  <p className="mb-4 text-base font-bold text-neutral-900">
+                    Dispute DSP-{liveDisputeId}
+                  </p>
+                  <DisputeThread disputeId={liveDisputeId} viewerRole="buyer" />
                 </section>
               )}
 
