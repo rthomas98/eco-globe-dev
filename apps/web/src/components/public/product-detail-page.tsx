@@ -11,7 +11,7 @@ import { CartButton } from "@/components/cart/cart-panel";
 import { useCart } from "@/components/cart/cart-context";
 import { getProductDetailById } from "./product-detail-data";
 import { listings as ALL_LISTINGS } from "./browse-listings";
-import { useApiListings } from "@/lib/api-listings";
+import { recordListingInterest, useApiListings } from "@/lib/api-listings";
 import { useCustomListings } from "@/lib/custom-listings";
 import { useDemoUser } from "@/lib/demo-user";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
@@ -56,6 +56,11 @@ export function ProductDetailPage() {
   );
   const hasSds = !!matchedListing?.sdsUrl;
   const purchaseDisabled = !isMember || !hasSds;
+
+  // Aggregate interest signal for the seller — never identifies the viewer.
+  useEffect(() => {
+    recordListingInterest(matchedListing?.apiListingId, "detail_view");
+  }, [matchedListing?.apiListingId]);
 
   useEffect(() => {
     setQty(product.minOrder);
@@ -104,6 +109,7 @@ export function ProductDetailPage() {
       quantity: qty,
       apiListingId: matchedListing?.apiListingId,
     });
+    recordListingInterest(matchedListing?.apiListingId, "cart_add");
   };
 
   const handleShare = async () => {

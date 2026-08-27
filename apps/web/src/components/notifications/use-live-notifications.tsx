@@ -27,6 +27,7 @@ const CATEGORY_BY_CODE: Record<string, NotificationCategory> = {
   logistics: "Compliance",
   compliance: "Compliance",
   sustainability: "Sustainability",
+  marketplace: "System",
 };
 
 const ICON_BY_CODE = {
@@ -91,9 +92,11 @@ export function useLiveNotifications(): PortalNotification[] {
 
   useEffect(() => {
     const user = readDemoUser();
-    if (!user?.activeCompanyId) return;
+    if (!user) return;
     let cancelled = false;
-    fetchNotifications(user.activeCompanyId)
+    // No filters: RBAC returns this user's personal alerts (saved-search
+    // matches) plus their company's transaction notifications.
+    fetchNotifications()
       .then((notifications) => {
         if (!cancelled) setItems(notifications.map(mapApiNotification));
       })

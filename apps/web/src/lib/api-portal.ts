@@ -232,6 +232,105 @@ export async function fetchAllListings() {
   return Array.isArray(body.listings) ? body.listings : [];
 }
 
+/* ── Interest signals (Phase 4) ── */
+
+export interface ApiInterestRow {
+  listingId: number;
+  listingTitle: string;
+  totalEvents: number;
+  detailViews: number;
+  cartAdds: number;
+  quoteRequests: number;
+  interestedCompanies: number;
+  eventsLast30Days: number;
+}
+
+export async function fetchInterestSummary() {
+  const body = await proxyGet<{ ok: boolean; interest: ApiInterestRow[] }>(
+    "/api/interest",
+  );
+  return Array.isArray(body.interest) ? body.interest : [];
+}
+
+/* ── Wanted listings (Phase 4) ── */
+
+export interface ApiWantedListing {
+  id: number;
+  buyerCompanyId: number | null;
+  buyerCompanyName: string | null;
+  title: string;
+  materialTypeCode: string;
+  materialTypeName: string;
+  quantity: number;
+  quantityUnit: string;
+  targetPricePerUnit: number | null;
+  currencyCode: string;
+  countryCode: string;
+  stateProvince: string | null;
+  notes: string | null;
+  isOpen: boolean;
+  createdAt: string;
+}
+
+export async function fetchWantedListings(mineOnly = false) {
+  const body = await proxyGet<{ ok: boolean; wantedListings: ApiWantedListing[] }>(
+    `/api/wanted-listings${mineOnly ? "?mine=true" : ""}`,
+  );
+  return Array.isArray(body.wantedListings) ? body.wantedListings : [];
+}
+
+export async function createWantedListing(input: {
+  title: string;
+  materialTypeCode: string;
+  quantity: number;
+  quantityUnit?: string;
+  targetPricePerUnit?: number;
+  countryCode: string;
+  stateProvince?: string;
+  notes?: string;
+}) {
+  return proxySend<{ ok: boolean; wantedListing: { id: number } }>(
+    "/api/wanted-listings",
+    "POST",
+    input,
+  );
+}
+
+/* ── Saved searches (Phase 4) ── */
+
+export interface ApiSavedSearch {
+  id: number;
+  name: string;
+  searchQuery: string | null;
+  materialTypeCode: string | null;
+  countryCode: string | null;
+  maxPricePerUnit: number | null;
+  alertsEnabled: boolean;
+  lastNotifiedAt: string | null;
+  createdAt: string;
+}
+
+export async function fetchSavedSearches() {
+  const body = await proxyGet<{ ok: boolean; savedSearches: ApiSavedSearch[] }>(
+    "/api/saved-searches",
+  );
+  return Array.isArray(body.savedSearches) ? body.savedSearches : [];
+}
+
+export async function createSavedSearch(input: {
+  name: string;
+  searchQuery?: string;
+  materialTypeCode?: string;
+  countryCode?: string;
+  maxPricePerUnit?: number;
+}) {
+  return proxySend<{ ok: boolean; savedSearch: { id: number } }>(
+    "/api/saved-searches",
+    "POST",
+    input,
+  );
+}
+
 /* ── Audit logs (admin) ── */
 
 export interface ApiAuditLog {

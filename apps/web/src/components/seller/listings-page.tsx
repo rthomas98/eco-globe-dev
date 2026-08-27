@@ -1,15 +1,73 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, LayoutGrid, List, SlidersHorizontal, Info, ChevronRight, MoreHorizontal, X, ChevronDown } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
 import { ListingMap } from "../public/listing-map";
 import { useCustomListings } from "@/lib/custom-listings";
+import { listings as staticCatalogue } from "../public/browse-listings";
+import {
+  fetchInterestSummary,
+  fetchWantedListings,
+  portalMoney,
+  type ApiInterestRow,
+  type ApiWantedListing,
+} from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 
 type ListingStatus = "Draft" | "Pending" | "Approved";
 type Sustainability = "Verified" | "Partial";
+
+const LISTING_STATUS_BY_CODE: Record<string, ListingStatus> = {
+  draft: "Draft",
+  pending_review: "Pending",
+  published: "Approved",
+  paused: "Approved",
+  closed: "Approved",
+};
+
+/** The seller's own live listings (all statuses) mapped to the page rows. */
+async function fetchSellerListings(companyId: number): Promise<Listing[]> {
+  const response = await fetch(
+    `/api/backend/api/listings?sellerCompanyId=${companyId}`,
+    { credentials: "same-origin" },
+  );
+  if (!response.ok) return [];
+  const body = (await response.json()) as {
+    ok: boolean;
+    listings?: Array<{
+      id: number;
+      title: string;
+      slug: string;
+      materialTypeCode: string;
+      quantity: number;
+      quantityUnit: string;
+      pricePerUnit: number | null;
+      currencyCode: string;
+      listingStatusCode: string;
+      locationCity: string | null;
+      locationStateProvince: string | null;
+    }>;
+  };
+  if (!body.ok || !Array.isArray(body.listings)) return [];
+  return body.listings.map((l) => ({
+    name: l.title,
+    id: `EG-${l.id}`,
+    category: l.materialTypeCode.replace(/_/g, " "),
+    available: Number(l.quantity),
+    price: l.pricePerUnit != null ? `$${l.pricePerUnit}/ton` : "—",
+    sustainability: "Verified" as Sustainability,
+    status: LISTING_STATUS_BY_CODE[l.listingStatusCode] ?? "Pending",
+    location: [l.locationCity, l.locationStateProvince]
+      .filter(Boolean)
+      .join(", "),
+    image:
+      staticCatalogue.find((entry) => entry.id === l.slug)?.image ??
+      "/products/generated/bagasse.png",
+  }));
+}
 
 interface Listing {
   name: string; id: string; category: string; available: number; price: string;
@@ -165,9 +223,41 @@ export function ListingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const customListings = useCustomListings();
+  const [liveListings, setLiveListings] = useState<Listing[]>([]);
+  const [interest, setInterest] = useState<ApiInterestRow[]>([]);
+  const [demand, setDemand] = useState<ApiWantedListing[]>([]);
+
+  // Live listings, aggregate buyer-interest signals, and open buyer demand.
+  useEffect(() => {
+    const user = readDemoUser();
+    if (!user?.activeCompanyId) return;
+    const companyId = user.activeCompanyId;
+    let cancelled = false;
+
+    fetchSellerListings(companyId)
+      .then((rows) => {
+        if (!cancelled) setLiveListings(rows);
+      })
+      .catch(() => {});
+    fetchInterestSummary()
+      .then((rows) => {
+        if (!cancelled) setInterest(rows);
+      })
+      .catch(() => {});
+    fetchWantedListings()
+      .then((rows) => {
+        if (!cancelled) setDemand(rows.filter((row) => row.isOpen));
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const merged = useMemo<Listing[]>(
     () => [
+      ...liveListings,
       ...customListings.map<Listing>((c) => ({
         name: c.title,
         id: `EG-${c.id.slice(-5).toUpperCase()}`,
@@ -181,14 +271,70 @@ export function ListingsPage() {
       })),
       ...listings,
     ],
-    [customListings],
+    [liveListings, customListings],
   );
 
   const filtered = merged.filter((l) => !searchQuery.trim() || l.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const pendingCount = merged.filter((l) => l.status === "Pending").length;
+  const interestWithActivity = interest.filter((row) => row.totalEvents > 0);
 
   return (
     <SellerLayout title="Listings">
+      {/* Aggregate buyer-interest signals — the intelligence the licence buys */}
+      {interestWithActivity.length > 0 && (
+        <div className="mb-5 rounded-xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+          <h2 className="mb-1 text-sm font-bold text-neutral-900">Buyer interest</h2>
+          <p className="mb-3 text-xs text-neutral-500">
+            Aggregate activity on your listings. Buyer identities stay private
+            until they reach out.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {interestWithActivity.map((row) => (
+              <div
+                key={row.listingId}
+                className="rounded-lg bg-neutral-50 px-4 py-2 text-sm"
+                style={{ border: "1px solid #F0F0F0" }}
+              >
+                <span className="font-semibold text-neutral-900">{row.listingTitle}</span>
+                <span className="ml-2 text-neutral-600">
+                  {row.detailViews} views · {row.cartAdds} cart adds ·{" "}
+                  {row.interestedCompanies}{" "}
+                  {row.interestedCompanies === 1 ? "company" : "companies"} interested
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Open buyer demand — wanted listings posted by buyers */}
+      {demand.length > 0 && (
+        <div className="mb-5 rounded-xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+          <h2 className="mb-1 text-sm font-bold text-neutral-900">Buyers are looking for</h2>
+          <p className="mb-3 text-xs text-neutral-500">
+            Open wanted listings from verified buyers. Post a matching listing
+            to connect.
+          </p>
+          <div className="flex flex-col gap-2">
+            {demand.slice(0, 5).map((row) => (
+              <div
+                key={row.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-neutral-50 px-4 py-2 text-sm"
+                style={{ border: "1px solid #F0F0F0" }}
+              >
+                <span className="font-semibold text-neutral-900">{row.title}</span>
+                <span className="text-neutral-600">
+                  {row.quantity} {row.quantityUnit} · {row.materialTypeName} ·{" "}
+                  {[row.stateProvince, row.countryCode].filter(Boolean).join(", ")}
+                  {row.targetPricePerUnit != null &&
+                    ` · target ${portalMoney(row.targetPricePerUnit, row.currencyCode)}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-neutral-900">Listings</h1>
         <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">

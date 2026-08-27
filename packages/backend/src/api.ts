@@ -2260,6 +2260,43 @@ async function deleteLocation(response: ServerResponse, id: number, auth: AuthCo
   sendJson(response, 200, { ok: true, location: rows[0] });
 }
 
+/**
+ * Gated listing visibility (per the onboarding guide): viewers without a
+ * company membership — anonymous visitors and explorers — get a teaser with
+ * category, region, and approximate volume. Company members and admins get
+ * full specifications, price, and the route to contact the seller.
+ */
+function hasFullListingAccess(auth: AuthContext | undefined) {
+  return Boolean(auth && (auth.isAdmin || auth.companyId));
+}
+
+function approximateQuantity(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  return Math.round(value / magnitude) * magnitude;
+}
+
+function toListingTeaser<T extends Record<string, unknown>>(row: T) {
+  const description =
+    typeof row.description === "string" && row.description.length > 140
+      ? `${row.description.slice(0, 140)}…`
+      : row.description;
+  return {
+    ...row,
+    teaser: true,
+    sellerCompanyId: null,
+    sellerCompanyName: null,
+    locationId: null,
+    locationCity: null,
+    locationLatitude: null,
+    locationLongitude: null,
+    minimumOrderQuantity: null,
+    pricePerUnit: null,
+    quantity: approximateQuantity(Number(row.quantity)),
+    description,
+  };
+}
+
 async function listListings(
   response: ServerResponse,
   url: URL,
@@ -2330,7 +2367,12 @@ async function listListings(
     ],
   );
 
-  sendJson(response, 200, { ok: true, listings });
+  sendJson(response, 200, {
+    ok: true,
+    listings: hasFullListingAccess(auth)
+      ? listings
+      : (listings as Record<string, unknown>[]).map(toListingTeaser),
+  });
 }
 
 async function getListing(
@@ -2392,7 +2434,10 @@ async function getListing(
     throw new ApiError(404, "Listing not found.");
   }
 
-  sendJson(response, 200, { ok: true, listing });
+  sendJson(response, 200, {
+    ok: true,
+    listing: hasFullListingAccess(auth) ? listing : toListingTeaser(listing),
+  });
 }
 
 async function createListing(
@@ -2573,6 +2618,11 @@ async function updateListing(
 
   if (!rows[0]) {
     throw new ApiError(404, "Listing not found.");
+  }
+
+  // Fan out saved-search alerts the moment a listing goes live.
+  if (statusCode && normalizeCode(statusCode) === "published") {
+    await notifySavedSearchMatches(id, auth.userId);
   }
 
   sendJson(response, 200, { ok: true, listing: rows[0] });
@@ -5340,6 +5390,451 @@ async function updateDispute(request: IncomingMessage, response: ServerResponse,
   sendJson(response, 200, { ok: true, dispute: rows[0] });
 }
 
+/* ─── Phase 4: interest signals, wanted listings, saved searches ─── */
+
+const INTEREST_EVENT_TYPES = [
+  "view",
+  "detail_view",
+  "cart_add",
+  "quote_request",
+];
+
+async function recordListingInterest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  listingId: number,
+  auth: AuthContext | undefined,
+) {
+  const body = await readJsonBody<{ eventType?: string; region?: string }>(
+    request,
+  );
+  const eventType = normalizeCode(getRequiredString(body, "eventType", 40));
+  if (!INTEREST_EVENT_TYPES.includes(eventType)) {
+    throw new ApiError(
+      400,
+      `eventType must be one of: ${INTEREST_EVENT_TYPES.join(", ")}.`,
+    );
+  }
+  const listing = (await queryRowsWithParams<{ sellerCompanyId: number }>(
+    "SELECT SellerCompanyId AS sellerCompanyId FROM dbo.Listings WHERE Id = @id;",
+    [intParam("id", listingId)],
+  ))[0];
+  if (!listing) throw new ApiError(404, "Listing not found.");
+
+  // A seller browsing their own listing is not buyer interest.
+  if (auth?.companyId === listing.sellerCompanyId) {
+    sendJson(response, 200, { ok: true, recorded: false });
+    return;
+  }
+
+  await queryRowsWithParams(
+    `
+      INSERT INTO dbo.ListingInterestEvents (ListingId, EventType, ViewerCompanyId, ViewerRegion)
+      VALUES (@listingId, @eventType, @viewerCompanyId, @viewerRegion);
+    `,
+    [
+      intParam("listingId", listingId),
+      varcharParam("eventType", eventType, 40),
+      intParam("viewerCompanyId", auth?.companyId),
+      nvarcharParam("viewerRegion", getOptionalString(body, "region", 120), 120),
+    ],
+  );
+
+  sendJson(response, 201, { ok: true, recorded: true });
+}
+
+async function listInterestSummary(
+  response: ServerResponse,
+  url: URL,
+  auth: AuthContext,
+) {
+  const sellerCompanyId = url.searchParams.get("sellerCompanyId")
+    ? Number(url.searchParams.get("sellerCompanyId"))
+    : auth.companyId;
+  if (!sellerCompanyId) {
+    throw new ApiError(400, "sellerCompanyId is required.");
+  }
+  requireCompanyAccess(auth, sellerCompanyId);
+
+  // The aggregate is the product: totals only, never who viewed.
+  const summary = await queryRowsWithParams(
+    `
+      SELECT
+        l.Id AS listingId,
+        l.Title AS listingTitle,
+        COUNT(e.Id) AS totalEvents,
+        SUM(CASE WHEN e.EventType = 'detail_view' THEN 1 ELSE 0 END) AS detailViews,
+        SUM(CASE WHEN e.EventType = 'cart_add' THEN 1 ELSE 0 END) AS cartAdds,
+        SUM(CASE WHEN e.EventType = 'quote_request' THEN 1 ELSE 0 END) AS quoteRequests,
+        COUNT(DISTINCT e.ViewerCompanyId) AS interestedCompanies,
+        SUM(CASE WHEN e.CreatedAt >= DATEADD(day, -30, SYSUTCDATETIME()) THEN 1 ELSE 0 END) AS eventsLast30Days
+      FROM dbo.Listings l
+      LEFT JOIN dbo.ListingInterestEvents e ON e.ListingId = l.Id
+      WHERE l.SellerCompanyId = @sellerCompanyId
+      GROUP BY l.Id, l.Title
+      ORDER BY totalEvents DESC, l.Id DESC;
+    `,
+    [intParam("sellerCompanyId", sellerCompanyId)],
+  );
+
+  sendJson(response, 200, { ok: true, interest: summary });
+}
+
+async function listWantedListings(
+  response: ServerResponse,
+  url: URL,
+  auth: AuthContext | undefined,
+) {
+  const mineOnly = url.searchParams.get("mine") === "true";
+  if (mineOnly && !auth?.companyId) {
+    throw new ApiError(401, "Sign in to view your wanted listings.");
+  }
+
+  const rows = await queryRowsWithParams<Record<string, unknown>>(
+    `
+      SELECT TOP (100)
+        w.Id AS id,
+        w.BuyerCompanyId AS buyerCompanyId,
+        c.LegalName AS buyerCompanyName,
+        w.Title AS title,
+        mt.Code AS materialTypeCode,
+        mt.Name AS materialTypeName,
+        w.Quantity AS quantity,
+        w.QuantityUnit AS quantityUnit,
+        w.TargetPricePerUnit AS targetPricePerUnit,
+        w.CurrencyCode AS currencyCode,
+        w.CountryCode AS countryCode,
+        w.StateProvince AS stateProvince,
+        w.Notes AS notes,
+        w.IsOpen AS isOpen,
+        w.CreatedAt AS createdAt
+      FROM dbo.WantedListings w
+      INNER JOIN dbo.Companies c ON c.Id = w.BuyerCompanyId
+      INNER JOIN dbo.MaterialTypes mt ON mt.Id = w.MaterialTypeId
+      WHERE (@mineOnly = 0 OR w.BuyerCompanyId = @authCompanyId)
+        AND (@mineOnly = 1 OR w.IsOpen = 1)
+      ORDER BY w.Id DESC;
+    `,
+    [
+      bitParam("mineOnly", mineOnly),
+      intParam("authCompanyId", auth?.companyId ?? -1),
+    ],
+  );
+
+  // Buyer anonymity is a designed feature: the public view shows demand
+  // without exposing who is asking. Owners and admins see their own names.
+  const wantedListings = rows.map((row) => {
+    const isOwner =
+      auth?.isAdmin || (auth?.companyId && auth.companyId === row.buyerCompanyId);
+    return isOwner
+      ? row
+      : { ...row, buyerCompanyId: null, buyerCompanyName: null };
+  });
+
+  sendJson(response, 200, { ok: true, wantedListings });
+}
+
+async function createWantedListing(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  if (!auth.companyId) {
+    throw new ApiError(
+      403,
+      "Set up your company before posting a wanted listing.",
+    );
+  }
+  const body = await readJsonBody<Record<string, unknown>>(request);
+  const materialTypeId = await lookupId(
+    "MaterialTypes",
+    getRequiredString(body, "materialTypeCode", 80),
+  );
+  const quantity = getOptionalNumber(body, "quantity");
+  if (quantity === undefined || quantity <= 0) {
+    throw new ApiError(400, "quantity must be a positive number.");
+  }
+  const countryCode = getRequiredString(body, "countryCode", 2).toUpperCase();
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.WantedListings (
+        BuyerCompanyId, Title, MaterialTypeId, Quantity, QuantityUnit,
+        TargetPricePerUnit, CurrencyCode, CountryCode, StateProvince, Notes,
+        CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.IsOpen AS isOpen
+      VALUES (
+        @buyerCompanyId, @title, @materialTypeId, @quantity, @quantityUnit,
+        @targetPricePerUnit, @currencyCode, @countryCode, @stateProvince, @notes,
+        @userId, @userId
+      );
+    `,
+    [
+      intParam("buyerCompanyId", auth.companyId),
+      nvarcharParam("title", getRequiredString(body, "title", 200), 200),
+      intParam("materialTypeId", materialTypeId),
+      decimalParam("quantity", quantity),
+      varcharParam(
+        "quantityUnit",
+        getOptionalString(body, "quantityUnit", 40) ?? "tons",
+        40,
+      ),
+      moneyParam("targetPricePerUnit", getOptionalNumber(body, "targetPricePerUnit")),
+      varcharParam(
+        "currencyCode",
+        getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? "USD",
+        3,
+      ),
+      varcharParam("countryCode", countryCode, 2),
+      nvarcharParam("stateProvince", getOptionalString(body, "stateProvince", 120), 120),
+      nvarcharParam("notes", getOptionalString(body, "notes", 2000), 2000),
+      intParam("userId", auth.userId),
+    ],
+  );
+
+  await writeAuditLog({
+    auth,
+    request,
+    actionTypeCode: "created",
+    recordTypeCode: "listing",
+    recordId: rows[0].id as number,
+    newValue: rows[0],
+    reason: "Wanted listing posted.",
+  });
+
+  sendJson(response, 201, { ok: true, wantedListing: rows[0] });
+}
+
+async function updateWantedListing(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  await requireResourceCompany(
+    auth,
+    "SELECT BuyerCompanyId AS companyId FROM dbo.WantedListings WHERE Id = @id;",
+    [intParam("id", id)],
+    "Wanted listing",
+  );
+  const body = await readJsonBody<Record<string, unknown>>(request);
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.WantedListings
+      SET
+        Title = COALESCE(@title, Title),
+        Quantity = COALESCE(@quantity, Quantity),
+        TargetPricePerUnit = COALESCE(@targetPricePerUnit, TargetPricePerUnit),
+        Notes = COALESCE(@notes, Notes),
+        IsOpen = COALESCE(@isOpen, IsOpen),
+        UpdatedByUserId = @userId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.IsOpen AS isOpen
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      nvarcharParam("title", getOptionalString(body, "title", 200), 200),
+      decimalParam("quantity", getOptionalNumber(body, "quantity")),
+      moneyParam("targetPricePerUnit", getOptionalNumber(body, "targetPricePerUnit")),
+      nvarcharParam("notes", getOptionalString(body, "notes", 2000), 2000),
+      bitParam("isOpen", getOptionalBoolean(body, "isOpen")),
+      intParam("userId", auth.userId),
+    ],
+  );
+  if (!rows[0]) throw new ApiError(404, "Wanted listing not found.");
+  sendJson(response, 200, { ok: true, wantedListing: rows[0] });
+}
+
+async function listSavedSearches(response: ServerResponse, auth: AuthContext) {
+  const rows = await queryRowsWithParams(
+    `
+      SELECT
+        s.Id AS id, s.Name AS name, s.SearchQuery AS searchQuery,
+        mt.Code AS materialTypeCode, s.CountryCode AS countryCode,
+        s.MaxPricePerUnit AS maxPricePerUnit, s.AlertsEnabled AS alertsEnabled,
+        s.LastNotifiedAt AS lastNotifiedAt, s.CreatedAt AS createdAt
+      FROM dbo.SavedSearches s
+      LEFT JOIN dbo.MaterialTypes mt ON mt.Id = s.MaterialTypeId
+      WHERE s.UserId = @userId
+      ORDER BY s.Id DESC;
+    `,
+    [intParam("userId", auth.userId)],
+  );
+  sendJson(response, 200, { ok: true, savedSearches: rows });
+}
+
+async function createSavedSearch(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<Record<string, unknown>>(request);
+  const materialTypeCode = getOptionalString(body, "materialTypeCode", 80);
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.SavedSearches (
+        UserId, Name, SearchQuery, MaterialTypeId, CountryCode, MaxPricePerUnit, AlertsEnabled
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.Name AS name, INSERTED.AlertsEnabled AS alertsEnabled
+      VALUES (@userId, @name, @searchQuery, @materialTypeId, @countryCode, @maxPricePerUnit, @alertsEnabled);
+    `,
+    [
+      intParam("userId", auth.userId),
+      nvarcharParam("name", getRequiredString(body, "name", 160), 160),
+      nvarcharParam("searchQuery", getOptionalString(body, "searchQuery", 400), 400),
+      intParam(
+        "materialTypeId",
+        materialTypeCode ? await lookupId("MaterialTypes", materialTypeCode) : undefined,
+      ),
+      varcharParam(
+        "countryCode",
+        getOptionalString(body, "countryCode", 2)?.toUpperCase(),
+        2,
+      ),
+      moneyParam("maxPricePerUnit", getOptionalNumber(body, "maxPricePerUnit")),
+      bitParam("alertsEnabled", getOptionalBoolean(body, "alertsEnabled") ?? true),
+    ],
+  );
+  sendJson(response, 201, { ok: true, savedSearch: rows[0] });
+}
+
+async function updateSavedSearch(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const body = await readJsonBody<Record<string, unknown>>(request);
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.SavedSearches
+      SET
+        Name = COALESCE(@name, Name),
+        AlertsEnabled = COALESCE(@alertsEnabled, AlertsEnabled),
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.Name AS name, INSERTED.AlertsEnabled AS alertsEnabled
+      WHERE Id = @id AND UserId = @userId;
+    `,
+    [
+      intParam("id", id),
+      intParam("userId", auth.userId),
+      nvarcharParam("name", getOptionalString(body, "name", 160), 160),
+      bitParam("alertsEnabled", getOptionalBoolean(body, "alertsEnabled")),
+    ],
+  );
+  if (!rows[0]) throw new ApiError(404, "Saved search not found.");
+  sendJson(response, 200, { ok: true, savedSearch: rows[0] });
+}
+
+async function deleteSavedSearch(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const rows = await queryRowsWithParams(
+    "DELETE FROM dbo.SavedSearches OUTPUT DELETED.Id AS id WHERE Id = @id AND UserId = @userId;",
+    [intParam("id", id), intParam("userId", auth.userId)],
+  );
+  if (!rows[0]) throw new ApiError(404, "Saved search not found.");
+  sendJson(response, 200, { ok: true });
+}
+
+/**
+ * Saved-search alerting: when a listing goes live, notify every user whose
+ * saved search matches it. Best-effort — never fails the publish.
+ */
+async function notifySavedSearchMatches(listingId: number, actorUserId: number) {
+  try {
+    const listing = (await queryRowsWithParams<{
+      title: string;
+      description: string | null;
+      materialTypeId: number;
+      pricePerUnit: number;
+      countryCode: string | null;
+    }>(
+      `
+        SELECT l.Title AS title, l.Description AS description,
+          l.MaterialTypeId AS materialTypeId, l.PricePerUnit AS pricePerUnit,
+          loc.CountryCode AS countryCode
+        FROM dbo.Listings l
+        LEFT JOIN dbo.Locations loc ON loc.Id = l.LocationId
+        WHERE l.Id = @id;
+      `,
+      [intParam("id", listingId)],
+    ))[0];
+    if (!listing) return;
+
+    const matches = await queryRowsWithParams<{ id: number; userId: number; name: string }>(
+      `
+        SELECT s.Id AS id, s.UserId AS userId, s.Name AS name
+        FROM dbo.SavedSearches s
+        WHERE s.AlertsEnabled = 1
+          AND s.UserId <> @actorUserId
+          AND (s.SearchQuery IS NULL OR @title LIKE '%' + s.SearchQuery + '%' OR @description LIKE '%' + s.SearchQuery + '%')
+          AND (s.MaterialTypeId IS NULL OR s.MaterialTypeId = @materialTypeId)
+          AND (s.CountryCode IS NULL OR s.CountryCode = @countryCode)
+          AND (s.MaxPricePerUnit IS NULL OR @pricePerUnit <= s.MaxPricePerUnit);
+      `,
+      [
+        intParam("actorUserId", actorUserId),
+        nvarcharParam("title", listing.title, 400),
+        nvarcharParam("description", listing.description ?? "", 4000),
+        intParam("materialTypeId", listing.materialTypeId),
+        varcharParam("countryCode", listing.countryCode ?? "ZZ", 2),
+        moneyParam("pricePerUnit", Number(listing.pricePerUnit)),
+      ],
+    );
+    if (matches.length === 0) return;
+
+    const channelId = await lookupId("NotificationChannels", "in_app");
+    const categoryId = await lookupId("NotificationCategories", "marketplace");
+    const statusId = await lookupId("NotificationStatuses", "sent");
+    const recordTypeId = await lookupId("RecordTypes", "listing");
+
+    for (const match of matches) {
+      await queryRowsWithParams(
+        `
+          INSERT INTO dbo.Notifications (
+            UserId, RelatedRecordTypeId, RelatedRecordId,
+            NotificationChannelId, NotificationCategoryId, NotificationStatusId,
+            Subject, Body, SentAt, CreatedByUserId, UpdatedByUserId
+          )
+          VALUES (
+            @userId, @recordTypeId, @listingId,
+            @channelId, @categoryId, @statusId,
+            @subject, @body, SYSUTCDATETIME(), @actorUserId, @actorUserId
+          );
+          UPDATE dbo.SavedSearches SET LastNotifiedAt = SYSUTCDATETIME() WHERE Id = @savedSearchId;
+        `,
+        [
+          intParam("userId", match.userId),
+          intParam("recordTypeId", recordTypeId),
+          intParam("listingId", listingId),
+          intParam("channelId", channelId),
+          intParam("categoryId", categoryId),
+          intParam("statusId", statusId),
+          nvarcharParam(
+            "subject",
+            `New match for your saved search "${match.name}"`,
+            240,
+          ),
+          nvarcharParam(
+            "body",
+            `"${listing.title}" was just published and matches your saved search "${match.name}".`,
+            4000,
+          ),
+          intParam("actorUserId", actorUserId),
+          intParam("savedSearchId", match.id),
+        ],
+      );
+    }
+  } catch (error) {
+    console.warn("Saved-search alerting failed:", error);
+  }
+}
+
 export async function handleApiRoute(
   request: IncomingMessage,
   response: ServerResponse,
@@ -5556,6 +6051,95 @@ export async function handleApiRoute(
 
     if (method === "POST") {
       await createListing(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const interestMatch = matchPath(
+    requestUrl.pathname,
+    "/api/listings/:id/interest",
+  );
+  if (interestMatch.matched && method === "POST") {
+    await recordListingInterest(
+      request,
+      response,
+      parseId(interestMatch.params.id, "Listing ID"),
+      await getOptionalSessionAuth(request),
+    );
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/interest" && method === "GET") {
+    await listInterestSummary(
+      response,
+      requestUrl,
+      await requireSessionAuth(request),
+    );
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/wanted-listings") {
+    if (method === "GET") {
+      await listWantedListings(
+        response,
+        requestUrl,
+        await getOptionalSessionAuth(request),
+      );
+      return true;
+    }
+    if (method === "POST") {
+      await createWantedListing(
+        request,
+        response,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  const wantedMatch = matchPath(requestUrl.pathname, "/api/wanted-listings/:id");
+  if (wantedMatch.matched && method === "PATCH") {
+    await updateWantedListing(
+      request,
+      response,
+      parseId(wantedMatch.params.id, "Wanted listing ID"),
+      await requireSessionAuth(request),
+    );
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/saved-searches") {
+    if (method === "GET") {
+      await listSavedSearches(response, await requireSessionAuth(request));
+      return true;
+    }
+    if (method === "POST") {
+      await createSavedSearch(
+        request,
+        response,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+  }
+
+  const savedSearchMatch = matchPath(
+    requestUrl.pathname,
+    "/api/saved-searches/:id",
+  );
+  if (savedSearchMatch.matched) {
+    const id = parseId(savedSearchMatch.params.id, "Saved search ID");
+    if (method === "PATCH") {
+      await updateSavedSearch(
+        request,
+        response,
+        id,
+        await requireSessionAuth(request),
+      );
+      return true;
+    }
+    if (method === "DELETE") {
+      await deleteSavedSearch(response, id, await requireSessionAuth(request));
       return true;
     }
   }
