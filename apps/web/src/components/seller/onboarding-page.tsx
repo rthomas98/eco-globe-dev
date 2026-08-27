@@ -8,19 +8,21 @@ import { Button, Input, Select } from "@eco-globe/ui";
 import {
   BackendApiError,
   completeBackendOnboarding,
+  fetchOnboardingState,
   startBackendStripeOnboarding,
 } from "@/lib/backend-auth";
-import { getUserRoles, useDemoUser } from "@/lib/demo-user";
+import { getUserRoles, readDemoUser, useDemoUser } from "@/lib/demo-user";
 
 type Step =
   | "welcome"
   | "business"
   | "product"
   | "sustainability"
+  | "licence"
   | "stripe"
   | "success";
 
-const totalSteps = 5; // welcome doesn't count, success doesn't count
+const totalSteps = 6; // welcome doesn't count, success doesn't count
 
 function OnboardingLayout({
   step,
@@ -443,7 +445,106 @@ function SustainabilityStep({
   );
 }
 
-/* ─── Step 5: Stripe Payouts ─── */
+/* ─── Step 5: Licence Tier ─── */
+function LicenceTierStep({
+  tier,
+  onTierChange,
+  onBack,
+  onNext,
+  isBusy,
+  error,
+}: {
+  tier: string;
+  onTierChange: (t: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+  isBusy?: boolean;
+  error?: string;
+}) {
+  return (
+    <OnboardingLayout
+      step="licence"
+      currentStep={4}
+      onBack={onBack}
+      onNext={onNext}
+      isBusy={isBusy}
+      error={error}
+    >
+      <div className="flex flex-1 justify-center px-6 py-10">
+        <div className="w-full max-w-[860px]">
+          <h1 className="mb-2 text-3xl font-bold text-neutral-900">
+            Choose your licence tier
+          </h1>
+          <p className="mb-8 max-w-[620px] text-base text-neutral-500">
+            Every verified seller starts with a permanently free tier. Paid
+            tiers unlock deeper search visibility and buyer-interest analytics
+            when they launch.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => onTierChange("free")}
+              className={`rounded-2xl p-6 text-left transition-colors ${
+                tier === "free"
+                  ? "bg-neutral-900 text-white"
+                  : "bg-neutral-50 hover:bg-neutral-100"
+              }`}
+              style={
+                tier === "free" ? undefined : { border: "1px solid #E0E0E0" }
+              }
+            >
+              <p className="text-sm font-semibold uppercase tracking-wide">
+                Free
+              </p>
+              <p
+                className={`mt-2 text-2xl font-bold ${tier === "free" ? "text-white" : "text-neutral-900"}`}
+              >
+                $0
+              </p>
+              <ul
+                className={`mt-4 flex flex-col gap-2 text-sm ${tier === "free" ? "text-neutral-200" : "text-neutral-500"}`}
+              >
+                <li>Publish approved listings</li>
+                <li>Teaser visibility to all buyers</li>
+                <li>Category &amp; state-level search</li>
+              </ul>
+            </button>
+            <div
+              className="rounded-2xl bg-neutral-50 p-6 opacity-60"
+              style={{ border: "1px solid #E0E0E0" }}
+            >
+              <p className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                Growth — coming soon
+              </p>
+              <p className="mt-2 text-2xl font-bold text-neutral-900">TBA</p>
+              <ul className="mt-4 flex flex-col gap-2 text-sm text-neutral-500">
+                <li>Full listing detail for buyers</li>
+                <li>ZIP-radius &amp; feedstock search</li>
+                <li>Aggregate buyer-interest data</li>
+              </ul>
+            </div>
+            <div
+              className="rounded-2xl bg-neutral-50 p-6 opacity-60"
+              style={{ border: "1px solid #E0E0E0" }}
+            >
+              <p className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                Enterprise — coming soon
+              </p>
+              <p className="mt-2 text-2xl font-bold text-neutral-900">TBA</p>
+              <ul className="mt-4 flex flex-col gap-2 text-sm text-neutral-500">
+                <li>Per-facility licensing</li>
+                <li>Multi-site team management</li>
+                <li>Assisted onboarding</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </OnboardingLayout>
+  );
+}
+
+/* ─── Step 6: Stripe Payouts ─── */
 function StripePayoutStep({
   onBack,
   onNext,
@@ -460,7 +561,7 @@ function StripePayoutStep({
   return (
     <OnboardingLayout
       step="stripe"
-      currentStep={4}
+      currentStep={5}
       onBack={onBack}
       onNext={onNext}
       onSkip={onSkip}
@@ -512,7 +613,7 @@ function StripePayoutStep({
 /* ─── Step 6: Success ─── */
 function SuccessStep() {
   return (
-    <OnboardingLayout step="success" currentStep={5}>
+    <OnboardingLayout step="success" currentStep={6}>
       <div className="flex flex-1 items-center justify-center px-6">
         <div className="flex max-w-[500px] flex-col items-center text-center">
           <span className="mb-6 text-6xl">🎉</span>
@@ -523,7 +624,12 @@ function SuccessStep() {
             You can now complete verification, manage products, and prepare your
             profile for buyers.
           </p>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link href="/welcome">
+              <Button variant="secondary" size="lg">
+                View onboarding status
+              </Button>
+            </Link>
             <Link href="/seller/listings">
               <Button variant="secondary" size="lg">
                 Go to Seller Dashboard
@@ -547,12 +653,33 @@ export function SellerOnboardingPage() {
   const [step, setStep] = useState<Step>("welcome");
   const [status, setStatus] = useState<"idle" | "saving" | "stripe">("idle");
   const [error, setError] = useState("");
+  const [licenceTier, setLicenceTier] = useState("free");
   const [businessData, setBusinessData] = useState({
     company: "",
     industry: "",
     address: "",
     website: "",
   });
+
+  // Prefill from the company shell captured at sign-up.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchOnboardingState()
+      .then((state) => {
+        if (cancelled || !state.company) return;
+        setBusinessData((prev) => ({
+          ...prev,
+          company: prev.company || state.company!.legalName,
+        }));
+      })
+      .catch(() => {
+        // No session yet — the guard handles redirects.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [productData, setProductData] = useState({
     feedstockType: "",
     generation: "",
@@ -604,6 +731,7 @@ export function SellerOnboardingPage() {
         industry: businessData.industry,
         website: businessData.website,
         address: businessData.address,
+        licenceTier,
       });
       setStep("stripe");
     } catch (err) {
@@ -680,8 +808,19 @@ export function SellerOnboardingPage() {
           files={files}
           onFilesChange={setFiles}
           onBack={() => setStep("product")}
+          onNext={() => setStep("licence")}
+          onSkip={() => setStep("licence")}
+          isBusy={false}
+          error={error}
+        />
+      );
+    case "licence":
+      return (
+        <LicenceTierStep
+          tier={licenceTier}
+          onTierChange={setLicenceTier}
+          onBack={() => setStep("sustainability")}
           onNext={() => void completeSellerOnboarding()}
-          onSkip={() => void completeSellerOnboarding()}
           isBusy={status === "saving"}
           error={error}
         />
@@ -689,7 +828,7 @@ export function SellerOnboardingPage() {
     case "stripe":
       return (
         <StripePayoutStep
-          onBack={() => setStep("sustainability")}
+          onBack={() => setStep("licence")}
           onNext={() => void startStripePayouts()}
           onSkip={() => setStep("success")}
           isBusy={status === "stripe"}

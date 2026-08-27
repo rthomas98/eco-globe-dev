@@ -8,9 +8,10 @@ import { Button, Input, Select } from "@eco-globe/ui";
 import {
   BackendApiError,
   completeBackendOnboarding,
+  fetchOnboardingState,
   startBackendStripeOnboarding,
 } from "@/lib/backend-auth";
-import { getUserRoles, useDemoUser } from "@/lib/demo-user";
+import { getUserRoles, readDemoUser, useDemoUser } from "@/lib/demo-user";
 
 type Step =
   | "welcome"
@@ -203,12 +204,6 @@ function BusinessStep({
               onChange={(e) => onChange("company", e.target.value)}
             />
             <Input
-              label="Job title"
-              id="jobTitle"
-              value={data.jobTitle}
-              onChange={(e) => onChange("jobTitle", e.target.value)}
-            />
-            <Input
               label="What industry are you working on?"
               id="industry"
               value={data.industry}
@@ -291,12 +286,6 @@ function ProductsStep({
               options={feedstockTypes}
               value={data.feedstockType}
               onChange={(e) => onChange("feedstockType", e.target.value)}
-            />
-            <Input
-              label="What will you use this feedstock for?"
-              id="usage"
-              value={data.usage}
-              onChange={(e) => onChange("usage", e.target.value)}
             />
             <Select
               label="Any restrictions?"
@@ -498,7 +487,12 @@ function SuccessStep() {
             You can now explore verified sellers and start sourcing with
             confidence.
           </p>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link href="/welcome">
+              <Button variant="secondary" size="lg">
+                View onboarding status
+              </Button>
+            </Link>
             <Link href="/buyer/browse">
               <Button variant="secondary" size="lg">
                 Go to Buyer Dashboard
@@ -524,19 +518,37 @@ export function BuyerOnboardingPage() {
   const [error, setError] = useState("");
   const [businessData, setBusinessData] = useState({
     company: "",
-    jobTitle: "",
     industry: "",
     address: "",
     website: "",
   });
   const [productData, setProductData] = useState({
     feedstockType: "",
-    usage: "",
     restrictions: "",
     annualVolume: "",
     specs: "",
     notes: "",
   });
+
+  // Prefill from the company shell captured at sign-up.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchOnboardingState()
+      .then((state) => {
+        if (cancelled || !state.company) return;
+        setBusinessData((prev) => ({
+          ...prev,
+          company: prev.company || state.company!.legalName,
+        }));
+      })
+      .catch(() => {
+        // No session yet — the guard handles redirects.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [sustainabilityData, setSustainabilityData] = useState({
     certifications: "",
     regions: "",
@@ -584,7 +596,6 @@ export function BuyerOnboardingPage() {
           getOnboardingRole() === "both" ? ["buyer", "seller"] : ["buyer"],
         companyName: businessData.company || `${user.name}'s company`,
         industry: businessData.industry,
-        jobTitle: businessData.jobTitle,
         website: businessData.website,
         address: businessData.address,
       });

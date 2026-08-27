@@ -204,6 +204,14 @@ async function lookupId(table: string, code: string) {
   return rows[0].id;
 }
 
+/**
+ * Dev-only escape hatch: ECOGLOBE_SKIP_EMAIL_VERIFICATION=true marks new
+ * accounts verified at creation and lets unverified accounts sign in.
+ */
+export function shouldSkipEmailVerification() {
+  return process.env.ECOGLOBE_SKIP_EMAIL_VERIFICATION === "true";
+}
+
 export async function createPasswordUser({
   name,
   email,
@@ -234,15 +242,19 @@ export async function createPasswordUser({
   const accountStatusId = await lookupId("AccountStatuses", accountStatusCode);
   const userRows = await queryRowsWithParams<UserRecord>(
     `
-      INSERT INTO dbo.Users (Name, Email, AccountStatusId, CreatedByUserId, UpdatedByUserId)
+      INSERT INTO dbo.Users (Name, Email, AccountStatusId, EmailVerifiedAt, CreatedByUserId, UpdatedByUserId)
       OUTPUT INSERTED.Id AS id, INSERTED.Name AS name, INSERTED.Email AS email, @accountStatusCode AS accountStatusCode
-      VALUES (@name, @email, @accountStatusId, @createdByUserId, @updatedByUserId);
+      VALUES (@name, @email, @accountStatusId, @emailVerifiedAt, @createdByUserId, @updatedByUserId);
     `,
     [
       textParam("name", name.trim(), 200),
       textParam("email", normalizedEmail, 320),
       intParam("accountStatusId", accountStatusId),
       varcharParam("accountStatusCode", accountStatusCode, 80),
+      dateTimeParam(
+        "emailVerifiedAt",
+        shouldSkipEmailVerification() ? new Date() : undefined,
+      ),
       intParam("createdByUserId", createdByUserId),
       intParam("updatedByUserId", createdByUserId),
     ],
@@ -271,6 +283,178 @@ export async function createPasswordUser({
   );
 
   return user;
+}
+
+export type RegistrationIntent = "buy" | "sell" | "both" | "explore";
+
+export function accountStatusCodeForIntent(intent: RegistrationIntent) {
+  if (intent === "sell") return "subscribed_seller";
+  if (intent === "explore") return "unsubscribed";
+  return "subscribed_buyer";
+}
+
+export type RegistrationCompanyResult = {
+  company: { id: number; legalName: string };
+  membership: "owner_created" | "join_requested" | "already_member";
+};
+
+/**
+ * Handles the company side of sign-up per the onboarding guide's
+ * "create or join a company" step. When the legal name is new, the registrant
+ * becomes the Company Owner of a pending company shell with a default
+ * location carrying the sign-up country. When a company with that legal name
+ * already exists, a pending join request (viewer, view-only) is recorded for
+ * the Company Owner to approve instead of creating a duplicate company.
+ * Explore-intent accounts never reach this function.
+ */
+export async function createRegistrationCompany({
+  userId,
+  companyName,
+  intent,
+  countryCode,
+}: {
+  userId: number;
+  companyName: string;
+  intent: Exclude<RegistrationIntent, "explore">;
+  countryCode: string;
+}): Promise<RegistrationCompanyResult> {
+  const companyTypeCode =
+    intent === "buy" ? "buyer" : intent === "sell" ? "seller" : "both";
+  const companyTypeId = await lookupId("CompanyTypes", companyTypeCode);
+  const pendingStatusId = await lookupId(
+    "AccountStatuses",
+    "pending_verification",
+  );
+  const activeStatusId = await lookupId("AccountStatuses", "active");
+  const ownerRoleId = await lookupId("MemberRoles", "owner");
+  const executorTierId = await lookupId("PermissionTiers", "executor");
+  const locationTypeId = await lookupId(
+    "LocationTypes",
+    intent === "sell" ? "pickup" : "delivery",
+  );
+
+  const existingRows = await queryRowsWithParams<{
+    id: number;
+    legalName: string;
+  }>(
+    `
+      SELECT TOP (1) Id AS id, LegalName AS legalName
+      FROM dbo.Companies
+      WHERE LOWER(LegalName) = LOWER(@legalName)
+      ORDER BY Id;
+    `,
+    [textParam("legalName", companyName, 240)],
+  );
+  const existingCompany = existingRows[0];
+
+  if (existingCompany) {
+    const viewerRoleId = await lookupId("MemberRoles", "viewer");
+    const viewOnlyTierId = await lookupId("PermissionTiers", "view_only");
+    const membershipRows = await queryRowsWithParams<{ inserted: number }>(
+      `
+        IF EXISTS (
+          SELECT 1 FROM dbo.CompanyMembers
+          WHERE UserId = @userId AND CompanyId = @companyId
+        )
+        BEGIN
+          SELECT 0 AS inserted;
+        END
+        ELSE
+        BEGIN
+          INSERT INTO dbo.CompanyMembers (
+            UserId, CompanyId, MemberRoleId, PermissionTierId, MemberStatusId,
+            CanApproveTransactions, CanExecuteTransactions, CreatedByUserId, UpdatedByUserId
+          )
+          VALUES (
+            @userId, @companyId, @memberRoleId, @permissionTierId, @memberStatusId,
+            0, 0, @userId, @userId
+          );
+          SELECT 1 AS inserted;
+        END;
+      `,
+      [
+        intParam("userId", userId),
+        intParam("companyId", existingCompany.id),
+        intParam("memberRoleId", viewerRoleId),
+        intParam("permissionTierId", viewOnlyTierId),
+        intParam("memberStatusId", pendingStatusId),
+      ],
+    );
+
+    return {
+      company: existingCompany,
+      membership: membershipRows[0]?.inserted
+        ? "join_requested"
+        : "already_member",
+    };
+  }
+
+  const companyRows = await queryRowsWithParams<{
+    id: number;
+    legalName: string;
+  }>(
+    `
+      INSERT INTO dbo.Companies (
+        LegalName, CompanyTypeId, VerificationStatusId, CreatedByUserId, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.LegalName AS legalName
+      VALUES (@legalName, @companyTypeId, @verificationStatusId, @userId, @userId);
+    `,
+    [
+      textParam("legalName", companyName, 240),
+      intParam("companyTypeId", companyTypeId),
+      intParam("verificationStatusId", pendingStatusId),
+      intParam("userId", userId),
+    ],
+  );
+  const company = companyRows[0];
+  if (!company) {
+    throw new ApiError(500, "Unable to create the sign-up company.");
+  }
+
+  await queryRowsWithParams(
+    `
+      INSERT INTO dbo.CompanyMembers (
+        UserId, CompanyId, MemberRoleId, PermissionTierId, MemberStatusId,
+        CanApproveTransactions, CanExecuteTransactions, CreatedByUserId, UpdatedByUserId
+      )
+      VALUES (
+        @userId, @companyId, @memberRoleId, @permissionTierId, @memberStatusId,
+        1, 1, @userId, @userId
+      );
+    `,
+    [
+      intParam("userId", userId),
+      intParam("companyId", company.id),
+      intParam("memberRoleId", ownerRoleId),
+      intParam("permissionTierId", executorTierId),
+      intParam("memberStatusId", activeStatusId),
+    ],
+  );
+
+  await queryRowsWithParams(
+    `
+      INSERT INTO dbo.Locations (
+        CompanyId, LocationTypeId, Name, AddressLine1, City, StateProvince,
+        PostalCode, CountryCode, IsDefault, CreatedByUserId, UpdatedByUserId
+      )
+      VALUES (
+        @companyId, @locationTypeId, @name, @addressLine1, @city, NULL,
+        NULL, @countryCode, 1, @userId, @userId
+      );
+    `,
+    [
+      intParam("companyId", company.id),
+      intParam("locationTypeId", locationTypeId),
+      textParam("name", "Registered address", 160),
+      textParam("addressLine1", "To be provided during onboarding", 240),
+      textParam("city", "To be provided", 120),
+      varcharParam("countryCode", countryCode.toUpperCase(), 2),
+      intParam("userId", userId),
+    ],
+  );
+
+  return { company, membership: "owner_created" };
 }
 
 async function issueVerificationToken(userId: number) {
@@ -667,7 +851,7 @@ export async function loginWithPassword({
     throw new ApiError(403, "This user account is not active.");
   }
 
-  if (!user.emailVerifiedAt) {
+  if (!user.emailVerifiedAt && !shouldSkipEmailVerification()) {
     throw new ApiError(
       403,
       "Please verify your email address before signing in.",
@@ -697,14 +881,7 @@ export async function loginWithPassword({
             ? "buyer"
             : authorizedRoles.has("seller")
               ? "seller"
-              : undefined);
-
-  if (!activeRoleCode) {
-    throw new ApiError(
-      403,
-      "This account does not have access to an EcoGlobe portal.",
-    );
-  }
+              : "explorer");
 
   const activeCompanyId =
     companies.find((company) =>

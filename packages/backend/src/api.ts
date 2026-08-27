@@ -55,7 +55,8 @@ type LookupTable =
   | "DisputeStatuses"
   | "RecordTypes"
   | "ActorTypes"
-  | "AuditActionTypes";
+  | "AuditActionTypes"
+  | "LicenceTiers";
 
 type UserBody = {
   name: string;
@@ -98,6 +99,7 @@ type LocationBody = {
 type OnboardingBody = {
   role: "buyer" | "seller" | "both";
   activeRole?: "buyer" | "seller";
+  licenceTier?: string;
   companyName: string;
   industry?: string;
   jobTitle?: string;
@@ -321,6 +323,7 @@ const lookupTables: LookupTable[] = [
   "RecordTypes",
   "ActorTypes",
   "AuditActionTypes",
+  "LicenceTiers",
 ];
 
 function ensureMethod(method: string | undefined): Method {
@@ -694,15 +697,172 @@ function parseAddressFallback(rawAddress: string | undefined) {
 
   if (parts.length < 2) return fallback;
 
-  const statePostal = parts[2]?.match(/^([A-Za-z]{2})(?:\s+(.+))?$/);
+  // Tolerate both "street, city, ST 12345, CC" and
+  // "street, city, ST, 12345, CC" style inputs.
+  const rest = parts.slice(2);
+  let countryCode = "US";
+  const last = rest[rest.length - 1];
+  if (last && /^[A-Za-z]{2}$/.test(last)) {
+    countryCode = last.toUpperCase();
+    rest.pop();
+  }
+
+  let stateProvince: string | undefined;
+  let postalCode: string | undefined;
+  for (const part of rest) {
+    const statePostal = part.match(/^([A-Za-z]{2})(?:\s+(.+))?$/);
+    if (statePostal) {
+      stateProvince ??= statePostal[1].toUpperCase();
+      if (statePostal[2]) postalCode ??= statePostal[2];
+      continue;
+    }
+    if (/^[0-9][0-9\s-]*$/.test(part)) {
+      postalCode ??= part;
+    }
+  }
 
   return {
     addressLine1: parts[0] ?? fallback.addressLine1,
     city: parts[1] ?? fallback.city,
-    stateProvince: statePostal?.[1]?.toUpperCase(),
-    postalCode: statePostal?.[2],
-    countryCode: parts[3]?.slice(0, 2).toUpperCase() ?? "US",
+    stateProvince,
+    postalCode,
+    countryCode,
   };
+}
+
+async function getOnboardingState(
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  const membershipRows = await queryRowsWithParams<{
+    companyId: number;
+    legalName: string;
+    companyTypeCode: string;
+    verificationStatusCode: string;
+    memberRoleCode: string;
+    memberStatusCode: string;
+  }>(
+    `
+      SELECT
+        c.Id AS companyId,
+        c.LegalName AS legalName,
+        ct.Code AS companyTypeCode,
+        vs.Code AS verificationStatusCode,
+        mr.Code AS memberRoleCode,
+        ms.Code AS memberStatusCode
+      FROM dbo.CompanyMembers cm
+      INNER JOIN dbo.Companies c ON c.Id = cm.CompanyId
+      INNER JOIN dbo.CompanyTypes ct ON ct.Id = c.CompanyTypeId
+      INNER JOIN dbo.AccountStatuses vs ON vs.Id = c.VerificationStatusId
+      INNER JOIN dbo.MemberRoles mr ON mr.Id = cm.MemberRoleId
+      INNER JOIN dbo.AccountStatuses ms ON ms.Id = cm.MemberStatusId
+      WHERE cm.UserId = @userId
+      ORDER BY CASE WHEN c.Id = @activeCompanyId THEN 0 ELSE 1 END, c.Id;
+    `,
+    [
+      intParam("userId", auth.userId),
+      intParam("activeCompanyId", auth.companyId ?? -1),
+    ],
+  );
+
+  const membership = membershipRows[0];
+  let location:
+    | {
+        id: number;
+        name: string;
+        addressLine1: string;
+        city: string;
+        stateProvince: string | null;
+        postalCode: string | null;
+        countryCode: string;
+      }
+    | undefined;
+  let buyerProfile: Record<string, unknown> | undefined;
+  let sellerProfile: Record<string, unknown> | undefined;
+
+  if (membership) {
+    const locationRows = await queryRowsWithParams<NonNullable<typeof location>>(
+      `
+        SELECT TOP (1)
+          Id AS id, Name AS name, AddressLine1 AS addressLine1, City AS city,
+          StateProvince AS stateProvince, PostalCode AS postalCode,
+          CountryCode AS countryCode
+        FROM dbo.Locations
+        WHERE CompanyId = @companyId
+        ORDER BY IsDefault DESC, Id;
+      `,
+      [intParam("companyId", membership.companyId)],
+    );
+    location = locationRows[0];
+
+    const buyerRows = await queryRowsWithParams<Record<string, unknown>>(
+      `
+        SELECT
+          bp.Id AS id,
+          ob.Code AS onboardingStatusCode,
+          sub.Code AS subscriptionStatusCode,
+          bill.Code AS billingStatusCode,
+          appr.Code AS approvalStatusCode
+        FROM dbo.BuyerProfiles bp
+        INNER JOIN dbo.AccountStatuses ob ON ob.Id = bp.OnboardingStatusId
+        INNER JOIN dbo.AccountStatuses sub ON sub.Id = bp.SubscriptionStatusId
+        INNER JOIN dbo.AccountStatuses bill ON bill.Id = bp.BillingStatusId
+        INNER JOIN dbo.AccountStatuses appr ON appr.Id = bp.ApprovalStatusId
+        WHERE bp.CompanyId = @companyId;
+      `,
+      [intParam("companyId", membership.companyId)],
+    );
+    buyerProfile = buyerRows[0];
+
+    const sellerRows = await queryRowsWithParams<Record<string, unknown>>(
+      `
+        SELECT
+          sp.Id AS id,
+          ob.Code AS onboardingStatusCode,
+          sub.Code AS subscriptionStatusCode,
+          pay.Code AS payoutStatusCode,
+          appr.Code AS approvalStatusCode,
+          lt.Code AS licenceTierCode
+        FROM dbo.SellerProfiles sp
+        INNER JOIN dbo.AccountStatuses ob ON ob.Id = sp.OnboardingStatusId
+        INNER JOIN dbo.AccountStatuses sub ON sub.Id = sp.SubscriptionStatusId
+        INNER JOIN dbo.PayoutStatuses pay ON pay.Id = sp.PayoutStatusId
+        INNER JOIN dbo.AccountStatuses appr ON appr.Id = sp.ApprovalStatusId
+        LEFT JOIN dbo.LicenceTiers lt ON lt.Id = sp.LicenceTierId
+        WHERE sp.CompanyId = @companyId;
+      `,
+      [intParam("companyId", membership.companyId)],
+    );
+    sellerProfile = sellerRows[0];
+  }
+
+  const addressProvided = Boolean(
+    location && location.addressLine1 !== "To be provided during onboarding",
+  );
+
+  sendJson(response, 200, {
+    ok: true,
+    company: membership
+      ? {
+          id: membership.companyId,
+          legalName: membership.legalName,
+          companyTypeCode: membership.companyTypeCode,
+          verificationStatusCode: membership.verificationStatusCode,
+          memberRoleCode: membership.memberRoleCode,
+          memberStatusCode: membership.memberStatusCode,
+        }
+      : undefined,
+    location,
+    buyerProfile,
+    sellerProfile,
+    checklist: {
+      companyCreated: Boolean(membership),
+      addressProvided,
+      buyerOnboardingComplete: Boolean(buyerProfile),
+      sellerOnboardingComplete: Boolean(sellerProfile),
+      companyVerified: membership?.verificationStatusCode === "verified",
+    },
+  });
 }
 
 async function completeOnboarding(
@@ -724,6 +884,8 @@ async function completeOnboarding(
     requestedActiveRole === "seller" && (role === "seller" || role === "both")
       ? "seller"
       : "buyer";
+  const licenceTierCode =
+    getOptionalString(body, "licenceTier", 40)?.toLowerCase() ?? "free";
   const companyName = getRequiredString(body, "companyName", 240);
   const rawAddress = getOptionalString(body, "address", 240);
   const parsedAddress = parseAddressFallback(rawAddress);
@@ -793,6 +955,11 @@ async function completeOnboarding(
       transaction,
       "PayoutStatuses",
       "pending",
+    );
+    const licenceTierId = await lookupIdTx(
+      transaction,
+      "LicenceTiers",
+      licenceTierCode,
     );
 
     const existingCompany = (
@@ -954,6 +1121,7 @@ async function completeOnboarding(
               SubscriptionStatusId = @subscriptionStatusId,
               PayoutStatusId = @payoutStatusId,
               ApprovalStatusId = @approvalStatusId,
+              LicenceTierId = @licenceTierId,
               UpdatedByUserId = @updatedByUserId,
               UpdatedAt = SYSUTCDATETIME()
             WHERE CompanyId = @companyId;
@@ -962,11 +1130,11 @@ async function completeOnboarding(
           BEGIN
             INSERT INTO dbo.SellerProfiles (
               CompanyId, OnboardingStatusId, SubscriptionStatusId, PayoutStatusId, ApprovalStatusId,
-              CreatedByUserId, UpdatedByUserId
+              LicenceTierId, CreatedByUserId, UpdatedByUserId
             )
             VALUES (
               @companyId, @onboardingStatusId, @subscriptionStatusId, @payoutStatusId, @approvalStatusId,
-              @createdByUserId, @updatedByUserId
+              @licenceTierId, @createdByUserId, @updatedByUserId
             );
           END;
         `,
@@ -976,6 +1144,7 @@ async function completeOnboarding(
           intParam("subscriptionStatusId", subscribedSellerStatusId),
           intParam("payoutStatusId", pendingPayoutStatusId),
           intParam("approvalStatusId", pendingStatusId),
+          intParam("licenceTierId", licenceTierId),
           intParam("createdByUserId", auth.userId),
           intParam("updatedByUserId", auth.userId),
         ],
@@ -1909,9 +2078,15 @@ async function listListings(response: ServerResponse, url: URL) {
         l.SellerCompanyId AS sellerCompanyId,
         c.LegalName AS sellerCompanyName,
         l.LocationId AS locationId,
+        loc.City AS locationCity,
+        loc.StateProvince AS locationStateProvince,
+        loc.CountryCode AS locationCountryCode,
+        loc.Latitude AS locationLatitude,
+        loc.Longitude AS locationLongitude,
         l.Title AS title,
         l.Slug AS slug,
         mt.Code AS materialTypeCode,
+        mt.Name AS materialTypeName,
         l.Quantity AS quantity,
         l.QuantityUnit AS quantityUnit,
         l.MinimumOrderQuantity AS minimumOrderQuantity,
@@ -1922,6 +2097,7 @@ async function listListings(response: ServerResponse, url: URL) {
         l.Description AS description
       FROM dbo.Listings l
       INNER JOIN dbo.Companies c ON c.Id = l.SellerCompanyId
+      INNER JOIN dbo.Locations loc ON loc.Id = l.LocationId
       INNER JOIN dbo.MaterialTypes mt ON mt.Id = l.MaterialTypeId
       INNER JOIN dbo.ListingStatuses ls ON ls.Id = l.ListingStatusId
       WHERE (@sellerCompanyId IS NULL OR l.SellerCompanyId = @sellerCompanyId)
@@ -1948,6 +2124,51 @@ async function listListings(response: ServerResponse, url: URL) {
   );
 
   sendJson(response, 200, { ok: true, listings });
+}
+
+async function getListing(response: ServerResponse, id: number) {
+  const rows = await queryRowsWithParams(
+    `
+      SELECT
+        l.Id AS id,
+        l.SellerCompanyId AS sellerCompanyId,
+        c.LegalName AS sellerCompanyName,
+        l.LocationId AS locationId,
+        loc.Name AS locationName,
+        loc.City AS locationCity,
+        loc.StateProvince AS locationStateProvince,
+        loc.CountryCode AS locationCountryCode,
+        loc.Latitude AS locationLatitude,
+        loc.Longitude AS locationLongitude,
+        l.Title AS title,
+        l.Slug AS slug,
+        mt.Code AS materialTypeCode,
+        mt.Name AS materialTypeName,
+        l.Quantity AS quantity,
+        l.QuantityUnit AS quantityUnit,
+        l.MinimumOrderQuantity AS minimumOrderQuantity,
+        l.PricePerUnit AS pricePerUnit,
+        l.CurrencyCode AS currencyCode,
+        ls.Code AS listingStatusCode,
+        l.CarbonIntensityKgCo2e AS carbonIntensityKgCo2e,
+        l.Description AS description,
+        l.CreatedAt AS createdAt,
+        l.UpdatedAt AS updatedAt
+      FROM dbo.Listings l
+      INNER JOIN dbo.Companies c ON c.Id = l.SellerCompanyId
+      INNER JOIN dbo.Locations loc ON loc.Id = l.LocationId
+      INNER JOIN dbo.MaterialTypes mt ON mt.Id = l.MaterialTypeId
+      INNER JOIN dbo.ListingStatuses ls ON ls.Id = l.ListingStatusId
+      WHERE l.Id = @id;
+    `,
+    [intParam("id", id)],
+  );
+
+  if (!rows[0]) {
+    throw new ApiError(404, "Listing not found.");
+  }
+
+  sendJson(response, 200, { ok: true, listing: rows[0] });
 }
 
 async function createListing(
@@ -4431,6 +4652,11 @@ export async function handleApiRoute(
   }
 
   if (requestUrl.pathname === "/api/onboarding") {
+    if (method === "GET") {
+      await getOnboardingState(response, await requireSessionAuth(request));
+      return true;
+    }
+
     if (method === "POST") {
       await completeOnboarding(
         request,
@@ -4627,6 +4853,11 @@ export async function handleApiRoute(
   const listingMatch = matchPath(requestUrl.pathname, "/api/listings/:id");
   if (listingMatch.matched) {
     const id = parseId(listingMatch.params.id, "Listing ID");
+
+    if (method === "GET") {
+      await getListing(response, id);
+      return true;
+    }
 
     if (method === "PATCH") {
       await updateListing(

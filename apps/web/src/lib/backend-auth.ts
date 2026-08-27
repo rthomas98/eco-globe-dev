@@ -31,11 +31,59 @@ type LoginResponse = {
 type RegisterResponse = {
   ok: true;
   verificationRequired?: boolean;
+  intent?: RegistrationIntent;
+  company?: { id: number; legalName: string };
+  companyMembership?: "owner_created" | "join_requested" | "already_member";
   user: {
     id: number;
     name: string;
     email: string;
     accountStatusCode: string;
+  };
+};
+
+export type RegistrationIntent = "buy" | "sell" | "both" | "explore";
+
+export type OnboardingState = {
+  ok: true;
+  company?: {
+    id: number;
+    legalName: string;
+    companyTypeCode: string;
+    verificationStatusCode: string;
+    memberRoleCode: string;
+    memberStatusCode: string;
+  };
+  location?: {
+    id: number;
+    name: string;
+    addressLine1: string;
+    city: string;
+    stateProvince: string | null;
+    postalCode: string | null;
+    countryCode: string;
+  };
+  buyerProfile?: {
+    id: number;
+    onboardingStatusCode: string;
+    subscriptionStatusCode: string;
+    billingStatusCode: string;
+    approvalStatusCode: string;
+  };
+  sellerProfile?: {
+    id: number;
+    onboardingStatusCode: string;
+    subscriptionStatusCode: string;
+    payoutStatusCode: string;
+    approvalStatusCode: string;
+    licenceTierCode?: string | null;
+  };
+  checklist: {
+    companyCreated: boolean;
+    addressProvided: boolean;
+    buyerOnboardingComplete: boolean;
+    sellerOnboardingComplete: boolean;
+    companyVerified: boolean;
   };
 };
 
@@ -193,15 +241,39 @@ export async function registerBackendUser({
   email,
   password,
   accountStatusCode,
+  companyName,
+  country,
+  intent,
+  termsAccepted,
 }: {
   name: string;
   email: string;
   password: string;
-  accountStatusCode: string;
+  accountStatusCode?: string;
+  companyName?: string;
+  country?: string;
+  intent?: RegistrationIntent;
+  termsAccepted?: boolean;
 }) {
   return apiFetch<RegisterResponse>("/auth/register", {
     method: "POST",
-    body: JSON.stringify({ name, email, password, accountStatusCode }),
+    body: JSON.stringify({
+      name,
+      email,
+      password,
+      accountStatusCode,
+      companyName,
+      country,
+      intent,
+      termsAccepted,
+    }),
+  });
+}
+
+export async function fetchOnboardingState(token?: string) {
+  return apiFetch<OnboardingState>("/api/onboarding", {
+    method: "GET",
+    token: token ?? COOKIE_SESSION_TOKEN,
   });
 }
 
@@ -323,6 +395,7 @@ export async function completeBackendOnboarding({
   jobTitle,
   website,
   address,
+  licenceTier,
 }: {
   token?: string;
   role: "buyer" | "seller" | "both";
@@ -333,6 +406,7 @@ export async function completeBackendOnboarding({
   jobTitle?: string;
   website?: string;
   address?: string;
+  licenceTier?: string;
 }) {
   const response = await apiFetch<{
     ok: true;
@@ -354,6 +428,7 @@ export async function completeBackendOnboarding({
       jobTitle,
       website,
       address,
+      licenceTier,
     }),
   });
 

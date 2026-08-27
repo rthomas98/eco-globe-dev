@@ -1,6 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
+  accountStatusCodeForIntent,
   createPasswordUser,
+  createRegistrationCompany,
   getBearerToken,
   getSessionFromToken,
   loginWithPassword,
@@ -9,7 +11,9 @@ import {
   resetPassword,
   revokeSession,
   seedDemoAuthAccounts,
+  shouldSkipEmailVerification,
   verifyEmailToken,
+  type RegistrationIntent,
 } from "./auth.js";
 import {
   ApiError,
@@ -26,7 +30,22 @@ type RegisterBody = {
   email: string;
   password: string;
   accountStatusCode?: string;
+  companyName?: string;
+  country?: string;
+  intent?: string;
+  termsAccepted?: boolean;
 };
+
+const REGISTRATION_INTENTS: RegistrationIntent[] = [
+  "buy",
+  "sell",
+  "both",
+  "explore",
+];
+
+function isRegistrationIntent(value: string): value is RegistrationIntent {
+  return (REGISTRATION_INTENTS as string[]).includes(value);
+}
 
 type LoginBody = {
   email: string;
@@ -142,16 +161,83 @@ export async function handleAuthRoute(
   if (requestUrl.pathname === "/auth/register") {
     requireMethod(request.method, "POST");
     const body = await readJsonBody<RegisterBody>(request);
-    const user = await createPasswordUser({
-      name: getRequiredString(body, "name", 200),
-      email: getRequiredString(body, "email", 320),
-      password: getRequiredString(body, "password", 200),
-      accountStatusCode:
-        getOptionalString(body, "accountStatusCode", 80) ?? "unsubscribed",
-    });
-    await resendVerificationEmail(user.email);
+    const name = getRequiredString(body, "name", 200);
+    const email = getRequiredString(body, "email", 320);
+    const password = getRequiredString(body, "password", 200);
 
-    sendJson(response, 201, { ok: true, user, verificationRequired: true });
+    // Guided sign-up (per the onboarding team guide): intent + company name +
+    // country + terms. The legacy accountStatusCode-only body keeps working
+    // for existing callers and the demo seeder.
+    const rawIntent = getOptionalString(body, "intent", 20)?.toLowerCase();
+    let intent: RegistrationIntent | undefined;
+    let companyName: string | undefined;
+    let countryCode: string | undefined;
+
+    if (rawIntent !== undefined) {
+      if (!isRegistrationIntent(rawIntent)) {
+        throw new ApiError(400, "intent must be buy, sell, both, or explore.");
+      }
+      intent = rawIntent;
+
+      if (body.termsAccepted !== true) {
+        throw new ApiError(
+          400,
+          "You must accept the Terms and Privacy Policy to create an account.",
+        );
+      }
+
+      countryCode = getRequiredString(body, "country", 2).toUpperCase();
+      if (!/^[A-Z]{2}$/.test(countryCode)) {
+        throw new ApiError(400, "country must be a two-letter country code.");
+      }
+
+      companyName =
+        intent === "explore"
+          ? getOptionalString(body, "companyName", 240)
+          : getRequiredString(body, "companyName", 240);
+    }
+
+    const accountStatusCode = intent
+      ? accountStatusCodeForIntent(intent)
+      : (getOptionalString(body, "accountStatusCode", 80) ?? "unsubscribed");
+
+    const user = await createPasswordUser({
+      name,
+      email,
+      password,
+      accountStatusCode,
+    });
+
+    let company: { id: number; legalName: string } | undefined;
+    let companyMembership:
+      | "owner_created"
+      | "join_requested"
+      | "already_member"
+      | undefined;
+    if (intent && intent !== "explore" && companyName && countryCode) {
+      const registration = await createRegistrationCompany({
+        userId: user.id,
+        companyName,
+        intent,
+        countryCode,
+      });
+      company = registration.company;
+      companyMembership = registration.membership;
+    }
+
+    const verificationRequired = !shouldSkipEmailVerification();
+    if (verificationRequired) {
+      await resendVerificationEmail(user.email);
+    }
+
+    sendJson(response, 201, {
+      ok: true,
+      user,
+      company,
+      companyMembership,
+      intent,
+      verificationRequired,
+    });
     return true;
   }
 

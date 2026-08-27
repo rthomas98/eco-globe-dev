@@ -96,13 +96,24 @@ function buildGalleryImages(listing: Listing) {
   return [listing.image, detailImage];
 }
 
-export function getListingById(id?: string) {
-  return listings.find((listing) => listing.id === id) ?? listings[0];
+export function getListingById(id?: string, pool?: Listing[]) {
+  const source = pool && pool.length > 0 ? pool : listings;
+  return (
+    source.find((listing) => listing.id === id) ??
+    listings.find((listing) => listing.id === id) ??
+    listings[0]
+  );
 }
 
-export function getProductDetailById(id?: string): ProductDetailModel {
-  const listing = getListingById(id);
+export function getProductDetailById(
+  id?: string,
+  pool?: Listing[],
+): ProductDetailModel {
+  const listing = getListingById(id, pool);
+  return buildProductDetailModel(listing);
+}
 
+export function buildProductDetailModel(listing: Listing): ProductDetailModel {
   return {
     id: listing.id,
     title: listing.title,
@@ -120,7 +131,7 @@ export function getProductDetailById(id?: string): ProductDetailModel {
     specs: buildSpecs(listing),
     overview: buildOverview(listing),
     seller: {
-      name: buildSellerName(listing),
+      name: listing.sellerName ?? buildSellerName(listing),
       verified: true,
       location: listing.location,
       type: listing.category,

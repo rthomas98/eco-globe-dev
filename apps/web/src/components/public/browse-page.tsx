@@ -14,6 +14,7 @@ import { listings, type Listing } from "./browse-listings";
 import { useDemoUser } from "@/lib/demo-user";
 import { useViewerLocation } from "@/lib/viewer-location";
 import { useCustomListings } from "@/lib/custom-listings";
+import { useApiListings } from "@/lib/api-listings";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
 
 function ListingCard({
@@ -180,9 +181,14 @@ export function BrowsePage() {
     });
 
   const customListings = useCustomListings();
-  const allListings = useMemo(
-    () => [...customListings, ...listings],
-    [customListings],
+  const apiListings = useApiListings();
+  const allListings = useMemo(() => {
+    const merged = [...apiListings, ...customListings, ...listings];
+    const seen = new Set<string>();
+    return merged.filter((listing) =>
+      seen.has(listing.id) ? false : (seen.add(listing.id), true),
+    );
+  }, [apiListings, customListings]
   );
   const visibleListings = allListings.filter((l) => {
     const haystack = normalizeListingSearch(`${l.title} ${l.tags.join(" ")} ${l.category}`);
@@ -216,7 +222,9 @@ export function BrowsePage() {
 
   const mapListings: MapListing[] = useMemo(
     () =>
-      visibleListings.map((l) => ({
+      visibleListings
+        .filter((l) => l.lat !== 0 || l.lng !== 0)
+        .map((l) => ({
         id: l.id,
         title: l.title,
         location: l.location,

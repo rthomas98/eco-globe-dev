@@ -11,6 +11,8 @@ import { CartButton } from "@/components/cart/cart-panel";
 import { useCart } from "@/components/cart/cart-context";
 import { getProductDetailById } from "./product-detail-data";
 import { listings as ALL_LISTINGS } from "./browse-listings";
+import { useApiListings } from "@/lib/api-listings";
+import { useCustomListings } from "@/lib/custom-listings";
 import { useDemoUser } from "@/lib/demo-user";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
 import { SellerLocationMap } from "./seller-location-map";
@@ -20,9 +22,19 @@ const FAVORITES_KEY = "ecoglobe.favoriteListings";
 
 export function ProductDetailPage() {
   const params = useParams<{ id?: string }>();
+  const apiListings = useApiListings();
+  const customListings = useCustomListings();
+  const listingPool = useMemo(
+    () => [...apiListings, ...customListings, ...ALL_LISTINGS],
+    [apiListings, customListings],
+  );
   const product = useMemo(
-    () => getProductDetailById(typeof params.id === "string" ? params.id : undefined),
-    [params.id],
+    () =>
+      getProductDetailById(
+        typeof params.id === "string" ? params.id : undefined,
+        listingPool,
+      ),
+    [params.id, listingPool],
   );
   const [qty, setQty] = useState(3);
   const [selectedImg, setSelectedImg] = useState(0);
@@ -37,10 +49,10 @@ export function ProductDetailPage() {
   const isMember = !!user;
   const matchedListing = useMemo(
     () =>
-      ALL_LISTINGS.find(
+      listingPool.find(
         (l) => l.id === (typeof params.id === "string" ? params.id : ""),
       ),
-    [params.id],
+    [params.id, listingPool],
   );
   const hasSds = !!matchedListing?.sdsUrl;
   const purchaseDisabled = !isMember || !hasSds;
@@ -272,11 +284,15 @@ export function ProductDetailPage() {
               )}
             </div>
 
-            {/* Map */}
-            <h2 className="mb-4 text-xl font-bold text-neutral-900">Map</h2>
-            <div className="mb-10">
-              <SellerLocationMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} />
-            </div>
+            {/* Map — hidden when the seller has not provided coordinates */}
+            {(product.sellerCoords.lat !== 0 || product.sellerCoords.lng !== 0) && (
+              <>
+                <h2 className="mb-4 text-xl font-bold text-neutral-900">Map</h2>
+                <div className="mb-10">
+                  <SellerLocationMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} />
+                </div>
+              </>
+            )}
 
             {/* Specifications */}
             <h2 className="mb-4 text-xl font-bold text-neutral-900">Specifications</h2>

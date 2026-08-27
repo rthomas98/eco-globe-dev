@@ -44,6 +44,10 @@ export interface Listing {
   additionalSpecs?: ListingSpec[];
   sdsUrl?: string;
   sellerFacilityId?: string;
+  /** Seller company name when the listing comes from the backend API. */
+  sellerName?: string;
+  /** Numeric backend ID when the listing comes from the backend API. */
+  apiListingId?: number;
 }
 
 type RawListing = Omit<Listing, "state" | "frequency"> &

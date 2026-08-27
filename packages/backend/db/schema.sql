@@ -356,6 +356,19 @@ BEGIN
 END;
 GO
 
+IF OBJECT_ID(N'dbo.LicenceTiers', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.LicenceTiers (
+        Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_LicenceTiers PRIMARY KEY,
+        Code VARCHAR(80) NOT NULL CONSTRAINT UQ_LicenceTiers_Code UNIQUE,
+        Name VARCHAR(120) NOT NULL,
+        Description VARCHAR(500) NULL,
+        IsActive BIT NOT NULL CONSTRAINT DF_LicenceTiers_IsActive DEFAULT (1),
+        SortOrder INT NOT NULL CONSTRAINT DF_LicenceTiers_SortOrder DEFAULT (0)
+    );
+END;
+GO
+
 IF OBJECT_ID(N'dbo.ContractSources', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.ContractSources (
@@ -615,6 +628,7 @@ BEGIN
         OnboardingStatusId INT NOT NULL CONSTRAINT FK_SellerProfiles_OnboardingStatuses REFERENCES dbo.AccountStatuses(Id),
         SubscriptionStatusId INT NOT NULL CONSTRAINT FK_SellerProfiles_SubscriptionStatuses REFERENCES dbo.AccountStatuses(Id),
         PayoutStatusId INT NOT NULL CONSTRAINT FK_SellerProfiles_PayoutStatuses REFERENCES dbo.PayoutStatuses(Id),
+        LicenceTierId INT NULL CONSTRAINT FK_SellerProfiles_LicenceTiers REFERENCES dbo.LicenceTiers(Id),
         ApprovalStatusId INT NOT NULL CONSTRAINT FK_SellerProfiles_ApprovalStatuses REFERENCES dbo.AccountStatuses(Id),
         CreatedByUserId INT NULL CONSTRAINT FK_SellerProfiles_CreatedBy REFERENCES dbo.Users(Id),
         CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_SellerProfiles_CreatedAt DEFAULT (SYSUTCDATETIME()),
@@ -1267,6 +1281,18 @@ USING (
         ('scheduled', 'Scheduled', 'Payout scheduled.', 20),
         ('paid', 'Paid', 'Payout paid.', 80),
         ('failed', 'Failed', 'Payout failed.', 90)
+) AS source (Code, Name, Description, SortOrder)
+ON target.Code = source.Code
+WHEN MATCHED THEN UPDATE SET Name = source.Name, Description = source.Description, SortOrder = source.SortOrder
+WHEN NOT MATCHED THEN INSERT (Code, Name, Description, SortOrder) VALUES (source.Code, source.Name, source.Description, source.SortOrder);
+GO
+
+MERGE dbo.LicenceTiers AS target
+USING (
+    VALUES
+        ('free', 'Free', 'Permanently free seller tier: publish approved listings with teaser visibility and category/state-level search.', 10),
+        ('growth', 'Growth', 'Paid tier (pricing pending): full listing detail, ZIP-radius and feedstock-name search, aggregate buyer-interest data.', 20),
+        ('enterprise', 'Enterprise', 'Paid tier (pricing pending): per-facility licensing, multi-site team management, assisted onboarding.', 30)
 ) AS source (Code, Name, Description, SortOrder)
 ON target.Code = source.Code
 WHEN MATCHED THEN UPDATE SET Name = source.Name, Description = source.Description, SortOrder = source.SortOrder
