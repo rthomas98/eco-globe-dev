@@ -7,6 +7,8 @@ import { Badge } from "@eco-globe/ui";
 import { ListingMap, type MapListing } from "../public/listing-map";
 import { FiltersPanel, defaultFilters, type FilterState } from "../public/filters-panel";
 import { listings, type Listing } from "../public/browse-listings";
+import { useApiListings } from "@/lib/api-listings";
+import { useCustomListings } from "@/lib/custom-listings";
 import { CarbonCalculatorButton } from "./carbon-calculator-button";
 import { BuyerLayout } from "./buyer-layout";
 import { useDemoUser } from "@/lib/demo-user";
@@ -95,7 +97,18 @@ export function BuyerBrowsePage() {
       return false;
     });
 
-  const visibleListings = listings.filter((l) => {
+  const apiListings = useApiListings();
+  const customListings = useCustomListings();
+  // Live marketplace listings lead; demo rows fill out the grid.
+  const allListings = useMemo(() => {
+    const merged = [...apiListings, ...customListings, ...listings];
+    const seen = new Set<string>();
+    return merged.filter((listing) =>
+      seen.has(listing.id) ? false : (seen.add(listing.id), true),
+    );
+  }, [apiListings, customListings]);
+
+  const visibleListings = allListings.filter((l) => {
     const haystack = `${l.title} ${l.tags.join(" ")}`.toLowerCase();
     if (q && !haystack.includes(q)) return false;
     if (filters.categories.length > 0 && !filters.categories.includes(l.category)) return false;

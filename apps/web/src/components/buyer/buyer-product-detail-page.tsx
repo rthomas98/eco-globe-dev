@@ -16,16 +16,41 @@ import {
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { getProductDetailById } from "../public/product-detail-data";
+import { listings as ALL_LISTINGS } from "../public/browse-listings";
+import { recordListingInterest, useApiListings } from "@/lib/api-listings";
+import { useCustomListings } from "@/lib/custom-listings";
 import { BuyerLayout } from "./buyer-layout";
 import { CarbonCalculatorButton } from "./carbon-calculator-button";
 import { SellerLocationMap } from "../public/seller-location-map";
 
 export function BuyerProductDetailPage() {
   const params = useParams<{ id?: string }>();
-  const product = useMemo(
-    () => getProductDetailById(typeof params.id === "string" ? params.id : undefined),
-    [params.id],
+  const apiListings = useApiListings();
+  const customListings = useCustomListings();
+  const listingPool = useMemo(
+    () => [...apiListings, ...customListings, ...ALL_LISTINGS],
+    [apiListings, customListings],
   );
+  const product = useMemo(
+    () =>
+      getProductDetailById(
+        typeof params.id === "string" ? params.id : undefined,
+        listingPool,
+      ),
+    [params.id, listingPool],
+  );
+  const matchedListing = useMemo(
+    () =>
+      listingPool.find(
+        (l) => l.id === (typeof params.id === "string" ? params.id : ""),
+      ),
+    [params.id, listingPool],
+  );
+
+  // Aggregate interest signal for the seller — never identifies the viewer.
+  useEffect(() => {
+    recordListingInterest(matchedListing?.apiListingId, "detail_view");
+  }, [matchedListing?.apiListingId]);
   const [qty, setQty] = useState(3);
   const [selectedImg, setSelectedImg] = useState(0);
   const [showFullOverview, setShowFullOverview] = useState(false);

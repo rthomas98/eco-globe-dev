@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Upload, Trash2 } from "lucide-react";
@@ -8,6 +8,8 @@ import { Button, Input } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
 import {
   getSellerListingById,
+  resolveSellerListing,
+  saveSellerListing,
   type SellerListing,
   type SellerListingStatus,
 } from "./seller-listings-data";
@@ -16,7 +18,32 @@ const STATUSES: SellerListingStatus[] = ["Draft", "Pending", "Approved"];
 
 export function SellerListingEditPage({ id }: { id: string }) {
   const router = useRouter();
-  const listing = getSellerListingById(id);
+  const [listing, setListing] = useState<SellerListing | undefined>(() =>
+    getSellerListingById(id),
+  );
+  const [resolving, setResolving] = useState(!getSellerListingById(id));
+
+  useEffect(() => {
+    let cancelled = false;
+    void resolveSellerListing(id).then((resolved) => {
+      if (cancelled) return;
+      if (resolved) setListing(resolved);
+      setResolving(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (resolving && !listing) {
+    return (
+      <SellerLayout title="Edit listing">
+        <div className="flex items-center justify-center px-8 py-24 text-sm text-neutral-500">
+          Loading listing...
+        </div>
+      </SellerLayout>
+    );
+  }
 
   if (!listing) {
     return (
@@ -68,8 +95,8 @@ function EditForm({
 
   const handleSave = async () => {
     setSaving(true);
-    // Demo: simulate a save.
-    await new Promise((r) => setTimeout(r, 600));
+    // Live listings (EG-<n>) persist via the backend; demo ids stay local.
+    await saveSellerListing(listing.id, form).catch(() => false);
     setSaving(false);
     router.push(`/seller/listings/${listing.id}`);
   };

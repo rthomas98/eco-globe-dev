@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchPayments, portalDate, portalMoney } from "@/lib/api-portal";
+import { fetchOrders } from "@/lib/api-orders";
+import { readDemoUser } from "@/lib/demo-user";
 import {
   ArrowDownToLine,
   BadgeCheck,
@@ -96,16 +99,56 @@ const methods = [
 ];
 
 export function PaymentsCenter({ role }: { role: Role }) {
+  const [rows, setRows] = useState<PaymentRecord[]>(payments);
   const [selected, setSelected] = useState(payments[0]);
   const [status, setStatus] = useState<Record<string, PaymentStatus>>({});
   const copy = roleCopy[role];
 
+  // Live payments (RBAC-scoped by the backend) render ahead of demo rows.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    Promise.all([fetchPayments(), fetchOrders()])
+      .then(([apiPayments, orders]) => {
+        if (cancelled || apiPayments.length === 0) return;
+        const orderById = new Map(orders.map((o) => [o.id, o]));
+        const live: PaymentRecord[] = apiPayments.map((payment) => {
+          const order = orderById.get(payment.orderId);
+          return {
+            id: `TX-${payment.id}`,
+            title: order?.listingTitle ?? "Marketplace payment",
+            counterparty:
+              role === "seller"
+                ? `from ${payment.payerCompanyName}`
+                : `to ${order?.sellerCompanyName ?? "seller"}`,
+            method: payment.escrowId ? "Escrow funding" : "Direct payment",
+            amount: portalMoney(Number(payment.amount), payment.currencyCode),
+            status:
+              payment.paymentStatusCode === "captured"
+                ? "Paid"
+                : payment.paymentStatusCode === "failed"
+                  ? "Needs review"
+                  : "Processing",
+            date: portalDate(payment.createdAt),
+            carbonOffset: "—",
+          };
+        });
+        setRows([...live, ...payments]);
+        setSelected(live[0]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const visiblePayments =
     role === "buyer"
-      ? payments.filter((item) => item.counterparty.includes("to"))
+      ? rows.filter((item) => item.counterparty.includes("to"))
       : role === "seller"
-        ? payments.filter((item) => item.status !== "Needs review")
-        : payments;
+        ? rows.filter((item) => item.status !== "Needs review")
+        : rows;
 
   const activeStatus = status[selected.id] ?? selected.status;
 

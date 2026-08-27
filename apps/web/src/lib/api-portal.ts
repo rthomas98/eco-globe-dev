@@ -379,6 +379,64 @@ export async function fetchReportSummary(companyId?: number) {
   return body.summary;
 }
 
+/* ── By-id record fetchers (admin detail pages, Phase 6B) ── */
+
+export async function fetchOrderById(id: number) {
+  const body = await proxyGet<{ ok: boolean; order: Record<string, unknown> }>(
+    `/api/orders/${id}`,
+  );
+  return body.order;
+}
+
+export async function fetchEscrowById(id: number) {
+  const body = await proxyGet<{ ok: boolean; escrow: ApiEscrowRecord }>(
+    `/api/escrows/${id}`,
+  );
+  return body.escrow;
+}
+
+export async function fetchPaymentById(id: number) {
+  const body = await proxyGet<{ ok: boolean; payment: ApiPayment & { orderId: number } }>(
+    `/api/payments/${id}`,
+  );
+  return body.payment;
+}
+
+export async function fetchListingById(id: number) {
+  const body = await proxyGet<{ ok: boolean; listing: Record<string, unknown> }>(
+    `/api/listings/${id}`,
+  );
+  return body.listing;
+}
+
+/** Admin: suspend or restore a company's marketplace standing. */
+export async function setCompanyVerification(
+  companyId: number,
+  verificationStatusCode: "verified" | "suspended" | "pending_verification",
+) {
+  return proxySend(`/api/companies/${companyId}`, "PATCH", {
+    verificationStatusCode,
+  });
+}
+
+/** Admin: release or unlock an escrow. */
+export async function adminUpdateEscrow(
+  escrowId: number,
+  patch: { escrowStatusCode?: string; disputeLocked?: boolean },
+) {
+  return proxySend(`/api/escrows/${escrowId}`, "PATCH", patch);
+}
+
+/** Extract a trailing numeric id from UI ids like EG-6, ESC-5, TX-2, LS-22. */
+export function trailingNumericId(uiId: string): number | null {
+  const match = /(\d+)$/.exec(uiId.trim());
+  if (!match) return null;
+  const id = Number(match[1]);
+  return Number.isInteger(id) && id > 0 && String(id) === match[1]
+    ? id
+    : null;
+}
+
 /* ── Audit logs (admin) ── */
 
 export interface ApiAuditLog {

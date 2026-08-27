@@ -7,6 +7,10 @@ import {
   adminNotificationGroups,
   type AdminNotification,
 } from "./notifications-data";
+import {
+  markLiveNotificationRead,
+  useLiveNotifications,
+} from "@/components/notifications/use-live-notifications";
 import type { NotificationChannel } from "@/components/notifications/notifications-demo-data";
 
 type Tab = "all" | "unread";
@@ -52,8 +56,38 @@ export function AdminNotificationsPage() {
   const isUnread = (item: AdminNotification) =>
     item.unread && !readIds.includes(item.id);
 
+  const liveNotifications = useLiveNotifications();
+
   const filtered = useMemo(() => {
-    return adminNotificationGroups
+    // Live platform notifications join the demo groups by time bucket.
+    const liveAsAdmin: AdminNotification[] = liveNotifications.map((n) => ({
+      id: n.id,
+      msg: typeof n.message === "string" ? n.message : n.detail,
+      source: n.source,
+      time: n.time,
+      unread: n.unread,
+      category:
+        n.category === "Orders"
+          ? "Orders"
+          : n.category === "Payments"
+            ? "Payments"
+            : n.category === "Sustainability"
+              ? "Sustainability"
+              : "System",
+      channels: n.channels,
+      priority: n.priority,
+      detail: n.detail,
+    }));
+    const groupsWithLive = adminNotificationGroups.map((g) => ({
+      group: g.group,
+      items: [
+        ...liveAsAdmin.filter((_, idx) =>
+          liveNotifications[idx]?.group === g.group,
+        ),
+        ...g.items,
+      ],
+    }));
+    return groupsWithLive
       .map((g) => ({
         group: g.group,
         items: g.items.filter((i) => {
@@ -63,7 +97,8 @@ export function AdminNotificationsPage() {
         }),
       }))
       .filter((g) => g.items.length > 0);
-  }, [tab, category, readIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, category, readIds, liveNotifications]);
 
   const totalUnread = adminNotificationGroups
     .flatMap((g) => g.items)
@@ -83,9 +118,13 @@ export function AdminNotificationsPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() =>
-                setReadIds(adminNotificationGroups.flatMap((g) => g.items.map((item) => item.id)))
-              }
+              onClick={() => {
+                liveNotifications.forEach((n) => markLiveNotificationRead(n.id));
+                setReadIds([
+                  ...liveNotifications.map((n) => n.id),
+                  ...adminNotificationGroups.flatMap((g) => g.items.map((item) => item.id)),
+                ]);
+              }}
               className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
               style={{ border: "1px solid #E0E0E0" }}
             >

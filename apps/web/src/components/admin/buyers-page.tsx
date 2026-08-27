@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { fetchBuyerProfiles, verifyCompany } from "@/lib/api-portal";
 import { readDemoUser } from "@/lib/demo-user";
 import {
@@ -518,6 +519,7 @@ function AddBuyerDrawer({ onClose }: { onClose: () => void }) {
 
 /* ─── Main Buyers Page ─── */
 export function AdminBuyersPage() {
+  const router = useRouter();
   const [buyerRows, setBuyerRows] = useState<Buyer[]>(buyers);
 
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
@@ -610,7 +612,7 @@ export function AdminBuyersPage() {
           </thead>
           <tbody>
             {buyerRows.map((buyer, i) => (
-              <tr key={i} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedBuyer(buyer)}>
+              <tr key={i} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => (buyer.companyId ? router.push(`/admin/buyers/${buyer.companyId}`) : setSelectedBuyer(buyer))}>
                 <td className="py-3.5">
                   <div className="flex items-center gap-3">
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-600">A</div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, DollarSign, AlertTriangle, CheckCircle2, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown, X, FileText, Download } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { ExportDropdown } from "./export-dropdown";
@@ -135,6 +136,7 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
 }
 
 export function TransactionsPage() {
+  const router = useRouter();
   const [rows, setRows] = useState<Transaction[]>(transactions);
 
   // Live payments render ahead of the demo rows (admins see all).
@@ -219,7 +221,7 @@ export function TransactionsPage() {
           <thead><tr className="text-left" style={{ borderBottom: "1px solid #F0F0F0" }}><th className="pb-3 text-sm font-medium text-neutral-500">Transctn ID</th><th className="pb-3 text-sm font-medium text-neutral-500">Date</th><th className="pb-3 text-sm font-medium text-neutral-500">Order ID</th><th className="pb-3 text-sm font-medium text-neutral-500">Buyer</th><th className="pb-3 text-sm font-medium text-neutral-500">Seller</th><th className="pb-3 text-sm font-medium text-neutral-500">Amount</th><th className="pb-3 text-sm font-medium text-neutral-500">Type</th><th className="pb-3"></th></tr></thead>
           <tbody>
             {filteredTxns.map((t, i) => (
-              <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedTxn(t)}>
+              <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => (t.id.startsWith("TX-") ? router.push(`/admin/accounting/transactions/${t.id}`) : setSelectedTxn(t))}>
                 <td className="py-3.5 text-sm text-neutral-900">{t.id}</td><td className="py-3.5 text-sm text-neutral-700">{t.date}</td><td className="py-3.5 text-sm text-neutral-700">{t.orderId}</td><td className="py-3.5 text-sm text-neutral-700">{t.buyer}</td><td className="py-3.5 text-sm text-neutral-700">{t.seller}</td><td className="py-3.5 text-sm text-neutral-900">{t.amount}</td><td className="py-3.5 text-sm text-neutral-700">{t.type}</td><td className="py-3.5"><button className="text-neutral-400"><MoreHorizontal className="size-4" /></button></td>
               </tr>
             ))}

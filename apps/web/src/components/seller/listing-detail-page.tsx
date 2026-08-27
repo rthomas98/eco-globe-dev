@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, MoreHorizontal, Edit, FileText, Download } from "lucide-react";
 import { Button } from "@eco-globe/ui";
@@ -8,6 +8,7 @@ import { SellerLayout } from "./seller-layout";
 import { ListingMap } from "../public/listing-map";
 import {
   getSellerListingById,
+  resolveSellerListing,
   type SellerListing,
   type SellerListingStatus,
   type SellerSustainability,
@@ -36,8 +37,34 @@ function SustainabilityDot({ type }: { type: SellerSustainability }) {
 }
 
 export function SellerListingDetailPage({ id }: { id: string }) {
-  const listing = getSellerListingById(id);
+  const [listing, setListing] = useState<SellerListing | undefined>(() =>
+    getSellerListingById(id),
+  );
+  const [resolving, setResolving] = useState(!getSellerListingById(id));
+
+  useEffect(() => {
+    let cancelled = false;
+    void resolveSellerListing(id).then((resolved) => {
+      if (cancelled) return;
+      if (resolved) setListing(resolved);
+      setResolving(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
   const [tab, setTab] = useState<"overview" | "documents" | "activity">("overview");
+
+  if (resolving && !listing) {
+    return (
+      <SellerLayout title="Listing">
+        <div className="flex items-center justify-center px-8 py-24 text-sm text-neutral-500">
+          Loading listing...
+        </div>
+      </SellerLayout>
+    );
+  }
 
   if (!listing) {
     return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { fetchSellerProfiles, verifyCompany } from "@/lib/api-portal";
 import { readDemoUser } from "@/lib/demo-user";
 import {
@@ -342,6 +343,7 @@ function SellerDetailDrawer({ seller, onClose }: { seller: Seller; onClose: () =
 
 /* ─── Main Sellers Page ─── */
 export function AdminSellersPage() {
+  const router = useRouter();
   const [sellerRows, setSellerRows] = useState<Seller[]>(sellers);
 
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
@@ -436,7 +438,7 @@ export function AdminSellersPage() {
           </thead>
           <tbody>
             {sellerRows.map((seller, i) => (
-              <tr key={i} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedSeller(seller)}>
+              <tr key={i} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => (seller.companyId ? router.push(`/admin/sellers/${seller.companyId}`) : setSelectedSeller(seller))}>
                 <td className="py-3.5">
                   <div className="flex items-center gap-3">
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-600">A</div>

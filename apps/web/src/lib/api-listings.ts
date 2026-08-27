@@ -149,6 +149,7 @@ export async function fetchApiListings(): Promise<Listing[]> {
 
 let cachedListings: Listing[] | null = null;
 let cachedViewer: "anon" | "member" | null = null;
+let inflight: Promise<Listing[]> | null = null;
 
 function currentViewer(): "anon" | "member" {
   try {
@@ -161,11 +162,32 @@ function currentViewer(): "anon" | "member" {
   }
 }
 
+/** One shared request per viewer state, no matter how many hooks mount. */
+function loadApiListings(viewer: "anon" | "member"): Promise<Listing[]> {
+  if (cachedListings && cachedViewer === viewer) {
+    return Promise.resolve(cachedListings);
+  }
+  if (!inflight) {
+    inflight = fetchApiListings()
+      .then((listings) => {
+        cachedListings = listings;
+        cachedViewer = viewer;
+        inflight = null;
+        return listings;
+      })
+      .catch((error) => {
+        inflight = null;
+        throw error;
+      });
+  }
+  return inflight;
+}
+
 /**
  * Published listings from the Azure backend, mapped to the UI Listing shape.
- * Returns [] until loaded; errors resolve to [] so demo data still renders.
- * The cache is keyed by viewer state so signing in swaps teasers for the
- * full licensed detail.
+ * Returns [] until loaded; errors keep the current items so demo data still
+ * renders. The cache is keyed by viewer state so signing in swaps teasers for
+ * the full licensed detail.
  */
 export function useApiListings(): Listing[] {
   const [items, setItems] = useState<Listing[]>(() =>
@@ -173,20 +195,13 @@ export function useApiListings(): Listing[] {
   );
 
   useEffect(() => {
-    const viewer = currentViewer();
-    if (cachedListings && cachedViewer === viewer) {
-      setItems(cachedListings);
-      return;
-    }
     let cancelled = false;
-    fetchApiListings()
+    loadApiListings(currentViewer())
       .then((listings) => {
-        cachedListings = listings;
-        cachedViewer = viewer;
         if (!cancelled) setItems(listings);
       })
       .catch(() => {
-        if (!cancelled) setItems([]);
+        // Keep whatever is rendered; demo data covers the gap offline.
       });
     return () => {
       cancelled = true;

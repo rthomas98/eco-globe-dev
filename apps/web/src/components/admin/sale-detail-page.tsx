@@ -11,6 +11,7 @@ import {
   Download,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { LiveOrderCard } from "./live-record-card";
 import { AdminDetailPage, DetailCard, KeyValueGrid } from "./admin-detail-page";
 
 export function AdminSaleDetailPage({ id }: { id: string }) {
@@ -44,6 +45,7 @@ export function AdminSaleDetailPage({ id }: { id: string }) {
         </>
       }
     >
+      <LiveOrderCard uiId={id} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
           <DetailCard title="Order">

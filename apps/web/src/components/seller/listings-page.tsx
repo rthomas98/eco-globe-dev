@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, LayoutGrid, List, SlidersHorizontal, Info, ChevronRight, MoreHorizontal, X, ChevronDown } from "lucide-react";
 import { Button } from "@eco-globe/ui";
@@ -219,6 +220,7 @@ function CardView({ listings, onSelect }: { listings: Listing[]; onSelect: (l: L
 
 /* ─── Main Page ─── */
 export function ListingsPage() {
+  const router = useRouter();
   const [view, setView] = useState<"list" | "card">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
@@ -382,7 +384,7 @@ export function ListingsPage() {
             </thead>
             <tbody>
               {filtered.map((l, i) => (
-                <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedListing(l)}>
+                <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => (/^EG-\d+$/.test(l.id) ? router.push(`/seller/listings/${l.id}`) : setSelectedListing(l))}>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
                       <div className="size-10 shrink-0 overflow-hidden rounded-lg"><img src={l.image} alt="" className="size-full object-cover" /></div>

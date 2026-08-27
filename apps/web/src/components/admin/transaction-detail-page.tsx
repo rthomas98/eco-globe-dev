@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Receipt, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { LivePaymentCard } from "./live-record-card";
 import { AdminDetailPage, DetailCard, KeyValueGrid } from "./admin-detail-page";
 
 export function AdminTransactionDetailPage({ id }: { id: string }) {
@@ -40,6 +41,7 @@ export function AdminTransactionDetailPage({ id }: { id: string }) {
         </>
       }
     >
+      <LivePaymentCard uiId={id} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
           <DetailCard title="Transaction">

@@ -14,6 +14,7 @@ import {
   Star,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { LiveCompanyCard } from "./live-record-card";
 import { AdminDetailPage, DetailCard, KeyValueGrid } from "./admin-detail-page";
 
 const SELLER = {
@@ -89,6 +90,7 @@ export function AdminSellerDetailPage({ id }: { id: string }) {
         </>
       }
     >
+      <LiveCompanyCard uiId={id} kind="seller" />
       <div className="mb-6 flex gap-6" style={{ borderBottom: "1px solid #F0F0F0" }}>
         {TABS.map((t) => (
           <button

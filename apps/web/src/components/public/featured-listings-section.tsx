@@ -1,5 +1,9 @@
+"use client";
+
+import { useMemo } from "react";
 import Link from "next/link";
 import { Button, Badge } from "@eco-globe/ui";
+import { useApiListings } from "@/lib/api-listings";
 
 interface Listing {
   id: string;
@@ -138,6 +142,22 @@ function ListingCard({ listing }: { listing: Listing }) {
 }
 
 export function FeaturedListingsSection() {
+  const apiListings = useApiListings();
+  // Live marketplace listings lead the grid; demo rows fill remaining slots.
+  const featured = useMemo<Listing[]>(() => {
+    const live: Listing[] = apiListings.map((l) => ({
+      id: l.id,
+      title: l.title,
+      location: l.location,
+      moq: l.moq,
+      price: l.price,
+      currency: l.price.startsWith("€") ? "€" : "$",
+      unit: l.unit,
+      image: l.image,
+    }));
+    return [...live, ...listings].slice(0, 8);
+  }, [apiListings]);
+
   return (
     <section className="py-16 lg:py-[120px]">
       <div className="mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
@@ -152,8 +172,8 @@ export function FeaturedListingsSection() {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-x-[30px] lg:gap-y-10">
-          {listings.map((listing) => (
-            <ListingCard key={listing.title} listing={listing} />
+          {featured.map((listing) => (
+            <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>
       </div>

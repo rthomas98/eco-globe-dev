@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { fetchAllListings, moderateListing } from "@/lib/api-portal";
 import { readDemoUser } from "@/lib/demo-user";
 import {
@@ -314,6 +315,7 @@ function ListingDetailDrawer({ listing, onClose }: { listing: Listing; onClose: 
 
 /* ─── Main Listings Page ─── */
 export function AdminListingsPage() {
+  const router = useRouter();
   const [listingRows, setListingRows] = useState<Listing[]>(listings);
   const [moderatingId, setModeratingId] = useState<number | null>(null);
 
@@ -415,7 +417,7 @@ export function AdminListingsPage() {
           </thead>
           <tbody>
             {listingRows.map((listing) => (
-              <tr key={listing.id} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedListing(listing)}>
+              <tr key={listing.id} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => (listing.numericId ? router.push(`/admin/listings/${listing.numericId}`) : setSelectedListing(listing))}>
                 <td className="py-3.5 text-sm text-neutral-900">{listing.id}</td>
                 <td className="py-3.5 text-sm text-neutral-900 max-w-[220px] truncate">{listing.product}</td>
                 <td className="py-3.5 text-sm text-neutral-700">{listing.category}</td>

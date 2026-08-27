@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, DollarSign, RefreshCw, CheckCircle2, AlertTriangle, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown, X, FileText, Download } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { ExportDropdown } from "./export-dropdown";
@@ -154,6 +155,7 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
 }
 
 export function EscrowPage() {
+  const router = useRouter();
   const liveRecords = useEscrowRecords();
   const escrowItems = liveRecords.map(mapRecordToAdminItem);
   const [searchQuery, setSearchQuery] = useState("");
@@ -207,7 +209,7 @@ export function EscrowPage() {
           <thead><tr className="text-left" style={{ borderBottom: "1px solid #F0F0F0" }}><th className="pb-3 text-sm font-medium text-neutral-500">Transctn ID</th><th className="pb-3 text-sm font-medium text-neutral-500">Date</th><th className="pb-3 text-sm font-medium text-neutral-500">Escrow</th><th className="pb-3 text-sm font-medium text-neutral-500">Order ID</th><th className="pb-3 text-sm font-medium text-neutral-500">Buyer</th><th className="pb-3 text-sm font-medium text-neutral-500">Seller</th><th className="pb-3 text-sm font-medium text-neutral-500">Amount</th><th className="pb-3 text-sm font-medium text-neutral-500">Status</th><th className="pb-3"></th></tr></thead>
           <tbody>
             {filteredItems.map((item, i) => (
-              <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedItem(item)}>
+              <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => (/^ESC-\d+$/.test(item.id) ? router.push(`/admin/accounting/escrow/${item.id}`) : setSelectedItem(item))}>
                 <td className="py-3.5 text-sm text-neutral-900">{item.id}</td><td className="py-3.5 text-sm text-neutral-700">{item.date}</td><td className="py-3.5 text-sm text-neutral-700">{item.escrow}</td><td className="py-3.5 text-sm text-neutral-700">{item.orderId}</td><td className="py-3.5 text-sm text-neutral-700">{item.buyer}</td><td className="py-3.5 text-sm text-neutral-700">{item.seller}</td><td className="py-3.5 text-sm text-neutral-900">{item.amount}</td><td className="py-3.5"><StatusBadge status={item.status} /></td><td className="py-3.5"><button className="text-neutral-400"><MoreHorizontal className="size-4" /></button></td>
               </tr>
             ))}

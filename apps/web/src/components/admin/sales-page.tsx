@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   ChevronDown,
@@ -347,6 +348,7 @@ function OrderDetailDrawer({ onClose }: { order: Order; onClose: () => void }) {
 
 /* ─── Main Sales Page ─── */
 export function SalesPage() {
+  const router = useRouter();
   const [orderRows, setOrderRows] = useState<Order[]>(orders);
 
   // Live orders render ahead of the demo rows (admins see all).
@@ -471,7 +473,7 @@ export function SalesPage() {
                 key={order.id}
                 className="cursor-pointer transition-colors hover:bg-neutral-50"
                 style={{ borderBottom: "1px solid #F8F8F8" }}
-                onClick={() => setSelectedOrder(order)}
+                onClick={() => (order.id.startsWith("EG-") ? router.push(`/admin/sales/${order.id}`) : setSelectedOrder(order))}
               >
                 <td className="py-3.5 text-sm text-neutral-900">{order.id}</td>
                 <td className="py-3.5 text-sm text-neutral-900">{order.buyer}</td>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@eco-globe/ui";
 import { Check, X, Flag, FileText, Download } from "lucide-react";
+import { LiveListingCard } from "./live-record-card";
 import { AdminDetailPage, DetailCard, KeyValueGrid } from "./admin-detail-page";
 import { ListingMap } from "../public/listing-map";
 
@@ -81,6 +82,7 @@ export function AdminListingDetailPage({ id }: { id: string }) {
         </>
       }
     >
+      <LiveListingCard uiId={id} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
           <DetailCard title="Listing">
