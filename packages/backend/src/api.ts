@@ -2099,6 +2099,224 @@ async function createCompanyMember(
   sendJson(response, 201, { ok: true, member: rows[0] });
 }
 
+/* ── Sample requests ── */
+
+// requested -> accepted|declined (seller) -> shipped (seller) -> received (buyer)
+const SAMPLE_TRANSITIONS: Record<string, string[]> = {
+  requested: ["accepted", "declined"],
+  accepted: ["shipped", "declined"],
+  declined: [],
+  shipped: ["received"],
+  received: [],
+};
+
+/** Who may move a sample request into the given status. */
+const SAMPLE_SETTER: Record<string, "buyer" | "seller"> = {
+  accepted: "seller",
+  declined: "seller",
+  shipped: "seller",
+  received: "buyer",
+};
+
+async function requireSampleParty(auth: AuthContext, id: number) {
+  const sample = (await queryRowsWithParams<{
+    id: number;
+    listingId: number;
+    buyerCompanyId: number;
+    sellerCompanyId: number;
+    status: string;
+    listingTitle: string;
+  }>(
+    `
+      SELECT sr.Id AS id, sr.ListingId AS listingId, sr.BuyerCompanyId AS buyerCompanyId,
+        l.SellerCompanyId AS sellerCompanyId, sr.Status AS status, l.Title AS listingTitle
+      FROM dbo.SampleRequests sr
+      INNER JOIN dbo.Listings l ON l.Id = sr.ListingId
+      WHERE sr.Id = @id;
+    `,
+    [intParam("id", id)],
+  ))[0];
+  if (!sample) throw new ApiError(404, "Sample request not found.");
+  const party: "buyer" | "seller" | "admin" | null = auth.isAdmin
+    ? "admin"
+    : auth.companyId === sample.buyerCompanyId
+      ? "buyer"
+      : auth.companyId === sample.sellerCompanyId
+        ? "seller"
+        : null;
+  if (!party) {
+    throw new ApiError(403, "Only the sample's buyer, seller, or EcoGlobe can access it.");
+  }
+  return { sample, party };
+}
+
+async function listSampleRequests(response: ServerResponse, auth: AuthContext) {
+  const samples = await queryRowsWithParams(
+    `
+      SELECT TOP (200)
+        sr.Id AS id,
+        sr.ListingId AS listingId,
+        l.Title AS listingTitle,
+        sr.BuyerCompanyId AS buyerCompanyId,
+        bc.LegalName AS buyerCompanyName,
+        l.SellerCompanyId AS sellerCompanyId,
+        sc.LegalName AS sellerCompanyName,
+        sr.QuantityLb AS quantityLb,
+        sr.Note AS note,
+        sr.DeliveryAddress AS deliveryAddress,
+        sr.Status AS status,
+        sr.SellerResponse AS sellerResponse,
+        sr.TrackingNumber AS trackingNumber,
+        sr.CreatedAt AS createdAt,
+        sr.UpdatedAt AS updatedAt
+      FROM dbo.SampleRequests sr
+      INNER JOIN dbo.Listings l ON l.Id = sr.ListingId
+      INNER JOIN dbo.Companies bc ON bc.Id = sr.BuyerCompanyId
+      INNER JOIN dbo.Companies sc ON sc.Id = l.SellerCompanyId
+      WHERE (@isAdmin = 1 OR sr.BuyerCompanyId = @authCompanyId OR l.SellerCompanyId = @authCompanyId)
+      ORDER BY sr.Id DESC;
+    `,
+    [bitParam("isAdmin", auth.isAdmin), intParam("authCompanyId", auth.companyId)],
+  );
+  sendJson(response, 200, { ok: true, samples });
+}
+
+async function createSampleRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext,
+) {
+  if (!auth.companyId) {
+    throw new ApiError(403, "An active company membership is required to request samples.");
+  }
+  const body = await readJsonBody<{
+    listingId?: number;
+    quantityLb?: number;
+    note?: string;
+    deliveryAddress?: string;
+  }>(request);
+  const listingId = getBodyInt(body, "listingId");
+  const quantityLb = getOptionalNumber(body, "quantityLb") ?? 5;
+  if (quantityLb <= 0 || quantityLb > 50) {
+    throw new ApiError(400, "Sample quantity must be between 1 and 50 lb.");
+  }
+  const listing = (await queryRowsWithParams<{
+    id: number;
+    sellerCompanyId: number;
+    title: string;
+  }>(
+    "SELECT Id AS id, SellerCompanyId AS sellerCompanyId, Title AS title FROM dbo.Listings WHERE Id = @id;",
+    [intParam("id", listingId)],
+  ))[0];
+  if (!listing) throw new ApiError(404, "Listing not found.");
+  if (listing.sellerCompanyId === auth.companyId) {
+    throw new ApiError(400, "You cannot request a sample of your own listing.");
+  }
+
+  const rows = await queryRowsWithParams(
+    `
+      INSERT INTO dbo.SampleRequests (
+        ListingId, BuyerCompanyId, RequestedByUserId, QuantityLb, Note, DeliveryAddress, UpdatedByUserId
+      )
+      OUTPUT INSERTED.Id AS id, INSERTED.ListingId AS listingId, INSERTED.Status AS status
+      VALUES (@listingId, @buyerCompanyId, @userId, @quantityLb, @note, @deliveryAddress, @userId);
+    `,
+    [
+      intParam("listingId", listingId),
+      intParam("buyerCompanyId", auth.companyId),
+      intParam("userId", auth.userId),
+      decimalParam("quantityLb", quantityLb),
+      nvarcharParam("note", getOptionalString(body, "note", 500), 500),
+      nvarcharParam("deliveryAddress", getOptionalString(body, "deliveryAddress", 400), 400),
+    ],
+  );
+
+  await notifyCompanies({
+    actorUserId: auth.userId,
+    companyIds: [listing.sellerCompanyId],
+    categoryCode: "orders",
+    subject: `Sample requested for "${listing.title}"`,
+    body: `A buyer requested a ${quantityLb} lb lab sample of "${listing.title}". Accept or decline from your sales workspace.`,
+    recordTypeCode: "listing",
+    recordId: listingId,
+  });
+
+  sendJson(response, 201, { ok: true, sample: rows[0] });
+}
+
+async function updateSampleRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  const { sample, party } = await requireSampleParty(auth, id);
+  const body = await readJsonBody<{
+    status?: string;
+    sellerResponse?: string;
+    trackingNumber?: string;
+  }>(request);
+  const status = getOptionalString(body, "status", 20);
+  if (status) {
+    const toCode = normalizeCode(status);
+    assertStatusTransition(SAMPLE_TRANSITIONS, sample.status, toCode, "sample request");
+    const requiredParty = SAMPLE_SETTER[toCode];
+    if (requiredParty && party !== "admin" && party !== requiredParty) {
+      throw new ApiError(403, `Only the ${requiredParty} can mark a sample as ${toCode}.`);
+    }
+  }
+
+  const rows = await queryRowsWithParams(
+    `
+      UPDATE dbo.SampleRequests
+      SET
+        Status = COALESCE(@status, Status),
+        SellerResponse = COALESCE(@sellerResponse, SellerResponse),
+        TrackingNumber = COALESCE(@trackingNumber, TrackingNumber),
+        UpdatedByUserId = @userId,
+        UpdatedAt = SYSUTCDATETIME()
+      OUTPUT INSERTED.Id AS id, INSERTED.Status AS status
+      WHERE Id = @id;
+    `,
+    [
+      intParam("id", id),
+      varcharParam("status", status ? normalizeCode(status) : undefined, 20),
+      nvarcharParam("sellerResponse", getOptionalString(body, "sellerResponse", 500), 500),
+      varcharParam("trackingNumber", getOptionalString(body, "trackingNumber", 160), 160),
+      intParam("userId", auth.userId),
+    ],
+  );
+
+  if (status) {
+    const toCode = normalizeCode(status);
+    const targets =
+      party === "buyer"
+        ? [sample.sellerCompanyId]
+        : party === "seller"
+          ? [sample.buyerCompanyId]
+          : [sample.buyerCompanyId, sample.sellerCompanyId];
+    const wording =
+      toCode === "accepted"
+        ? `The seller accepted your sample request for "${sample.listingTitle}".`
+        : toCode === "declined"
+          ? `The seller declined the sample request for "${sample.listingTitle}".`
+          : toCode === "shipped"
+            ? `Your sample of "${sample.listingTitle}" has shipped.`
+            : `The buyer received the sample of "${sample.listingTitle}".`;
+    await notifyCompanies({
+      actorUserId: auth.userId,
+      companyIds: targets,
+      categoryCode: "orders",
+      subject: `Sample ${toCode} — ${sample.listingTitle}`,
+      body: wording,
+      recordTypeCode: "listing",
+      recordId: sample.listingId,
+    });
+  }
+
+  sendJson(response, 200, { ok: true, sample: rows[0] });
+}
+
 /* ── Listing favorites ── */
 
 async function listFavorites(response: ServerResponse, auth: AuthContext) {
@@ -6732,6 +6950,28 @@ export async function handleApiRoute(
 
   if (requestUrl.pathname === "/api/stripe/webhook" && method === "POST") {
     await handleStripeWebhook(request, response);
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/sample-requests") {
+    if (method === "GET") {
+      await listSampleRequests(response, await requireSessionAuth(request));
+      return true;
+    }
+    if (method === "POST") {
+      await createSampleRequest(request, response, await requireSessionAuth(request));
+      return true;
+    }
+  }
+
+  const sampleMatch = matchPath(requestUrl.pathname, "/api/sample-requests/:id");
+  if (sampleMatch.matched && method === "PATCH") {
+    await updateSampleRequest(
+      request,
+      response,
+      parseId(sampleMatch.params.id, "Sample request ID"),
+      await requireSessionAuth(request),
+    );
     return true;
   }
 

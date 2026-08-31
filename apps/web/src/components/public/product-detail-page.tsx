@@ -13,6 +13,7 @@ import { getProductDetailById } from "./product-detail-data";
 import { listings as ALL_LISTINGS } from "./browse-listings";
 import { recordListingInterest, useApiListings } from "@/lib/api-listings";
 import { fetchFavorites, setFavorite } from "@/lib/api-account";
+import { RequestSampleModal } from "@/components/samples/request-sample-modal";
 import {
   fetchListingDocuments,
   listingDocumentLabel,
@@ -50,6 +51,7 @@ export function ProductDetailPage() {
   const [shareStatus, setShareStatus] = useState("");
   const [shareUrl, setShareUrl] = useState("");
   const [isSharePanelOpen, setIsSharePanelOpen] = useState(false);
+  const [sampleModalOpen, setSampleModalOpen] = useState(false);
   const { addItem } = useCart();
   const user = useDemoUser();
   const isMember = !!user;
@@ -503,6 +505,16 @@ export function ProductDetailPage() {
               >
                 Buy Now
               </button>
+              {isMember && matchedListing?.apiListingId && (
+                <button
+                  type="button"
+                  onClick={() => setSampleModalOpen(true)}
+                  className="mt-3 w-full rounded-full bg-white py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+                  style={{ border: "1px solid #E0E0E0" }}
+                >
+                  Request a Sample (5–10 lb)
+                </button>
+              )}
             </div>
 
             {/* Member tools — Carbon Calculator + SDS */}
@@ -586,6 +598,14 @@ export function ProductDetailPage() {
             </div>
           </div>
         </div>
+
+        {sampleModalOpen && matchedListing?.apiListingId && (
+          <RequestSampleModal
+            listingId={matchedListing.apiListingId}
+            listingTitle={product.title}
+            onClose={() => setSampleModalOpen(false)}
+          />
+        )}
 
         {/* CTA Banner — only for anonymous visitors */}
         {!isMember && (

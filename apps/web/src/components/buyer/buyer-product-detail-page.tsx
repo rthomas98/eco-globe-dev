@@ -28,6 +28,7 @@ import {
   listingDocumentLabel,
   type ApiListingDocument,
 } from "@/lib/api-listing-documents";
+import { RequestSampleModal } from "@/components/samples/request-sample-modal";
 
 export function BuyerProductDetailPage() {
   const params = useParams<{ id?: string }>();
@@ -58,6 +59,7 @@ export function BuyerProductDetailPage() {
     recordListingInterest(matchedListing?.apiListingId, "detail_view");
   }, [matchedListing?.apiListingId]);
 
+  const [sampleModalOpen, setSampleModalOpen] = useState(false);
   const [liveDocuments, setLiveDocuments] = useState<ApiListingDocument[]>([]);
   useEffect(() => {
     setLiveDocuments([]);
@@ -369,7 +371,25 @@ export function BuyerProductDetailPage() {
                     Buy Now
                   </Button>
                 </Link>
+                {matchedListing?.apiListingId && (
+                  <button
+                    type="button"
+                    onClick={() => setSampleModalOpen(true)}
+                    className="mt-3 w-full rounded-full bg-white py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+                    style={{ border: "1px solid #E0E0E0" }}
+                  >
+                    Request a Sample (5–10 lb)
+                  </button>
+                )}
               </div>
+
+              {sampleModalOpen && matchedListing?.apiListingId && (
+                <RequestSampleModal
+                  listingId={matchedListing.apiListingId}
+                  listingTitle={product.title}
+                  onClose={() => setSampleModalOpen(false)}
+                />
+              )}
 
               {/* Know more card */}
               <div className="mt-4 flex items-center justify-between rounded-2xl bg-neutral-50 p-5">
