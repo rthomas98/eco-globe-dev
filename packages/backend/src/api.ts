@@ -6159,6 +6159,26 @@ async function getReportSummary(
     [intParam("companyId", companyId)],
   ))[0];
 
+  // Sample funnel: requested -> accepted -> shipped -> received -> converted
+  // to a bulk order. Conversion revenue comes from the linked orders.
+  const samples = (await queryRowsWithParams<Record<string, unknown>>(
+    `
+      SELECT
+        COUNT(*) AS requested,
+        SUM(CASE WHEN sr.Status IN ('accepted','shipped','received') THEN 1 ELSE 0 END) AS accepted,
+        SUM(CASE WHEN sr.Status IN ('shipped','received') THEN 1 ELSE 0 END) AS shipped,
+        SUM(CASE WHEN sr.Status = 'received' THEN 1 ELSE 0 END) AS received,
+        SUM(CASE WHEN sr.Status = 'declined' THEN 1 ELSE 0 END) AS declined,
+        SUM(CASE WHEN sr.ConvertedOrderId IS NOT NULL THEN 1 ELSE 0 END) AS converted,
+        COALESCE(SUM(o.TotalAmount), 0) AS convertedRevenue
+      FROM dbo.SampleRequests sr
+      INNER JOIN dbo.Listings l ON l.Id = sr.ListingId
+      LEFT JOIN dbo.Orders o ON o.Id = sr.ConvertedOrderId
+      WHERE (@companyId IS NULL OR sr.BuyerCompanyId = @companyId OR l.SellerCompanyId = @companyId);
+    `,
+    [intParam("companyId", companyId)],
+  ))[0];
+
   const topListings = await queryRowsWithParams(
     `
       SELECT TOP (5)
@@ -6179,7 +6199,7 @@ async function getReportSummary(
 
   sendJson(response, 200, {
     ok: true,
-    summary: { ...totals, ...escrow, topListings },
+    summary: { ...totals, ...escrow, samples, topListings },
   });
 }
 

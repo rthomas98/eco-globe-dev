@@ -363,6 +363,15 @@ export interface ApiReportSummary {
   fundsHeld: number;
   fundsReleased: number;
   disputedEscrows: number;
+  samples?: {
+    requested: number;
+    accepted: number;
+    shipped: number;
+    received: number;
+    declined: number;
+    converted: number;
+    convertedRevenue: number;
+  };
   topListings: Array<{
     listingId: number;
     listingTitle: string;

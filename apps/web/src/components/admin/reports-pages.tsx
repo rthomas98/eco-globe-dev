@@ -162,13 +162,77 @@ function LiveReportSummary() {
   ];
 
   return (
-    <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-      {tiles.map((tile) => (
-        <div key={tile.label} className="rounded-xl bg-white p-4" style={{ border: "1px solid #F0F0F0" }}>
-          <p className="text-xs text-neutral-500">{tile.label}</p>
-          <p className="mt-1 text-lg font-bold text-neutral-900">{tile.value}</p>
-        </div>
-      ))}
+    <div className="mb-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {tiles.map((tile) => (
+          <div key={tile.label} className="rounded-xl bg-white p-4" style={{ border: "1px solid #F0F0F0" }}>
+            <p className="text-xs text-neutral-500">{tile.label}</p>
+            <p className="mt-1 text-lg font-bold text-neutral-900">{tile.value}</p>
+          </div>
+        ))}
+      </div>
+      <SampleFunnel samples={summary.samples} />
+    </div>
+  );
+}
+
+/**
+ * Sample-to-purchase funnel: how many lab samples move through
+ * requested -> accepted -> shipped -> received, and how many of those turn
+ * into bulk orders (with the revenue they produced).
+ */
+function SampleFunnel({ samples }: { samples: ApiReportSummary["samples"] }) {
+  if (!samples || Number(samples.requested) === 0) return null;
+
+  const stages = [
+    { label: "Requested", value: Number(samples.requested) },
+    { label: "Accepted", value: Number(samples.accepted) },
+    { label: "Shipped", value: Number(samples.shipped) },
+    { label: "Received", value: Number(samples.received) },
+    { label: "Converted", value: Number(samples.converted) },
+  ];
+  const conversionRate = Math.round(
+    (Number(samples.converted) / Number(samples.requested)) * 100,
+  );
+
+  return (
+    <div className="mt-3 rounded-xl bg-white p-4" style={{ border: "1px solid #F0F0F0" }}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-neutral-900">Sample funnel</p>
+        <p className="text-xs text-neutral-500">
+          <span className="font-semibold text-neutral-900">{conversionRate}%</span>{" "}
+          sample-to-order conversion ·{" "}
+          <span className="font-semibold text-neutral-900">
+            {portalMoney(Number(samples.convertedRevenue))}
+          </span>{" "}
+          converted revenue
+          {Number(samples.declined) > 0 && ` · ${samples.declined} declined`}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {stages.map((stage, i) => (
+          <div key={stage.label} className="flex items-center gap-2">
+            {i > 0 && <span className="text-neutral-300">→</span>}
+            <div
+              className="flex items-baseline gap-1.5 rounded-lg px-3 py-1.5"
+              style={{ background: i === stages.length - 1 ? "#DCFCE7" : "#FAFAFA" }}
+            >
+              <span
+                className="text-sm font-bold"
+                style={{ color: i === stages.length - 1 ? "#166534" : "#171717" }}
+              >
+                {stage.value}
+              </span>
+              <span
+                className="text-xs"
+                style={{ color: i === stages.length - 1 ? "#166534" : "#737373" }}
+              >
+                {stage.label}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
