@@ -956,10 +956,21 @@ export function BuyerCheckoutPage() {
     try {
       const buyerCompanyId = readDemoUser()?.activeCompanyId;
       if (checkoutItem?.apiListingId && buyerCompanyId) {
+        const address = deliveryAddress
+          ? [deliveryAddress.street, deliveryAddress.city, deliveryAddress.state, deliveryAddress.zip, deliveryAddress.country]
+              .filter(Boolean)
+              .join(", ")
+          : undefined;
         const result = await placeCheckoutOrder({
           listingId: checkoutItem.apiListingId,
           quantity: checkoutItem.quantity,
           buyerCompanyId,
+          deliveryMethod: shippingType ?? undefined,
+          deliveryAddress: shippingType === "delivery" ? address : undefined,
+          pickupRequestedAt:
+            shippingType === "pickup" && pickup.date
+              ? new Date(pickup.date).toISOString()
+              : undefined,
         });
         setOrderId(`EG-${result.order.id}`);
       } else {

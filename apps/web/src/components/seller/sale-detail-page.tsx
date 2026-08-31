@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -15,6 +17,7 @@ import {
   Circle,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { fetchShipments, updateShipment } from "@/lib/api-fulfilment";
 import { SellerLayout } from "./seller-layout";
 
 interface SaleDetail {
@@ -73,6 +76,29 @@ const FALLBACK: SaleDetail = {
 };
 
 export function SellerSaleDetailPage({ id }: { id: string }) {
+  const [trackingNotice, setTrackingNotice] = useState("");
+
+  const updateTracking = async () => {
+    const liveOrderId = /^EG-(\d+)$/.exec(id)?.[1];
+    const trackingNumber = window.prompt("New tracking number for this shipment:");
+    if (!trackingNumber?.trim()) return;
+    if (!liveOrderId) {
+      setTrackingNotice("Demo order — tracking numbers persist on live orders only.");
+      return;
+    }
+    try {
+      const shipments = await fetchShipments(Number(liveOrderId));
+      if (!shipments[0]) {
+        setTrackingNotice("No shipment exists on this order yet — send a shipping quote first.");
+        return;
+      }
+      await updateShipment(shipments[0].id, { trackingNumber: trackingNumber.trim() });
+      setTrackingNotice(`Tracking updated to ${trackingNumber.trim()}.`);
+    } catch (error) {
+      setTrackingNotice(error instanceof Error ? error.message : "Tracking update failed.");
+    }
+  };
+
   const sale: SaleDetail = { ...FALLBACK, id };
 
   return (
@@ -88,16 +114,27 @@ export function SellerSaleDetailPage({ id }: { id: string }) {
             Back to sales
           </Link>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="md">
-              <Mail className="size-4" />
-              Message buyer
-            </Button>
-            <Button variant="primary" size="md">
+            <Link href="/seller/disputes">
+              <Button variant="secondary" size="md">
+                <Mail className="size-4" />
+                Message buyer
+              </Button>
+            </Link>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => void updateTracking()}
+            >
               <Truck className="size-4" />
               Update tracking
             </Button>
           </div>
         </div>
+        {trackingNotice && (
+          <p className="mb-4 rounded-lg bg-neutral-100 px-4 py-2.5 text-sm text-neutral-700">
+            {trackingNotice}
+          </p>
+        )}
 
         {/* Header */}
         <header className="mb-8 flex flex-wrap items-end justify-between gap-4">

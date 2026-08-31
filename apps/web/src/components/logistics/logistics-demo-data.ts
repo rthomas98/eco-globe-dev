@@ -257,9 +257,12 @@ export function mapLiveShipment(
     buyer: order?.buyerCompanyName ?? "Marketplace buyer",
     seller: order?.sellerCompanyName ?? "Marketplace seller",
     origin: "Seller facility",
-    destination: "Buyer facility",
+    destination: order?.deliveryAddress ?? "Buyer facility",
     distance: "—",
-    quantity: order ? `$${Number(order.totalAmount).toLocaleString()}` : "—",
+    quantity:
+      order?.quantity != null
+        ? `${Number(order.quantity).toLocaleString()} ${order.quantityUnit ?? "tons"}`
+        : "—",
     carrier: shipment.carrierName ?? "EcoFreight",
     service: "Standard freight",
     status,

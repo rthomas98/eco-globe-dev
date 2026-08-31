@@ -21,6 +21,11 @@ export interface ApiOrder {
   totalAmount: number;
   currencyCode: string;
   escrowRequired: boolean;
+  quantity: number | null;
+  quantityUnit: string | null;
+  deliveryMethod: string | null;
+  deliveryAddress: string | null;
+  pickupRequestedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -82,10 +87,16 @@ export async function placeCheckoutOrder({
   listingId,
   quantity,
   buyerCompanyId,
+  deliveryMethod,
+  deliveryAddress,
+  pickupRequestedAt,
 }: {
   listingId: number;
   quantity: number;
   buyerCompanyId: number;
+  deliveryMethod?: "pickup" | "delivery";
+  deliveryAddress?: string;
+  pickupRequestedAt?: string;
 }): Promise<CheckoutResult> {
   const created = await proxyFetch<{ ok: boolean; order: { id: number; escrowRequired: boolean } }>(
     "/api/orders",
@@ -95,6 +106,9 @@ export async function placeCheckoutOrder({
         listingId,
         buyerCompanyId,
         quantity,
+        deliveryMethod,
+        deliveryAddress,
+        pickupRequestedAt,
         creationSourceCode: "listing_checkout",
       }),
     },

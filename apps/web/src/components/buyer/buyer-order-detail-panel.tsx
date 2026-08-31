@@ -22,8 +22,10 @@ import { DisputeThread } from "@/components/disputes/dispute-thread";
 import {
   confirmOrderDelivery,
   fetchDisputes,
+  fetchShipments,
   fileDispute,
   numericOrderId,
+  type ApiShipment,
 } from "@/lib/api-fulfilment";
 import { BuyerPaymentMethodScreen } from "./buyer-payment-method-screen";
 import { PanelHeaderMenu, downloadTextFile } from "./panel-header-menu";
@@ -251,6 +253,22 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
     setActionBusy(false);
   };
   const [liveDisputeId, setLiveDisputeId] = useState<number | null>(null);
+  const [liveShipment, setLiveShipment] = useState<ApiShipment | null>(null);
+
+  // The real shipment record backs the tracking facts in the panel.
+  useEffect(() => {
+    setLiveShipment(null);
+    if (!liveOrderId) return;
+    let cancelled = false;
+    fetchShipments(liveOrderId)
+      .then((rows) => {
+        if (!cancelled && rows[0]) setLiveShipment(rows[0]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [liveOrderId, activeModal]);
 
   // A filed dispute on a live order surfaces its conversation in the panel.
   useEffect(() => {
@@ -537,6 +555,49 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
                       <span className="font-semibold">Seller note:</span>{" "}
                       {order.quote.sellerNote}
                     </p>
+                  </div>
+                </section>
+              )}
+
+              {liveShipment && (
+                <section
+                  className="rounded-2xl bg-white p-6"
+                  style={{ border: "1px solid #F0F0F0" }}
+                >
+                  <p className="mb-4 text-base font-bold text-neutral-900">
+                    Shipment SHP-{liveShipment.id}
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
+                    <Field
+                      label="Status"
+                      value={liveShipment.shipmentStatusName ?? liveShipment.shipmentStatusCode}
+                    />
+                    <Field label="Carrier" value={liveShipment.carrierName ?? "—"} />
+                    <Field label="Tracking #" value={liveShipment.trackingNumber ?? "—"} />
+                    <Field
+                      label="Shipping cost"
+                      value={
+                        liveShipment.shippingCost != null
+                          ? `$${Number(liveShipment.shippingCost).toLocaleString()}`
+                          : "—"
+                      }
+                    />
+                    <Field
+                      label="Pickup scheduled"
+                      value={
+                        liveShipment.pickupScheduledAt
+                          ? new Date(liveShipment.pickupScheduledAt).toLocaleDateString()
+                          : "—"
+                      }
+                    />
+                    <Field
+                      label="Delivered"
+                      value={
+                        liveShipment.deliveryConfirmedAt
+                          ? new Date(liveShipment.deliveryConfirmedAt).toLocaleDateString()
+                          : "—"
+                      }
+                    />
                   </div>
                 </section>
               )}

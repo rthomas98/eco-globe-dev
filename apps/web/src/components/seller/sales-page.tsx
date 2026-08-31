@@ -9,7 +9,9 @@ import {
 import { readDemoUser } from "@/lib/demo-user";
 import {
   numericOrderId,
+  fetchCarriers,
   sendShippingQuote,
+  type ApiCarrier,
   uploadBillOfLading,
 } from "@/lib/api-fulfilment";
 
@@ -107,8 +109,21 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
 }
 
 /* ─── Create Quote Modal ─── */
-function CreateQuoteModal({ order, onClose, onSend }: { order: Order | null; onClose: () => void; onSend: (shippingCost: number) => void }) {
+function CreateQuoteModal({ order, onClose, onSend }: { order: Order | null; onClose: () => void; onSend: (quote: { shippingCost: number; carrierCode?: string; eta: string; note: string }) => void }) {
   const [cost, setCost] = useState("0.00");
+  const [carriers, setCarriers] = useState<ApiCarrier[]>([]);
+  const [carrierCode, setCarrierCode] = useState("");
+  const [eta, setEta] = useState("");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    fetchCarriers()
+      .then((rows) => {
+        setCarriers(rows);
+        if (rows[0]) setCarrierCode(rows[0].code);
+      })
+      .catch(() => {});
+  }, []);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center"><div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative z-10 w-full max-w-[680px] rounded-2xl bg-white p-8" style={{boxShadow:"0 20px 60px rgba(0,0,0,0.15)"}}>
@@ -119,11 +134,12 @@ function CreateQuoteModal({ order, onClose, onSend }: { order: Order | null; onC
         <div style={{borderTop:"1px solid #F0F0F0",paddingTop:"16px"}} className="mb-4"><h3 className="mb-4 text-base font-bold text-neutral-900">Product</h3>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="mb-1.5 block text-sm font-medium text-neutral-900">Shipping cost</label><div className="flex items-center rounded-lg" style={{border:"1px solid #E0E0E0"}}><span className="px-3 text-sm text-neutral-400">$</span><input type="text" value={cost} onChange={(e)=>setCost(e.target.value)} className="flex-1 bg-transparent px-2 py-3 text-sm outline-none" /></div></div>
-            <Select label="Estimated delivery time" id="edt" options={[{value:"",label:"-- Choose --"},{value:"3d",label:"3 days"},{value:"1w",label:"1 week"},{value:"2w",label:"2 weeks"}]} />
+            <Select label="Estimated delivery time" id="edt" value={eta} onChange={(e)=>setEta(e.target.value)} options={[{value:"",label:"-- Choose --"},{value:"3d",label:"3 days"},{value:"1w",label:"1 week"},{value:"2w",label:"2 weeks"}]} />
+            <Select label="Carrier" id="quote-carrier" value={carrierCode} onChange={(e)=>setCarrierCode(e.target.value)} options={carriers.length > 0 ? carriers.map((c)=>({value:c.code,label:c.name})) : [{value:"ecofreight",label:"EcoFreight"}]} />
           </div>
         </div>
-        <div className="mb-6"><label className="mb-1.5 block text-sm font-medium text-neutral-900">Note to buyer</label><textarea rows={4} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none" style={{border:"1px solid #E0E0E0"}} /></div>
-        <div className="flex justify-end gap-3"><Button variant="secondary" size="md" onClick={onClose}>Cancel</Button><Button variant="primary" size="md" onClick={()=>onSend(parseFloat(cost)||0)}>Send Quote</Button></div>
+        <div className="mb-6"><label className="mb-1.5 block text-sm font-medium text-neutral-900">Note to buyer</label><textarea rows={4} value={note} onChange={(e)=>setNote(e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none" style={{border:"1px solid #E0E0E0"}} /></div>
+        <div className="flex justify-end gap-3"><Button variant="secondary" size="md" onClick={onClose}>Cancel</Button><Button variant="primary" size="md" onClick={()=>onSend({ shippingCost: parseFloat(cost)||0, carrierCode: carrierCode || undefined, eta, note })}>Send Quote</Button></div>
       </div>
     </div>
   );
@@ -297,15 +313,21 @@ export function SellerSalesPage() {
     else setSelectedOrder(target);
   };
 
-  const submitShippingQuote = async (shippingCost: number) => {
+  const submitShippingQuote = async ({ shippingCost, carrierCode, eta, note }: { shippingCost: number; carrierCode?: string; eta: string; note: string }) => {
     const liveId = actionOrder ? numericOrderId(actionOrder.id) : null;
     setShowQuoteModal(false);
     if (liveId) {
+      const etaDays = eta === "3d" ? 3 : eta === "1w" ? 7 : eta === "2w" ? 14 : undefined;
+      const pickupScheduledAt = etaDays
+        ? new Date(Date.now() + etaDays * 24 * 60 * 60 * 1000).toISOString()
+        : undefined;
       try {
         await sendShippingQuote({
           orderId: liveId,
-          carrierCode: "ecofreight",
+          carrierCode: carrierCode ?? "ecofreight",
           shippingCost,
+          pickupScheduledAt,
+          note: note.trim() || undefined,
         });
       } catch (error) {
         setSuccessModal({
@@ -393,7 +415,7 @@ export function SellerSalesPage() {
 
       {showFilters && <FiltersPanel onClose={()=>setShowFilters(false)} />}
       {selectedOrder && <OrderDetailDrawer order={selectedOrder} onClose={()=>setSelectedOrder(null)} onAction={(a)=>{setSelectedOrder(null);handleAction(a);}} />}
-      {showQuoteModal && <CreateQuoteModal order={actionOrder} onClose={()=>setShowQuoteModal(false)} onSend={(cost)=>void submitShippingQuote(cost)} />}
+      {showQuoteModal && <CreateQuoteModal order={actionOrder} onClose={()=>setShowQuoteModal(false)} onSend={(quote)=>void submitShippingQuote(quote)} />}
       {showBOLModal && <UploadBOLModal onClose={()=>setShowBOLModal(false)} onUpload={(file)=>void submitBol(file)} />}
       {successModal && <SuccessModal {...successModal} onClose={()=>setSuccessModal(null)} />}
     </SellerLayout>

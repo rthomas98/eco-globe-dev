@@ -78,6 +78,7 @@ export async function createShipment(input: {
   trackingNumber?: string;
   shippingCost?: number;
   pickupScheduledAt?: string;
+  note?: string;
 }) {
   const body = await proxy<{ ok: boolean; shipment: { id: number } }>(
     "/api/shipments",
@@ -93,6 +94,8 @@ export async function updateShipment(
     trackingNumber?: string;
     shippingCost?: number;
     deliveryConfirmedAt?: string;
+    carrierCode?: string;
+    pickupScheduledAt?: string;
   },
 ) {
   return proxy(`/api/shipments/${id}`, { method: "PATCH", json: patch });
@@ -224,6 +227,7 @@ export async function sendShippingQuote(input: {
   carrierCode: string;
   shippingCost: number;
   pickupScheduledAt?: string;
+  note?: string;
 }) {
   return createShipment({
     ...input,

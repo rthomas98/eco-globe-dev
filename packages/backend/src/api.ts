@@ -220,6 +220,7 @@ type CarrierBody = {
 
 type ShipmentBody = {
   orderId: number;
+  note?: string;
   carrierId?: number;
   carrierCode?: string;
   trackingNumber?: string;
@@ -3373,6 +3374,11 @@ async function listOrders(response: ServerResponse, url: URL, auth: AuthContext)
         o.CurrencyCode AS currencyCode,
         o.EscrowRequired AS escrowRequired,
         o.DirectOrderReason AS directOrderReason,
+        o.Quantity AS quantity,
+        o.QuantityUnit AS quantityUnit,
+        o.DeliveryMethod AS deliveryMethod,
+        o.DeliveryAddress AS deliveryAddress,
+        o.PickupRequestedAt AS pickupRequestedAt,
         o.CreatedAt AS createdAt,
         o.UpdatedAt AS updatedAt
       FROM dbo.Orders o
@@ -3433,6 +3439,11 @@ async function getOrder(
         o.CurrencyCode AS currencyCode,
         o.EscrowRequired AS escrowRequired,
         o.DirectOrderReason AS directOrderReason,
+        o.Quantity AS quantity,
+        o.QuantityUnit AS quantityUnit,
+        o.DeliveryMethod AS deliveryMethod,
+        o.DeliveryAddress AS deliveryAddress,
+        o.PickupRequestedAt AS pickupRequestedAt,
         o.CreatedAt AS createdAt,
         o.UpdatedAt AS updatedAt
       FROM dbo.Orders o
@@ -3569,6 +3580,7 @@ async function createOrder(
       INSERT INTO dbo.Orders (
         QuoteId, ListingId, BuyerCompanyId, SellerCompanyId, CreationSourceId,
         OrderStatusId, TotalAmount, CurrencyCode, EscrowRequired, DirectOrderReason,
+        Quantity, QuantityUnit, DeliveryMethod, DeliveryAddress, PickupRequestedAt,
         CreatedByUserId, UpdatedByUserId
       )
       OUTPUT INSERTED.Id AS id, INSERTED.QuoteId AS quoteId, INSERTED.ListingId AS listingId,
@@ -3577,6 +3589,7 @@ async function createOrder(
       VALUES (
         @quoteId, @listingId, @buyerCompanyId, @sellerCompanyId, @creationSourceId,
         @orderStatusId, @totalAmount, @currencyCode, @escrowRequired, @directOrderReason,
+        @quantity, @quantityUnit, @deliveryMethod, @deliveryAddress, @pickupRequestedAt,
         @createdByUserId, @updatedByUserId
       );
     `,
@@ -3588,6 +3601,11 @@ async function createOrder(
       intParam("creationSourceId", creationSourceId),
       intParam("orderStatusId", orderStatusId),
       moneyParam("totalAmount", totalAmount),
+      decimalParam("quantity", checkoutQuantity ?? (quote ? Number(quote.quantity) : undefined)),
+      varcharParam("quantityUnit", getOptionalString(body, "quantityUnit", 40) ?? "tons", 40),
+      varcharParam("deliveryMethod", getOptionalString(body, "deliveryMethod", 20), 20),
+      nvarcharParam("deliveryAddress", getOptionalString(body, "deliveryAddress", 400), 400),
+      dateTimeParam("pickupRequestedAt", getOptionalDate(body, "pickupRequestedAt")),
       varcharParam("currencyCode", getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? quote?.currencyCode ?? listing?.currencyCode ?? "USD", 3),
       bitParam("escrowRequired", escrowRequired),
       nvarcharParam("directOrderReason", directOrderReason, 1000),
@@ -4575,6 +4593,17 @@ async function listShipments(response: ServerResponse, url: URL, auth: AuthConte
   sendJson(response, 200, { ok: true, shipments });
 }
 
+// Forward-only lifecycle: skipping ahead is legal (a buyer can confirm
+// delivery before the BOL goes up), moving backwards is not, and a
+// delivered shipment is terminal.
+const SHIPMENT_TRANSITIONS: Record<string, string[]> = {
+  quote_pending: ["scheduled", "in_transit", "delivered", "exception"],
+  scheduled: ["in_transit", "delivered", "exception"],
+  in_transit: ["delivered", "exception"],
+  exception: ["scheduled", "in_transit", "delivered"],
+  delivered: [],
+};
+
 async function createShipment(
   request: IncomingMessage,
   response: ServerResponse,
@@ -4639,7 +4668,9 @@ async function createShipment(
     ],
     categoryCode: "logistics",
     subject: `Shipment created for order #${orderId}`,
-    body: `A shipment was scheduled for order #${orderId}.`,
+    body:
+      getOptionalString(body, "note", 500) ??
+      `A shipment was scheduled for order #${orderId}.`,
     recordTypeCode: "shipment",
     recordId: rows[0].id as number,
   });
@@ -4661,6 +4692,23 @@ async function updateShipment(
   await requireOrderAccess(auth, shipmentOrder.orderId);
   const body = await readJsonBody<ShipmentBody>(request);
   const statusCode = getOptionalString(body, "shipmentStatusCode", 80);
+  if (statusCode) {
+    const current = (await queryRowsWithParams<{ code: string }>(
+      `
+        SELECT ss.Code AS code
+        FROM dbo.Shipments s
+        INNER JOIN dbo.ShipmentStatuses ss ON ss.Id = s.ShipmentStatusId
+        WHERE s.Id = @id;
+      `,
+      [intParam("id", id)],
+    ))[0];
+    assertStatusTransition(
+      SHIPMENT_TRANSITIONS,
+      current?.code ?? "quote_pending",
+      normalizeCode(statusCode),
+      "shipment",
+    );
+  }
   const statusId = statusCode ? await lookupId("ShipmentStatuses", statusCode) : undefined;
   const carrierCode = getOptionalString(body, "carrierCode", 80);
   const carrierId = getOptionalInt(body, "carrierId") ?? (carrierCode ? await lookupId("Carriers", carrierCode) : undefined);

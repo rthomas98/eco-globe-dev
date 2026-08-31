@@ -11,10 +11,32 @@ import {
   Download,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { fetchShipments, updateShipment } from "@/lib/api-fulfilment";
 import { LiveOrderCard } from "./live-record-card";
 import { AdminDetailPage, DetailCard, KeyValueGrid } from "./admin-detail-page";
 
 export function AdminSaleDetailPage({ id }: { id: string }) {
+  const overrideTracking = async () => {
+    const liveOrderId = /^EG-(\d+)$/.exec(id)?.[1];
+    const trackingNumber = window.prompt("Override tracking number:");
+    if (!trackingNumber?.trim()) return;
+    if (!liveOrderId) {
+      window.alert("Demo order — tracking overrides persist on live orders only.");
+      return;
+    }
+    try {
+      const shipments = await fetchShipments(Number(liveOrderId));
+      if (!shipments[0]) {
+        window.alert("No shipment exists on this order yet.");
+        return;
+      }
+      await updateShipment(shipments[0].id, { trackingNumber: trackingNumber.trim() });
+      window.alert(`Tracking updated to ${trackingNumber.trim()}.`);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Tracking update failed.");
+    }
+  };
+
   return (
     <AdminDetailPage
       breadcrumbs={[{ label: "Sales", href: "/admin/sales" }, { label: id }]}
@@ -30,15 +52,19 @@ export function AdminSaleDetailPage({ id }: { id: string }) {
       }
       actions={
         <>
-          <Button variant="secondary" size="md">
-            <Mail className="size-4" />
-            Message parties
-          </Button>
-          <Button variant="secondary" size="md">
-            <AlertCircle className="size-4" />
-            Open dispute
-          </Button>
-          <Button variant="primary" size="md">
+          <Link href="/admin/disputes">
+            <Button variant="secondary" size="md">
+              <Mail className="size-4" />
+              Message parties
+            </Button>
+          </Link>
+          <Link href="/admin/disputes">
+            <Button variant="secondary" size="md">
+              <AlertCircle className="size-4" />
+              Open dispute
+            </Button>
+          </Link>
+          <Button variant="primary" size="md" onClick={() => void overrideTracking()}>
             <Truck className="size-4" />
             Override tracking
           </Button>

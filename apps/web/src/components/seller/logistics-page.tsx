@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   FileText,
@@ -13,7 +13,14 @@ import {
 import { Button, Select } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
 import { carrierQuotes, logisticsShipments, mapLiveShipment } from "../logistics/logistics-demo-data";
-import { fetchShipments, numericOrderId, updateShipment } from "@/lib/api-fulfilment";
+import Link from "next/link";
+import {
+  fetchCarriers,
+  fetchShipments,
+  updateShipment,
+  uploadBillOfLading,
+  type ApiCarrier,
+} from "@/lib/api-fulfilment";
 import { fetchOrders } from "@/lib/api-orders";
 import { readDemoUser } from "@/lib/demo-user";
 
@@ -24,6 +31,23 @@ export function SellerLogisticsPage() {
     ["GulfStar Chemicals", "EcoPack Co.", "Metal Reclaim LLC", "TerraGenesis Biofuels"].includes(shipment.seller),
   );
   const [sellerShipments, setSellerShipments] = useState(demoShipments);
+  const [liveIds, setLiveIds] = useState<Set<string>>(new Set());
+  const [liveOrderIds, setLiveOrderIds] = useState<Record<string, number>>({});
+  const [carriers, setCarriers] = useState<ApiCarrier[]>([]);
+  const [carrierChoice, setCarrierChoice] = useState("");
+  const [windowChoice, setWindowChoice] = useState("am");
+  const [actionNotice, setActionNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const bolInputRef = useRef<HTMLInputElement>(null);
+
+  // Real carrier catalogue for the quote dropdown.
+  useEffect(() => {
+    fetchCarriers()
+      .then((rows) => {
+        setCarriers(rows);
+        if (rows[0]) setCarrierChoice(rows[0].code);
+      })
+      .catch(() => {});
+  }, []);
 
   // Live shipments on this seller's orders render ahead of the demo rows.
   useEffect(() => {
@@ -39,6 +63,14 @@ export function SellerLogisticsPage() {
           .map((s) => mapLiveShipment(s, orderById.get(s.orderId)));
         if (live.length > 0) {
           setSellerShipments([...live, ...demoShipments]);
+          setLiveIds(new Set(live.map((row) => row.id)));
+          setLiveOrderIds(
+            Object.fromEntries(
+              shipments
+                .filter((sh) => orderById.has(sh.orderId))
+                .map((sh) => [`SHP-${sh.id}`, sh.orderId]),
+            ),
+          );
           setSelected(live[0]);
         }
       })
@@ -56,10 +88,18 @@ export function SellerLogisticsPage() {
   });
   const [selected, setSelected] = useState(sellerShipments[0]);
 
+  const pickupWindowDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    date.setHours(windowChoice === "pm" ? 13 : 8, 0, 0, 0);
+    return date.toISOString();
+  };
+
   const updateState = (id: string, state: FulfillmentState[string]) => {
     setStates((current) => ({ ...current, [id]: state }));
-    // Live shipments (SHP-<id>) persist the transition on the backend.
-    const match = /^SHP-(\d+)$/.exec(id);
+    setActionNotice(null);
+    // Only API-backed rows persist; demo rows stay a local walkthrough.
+    const match = liveIds.has(id) ? /^SHP-(\d+)$/.exec(id) : null;
     if (match) {
       const statusCode =
         state === "Booked"
@@ -68,13 +108,54 @@ export function SellerLogisticsPage() {
             ? "in_transit"
             : undefined;
       if (statusCode) {
-        void updateShipment(Number(match[1]), { shipmentStatusCode: statusCode }).catch(
-          () => {},
-        );
+        void updateShipment(Number(match[1]), {
+          shipmentStatusCode: statusCode,
+          ...(state === "Booked"
+            ? { carrierCode: carrierChoice || undefined, pickupScheduledAt: pickupWindowDate() }
+            : {}),
+        })
+          .then(() => setActionNotice({ kind: "ok", text: `${id} updated for the buyer.` }))
+          .catch((error) =>
+            setActionNotice({
+              kind: "error",
+              text: error instanceof Error ? error.message : "Update failed.",
+            }),
+          );
       }
     }
   };
-  void numericOrderId;
+
+  const handleBolFile = async (file: File | undefined) => {
+    if (!file) return;
+    const orderId = liveOrderIds[selected.id];
+    if (!orderId) {
+      // Demo rows keep the local walkthrough.
+      updateState(selected.id, "BOL uploaded");
+      return;
+    }
+    setActionNotice(null);
+    try {
+      const dataBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+        reader.onerror = () => reject(new Error("Could not read the file."));
+        reader.readAsDataURL(file);
+      });
+      await uploadBillOfLading({
+        orderId,
+        fileName: file.name,
+        contentType: file.type || "application/octet-stream",
+        dataBase64,
+      });
+      setStates((current) => ({ ...current, [selected.id]: "BOL uploaded" }));
+      setActionNotice({ kind: "ok", text: `BOL uploaded — ${selected.id} is in transit.` });
+    } catch (error) {
+      setActionNotice({
+        kind: "error",
+        text: error instanceof Error ? error.message : "BOL upload failed.",
+      });
+    }
+  };
 
   return (
     <SellerLayout title="Logistics & Shipping">
@@ -91,15 +172,39 @@ export function SellerLogisticsPage() {
             delivery confirmation, and sustainable shipping options.
           </p>
         </div>
-        <Button variant="primary" size="md">Request carrier quote</Button>
+        <Link href="/seller/sales">
+          <Button variant="primary" size="md">Request carrier quote</Button>
+        </Link>
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         {[
-          { label: "Quotes needed", value: "2", icon: Truck },
-          { label: "BOL pending", value: "1", icon: FileText },
-          { label: "In transit", value: "2", icon: PackageOpen },
-          { label: "CO2 avoided", value: "14.8 t", icon: Leaf },
+          {
+            label: "Quotes needed",
+            value: String(
+              sellerShipments.filter((row) => (states[row.id] ?? "Needs quote") === "Needs quote").length,
+            ),
+            icon: Truck,
+          },
+          {
+            label: "BOL pending",
+            value: String(sellerShipments.filter((row) => states[row.id] === "Booked").length),
+            icon: FileText,
+          },
+          {
+            label: "In transit",
+            value: String(
+              sellerShipments.filter((row) =>
+                ["BOL uploaded", "Dispatched"].includes(states[row.id] ?? ""),
+              ).length,
+            ),
+            icon: PackageOpen,
+          },
+          {
+            label: "CO2 avoided",
+            value: `${(sellerShipments.reduce((total, row) => total + Math.max(0, row.optimizedCarbonKg - row.carbonKg), 0) / 1000).toFixed(1)} t`,
+            icon: Leaf,
+          },
         ].map((stat) => (
           <div key={stat.label} className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
             <div className="mb-4 flex items-center justify-between">
@@ -177,30 +282,56 @@ export function SellerLogisticsPage() {
               <Select
                 id="seller-carrier"
                 label="Carrier"
-                options={carrierQuotes.map((quote) => ({ value: quote.carrier, label: `${quote.carrier} · ${quote.cost}` }))}
+                value={carrierChoice}
+                onChange={(event) => setCarrierChoice(event.target.value)}
+                options={
+                  carriers.length > 0
+                    ? carriers.map((carrier) => ({ value: carrier.code, label: carrier.name }))
+                    : carrierQuotes.map((quote) => ({ value: quote.carrier, label: `${quote.carrier} · ${quote.cost}` }))
+                }
               />
               <Select
                 id="seller-window"
                 label="Pickup window"
+                value={windowChoice}
+                onChange={(event) => setWindowChoice(event.target.value)}
                 options={[
                   { value: "am", label: "Tomorrow, 8 AM - 12 PM" },
                   { value: "pm", label: "Tomorrow, 1 PM - 5 PM" },
-                  { value: "custom", label: "Request custom window" },
                 ]}
               />
             </div>
 
+            {actionNotice && (
+              <p
+                className={`rounded-lg px-4 py-2.5 text-sm ${
+                  actionNotice.kind === "ok" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
+                }`}
+              >
+                {actionNotice.text}
+              </p>
+            )}
             <ActionButton
               icon={Truck}
               title="Send shipping quote"
               description="Send carrier cost, ETA, and carbon estimate to the buyer."
               onClick={() => updateState(selected.id, "Booked")}
             />
+            <input
+              ref={bolInputRef}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg"
+              className="hidden"
+              onChange={(event) => {
+                void handleBolFile(event.target.files?.[0]);
+                event.target.value = "";
+              }}
+            />
             <ActionButton
               icon={Upload}
               title="Upload Bill of Lading"
               description="Attach BOL and chain-of-custody documents for the shipment."
-              onClick={() => updateState(selected.id, "BOL uploaded")}
+              onClick={() => bolInputRef.current?.click()}
             />
             <ActionButton
               icon={CheckCircle2}
