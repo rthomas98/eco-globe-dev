@@ -15,6 +15,8 @@ export interface ApiListingDocument {
   fileName: string;
   fileUrl: string;
   verificationStatusCode: string;
+  listingTitle?: string;
+  sellerCompanyName?: string;
   createdAt: string;
 }
 
@@ -111,5 +113,35 @@ export async function removeListingDocument(id: number) {
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { error?: string };
     throw new Error(body.error ?? `Delete failed (${response.status}).`);
+  }
+}
+
+/** Every listing document on the platform — the admin review queue. */
+export async function fetchAllListingDocuments(): Promise<ApiListingDocument[]> {
+  const response = await fetch("/api/backend/api/listing-documents", {
+    credentials: "same-origin",
+  });
+  if (!response.ok) return [];
+  const body = (await response.json()) as {
+    ok: boolean;
+    documents?: ApiListingDocument[];
+  };
+  return Array.isArray(body.documents) ? body.documents : [];
+}
+
+/** Admin decision: "verified" approves, "inactive" rejects. */
+export async function setListingDocumentVerification(
+  id: number,
+  verificationStatusCode: "verified" | "inactive" | "pending_verification",
+) {
+  const response = await fetch(`/api/backend/api/listing-documents/${id}`, {
+    method: "PATCH",
+    credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ verificationStatusCode }),
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `Update failed (${response.status}).`);
   }
 }

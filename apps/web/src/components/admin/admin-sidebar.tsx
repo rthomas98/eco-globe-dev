@@ -128,6 +128,7 @@ const governanceAdminNavItems: NavItem[] = [
     icon: Shield,
     children: [
       { label: "Moderation", href: "/admin/moderation" },
+      { label: "Document review", href: "/admin/document-review" },
       { label: "KYC", href: "/admin/kyc" },
       { label: "Disputes", href: "/admin/disputes" },
       { label: "Audit log", href: "/admin/audit" },

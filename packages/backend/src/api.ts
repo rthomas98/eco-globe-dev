@@ -2834,11 +2834,15 @@ async function listListingDocuments(response: ServerResponse, url: URL) {
         vs.Code AS verificationStatusCode,
         vs.Name AS verificationStatusName,
         d.UploadedByUserId AS uploadedByUserId,
+        l.Title AS listingTitle,
+        sc.LegalName AS sellerCompanyName,
         d.CreatedAt AS createdAt,
         d.UpdatedAt AS updatedAt
       FROM dbo.ListingDocuments d
       INNER JOIN dbo.DocumentTypes dt ON dt.Id = d.DocumentTypeId
       INNER JOIN dbo.AccountStatuses vs ON vs.Id = d.VerificationStatusId
+      INNER JOIN dbo.Listings l ON l.Id = d.ListingId
+      INNER JOIN dbo.Companies sc ON sc.Id = l.SellerCompanyId
       WHERE (@listingId IS NULL OR d.ListingId = @listingId)
       ORDER BY d.Id DESC;
     `,
@@ -2984,6 +2988,30 @@ async function updateListingDocument(
     newValue: rows[0],
     reason: "Listing document updated.",
   });
+
+  if (verificationStatusCode && rows[0]) {
+    const seller = (await queryRowsWithParams<{ companyId: number; title: string }>(
+      `SELECT l.SellerCompanyId AS companyId, l.Title AS title
+         FROM dbo.ListingDocuments d
+         INNER JOIN dbo.Listings l ON l.Id = d.ListingId
+         WHERE d.Id = @id;`,
+      [intParam("id", id)],
+    ))[0];
+    if (seller) {
+      const decision = normalizeCode(verificationStatusCode) === "verified"
+        ? "verified"
+        : "rejected";
+      await notifyCompanies({
+        actorUserId: auth.userId,
+        companyIds: [seller.companyId],
+        categoryCode: "compliance",
+        subject: `Document ${decision} on "${seller.title}"`,
+        body: `EcoGlobe ${decision} the document "${rows[0].fileName}" on your listing "${seller.title}".`,
+        recordTypeCode: "listing",
+        recordId: rows[0].listingId as number,
+      });
+    }
+  }
 
   sendJson(response, 200, { ok: true, document: rows[0] });
 }

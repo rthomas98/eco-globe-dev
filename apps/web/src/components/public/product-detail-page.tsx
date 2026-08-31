@@ -546,8 +546,13 @@ export function ProductDetailPage() {
                     >
                       <FileText className="size-4 shrink-0 text-neutral-500" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-neutral-900">
-                          {listingDocumentLabel(doc.documentTypeCode)}
+                        <p className="flex items-center gap-2 text-sm font-medium text-neutral-900">
+                          <span className="truncate">{listingDocumentLabel(doc.documentTypeCode)}</span>
+                          {doc.verificationStatusCode === "verified" && (
+                            <span className="shrink-0 rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-700">
+                              Verified
+                            </span>
+                          )}
                         </p>
                         <p className="truncate text-xs text-neutral-500">{doc.fileName}</p>
                       </div>
