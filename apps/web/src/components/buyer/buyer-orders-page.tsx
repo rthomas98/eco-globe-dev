@@ -46,8 +46,10 @@ function mapApiOrderToBuyerRow(order: ApiOrder): Order {
     id: `api-${order.id}`,
     orderId: `EG-${order.id}`,
     orderPlaced: formatOrderDate(order.createdAt),
-    shipping: "Delivery",
-    qty: "—",
+    shipping: order.deliveryMethod === "pickup" ? "Pickup" : "Delivery",
+    qty: order.quantity
+      ? `${order.quantity} ${order.quantityUnit ?? "tons"}`
+      : "—",
     total: formatOrderMoney(order.totalAmount, order.currencyCode),
     status: BUYER_STATUS_BY_CODE[order.orderStatusCode] ?? "Processing",
     category: "Marketplace",

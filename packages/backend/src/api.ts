@@ -2126,10 +2126,12 @@ async function requireSampleParty(auth: AuthContext, id: number) {
     sellerCompanyId: number;
     status: string;
     listingTitle: string;
+    convertedOrderId: number | null;
   }>(
     `
       SELECT sr.Id AS id, sr.ListingId AS listingId, sr.BuyerCompanyId AS buyerCompanyId,
-        l.SellerCompanyId AS sellerCompanyId, sr.Status AS status, l.Title AS listingTitle
+        l.SellerCompanyId AS sellerCompanyId, sr.Status AS status, l.Title AS listingTitle,
+        sr.ConvertedOrderId AS convertedOrderId
       FROM dbo.SampleRequests sr
       INNER JOIN dbo.Listings l ON l.Id = sr.ListingId
       WHERE sr.Id = @id;
@@ -2157,6 +2159,7 @@ async function listSampleRequests(response: ServerResponse, auth: AuthContext) {
         sr.Id AS id,
         sr.ListingId AS listingId,
         l.Title AS listingTitle,
+        l.Slug AS listingSlug,
         sr.BuyerCompanyId AS buyerCompanyId,
         bc.LegalName AS buyerCompanyName,
         l.SellerCompanyId AS sellerCompanyId,
@@ -2167,6 +2170,7 @@ async function listSampleRequests(response: ServerResponse, auth: AuthContext) {
         sr.Status AS status,
         sr.SellerResponse AS sellerResponse,
         sr.TrackingNumber AS trackingNumber,
+        sr.ConvertedOrderId AS convertedOrderId,
         sr.CreatedAt AS createdAt,
         sr.UpdatedAt AS updatedAt
       FROM dbo.SampleRequests sr
@@ -2255,6 +2259,7 @@ async function updateSampleRequest(
     status?: string;
     sellerResponse?: string;
     trackingNumber?: string;
+    convertedOrderId?: number;
   }>(request);
   const status = getOptionalString(body, "status", 20);
   if (status) {
@@ -2266,6 +2271,36 @@ async function updateSampleRequest(
     }
   }
 
+  // Sample-to-order conversion: the buyer links the bulk order their sample
+  // led to. Set once, buyer/admin only, and the order must be the same
+  // buyer purchasing the same listing.
+  const convertedOrderId = getOptionalNumber(body, "convertedOrderId");
+  let convertedOrder: { id: number } | undefined;
+  if (convertedOrderId !== undefined) {
+    if (party !== "buyer" && party !== "admin") {
+      throw new ApiError(403, "Only the buyer can link a sample to a bulk order.");
+    }
+    if (sample.convertedOrderId) {
+      throw new ApiError(409, "This sample is already linked to a bulk order.");
+    }
+    const order = (await queryRowsWithParams<{
+      id: number;
+      buyerCompanyId: number;
+      listingId: number | null;
+    }>(
+      "SELECT Id AS id, BuyerCompanyId AS buyerCompanyId, ListingId AS listingId FROM dbo.Orders WHERE Id = @orderId;",
+      [intParam("orderId", convertedOrderId)],
+    ))[0];
+    if (!order) throw new ApiError(404, "Order not found.");
+    if (order.buyerCompanyId !== sample.buyerCompanyId) {
+      throw new ApiError(403, "The order must belong to the sample's buyer.");
+    }
+    if (order.listingId !== null && order.listingId !== sample.listingId) {
+      throw new ApiError(400, "The order must be for the same listing as the sample.");
+    }
+    convertedOrder = order;
+  }
+
   const rows = await queryRowsWithParams(
     `
       UPDATE dbo.SampleRequests
@@ -2273,6 +2308,7 @@ async function updateSampleRequest(
         Status = COALESCE(@status, Status),
         SellerResponse = COALESCE(@sellerResponse, SellerResponse),
         TrackingNumber = COALESCE(@trackingNumber, TrackingNumber),
+        ConvertedOrderId = COALESCE(@convertedOrderId, ConvertedOrderId),
         UpdatedByUserId = @userId,
         UpdatedAt = SYSUTCDATETIME()
       OUTPUT INSERTED.Id AS id, INSERTED.Status AS status
@@ -2283,9 +2319,22 @@ async function updateSampleRequest(
       varcharParam("status", status ? normalizeCode(status) : undefined, 20),
       nvarcharParam("sellerResponse", getOptionalString(body, "sellerResponse", 500), 500),
       varcharParam("trackingNumber", getOptionalString(body, "trackingNumber", 160), 160),
+      intParam("convertedOrderId", convertedOrder?.id),
       intParam("userId", auth.userId),
     ],
   );
+
+  if (convertedOrder) {
+    await notifyCompanies({
+      actorUserId: auth.userId,
+      companyIds: [sample.sellerCompanyId],
+      categoryCode: "orders",
+      subject: `Sample converted to order EG-${convertedOrder.id}`,
+      body: `The ${sample.listingTitle} sample led to bulk order EG-${convertedOrder.id}.`,
+      recordTypeCode: "order",
+      recordId: convertedOrder.id,
+    });
+  }
 
   if (status) {
     const toCode = normalizeCode(status);

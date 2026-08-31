@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, FlaskConical, Truck, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, FlaskConical, ShoppingCart, Truck, X } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import {
   fetchSampleRequests,
+  stashSampleConversion,
   updateSampleRequest,
   type ApiSampleRequest,
 } from "@/lib/api-samples";
@@ -23,6 +25,7 @@ const STATUS_TONES: Record<ApiSampleRequest["status"], { bg: string; fg: string;
  * Renders nothing while the viewer has no sample requests.
  */
 export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" }) {
+  const router = useRouter();
   const [samples, setSamples] = useState<ApiSampleRequest[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -55,6 +58,13 @@ export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" }) {
     const trackingNumber =
       window.prompt("Tracking number (optional):")?.trim() || undefined;
     void act(sample, { status: "shipped", trackingNumber });
+  };
+
+  // Sends the buyer to the product page; checkout links the placed order
+  // back to this sample so both sides see the conversion.
+  const orderInBulk = (sample: ApiSampleRequest) => {
+    stashSampleConversion(sample.id, sample.listingId);
+    router.push(`/buyer/browse/${sample.listingSlug}`);
   };
 
   if (samples.length === 0) return null;
@@ -112,6 +122,14 @@ export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" }) {
               >
                 {tone.label}
               </span>
+              {sample.convertedOrderId && (
+                <span
+                  className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                  style={{ background: "#DCFCE7", color: "#166534" }}
+                >
+                  Ordered · EG-{sample.convertedOrderId}
+                </span>
+              )}
 
               {role === "seller" && sample.status === "requested" && (
                 <>
@@ -153,6 +171,17 @@ export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" }) {
                   <Check className="size-4" /> Mark received
                 </Button>
               )}
+              {role === "buyer" &&
+                sample.status === "received" &&
+                !sample.convertedOrderId && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => orderInBulk(sample)}
+                  >
+                    <ShoppingCart className="size-4" /> Order in bulk
+                  </Button>
+                )}
             </div>
           );
         })}

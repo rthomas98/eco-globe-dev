@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/cart-context";
 import { placeCheckoutOrder } from "@/lib/api-orders";
+import { takeSampleConversion, updateSampleRequest } from "@/lib/api-samples";
 import { readDemoUser } from "@/lib/demo-user";
 import {
   Shield,
@@ -973,6 +974,14 @@ export function BuyerCheckoutPage() {
               : undefined,
         });
         setOrderId(`EG-${result.order.id}`);
+        // If this purchase started from a received sample ("Order in bulk"),
+        // link the order back so both sides see the conversion.
+        const conversion = takeSampleConversion(checkoutItem.apiListingId);
+        if (conversion) {
+          await updateSampleRequest(conversion.sampleId, {
+            convertedOrderId: result.order.id,
+          }).catch(() => {});
+        }
       } else {
         setOrderId(`EG-${Math.floor(20000 + Math.random() * 80000)}`);
       }

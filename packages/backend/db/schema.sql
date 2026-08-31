@@ -1600,6 +1600,7 @@ BEGIN
         Status VARCHAR(20) NOT NULL CONSTRAINT DF_SampleRequests_Status DEFAULT ('requested'),
         SellerResponse NVARCHAR(500) NULL,
         TrackingNumber VARCHAR(160) NULL,
+        ConvertedOrderId INT NULL CONSTRAINT FK_SampleRequests_ConvertedOrder REFERENCES dbo.Orders(Id),
         CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_SampleRequests_CreatedAt DEFAULT (SYSUTCDATETIME()),
         UpdatedByUserId INT NULL CONSTRAINT FK_SampleRequests_UpdatedBy REFERENCES dbo.Users(Id),
         UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_SampleRequests_UpdatedAt DEFAULT (SYSUTCDATETIME())

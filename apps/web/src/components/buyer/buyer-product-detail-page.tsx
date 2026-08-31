@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Heart,
   Share2,
@@ -29,9 +29,12 @@ import {
   type ApiListingDocument,
 } from "@/lib/api-listing-documents";
 import { RequestSampleModal } from "@/components/samples/request-sample-modal";
+import { useCart } from "@/components/cart/cart-context";
 
 export function BuyerProductDetailPage() {
   const params = useParams<{ id?: string }>();
+  const router = useRouter();
+  const { addItem } = useCart();
   const apiListings = useApiListings();
   const customListings = useCustomListings();
   const listingPool = useMemo(
@@ -88,6 +91,24 @@ export function BuyerProductDetailPage() {
   const itemSubtotal = product.price * qty;
   const subtotal = itemSubtotal + product.shipping;
   const formatMoney = (value: number) => `${product.currencySymbol}${value.toFixed(2)}`;
+
+  // Seed the cart with this product so checkout places the real order —
+  // a bare link to /buyer/checkout would show whatever was in the cart.
+  const handleBuyNow = () => {
+    addItem({
+      id: product.id,
+      title: product.title,
+      location: product.location,
+      price: product.price,
+      unit: product.unit,
+      moq: product.minOrder,
+      image: product.images[0],
+      quantity: qty,
+      apiListingId: matchedListing?.apiListingId,
+    });
+    recordListingInterest(matchedListing?.apiListingId, "cart_add");
+    router.push("/buyer/checkout");
+  };
 
   return (
     <BuyerLayout>
@@ -366,11 +387,14 @@ export function BuyerProductDetailPage() {
                   <span className="text-neutral-900">{formatMoney(subtotal)}</span>
                 </div>
 
-                <Link href="/buyer/checkout" className="block">
-                  <Button variant="primary" size="lg" className="w-full">
-                    Buy Now
-                  </Button>
-                </Link>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  onClick={handleBuyNow}
+                >
+                  Buy Now
+                </Button>
                 {matchedListing?.apiListingId && (
                   <button
                     type="button"
