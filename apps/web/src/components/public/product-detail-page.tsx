@@ -13,6 +13,11 @@ import { getProductDetailById } from "./product-detail-data";
 import { listings as ALL_LISTINGS } from "./browse-listings";
 import { recordListingInterest, useApiListings } from "@/lib/api-listings";
 import { fetchFavorites, setFavorite } from "@/lib/api-account";
+import {
+  fetchListingDocuments,
+  listingDocumentLabel,
+  type ApiListingDocument,
+} from "@/lib/api-listing-documents";
 import { useCustomListings } from "@/lib/custom-listings";
 import { useDemoUser } from "@/lib/demo-user";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
@@ -55,7 +60,25 @@ export function ProductDetailPage() {
       ),
     [params.id, listingPool],
   );
-  const hasSds = !!matchedListing?.sdsUrl;
+  const [liveDocuments, setLiveDocuments] = useState<ApiListingDocument[]>([]);
+
+  useEffect(() => {
+    setLiveDocuments([]);
+    const apiListingId = matchedListing?.apiListingId;
+    if (!apiListingId) return;
+    let cancelled = false;
+    fetchListingDocuments(apiListingId)
+      .then((documents) => {
+        if (!cancelled) setLiveDocuments(documents);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [matchedListing?.apiListingId]);
+
+  const liveSds = liveDocuments.find((doc) => doc.documentTypeCode === "sds");
+  const hasSds = !!liveSds || !!matchedListing?.sdsUrl;
   const purchaseDisabled = !isMember || !hasSds;
 
   // Aggregate interest signal for the seller — never identifies the viewer.
@@ -492,7 +515,7 @@ export function ProductDetailPage() {
                 />
                 {hasSds ? (
                   <a
-                    href={matchedListing?.sdsUrl}
+                    href={liveSds?.fileUrl ?? matchedListing?.sdsUrl}
                     target="_blank"
                     rel="noopener"
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
@@ -507,6 +530,44 @@ export function ProductDetailPage() {
                     SDS pending — request from seller before purchase.
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Listing documents — TDS / SDS / COA downloads */}
+            {liveDocuments.length > 0 && (
+              <div className="mt-4 rounded-xl bg-white p-4" style={{ border: "1px solid #E0E0E0" }}>
+                <p className="mb-3 text-sm font-bold text-neutral-900">Documents</p>
+                <div className="flex flex-col gap-2">
+                  {liveDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center gap-2 rounded-lg px-3 py-2"
+                      style={{ border: "1px solid #F0F0F0" }}
+                    >
+                      <FileText className="size-4 shrink-0 text-neutral-500" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-neutral-900">
+                          {listingDocumentLabel(doc.documentTypeCode)}
+                        </p>
+                        <p className="truncate text-xs text-neutral-500">{doc.fileName}</p>
+                      </div>
+                      {isMember ? (
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noopener"
+                          className="text-xs font-medium text-neutral-900 underline"
+                        >
+                          Download
+                        </a>
+                      ) : (
+                        <span className="flex items-center gap-1 text-xs text-neutral-400">
+                          <Lock className="size-3" /> Members
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

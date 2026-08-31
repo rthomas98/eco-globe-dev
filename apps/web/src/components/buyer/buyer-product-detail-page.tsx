@@ -22,6 +22,12 @@ import { useCustomListings } from "@/lib/custom-listings";
 import { BuyerLayout } from "./buyer-layout";
 import { CarbonCalculatorButton } from "./carbon-calculator-button";
 import { SellerLocationMap } from "../public/seller-location-map";
+import { FileText } from "lucide-react";
+import {
+  fetchListingDocuments,
+  listingDocumentLabel,
+  type ApiListingDocument,
+} from "@/lib/api-listing-documents";
 
 export function BuyerProductDetailPage() {
   const params = useParams<{ id?: string }>();
@@ -50,6 +56,22 @@ export function BuyerProductDetailPage() {
   // Aggregate interest signal for the seller — never identifies the viewer.
   useEffect(() => {
     recordListingInterest(matchedListing?.apiListingId, "detail_view");
+  }, [matchedListing?.apiListingId]);
+
+  const [liveDocuments, setLiveDocuments] = useState<ApiListingDocument[]>([]);
+  useEffect(() => {
+    setLiveDocuments([]);
+    const apiListingId = matchedListing?.apiListingId;
+    if (!apiListingId) return;
+    let cancelled = false;
+    fetchListingDocuments(apiListingId)
+      .then((documents) => {
+        if (!cancelled) setLiveDocuments(documents);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [matchedListing?.apiListingId]);
   const [qty, setQty] = useState(3);
   const [selectedImg, setSelectedImg] = useState(0);
@@ -149,6 +171,38 @@ export function BuyerProductDetailPage() {
                   heightClassName="h-[260px]"
                 />
               </div>
+
+              {/* Listing documents — TDS / SDS / COA downloads */}
+              {liveDocuments.length > 0 && (
+                <div className="mb-8">
+                  <h2 className="mb-4 text-xl font-bold text-neutral-900">Documents</h2>
+                  <div className="flex flex-col gap-2">
+                    {liveDocuments.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center gap-3 rounded-lg px-4 py-3"
+                        style={{ border: "1px solid #F0F0F0" }}
+                      >
+                        <FileText className="size-4 shrink-0 text-neutral-500" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-neutral-900">
+                            {listingDocumentLabel(doc.documentTypeCode)}
+                          </p>
+                          <p className="truncate text-xs text-neutral-500">{doc.fileName}</p>
+                        </div>
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noopener"
+                          className="text-sm font-medium text-neutral-900 underline"
+                        >
+                          Download
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Specifications */}
               <h2 className="mb-4 text-xl font-bold text-neutral-900">Specifications</h2>

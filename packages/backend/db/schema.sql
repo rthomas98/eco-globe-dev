@@ -1128,10 +1128,13 @@ MERGE dbo.DocumentTypes AS target
 USING (
     VALUES
         ('sds', 'SDS', 'Safety data sheet.', 10),
+        ('tds', 'TDS', 'Technical data sheet.', 12),
+        ('coa', 'COA', 'Certificate of analysis.', 14),
         ('certification', 'Certification', 'Feedstock or sustainability certification.', 20),
         ('lab_report', 'Lab report', 'Material lab report.', 30),
         ('photo', 'Photo', 'Listing or delivery photo.', 40),
-        ('contract', 'Contract', 'Contract document.', 50)
+        ('contract', 'Contract', 'Contract document.', 50),
+        ('other', 'Other', 'Other supporting document.', 90)
 ) AS source (Code, Name, Description, SortOrder)
 ON target.Code = source.Code
 WHEN MATCHED THEN UPDATE SET Name = source.Name, Description = source.Description, SortOrder = source.SortOrder, UpdatedAt = SYSUTCDATETIME()

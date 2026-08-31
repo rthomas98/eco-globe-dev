@@ -9,21 +9,10 @@ import { readDemoUser, useDemoUser } from "@/lib/demo-user";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
 import { addCustomListing } from "@/lib/custom-listings";
 import { fetchCompanyLocations } from "@/lib/api-portal";
+import { uploadListingDocument } from "@/lib/api-listing-documents";
 import type { Listing } from "@/components/public/browse-listings";
 
 /** Reads a File as raw base64 (no data-URL prefix). */
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result ?? "");
-      resolve(result.includes(",") ? result.slice(result.indexOf(",") + 1) : result);
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 const TOTAL = 7;
 
@@ -88,6 +77,43 @@ function FileUpload({ images, onChange }: { images: string[]; onChange: (imgs: s
   );
 }
 
+function OptionalDocRow({
+  label,
+  file,
+  onChange,
+}: {
+  label: string;
+  file: File | null;
+  onChange: (file: File | null) => void;
+}) {
+  return file ? (
+    <div className="flex items-center gap-3 rounded-lg bg-white px-3 py-2" style={{ border: "1px solid #E0E0E0" }}>
+      <FileText className="size-4 text-neutral-500" />
+      <span className="flex-1 text-sm text-neutral-900">{file.name}</span>
+      <span className="text-xs text-neutral-400">{label.replace(/ \(.*\)$/, "")}</span>
+      <button
+        type="button"
+        onClick={() => onChange(null)}
+        aria-label={`Remove ${label}`}
+        className="text-neutral-500 hover:text-red-600"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  ) : (
+    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-white py-2.5 text-sm font-medium text-neutral-900" style={{ border: "1px dashed #D0D0D0" }}>
+      <Plus className="size-4" />
+      {label}
+      <input
+        type="file"
+        accept="application/pdf,image/*"
+        className="hidden"
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+      />
+    </label>
+  );
+}
+
 export function AddListingPage() {
   const router = useRouter();
   const user = useDemoUser();
@@ -110,6 +136,8 @@ export function AddListingPage() {
     additionalSpecs: [] as { label: string; value: string }[],
     sdsFile: null as File | null,
     sdsName: "",
+    tdsFile: null as File | null,
+    coaFile: null as File | null,
     facilityId: facilities[0]?.id ?? "",
   });
   const up = (k: string, v: unknown) => setForm((p) => ({ ...p, [k]: v }));
@@ -210,32 +238,20 @@ export function AddListingPage() {
       const listing = (await created.json()) as { listing: { id: number } };
       const listingId = listing.listing.id;
 
-      if (form.sdsFile) {
-        const dataBase64 = await fileToBase64(form.sdsFile);
-        const uploaded = await fetch("/api/backend/api/files", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            fileName: form.sdsFile.name,
-            contentType: form.sdsFile.type || "application/pdf",
-            dataBase64,
-          }),
+      const attachments: Array<{ file: File | null; code: string }> = [
+        { file: form.sdsFile, code: "sds" },
+        { file: form.tdsFile, code: "tds" },
+        { file: form.coaFile, code: "coa" },
+      ];
+      for (const attachment of attachments) {
+        if (!attachment.file) continue;
+        await uploadListingDocument({
+          listingId,
+          documentTypeCode: attachment.code,
+          file: attachment.file,
+        }).catch(() => {
+          // A failed attachment shouldn't block the listing submission.
         });
-        if (uploaded.ok) {
-          const file = (await uploaded.json()) as { file: { url: string } };
-          await fetch("/api/backend/api/listing-documents", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              listingId,
-              documentTypeCode: "sds",
-              fileName: form.sdsFile.name,
-              fileUrl: file.file.url,
-            }),
-          });
-        }
       }
 
       // Submit for EcoGlobe review.
@@ -518,6 +534,27 @@ export function AddListingPage() {
                   />
                 </label>
               )}
+            </div>
+            <div className="rounded-xl bg-neutral-50 p-4" style={{ border: "1px solid #E7E7E7" }}>
+              <p className="mb-1 flex items-center gap-2 text-sm font-bold text-neutral-900">
+                <FileText className="size-4" />
+                Technical documents (optional)
+              </p>
+              <p className="mb-3 text-xs text-neutral-700">
+                Buyers see these on the product page. PDFs recommended.
+              </p>
+              <div className="flex flex-col gap-2">
+                <OptionalDocRow
+                  label="Technical Data Sheet (TDS)"
+                  file={form.tdsFile}
+                  onChange={(file) => up("tdsFile", file)}
+                />
+                <OptionalDocRow
+                  label="Certificate of Analysis (COA)"
+                  file={form.coaFile}
+                  onChange={(file) => up("coaFile", file)}
+                />
+              </div>
             </div>
           </div>
         </StepLayout>

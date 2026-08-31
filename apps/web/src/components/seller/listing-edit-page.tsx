@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Trash2 } from "lucide-react";
+import { ArrowLeft, Upload, Trash2, FileText, X } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
+import {
+  fetchListingDocuments,
+  listingDocumentLabel,
+  removeListingDocument,
+  uploadListingDocument,
+  LISTING_DOCUMENT_TYPES,
+  type ApiListingDocument,
+} from "@/lib/api-listing-documents";
 import {
   getSellerListingById,
   resolveSellerListing,
@@ -64,6 +72,154 @@ export function SellerListingEditPage({ id }: { id: string }) {
   }
 
   return <EditForm listing={listing} onCancel={() => router.push(`/seller/listings/${id}`)} />;
+}
+
+/**
+ * Attachment manager for live listings: list, upload, and remove the
+ * TDS / SDS / COA documents buyers see on the product page.
+ */
+function ListingDocumentsCard({ listingId }: { listingId: string }) {
+  const liveId = (() => {
+    const match = /^EG-(\d+)$/.exec(listingId);
+    return match ? Number(match[1]) : null;
+  })();
+  const [documents, setDocuments] = useState<ApiListingDocument[]>([]);
+  const [docType, setDocType] = useState("sds");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const reload = useCallback(() => {
+    if (!liveId) return;
+    fetchListingDocuments(liveId)
+      .then(setDocuments)
+      .catch(() => {});
+  }, [liveId]);
+
+  useEffect(reload, [reload]);
+
+  if (!liveId) {
+    return (
+      <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
+        <h2 className="mb-2 text-lg font-semibold text-neutral-900">Documents</h2>
+        <p className="text-sm text-neutral-500">
+          Attachments are available on live marketplace listings.
+        </p>
+      </section>
+    );
+  }
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file || busy) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      await uploadListingDocument({ listingId: liveId, documentTypeCode: docType, file });
+      setNotice({ kind: "ok", text: `${file.name} attached.` });
+      reload();
+    } catch (error) {
+      setNotice({
+        kind: "error",
+        text: error instanceof Error ? error.message : "Upload failed.",
+      });
+    }
+    setBusy(false);
+  };
+
+  const handleRemove = async (id: number) => {
+    setNotice(null);
+    try {
+      await removeListingDocument(id);
+      reload();
+    } catch (error) {
+      setNotice({
+        kind: "error",
+        text: error instanceof Error ? error.message : "Delete failed.",
+      });
+    }
+  };
+
+  return (
+    <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
+      <h2 className="mb-1 text-lg font-semibold text-neutral-900">Documents</h2>
+      <p className="mb-4 text-xs text-neutral-500">
+        TDS, SDS, and COA files buyers can download from the product page.
+      </p>
+
+      <div className="mb-4 flex flex-col gap-2">
+        {documents.length === 0 && (
+          <p className="rounded-lg bg-neutral-50 px-3 py-2.5 text-sm text-neutral-500">
+            No documents yet.
+          </p>
+        )}
+        {documents.map((doc) => (
+          <div
+            key={doc.id}
+            className="flex items-center gap-2 rounded-lg px-3 py-2"
+            style={{ border: "1px solid #F0F0F0" }}
+          >
+            <FileText className="size-4 shrink-0 text-neutral-500" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-neutral-900">{doc.fileName}</p>
+              <p className="text-xs text-neutral-500">{listingDocumentLabel(doc.documentTypeCode)}</p>
+            </div>
+            <a
+              href={doc.fileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-medium text-neutral-700 underline hover:text-neutral-900"
+            >
+              View
+            </a>
+            <button
+              type="button"
+              aria-label={`Remove ${doc.fileName}`}
+              onClick={() => void handleRemove(doc.id)}
+              className="text-neutral-400 hover:text-red-600"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {notice && (
+        <p
+          className={`mb-3 rounded-lg px-3 py-2 text-sm ${
+            notice.kind === "ok" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
+          }`}
+        >
+          {notice.text}
+        </p>
+      )}
+
+      <div className="flex items-center gap-2">
+        <select
+          value={docType}
+          onChange={(e) => setDocType(e.target.value)}
+          className="h-10 flex-1 rounded-lg bg-white px-3 text-sm text-neutral-900"
+          style={{ border: "1px solid #E0E0E0" }}
+        >
+          {LISTING_DOCUMENT_TYPES.map((t) => (
+            <option key={t.code} value={t.code}>{t.label}</option>
+          ))}
+        </select>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/pdf,image/*"
+          className="hidden"
+          onChange={(e) => {
+            void handleFile(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+        <Button variant="secondary" size="md" disabled={busy} onClick={() => fileRef.current?.click()}>
+          {busy ? "Uploading..." : "Add file"}
+        </Button>
+      </div>
+    </section>
+  );
 }
 
 function EditForm({
@@ -268,6 +424,8 @@ function EditForm({
                 ))}
               </div>
             </section>
+
+            <ListingDocumentsCard listingId={listing.id} />
 
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-4 text-lg font-semibold text-neutral-900">Listing ID</h2>
