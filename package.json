@@ -23,7 +23,15 @@
     "dev:admin:orca": "python3 scripts/orca-runtime.py run admin",
     "dev:mobile:orca": "python3 scripts/orca-runtime.py run mobile",
     "dev:api:orca": "python3 scripts/orca-runtime.py run api",
-    "orca:verify": "python3 scripts/orca-runtime.py verify"
+    "orca:verify": "python3 scripts/orca-runtime.py verify",
+    "orca:sql:provision": "python3 scripts/orca-sql.py provision",
+    "orca:sql:start": "python3 scripts/orca-sql.py start",
+    "orca:sql:status": "python3 scripts/orca-sql.py status",
+    "orca:sql:migrate": "python3 scripts/orca-sql.py migrate",
+    "orca:sql:stop": "python3 scripts/orca-sql.py stop",
+    "test:orca:sql": "python3 scripts/orca-sql.test.py",
+    "orca:sql:smoke": "python3 scripts/orca-sql.py smoke",
+    "orca:sql:persistence": "python3 scripts/orca-sql.py persistence"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

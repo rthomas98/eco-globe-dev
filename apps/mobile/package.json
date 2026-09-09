@@ -28,8 +28,10 @@
     "tailwindcss": "^3.4.17"
   },
   "devDependencies": {
+    "@eco-globe/eslint-config": "workspace:*",
     "@eco-globe/typescript-config": "workspace:*",
     "@types/react": "^19.1.0",
+    "eslint": "^9.25.0",
     "typescript": "^5.8.2"
   }
 }

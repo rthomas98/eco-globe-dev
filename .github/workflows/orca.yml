@@ -22,6 +22,8 @@ jobs:
           corepack enable --install-directory "$node_bin" pnpm
       - name: Setup hook preservation regressions
         run: python3 .agents/skills/eco-globe-agent-pair/scripts/orca_setup.test.py
+      - name: SQL ownership regressions (no Docker or credentials)
+        run: python3 scripts/orca-sql.test.py
       - name: Create isolated checkout
         run: git worktree add --detach "$RUNNER_TEMP/eco-worker" HEAD
       - name: Prepare dependencies and private runtime

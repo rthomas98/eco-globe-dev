@@ -83,7 +83,7 @@ export function useViewerLocation() {
   useEffect(() => {
     let cancelled = false;
 
-    const useSavedFallback = (fallbackStatus: ViewerLocationStatus) => {
+    const applySavedFallback = (fallbackStatus: ViewerLocationStatus) => {
       if (cancelled) return;
       if (savedLocation) {
         setLocation(savedLocation);
@@ -107,7 +107,7 @@ export function useViewerLocation() {
     }
 
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      useSavedFallback("unavailable");
+      applySavedFallback("unavailable");
       return () => {
         cancelled = true;
       };
@@ -128,7 +128,7 @@ export function useViewerLocation() {
         writeCachedLocation(nextLocation);
       },
       (error) => {
-        useSavedFallback(error.code === error.PERMISSION_DENIED ? "denied" : "unavailable");
+        applySavedFallback(error.code === error.PERMISSION_DENIED ? "denied" : "unavailable");
       },
       {
         enableHighAccuracy: false,

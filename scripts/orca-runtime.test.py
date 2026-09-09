@@ -157,6 +157,18 @@ class IsolationTests(unittest.TestCase):
         self.assertEqual(env["EXPO_NO_TYPESCRIPT_SETUP"], "1")
         self.assertEqual(env["EXPO_OFFLINE"], "1")
 
+    def test_sql_opt_in_never_reaches_web_or_check_environment(self):
+        config = self.rt.prepare()
+        runtime.private_dir(self.rt.directory / "sql")
+        env = self.rt.environment(config)
+        self.assertTrue(all(env[key] == "" for key in runtime.EMPTY_SECRETS))
+
+    def test_incomplete_sql_opt_in_refuses_api_environment(self):
+        config = self.rt.prepare()
+        runtime.private_dir(self.rt.directory / "sql")
+        with self.assertRaises(OSError):
+            self.rt.environment(config, database=True)
+
     def test_node_version_guard(self):
         config = self.rt.prepare()
         with patch.object(runtime.subprocess, "check_output", return_value="v24.0.0\n"):
@@ -249,4 +261,5 @@ class IsolationTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    runtime.ensure_python(script=__file__)
     unittest.main(verbosity=2)

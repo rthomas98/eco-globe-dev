@@ -452,7 +452,7 @@ export function ProductDetailPage() {
                   <a
                     href={matchedListing?.sdsUrl}
                     target="_blank"
-                    rel="noopener"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
                     style={{ border: "1px solid #E0E0E0" }}
                   >

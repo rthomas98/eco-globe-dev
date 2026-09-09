@@ -1,22 +1,30 @@
-import baseConfig from "./base.js";
+import { defineConfig } from "eslint/config";
+import globals from "globals";
 import reactPlugin from "eslint-plugin-react";
 import hooksPlugin from "eslint-plugin-react-hooks";
+import baseConfig from "./base.js";
 
-export default [
+/**
+ * Expo / React Native preset: base + React + React Hooks.
+ */
+export default defineConfig([
   ...baseConfig,
   {
-    plugins: {
-      react: reactPlugin,
-      "react-hooks": hooksPlugin,
-    },
-    rules: {
-      ...reactPlugin.configs.recommended.rules,
-      ...hooksPlugin.configs.recommended.rules,
-      "react/react-in-jsx-scope": "off",
-      "react/prop-types": "off",
+    files: ["**/*.{js,jsx,mjs,cjs,ts,tsx}"],
+    ...reactPlugin.configs.flat.recommended,
+    languageOptions: {
+      ...reactPlugin.configs.flat.recommended.languageOptions,
+      globals: { ...globals.browser, ...globals.node },
     },
     settings: {
       react: { version: "detect" },
     },
   },
-];
+  reactPlugin.configs.flat["jsx-runtime"],
+  hooksPlugin.configs["recommended-latest"],
+  {
+    rules: {
+      "react/prop-types": "off",
+    },
+  },
+]);

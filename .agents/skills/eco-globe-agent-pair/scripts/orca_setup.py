@@ -4,7 +4,7 @@ import json, os, re, shutil, stat, subprocess, sys
 from pathlib import Path
 sys.dont_write_bytecode = True
 PAIR = '.agents/skills/eco-globe-agent-pair'
-FILES = ('AGENTS.md', 'CLAUDE.md', '.gitignore', '.nvmrc', 'docs/ORCA_DEVELOPMENT.md', f'{PAIR}/SKILL.md', f'{PAIR}/scripts/orca_setup.py', f'{PAIR}/scripts/orca_setup.test.py', '.claude/agents/frontend-dev.md', '.claude/agents/backend-review.md', 'scripts/orca-runtime.py', 'scripts/orca-runtime.test.py')
+FILES = ('AGENTS.md', 'CLAUDE.md', '.gitignore', '.nvmrc', 'docs/ORCA_DEVELOPMENT.md', f'{PAIR}/SKILL.md', f'{PAIR}/scripts/orca_setup.py', f'{PAIR}/scripts/orca_setup.test.py', '.claude/agents/frontend-dev.md', '.claude/agents/backend-review.md', 'scripts/orca-runtime.py', 'scripts/orca-runtime.test.py', 'scripts/orca-sql.py', 'scripts/orca-sql.test.py', 'scripts/orca-sql-smoke.mjs')
 def git(root, *args):
     return subprocess.check_output(['git', *args], cwd=root, stderr=subprocess.DEVNULL)
 
@@ -132,7 +132,7 @@ def main():
     select_node(source)
     apply_overlay(copies)
     subprocess.run([sys.executable, str(target/'scripts/orca-runtime.py'), 'prepare', '--install'], cwd=target, check=True)
-    print('Eco Globe worker prepared; SQL-backed acceptance remains separate.')
+    print('Eco Globe worker prepared; provision its dedicated SQL database explicitly for SQL-backed checks.')
 
 if __name__ == '__main__':
     try:

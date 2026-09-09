@@ -2,13 +2,14 @@
 """Isolated, foreground-only EcoGlobe runtime for linked Git worktrees.
 
 prepare [--install], check, run {web,admin,mobile,api}, verify.
-Reservations are durable and never automatically reclaimed. No database provisioning.
+Reservations are durable and never automatically reclaimed. SQL is an explicit opt-in.
 This is configuration isolation, not an OS/network sandbox. Run trusted source only.
 """
 import argparse
 import contextlib
 import fcntl
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -233,7 +234,7 @@ class Runtime:
             return expected
 
     def audit_state(self):
-        allowed = {"config.json", "home", "tmp", "cache", *(f"{s}.lock" for s in SERVICES), "verify.lock", "install.lock"}
+        allowed = {"config.json", "home", "tmp", "cache", *(f"{s}.lock" for s in SERVICES), "verify.lock", "install.lock", "sql"}
         for path in self.directory.iterdir():
             if path.name not in allowed or path.is_symlink():
                 raise Refusal(f"Unexpected runtime state: {path.name}")
@@ -258,7 +259,7 @@ class Runtime:
                 raise Refusal("Foreign or modified runtime configuration")
         return actual
 
-    def environment(self, config):
+    def environment(self, config, database=False):
         node = shutil.which("node")
         if not node:
             raise Refusal(f"Activate Node {NODE_VERSION} first (nvm use)")
@@ -278,6 +279,14 @@ class Runtime:
         env.update({key: "" for key in EMPTY_SECRETS})
         env.update(ECOGLOBE_API_BASE_URL=api, NEXT_PUBLIC_API_BASE_URL=api,
                    EXPO_PUBLIC_API_BASE_URL=api, ECOGLOBE_WEB_URL=web, CORS_ORIGIN=web)
+        if database and (self.directory / "sql").exists():
+            spec = importlib.util.spec_from_file_location("orca_sql", Path(__file__).with_name("orca-sql.py"))
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            try:
+                env["AZURE_SQL_CONNECTION_STRING"] = module.LocalSQL(self).connection()
+            except module.rt.Refusal as error:
+                raise Refusal(str(error)) from None
         return env
 
     def command(self, service, config):
@@ -290,8 +299,8 @@ class Runtime:
 
     def run(self, service):
         config = self.check()
-        env = self.environment(config)
         with lock(self.directory / f"{service}.lock", blocking=False):
+            env = self.environment(config, database=service == "api")
             if not available(config["ports"][service]):
                 raise Refusal(f"Unmanaged listener on reserved {service} port; left untouched")
             env["PORT"] = str(config["ports"][service])
@@ -352,7 +361,23 @@ def foreground(command, cwd, env):
     return code if code >= 0 else 128 - code
 
 
+def ensure_python(script=None):
+    """Apple's system Python lacks waitid; re-exec a validated modern Python."""
+    required = ("waitid", "WNOWAIT", "WEXITED", "P_PID")
+    if all(hasattr(os, name) for name in required):
+        return
+    probe = "import os; raise SystemExit(not all(hasattr(os,k) for k in ('waitid','WNOWAIT','WEXITED','P_PID')))"
+    for candidate in ("/opt/homebrew/bin/python3", "/usr/local/bin/python3"):
+        if not Path(candidate).is_file():
+            continue
+        result = subprocess.run([candidate, "-I", "-c", probe], capture_output=True, timeout=10)
+        if result.returncode == 0:
+            os.execv(candidate, [candidate, "-I", str(Path(script or __file__).resolve()), *sys.argv[1:]])
+    raise Refusal("Install a modern Python with POSIX waitid (for example brew install python), then retry.")
+
+
 def main():
+    ensure_python()
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
     sub.add_parser("prepare").add_argument("--install", action="store_true")
@@ -374,8 +399,12 @@ def main():
         elif args.action == "check":
             config = runtime.check()
             runtime.environment(config)
-            print(json.dumps(config, indent=2))
-            print("Configuration isolation OK; SQL-backed workflows unverified; no live-service health claim.")
+            display = dict(config)
+            if (runtime.directory / "sql").exists():
+                display["mode"] = "local-sql-opt-in"
+                display["sql"] = "Run orca-sql.py status for verified container state; API launch validates database ownership."
+            print(json.dumps(display, indent=2))
+            print("Configuration isolation OK; no live-service health claim.")
         elif args.action == "run":
             return runtime.run(args.service)
         else:

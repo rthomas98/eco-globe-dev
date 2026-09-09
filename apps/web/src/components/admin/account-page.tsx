@@ -61,7 +61,7 @@ function ProfileTab({ profile, onUpdate }: { profile: Profile; onUpdate: (p: Pro
   };
 
   const handleSave = () => {
-    let updated = { ...profile };
+    const updated = { ...profile };
     if (editField === "name") updated.name = `${firstName} ${lastName}`.trim();
     if (editField === "phone") updated.phone = phone;
     if (editField === "email") updated.email = email;
