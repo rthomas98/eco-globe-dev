@@ -1,0 +1,32 @@
+name: Orca isolated runtime
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.20.0
+      - name: Enable pnpm beside the selected Node binary
+        run: |
+          node_bin="$(node -p 'require("path").dirname(process.execPath)')"
+          corepack enable --install-directory "$node_bin" pnpm
+      - name: Setup hook preservation regressions
+        run: python3 .agents/skills/eco-globe-agent-pair/scripts/orca_setup.test.py
+      - name: Create isolated checkout
+        run: git worktree add --detach "$RUNNER_TEMP/eco-worker" HEAD
+      - name: Prepare dependencies and private runtime
+        working-directory: ${{ runner.temp }}/eco-worker
+        run: python3 scripts/orca-runtime.py prepare --install
+      - name: Runtime regressions and backend tests/types
+        working-directory: ${{ runner.temp }}/eco-worker
+        run: python3 scripts/orca-runtime.py verify

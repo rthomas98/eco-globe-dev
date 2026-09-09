@@ -15,7 +15,15 @@
     "test:e2e:rbac": "playwright test tests/e2e/rbac.spec.js --reporter=line",
     "solo:check": "prettier --check solo.yml",
     "clean": "turbo run clean",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "orca:prepare": "python3 scripts/orca-runtime.py prepare --install",
+    "orca:check": "python3 scripts/orca-runtime.py check",
+    "test:orca": "python3 scripts/orca-runtime.test.py",
+    "dev:web:orca": "python3 scripts/orca-runtime.py run web",
+    "dev:admin:orca": "python3 scripts/orca-runtime.py run admin",
+    "dev:mobile:orca": "python3 scripts/orca-runtime.py run mobile",
+    "dev:api:orca": "python3 scripts/orca-runtime.py run api",
+    "orca:verify": "python3 scripts/orca-runtime.py verify"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

@@ -23,7 +23,11 @@ build/
 *.swo
 
 # Claude Code (local settings, worktrees)
-.claude/
+.claude/*
+!.claude/agents/
+.claude/agents/*
+!.claude/agents/frontend-dev.md
+!.claude/agents/backend-review.md
 
 # OS
 .DS_Store
@@ -50,3 +54,6 @@ coverage/
 test-results/
 playwright-report/
 *.tsbuildinfo
+
+# Python setup tooling
+__pycache__/
