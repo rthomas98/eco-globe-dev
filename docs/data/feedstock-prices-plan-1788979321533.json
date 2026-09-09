@@ -1,0 +1,20 @@
+{
+  "database": "sqldb-ecoglobe-dev",
+  "sourceSha256": "e690f97005cb6a88b2f6c88ee8011d358b4d55e5baf792e6986683c2ed3b038d",
+  "applied": false,
+  "createdAt": "2026-09-09T18:42:01.531Z",
+  "changes": [],
+  "excluded": [
+    "Used Pallets: quantity basis confirmation pending"
+  ],
+  "absentFromWorkbook": [
+    {
+      "id": 23,
+      "title": "Gasoline offspec"
+    },
+    {
+      "id": 24,
+      "title": "Gasoline offspec"
+    }
+  ]
+}

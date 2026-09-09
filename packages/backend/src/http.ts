@@ -49,9 +49,13 @@ export async function readJsonBody<T extends Record<string, unknown>>(
   request: IncomingMessage,
 ) {
   const chunks: Buffer[] = [];
+  let size = 0;
 
   for await (const chunk of request) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+    const bytes = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+    size += bytes.length;
+    if (size > 8 * 1024 * 1024) throw new ApiError(413, "Request body exceeds 8 MiB.");
+    chunks.push(bytes);
   }
 
   if (chunks.length === 0) {
@@ -59,7 +63,9 @@ export async function readJsonBody<T extends Record<string, unknown>>(
   }
 
   try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8")) as Partial<T>;
+    const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new ApiError(400,"Request body must be a JSON object.");
+    return parsed as Partial<T>;
   } catch {
     throw new ApiError(400, "Request body must be valid JSON.");
   }

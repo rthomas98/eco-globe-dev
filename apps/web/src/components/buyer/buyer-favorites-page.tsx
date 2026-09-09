@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Heart, Search } from "lucide-react";
 import { Badge, Button } from "@eco-globe/ui";
 import { BuyerLayout } from "./buyer-layout";
-import { listings, type Listing } from "../public/browse-listings";
+import type { Listing } from "../public/browse-listings";
+import { useListings } from "@/lib/use-listings";
 
 const FAVORITES_KEY = "ecoglobe.favoriteListings";
 
@@ -43,8 +44,9 @@ export function BuyerFavoritesPage() {
     });
   };
 
+  const published = useListings("public");
   const favorites: Listing[] = ids
-    .map((id) => listings.find((l) => l.id === id))
+    .map((id) => published.listings.find((l) => l.id === id))
     .filter((l): l is Listing => !!l);
 
   return (
@@ -106,11 +108,15 @@ function FavoriteCard({ listing, onToggle }: { listing: Listing; onToggle: () =>
     <div className="group overflow-hidden rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
       <Link href={`/buyer/browse/${listing.id}`} className="block">
         <div className="relative h-48 overflow-hidden">
-          <img
-            src={listing.image}
-            alt={listing.title}
-            className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
+          {listing.image ? (
+            <img
+              src={listing.image}
+              alt={listing.title}
+              className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          ) : (
+            <div className="flex size-full items-center justify-center bg-neutral-100 text-xs text-neutral-500">No photo yet</div>
+          )}
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -129,11 +135,11 @@ function FavoriteCard({ listing, onToggle }: { listing: Listing; onToggle: () =>
           <p className="mt-0.5 text-xs text-neutral-500">{listing.location}</p>
           <div className="mt-2 flex gap-1.5">
             <Badge>MOQ: {listing.moq}</Badge>
-            <Badge>{listing.co2}</Badge>
+            {listing.hasCarbonData && <Badge>{listing.co2}</Badge>}
           </div>
           <div className="mt-3 flex items-baseline gap-1">
             <span className="text-base font-semibold text-neutral-900">{listing.price}</span>
-            <span className="text-xs text-neutral-500">{listing.unit}</span>
+            {listing.priceNum !== null && <span className="text-xs text-neutral-500">{listing.unit}</span>}
           </div>
         </div>
       </Link>

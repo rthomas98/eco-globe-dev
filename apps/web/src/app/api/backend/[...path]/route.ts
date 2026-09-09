@@ -6,14 +6,42 @@ const BACKEND_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
   "http://127.0.0.1:4050";
 const SESSION_COOKIE = "ecoglobe.session";
+/**
+ * Upstream deadline for one proxied request. Document uploads are larger
+ * than ordinary JSON calls, so they get a longer bound.
+ */
+const DEFAULT_UPSTREAM_DEADLINE_MS = 25_000;
+const UPLOAD_UPSTREAM_DEADLINE_MS = 60_000;
+const FORWARDED_RESPONSE_HEADERS = [
+  "content-type",
+  "content-length",
+  "content-disposition",
+  "x-content-type-options",
+  "cache-control",
+  "etag",
+  "last-modified",
+];
 
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 function responseHeaders(response: Response) {
   const headers = new Headers();
-  const contentType = response.headers.get("content-type");
-  if (contentType) headers.set("content-type", contentType);
+  for (const name of FORWARDED_RESPONSE_HEADERS) {
+    const value = response.headers.get(name);
+    if (value) headers.set(name, value);
+  }
   return headers;
+}
+
+function upstreamDeadline(pathname: string, method: string) {
+  if (pathname.startsWith("/api/listing-documents") && method === "POST") {
+    return UPLOAD_UPSTREAM_DEADLINE_MS;
+  }
+  // Lab report PDFs are uploaded as JSON base64 through the admin lab route.
+  if (/^\/api\/admin\/lab\/requests\/[^/]+\/reports$/.test(pathname) && method === "POST") {
+    return UPLOAD_UPSTREAM_DEADLINE_MS;
+  }
+  return DEFAULT_UPSTREAM_DEADLINE_MS;
 }
 
 async function proxy(request: Request, { params }: RouteContext) {
@@ -32,24 +60,41 @@ async function proxy(request: Request, { params }: RouteContext) {
   const body = ["GET", "HEAD"].includes(request.method)
     ? undefined
     : await request.arrayBuffer();
+  const deadlineMs = upstreamDeadline(pathname, request.method);
   let backendResponse: Response;
+  let responseBody: ArrayBuffer;
   try {
+    // One deadline covers the upstream connection and the full body read so a
+    // stalled response can never leave the browser waiting indefinitely.
+    const signal = AbortSignal.timeout(deadlineMs);
     backendResponse = await fetch(target, {
       method: request.method,
       headers,
       body,
       cache: "no-store",
+      signal,
     });
-  } catch {
+    responseBody = await backendResponse.arrayBuffer();
+  } catch (error) {
+    const timedOut =
+      error instanceof Error &&
+      (error.name === "TimeoutError" ||
+        error.name === "AbortError" ||
+        (error.cause instanceof Error &&
+          (error.cause.name === "TimeoutError" || error.cause.name === "AbortError")));
     return NextResponse.json(
-      { ok: false, error: "EcoGlobe backend is unavailable." },
-      { status: 502 },
+      {
+        ok: false,
+        error: timedOut
+          ? `EcoGlobe backend did not respond within ${Math.round(deadlineMs / 1000)} seconds.`
+          : "EcoGlobe backend is unavailable.",
+      },
+      { status: timedOut ? 504 : 502 },
     );
   }
   // The proxy intentionally forwards both successful and error responses, but
   // capture the status before consuming the body so auth-specific handling is safe.
   const backendOk = backendResponse.ok;
-  const responseBody = await backendResponse.arrayBuffer();
   const output = new NextResponse(responseBody, {
     status: backendResponse.status,
     headers: responseHeaders(backendResponse),
@@ -65,9 +110,11 @@ async function proxy(request: Request, { params }: RouteContext) {
       // backend returns an unexpected expiry value.
       const sanitized = { ...payload };
       delete sanitized.token;
+      const sanitizedHeaders = responseHeaders(backendResponse);
+      sanitizedHeaders.delete("content-length");
       const sanitizedResponse = new NextResponse(JSON.stringify(sanitized), {
         status: backendResponse.status,
-        headers: responseHeaders(backendResponse),
+        headers: sanitizedHeaders,
       });
       if (payload.token && payload.expiresAt) {
         const expiresAt = new Date(payload.expiresAt);

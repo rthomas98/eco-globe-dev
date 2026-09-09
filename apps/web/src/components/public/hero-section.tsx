@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, MapPin, Package, TrendingUp } from "lucide-react";
 import { Button } from "@eco-globe/ui";
-import { listings } from "./browse-listings";
+import type { Listing } from "./browse-listings";
+import { useListings } from "@/lib/use-listings";
 
 const popularSearches = [
   { label: "Industrial Byproducts", href: "/browse?category=Industrial+Byproducts" },
@@ -14,13 +15,13 @@ const popularSearches = [
   { label: "Used products", href: "/browse?category=Used+products" },
 ];
 
-const ALL_LOCATIONS = Array.from(
-  new Set(listings.map((l) => l.location)),
-).sort();
-
 const distanceOptions = ["10 mi", "25 mi", "50 mi", "100 mi", "200 mi"];
 
-function filterFeedstocks(query: string, max = 6) {
+function allLocations(listings: Listing[]) {
+  return Array.from(new Set(listings.map((l) => l.location).filter(Boolean))).sort();
+}
+
+function filterFeedstocks(listings: Listing[], query: string, max = 6) {
   const q = query.trim().toLowerCase();
   const scored = listings
     .map((l) => {
@@ -36,16 +37,14 @@ function filterFeedstocks(query: string, max = 6) {
   return scored.map((s) => s.listing);
 }
 
-function filterLocations(query: string, max = 6) {
+function filterLocations(listings: Listing[], query: string, max = 6) {
   const q = query.trim().toLowerCase();
-  if (!q) return ALL_LOCATIONS.slice(0, max);
-  return ALL_LOCATIONS.filter((loc) => loc.toLowerCase().includes(q)).slice(
-    0,
-    max,
-  );
+  const locations = allLocations(listings);
+  if (!q) return locations.slice(0, max);
+  return locations.filter((loc) => loc.toLowerCase().includes(q)).slice(0, max);
 }
 
-function useLiveCount(query: string, location: string) {
+function useLiveCount(listings: Listing[], query: string, location: string) {
   const [count, setCount] = useState(listings.length);
   const [pulsing, setPulsing] = useState(false);
 
@@ -65,7 +64,7 @@ function useLiveCount(query: string, location: string) {
       setPulsing(false);
     }, 180);
     return () => clearTimeout(t);
-  }, [query, location]);
+  }, [listings, query, location]);
 
   return { count, pulsing };
 }
@@ -79,17 +78,19 @@ export function HeroSection() {
   >(null);
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
+  const published = useListings("public");
+  const listings = published.listings;
 
   const feedstockSuggestions = useMemo(
-    () => filterFeedstocks(query),
-    [query],
+    () => filterFeedstocks(listings, query),
+    [listings, query],
   );
   const locationSuggestions = useMemo(
-    () => filterLocations(location),
-    [location],
+    () => filterLocations(listings, location),
+    [listings, location],
   );
 
-  const { count, pulsing } = useLiveCount(query, location);
+  const { count, pulsing } = useLiveCount(listings, query, location);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {

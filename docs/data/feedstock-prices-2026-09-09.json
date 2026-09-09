@@ -1,0 +1,178 @@
+{
+  "sourceFile": "Feedstock prices.xlsx",
+  "sha256": "e690f97005cb6a88b2f6c88ee8011d358b4d55e5baf792e6986683c2ed3b038d",
+  "sheet": "Sheet1",
+  "range": "D3:G19",
+  "prices": [
+    {
+      "sourceRow": 3,
+      "name": "Black gypsum",
+      "type": "Chemical",
+      "category": "Industrial Byproducts",
+      "price": 45,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 7
+    },
+    {
+      "sourceRow": 4,
+      "name": "Hydrochar",
+      "type": "Biomass",
+      "category": "Low CO2",
+      "price": 100,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 15
+    },
+    {
+      "sourceRow": 5,
+      "name": "Biochar",
+      "type": "Biomass",
+      "category": "Certified feedstock",
+      "price": 500,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 17
+    },
+    {
+      "sourceRow": 6,
+      "name": "Epoxy offspec",
+      "type": "Chemical",
+      "category": "Industrial Byproducts",
+      "price": 1900,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 4
+    },
+    {
+      "sourceRow": 7,
+      "name": "Scrap polymer blend",
+      "type": "Chemical",
+      "category": "Industrial Byproducts",
+      "price": 225,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 6
+    },
+    {
+      "sourceRow": 8,
+      "name": "Premium Rice Hull ash",
+      "type": "Biomass",
+      "category": "Certified feedstock",
+      "price": 250,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 22
+    },
+    {
+      "sourceRow": 9,
+      "name": "Guard test Bagasse",
+      "type": "Biomass",
+      "category": "Certified feedstock",
+      "price": 60,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 21
+    },
+    {
+      "sourceRow": 10,
+      "name": "Biomass wood pellets, A",
+      "type": "Biomass",
+      "category": "Certified feedstock",
+      "price": 230,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 9
+    },
+    {
+      "sourceRow": 11,
+      "name": "Rice Husk",
+      "type": "Biomass",
+      "category": "Certified feedstock",
+      "price": 30,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 10
+    },
+    {
+      "sourceRow": 12,
+      "name": "Harvested and Baled Corn Stover",
+      "type": "Biomass",
+      "category": "Certified feedstock",
+      "price": 70,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 8
+    },
+    {
+      "sourceRow": 13,
+      "name": "Shredded, Refined Sugar Bagasse",
+      "type": "Biomass",
+      "category": "Certified feedstock",
+      "price": 80,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 5
+    },
+    {
+      "sourceRow": 14,
+      "name": "Pyrolysis pitch",
+      "type": "Refinery",
+      "category": "Industrial Byproducts",
+      "price": 350,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 3
+    },
+    {
+      "sourceRow": 15,
+      "name": "Tar",
+      "type": "Refinery and Chemical",
+      "category": "Industrial Byproducts",
+      "price": 225,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 19
+    },
+    {
+      "sourceRow": 16,
+      "name": "Refined Used Cooking Oil",
+      "type": "Biomass",
+      "category": "Certified feedstock",
+      "price": 1300,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 13
+    },
+    {
+      "sourceRow": 17,
+      "name": "Certified organic wood chips",
+      "type": "Biomass",
+      "category": "Certified feedstock",
+      "price": 45,
+      "currency": "USD",
+      "basis": "metric tonne",
+      "listingId": 11
+    },
+    {
+      "sourceRow": 18,
+      "name": "Used Pallets",
+      "type": "Used products",
+      "category": "Used products",
+      "price": 5,
+      "currency": "USD",
+      "basis": "each",
+      "listingId": 16
+    },
+    {
+      "sourceRow": 19,
+      "name": "Used Dry Transformer",
+      "type": "Used products",
+      "category": "Used products",
+      "price": 15000,
+      "currency": "USD",
+      "basis": "each",
+      "listingId": 14
+    }
+  ]
+}

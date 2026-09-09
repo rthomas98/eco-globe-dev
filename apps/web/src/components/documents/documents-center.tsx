@@ -24,6 +24,8 @@ import {
   X,
 } from "lucide-react";
 
+import { LabReportsSection } from "@/components/lab-testing/lab-reports-section";
+
 type Role = "buyer" | "seller" | "admin";
 type DocStatus = "Verified" | "Pending review" | "Expiring soon" | "Rejected";
 
@@ -185,6 +187,10 @@ function PortalDocumentsCenter({ role }: { role: Exclude<Role, "admin"> }) {
             Sample upload added to the review queue.
           </div>
         )}
+
+        <div className="mb-6">
+          <LabReportsSection role={role} />
+        </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="flex min-w-[280px] items-center gap-2 rounded-full bg-white px-4 py-2 ring-1 ring-neutral-200">

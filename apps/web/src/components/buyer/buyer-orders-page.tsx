@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { BuyerLayout } from "./buyer-layout";
+import { SampleRequestsPanel } from "@/components/samples/sample-requests-panel";
 import {
   BuyerOrderDetailPanel,
   type OrderDetail,
@@ -960,6 +961,9 @@ export function BuyerOrdersPage() {
           </div>
         </div>
 
+        <div className="px-4 pt-4 sm:px-8">
+          <SampleRequestsPanel role="buyer" />
+        </div>
         {/* Tabs */}
         <div
           className="flex items-center gap-8 overflow-x-auto px-4 sm:px-8"

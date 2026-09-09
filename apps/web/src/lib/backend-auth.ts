@@ -44,14 +44,13 @@ type SessionResponse = {
   user: BackendUser;
 };
 
-export class BackendApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status?: number,
-  ) {
-    super(message);
-  }
-}
+export {
+  BackendApiError,
+  apiFetch,
+  describeBackendError,
+  isBackendApiError,
+} from "./backend-client";
+import { apiFetch, BackendApiError } from "./backend-client";
 
 function isUserRole(value: string | undefined): value is UserRole {
   return value === "buyer" || value === "seller" || value === "admin";
@@ -62,49 +61,6 @@ function normalizeRole(
   fallback: UserRole,
 ): UserRole {
   return isUserRole(value) ? value : fallback;
-}
-
-async function apiFetch<T>(
-  path: string,
-  options: RequestInit & { token?: string } = {},
-): Promise<T> {
-  const { token, headers, ...requestOptions } = options;
-  const response = await fetch(`/api/backend${path}`, {
-    ...requestOptions,
-    credentials: "same-origin",
-    headers: {
-      "content-type": "application/json",
-      ...(token && token !== COOKIE_SESSION_TOKEN
-        ? { authorization: `Bearer ${token}` }
-        : {}),
-      ...headers,
-    },
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    let body: unknown;
-    try {
-      body = text ? JSON.parse(text) : undefined;
-    } catch {
-      body = undefined;
-    }
-    const record =
-      body && typeof body === "object"
-        ? (body as Record<string, unknown>)
-        : undefined;
-    const message =
-      typeof record?.error === "string"
-        ? record.error
-        : typeof record?.message === "string"
-          ? record.message
-          : "The EcoGlobe backend did not accept this request.";
-    throw new BackendApiError(message, response.status);
-  }
-
-  const text = await response.text();
-  const body = text ? JSON.parse(text) : undefined;
-  return body as T;
 }
 
 function rolesFromBackend(user: BackendUser, fallbackRoles: UserRole[]) {
@@ -323,6 +279,8 @@ export async function completeBackendOnboarding({
   jobTitle,
   website,
   address,
+  feedstockInterests,
+  otherFeedstockInterest,
 }: {
   token?: string;
   role: "buyer" | "seller" | "both";
@@ -333,6 +291,9 @@ export async function completeBackendOnboarding({
   jobTitle?: string;
   website?: string;
   address?: string;
+  /** Feedstock interest codes, including "others" when a description is supplied. */
+  feedstockInterests?: string[];
+  otherFeedstockInterest?: string | null;
 }) {
   const response = await apiFetch<{
     ok: true;
@@ -354,6 +315,8 @@ export async function completeBackendOnboarding({
       jobTitle,
       website,
       address,
+      feedstockInterests,
+      otherFeedstockInterest: otherFeedstockInterest ?? null,
     }),
   });
 
@@ -363,6 +326,31 @@ export async function completeBackendOnboarding({
     activeRole,
     fallbackRoles ?? (role === "both" ? ["buyer", "seller"] : [activeRole]),
   );
+}
+
+export interface BackendOnboardingRecord {
+  companyId: number;
+  industry: string | null;
+  jobTitle: string | null;
+  website: string | null;
+  feedstockInterests: string[];
+  otherFeedstockInterest: string | null;
+}
+
+/** Saved onboarding preferences for the active company, or null when none exist yet. */
+export async function readBackendOnboarding(token?: string) {
+  try {
+    const response = await apiFetch<{
+      ok: true;
+      onboarding: BackendOnboardingRecord | null;
+    }>("/api/onboarding", { method: "GET", token: token ?? COOKIE_SESSION_TOKEN });
+    return response.onboarding ?? null;
+  } catch (error) {
+    if (error instanceof BackendApiError && error.kind === "not-found") {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function startBackendStripeOnboarding({

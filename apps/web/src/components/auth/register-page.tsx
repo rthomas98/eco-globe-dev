@@ -8,6 +8,8 @@ import { Button, Input } from "@eco-globe/ui";
 import { AuthLayout } from "./auth-layout";
 import { BackendApiError, registerBackendUser } from "@/lib/backend-auth";
 
+const SUPPORT_EMAIL = "support@ecoglobe.com";
+
 type Role = "buyer" | "seller" | "both" | null;
 
 function PasswordInput({
@@ -58,6 +60,7 @@ export function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading">("idle");
   const [error, setError] = useState("");
+  const [existingAccount, setExistingAccount] = useState(false);
 
   const isFormValid =
     role !== null &&
@@ -81,6 +84,7 @@ export function RegisterPage() {
 
     setStatus("loading");
     setError("");
+    setExistingAccount(false);
 
     try {
       await registerBackendUser({
@@ -91,6 +95,10 @@ export function RegisterPage() {
       });
       router.push(`/verify-email?email=${encodeURIComponent(email)}&sent=1`);
     } catch (err) {
+      const duplicate =
+        err instanceof BackendApiError &&
+        (err.status === 409 || /already exists|already registered/i.test(err.message));
+      setExistingAccount(duplicate);
       setError(
         err instanceof BackendApiError
           ? err.message
@@ -193,9 +201,16 @@ export function RegisterPage() {
             onChange={setConfirmPassword}
           />
           {error && (
-            <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {error}
-            </p>
+            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
+              <p>{error}</p>
+              {existingAccount && (
+                <p className="mt-2 font-normal text-red-800">
+                  An account already uses this email.{" "}
+                  <Link href="/login" className="font-bold underline">Sign in</Link> or{" "}
+                  <Link href="/forgot-password" className="font-bold underline">recover your password</Link>.
+                </p>
+              )}
+            </div>
           )}
         </div>
 
@@ -214,12 +229,25 @@ export function RegisterPage() {
           {status === "loading" ? "Creating account..." : buttonLabel}
         </Button>
 
-        <p className="text-base text-neutral-900">
-          Already have an account?{" "}
-          <Link href="/login" className="font-bold underline">
-            Login
-          </Link>
-        </p>
+        <div className="flex flex-col gap-2 text-base text-neutral-900">
+          <p>
+            Already have an account?{" "}
+            <Link href="/login" className="font-bold underline">
+              Login
+            </Link>
+          </p>
+          <p className="text-sm text-neutral-700">
+            Forgot your password?{" "}
+            <Link href="/forgot-password" className="font-bold underline">
+              Recover it here
+            </Link>
+            . Your EcoGlobe account is identified by your work email; if you no longer know which email you used,{" "}
+            <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("EcoGlobe account help")}`} className="font-bold underline">
+              contact account support
+            </a>
+            .
+          </p>
+        </div>
       </div>
     </AuthLayout>
   );

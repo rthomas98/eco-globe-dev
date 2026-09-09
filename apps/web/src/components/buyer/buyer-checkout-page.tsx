@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/components/cart/cart-context";
+import { formatMoney, formatQuantityWithUnitName } from "@/lib/listing-format";
 import {
   Shield,
   Package,
@@ -63,16 +64,6 @@ interface BillingAddress {
   zip: string;
   country: string;
 }
-
-const fallbackProduct = {
-  title: "Pyrolysis Pitch",
-  seller: "GulfStar Chemicals",
-  qty: 20,
-  unitPrice: 50,
-  image: "/products/generated/pyrolysis.png",
-};
-
-const pickupAddress = "1165 Bayou Paul Ln, St Gabriel, Baton rouge, 93264 LA";
 
 /* ─── Reusable section card with header ─── */
 function SectionCard({
@@ -857,16 +848,33 @@ function PaymentPickerModal({
 
 export function BuyerCheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { items } = useCart();
-  const product = items[0]
+  // Checkout is bounded to one persisted listing: the one handed over from the
+  // detail page when present, otherwise the first cart item. No invented product.
+  const requestedId = searchParams.get("listing");
+  // An explicitly requested listing that is not in the cart must never be
+  // substituted with a different item; only an unqualified visit uses the first item.
+  const cartItem = requestedId ? items.find((i) => i.id === requestedId) : items[0];
+  const requestedMissing = !!requestedId && !cartItem;
+  const product = cartItem
     ? {
-        title: items[0].title,
-        seller: items[0].location,
-        qty: items[0].quantity,
-        unitPrice: items[0].price,
-        image: items[0].image,
+        id: cartItem.id,
+        title: cartItem.title,
+        seller: cartItem.sellerName ?? "Seller name unavailable",
+        location: cartItem.location,
+        qty: cartItem.quantity,
+        unitPrice: cartItem.price,
+        currencyCode: cartItem.currencyCode,
+        unit: cartItem.unit,
+        quantityUnit: cartItem.quantityUnit,
+        moq: cartItem.moq,
+        available: cartItem.available,
+        image: cartItem.image,
       }
-    : fallbackProduct;
+    : null;
+  // Pickup happens at the seller's recorded facility for this listing; no address is invented.
+  const pickupAddress = product?.location || "Seller facility (address on file with the listing)";
   const [step, setStep] = useState<Step>("shipping");
   const [shippingType, setShippingType] = useState<ShippingType>(null);
   const [pickup, setPickup] = useState<PickupData>({
@@ -926,8 +934,10 @@ export function BuyerCheckoutPage() {
 
   const deliveryAddress = billings.find((b) => b.id === deliveryAddressId) ?? null;
 
-  const itemSubtotal = product.qty * product.unitPrice;
+  const itemSubtotal = product ? product.qty * product.unitPrice : 0;
   const subtotal = itemSubtotal;
+  const money = (n: number) => (product ? (formatMoney(n, product.currencyCode) ?? "—") : "—");
+  const quantityLabel = product ? (formatQuantityWithUnitName(product.qty, product.quantityUnit) ?? String(product.qty)) : "";
 
   const canContinueShipping =
     (shippingType === "pickup") ||
@@ -955,14 +965,33 @@ export function BuyerCheckoutPage() {
     } else if (step === "success") router.push("/buyer/browse");
   };
 
+  if (!product) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-neutral-100 px-6 text-center">
+        <p className="text-lg font-bold text-neutral-900">{requestedMissing ? "That listing is not in your cart" : "Nothing to check out"}</p>
+        <p className="max-w-[420px] text-sm text-neutral-600">
+          {requestedMissing
+            ? `Listing ${requestedId} was requested but is not in your cart, so nothing else was substituted. Open the listing and use Buy Now again.`
+            : "Choose a listing and use Buy Now or Add to Cart; checkout only shows the real listing you selected."}
+        </p>
+        <div className="flex gap-3">
+          {requestedMissing && <Link href={`/buyer/browse/${encodeURIComponent(requestedId ?? "")}`}><Button variant="secondary" size="md">Open listing</Button></Link>}
+          <Link href="/buyer/browse"><Button variant="primary" size="md">Browse listings</Button></Link>
+        </div>
+      </div>
+    );
+  }
+
   if (step === "success") {
     const isPickup = shippingType === "pickup";
     const summaryRows = isPickup
       ? [
-          { label: "Order ID", value: orderId ?? "" },
+          { label: "Order reference (local, not yet submitted)", value: orderId ?? "" },
           { label: "Seller", value: product.seller },
           { label: "Product", value: product.title },
-          { label: "Quantity", value: `${product.qty} tons` },
+          { label: "Quantity", value: quantityLabel },
+          { label: "Unit price", value: `${money(product.unitPrice)}${product.unit}` },
+          { label: "Item subtotal", value: money(itemSubtotal) },
           { label: "Shipping method", value: "Pickup" },
           { label: "Pickup location", value: pickupAddress },
           { label: "Pickup date", value: pickup.date || "Requested" },
@@ -970,10 +999,12 @@ export function BuyerCheckoutPage() {
           { label: "Status", value: "Awaiting seller confirmation" },
         ]
       : [
-          { label: "Order ID", value: orderId ?? "" },
+          { label: "Order reference (local, not yet submitted)", value: orderId ?? "" },
           { label: "Seller", value: product.seller },
           { label: "Product", value: product.title },
-          { label: "Quantity", value: `${product.qty} tons` },
+          { label: "Quantity", value: quantityLabel },
+          { label: "Unit price", value: `${money(product.unitPrice)}${product.unit}` },
+          { label: "Item subtotal", value: money(itemSubtotal) },
           { label: "Shipping method", value: "Delivery (Quote required)" },
           { label: "Shipping cost", value: "Pending seller quote" },
           { label: "Status", value: "Awaiting shipping quote" },
@@ -1108,12 +1139,15 @@ export function BuyerCheckoutPage() {
               <SectionCard icon={Package} label="Product">
                 <div className="flex items-center gap-4">
                   <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
-                    <img src={product.image} alt="" className="h-full w-full object-cover" />
+                    {product.image ? <img src={product.image} alt="" className="h-full w-full object-cover" /> : null}
                   </div>
                   <div>
                     <p className="text-base font-bold text-neutral-900">{product.title}</p>
                     <p className="text-sm text-neutral-500">
-                      {product.qty} x ${product.unitPrice}
+                      {quantityLabel} × {money(product.unitPrice)}{product.unit} · {product.seller}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      MOQ {formatQuantityWithUnitName(product.moq, product.quantityUnit)}{product.available !== null ? ` · ${formatQuantityWithUnitName(product.available, product.quantityUnit)} available` : ""} · {product.currencyCode}
                     </p>
                   </div>
                 </div>
@@ -1307,7 +1341,7 @@ export function BuyerCheckoutPage() {
             >
               <div className="flex items-center justify-between text-sm">
                 <span className="text-neutral-700">Item subtotal</span>
-                <span className="font-medium text-neutral-900">${itemSubtotal.toFixed(2)}</span>
+                <span className="font-medium text-neutral-900">{money(itemSubtotal)}</span>
               </div>
               {shippingType !== null && (
                 <div className="flex items-center justify-between text-sm">
@@ -1321,7 +1355,7 @@ export function BuyerCheckoutPage() {
 
             <div className="my-4 flex items-center justify-between text-base font-bold">
               <span className="text-neutral-900">Subtotal</span>
-              <span className="text-neutral-900">${subtotal.toFixed(2)}</span>
+              <span className="text-neutral-900">{money(subtotal)} <span className="text-xs font-normal text-neutral-500">excl. shipping</span></span>
             </div>
 
             <Button

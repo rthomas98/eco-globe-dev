@@ -8,9 +8,16 @@ import { Button, Input, Select } from "@eco-globe/ui";
 import {
   BackendApiError,
   completeBackendOnboarding,
+  readBackendOnboarding,
   startBackendStripeOnboarding,
 } from "@/lib/backend-auth";
 import { getUserRoles, useDemoUser } from "@/lib/demo-user";
+import {
+  FeedstockInterestsField,
+  OTHERS_CODE,
+  feedstockInterestsValid,
+  type FeedstockInterestValue,
+} from "@/components/onboarding/feedstock-interests";
 
 type Step =
   | "welcome"
@@ -32,6 +39,7 @@ function OnboardingLayout({
   nextLabel,
   isBusy,
   error,
+  retryable,
 }: {
   step: Step;
   currentStep: number;
@@ -42,6 +50,8 @@ function OnboardingLayout({
   nextLabel?: string;
   isBusy?: boolean;
   error?: string;
+  /** True on the step whose Next performs the backend save, so an error offers Retry. */
+  retryable?: boolean;
 }) {
   const showNav = step !== "welcome" && step !== "success";
   const progress = currentStep / totalSteps;
@@ -84,8 +94,14 @@ function OnboardingLayout({
               Back
             </Button>
             {error ? (
-              <p className="max-w-[420px] rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-700">
+              <p role="alert" className="max-w-[420px] rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-700">
                 {error}
+                {error.includes("sign in") && (
+                  <>
+                    {" "}
+                    <Link href="/login?next=%2Fbuyer%2Fonboarding" className="font-bold underline">Sign in</Link>
+                  </>
+                )}
               </p>
             ) : (
               <div />
@@ -100,7 +116,7 @@ function OnboardingLayout({
                 isBusy ? { opacity: 0.5, cursor: "not-allowed" } : undefined
               }
             >
-              {isBusy ? "Saving..." : (nextLabel ?? "Next")}
+              {isBusy ? "Saving..." : error && retryable && !nextLabel ? "Retry" : (nextLabel ?? "Next")}
             </Button>
             {onSkip ? (
               <Button
@@ -243,24 +259,20 @@ function BusinessStep({
 function ProductsStep({
   data,
   onChange,
+  interests,
+  onInterestsChange,
   onBack,
   onNext,
+  error,
 }: {
   data: Record<string, string>;
   onChange: (k: string, v: string) => void;
+  interests: FeedstockInterestValue;
+  onInterestsChange: (next: FeedstockInterestValue) => void;
   onBack: () => void;
   onNext: () => void;
+  error?: string;
 }) {
-  const feedstockTypes = [
-    { value: "", label: "-- Choose --" },
-    { value: "plastics", label: "Plastics" },
-    { value: "biomass", label: "Biomass & Wood" },
-    { value: "rubber", label: "Rubber & Tire-Derived" },
-    { value: "oils", label: "Oils & Liquid Feedstocks" },
-    { value: "metals", label: "Metals & Alloys" },
-    { value: "paper", label: "Paper & Cardboard" },
-    { value: "textiles", label: "Textiles" },
-  ];
   const restrictionOptions = [
     { value: "", label: "-- Choose --" },
     { value: "none", label: "No restrictions" },
@@ -275,6 +287,7 @@ function ProductsStep({
       currentStep={2}
       onBack={onBack}
       onNext={onNext}
+      error={error}
     >
       <div className="flex flex-1 justify-center overflow-y-auto px-6 py-10">
         <div className="w-full max-w-[600px]">
@@ -285,12 +298,11 @@ function ProductsStep({
             Tell us about the products you&apos;re interested
           </p>
           <div className="flex flex-col gap-6">
-            <Select
+            <FeedstockInterestsField
               label="What type of feedstock are you looking for?"
-              id="feedstockType"
-              options={feedstockTypes}
-              value={data.feedstockType}
-              onChange={(e) => onChange("feedstockType", e.target.value)}
+              value={interests}
+              onChange={onInterestsChange}
+              otherLabel="Describe the feedstock you are looking for"
             />
             <Input
               label="What will you use this feedstock for?"
@@ -382,6 +394,7 @@ function SustainabilityStep({
       onSkip={onSkip}
       isBusy={isBusy}
       error={error}
+      retryable
     >
       <div className="flex flex-1 justify-center px-6 py-10">
         <div className="w-full max-w-[600px]">
@@ -530,7 +543,6 @@ export function BuyerOnboardingPage() {
     website: "",
   });
   const [productData, setProductData] = useState({
-    feedstockType: "",
     usage: "",
     restrictions: "",
     annualVolume: "",
@@ -542,6 +554,11 @@ export function BuyerOnboardingPage() {
     regions: "",
     compliance: "",
   });
+  const [interests, setInterests] = useState<FeedstockInterestValue>({
+    codes: [],
+    otherDescription: "",
+  });
+  const [prefilled, setPrefilled] = useState(false);
 
   const updateBusiness = (k: string, v: string) =>
     setBusinessData((p) => ({ ...p, [k]: v }));
@@ -565,10 +582,49 @@ export function BuyerOnboardingPage() {
     }
   }, []);
 
+  // Recover previously saved onboarding preferences so retries and returning
+  // users never re-enter what the backend already holds.
+  useEffect(() => {
+    if (!user?.token || prefilled) return;
+    let cancelled = false;
+    readBackendOnboarding(user.token)
+      .then((saved) => {
+        if (cancelled || !saved) return;
+        setBusinessData((prev) => ({
+          ...prev,
+          industry: prev.industry || saved.industry || "",
+          jobTitle: prev.jobTitle || saved.jobTitle || "",
+          website: prev.website || saved.website || "",
+        }));
+        setInterests((prev) =>
+          prev.codes.length > 0
+            ? prev
+            : {
+                codes: saved.feedstockInterests ?? [],
+                otherDescription: saved.otherFeedstockInterest ?? "",
+              },
+        );
+      })
+      .catch(() => {
+        // Prefill is best-effort; the form still works without it.
+      })
+      .finally(() => {
+        if (!cancelled) setPrefilled(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.token, prefilled]);
+
   const completeBuyerOnboarding = async () => {
     if (status === "saving") return;
     if (!user?.token) {
-      setError("Please log in again before completing onboarding.");
+      setError("Your session has expired. Please sign in again to continue; your entries stay on this page.");
+      return;
+    }
+    if (!feedstockInterestsValid(interests)) {
+      setError("Describe the feedstock you are looking for when Others is selected.");
+      setStep("products");
       return;
     }
 
@@ -587,14 +643,20 @@ export function BuyerOnboardingPage() {
         jobTitle: businessData.jobTitle,
         website: businessData.website,
         address: businessData.address,
+        feedstockInterests: interests.codes,
+        otherFeedstockInterest: interests.codes.includes(OTHERS_CODE)
+          ? interests.otherDescription.trim()
+          : null,
       });
       setStep("stripe");
     } catch (err) {
-      setError(
-        err instanceof BackendApiError
-          ? err.message
-          : "Unable to save onboarding. Please check the backend and try again.",
-      );
+      if (err instanceof BackendApiError && err.kind === "unauthorized") {
+        setError("Your session has expired. Please sign in again; nothing you entered was lost.");
+      } else if (err instanceof BackendApiError) {
+        setError(`${err.message}${err.retryable ? " Your entries were kept — use Retry." : ""}`);
+      } else {
+        setError("Unable to save onboarding. Your entries were kept — please try again.");
+      }
     } finally {
       setStatus("idle");
     }
@@ -653,8 +715,18 @@ export function BuyerOnboardingPage() {
         <ProductsStep
           data={productData}
           onChange={updateProduct}
+          interests={interests}
+          onInterestsChange={setInterests}
           onBack={() => setStep("business")}
-          onNext={() => setStep("sustainability")}
+          onNext={() => {
+            if (!feedstockInterestsValid(interests)) {
+              setError("Describe the feedstock you are looking for when Others is selected.");
+              return;
+            }
+            setError("");
+            setStep("sustainability");
+          }}
+          error={step === "products" ? error : undefined}
         />
       );
     case "sustainability":

@@ -125,7 +125,11 @@ function getAuthorizedRoles(
       roles.add("buyer");
       roles.add("seller");
     }
-    if (company.memberRoleCode === "admin") roles.add("admin");
+    if (
+      company.memberRoleCode === "admin" &&
+      company.permissionTierCode === "admin_override"
+    )
+      roles.add("admin");
   }
 
   return roles;
@@ -691,7 +695,11 @@ export async function loginWithPassword({
       ? "seller"
       : user.accountStatusCode === "subscribed_buyer"
         ? "buyer"
-        : companies.some((company) => company.memberRoleCode === "admin")
+        : companies.some(
+              (company) =>
+                company.memberRoleCode === "admin" &&
+                company.permissionTierCode === "admin_override",
+            )
           ? "admin"
           : authorizedRoles.has("buyer")
             ? "buyer"
@@ -709,7 +717,8 @@ export async function loginWithPassword({
   const activeCompanyId =
     companies.find((company) =>
       activeRoleCode === "admin"
-        ? company.memberRoleCode === "admin"
+        ? company.memberRoleCode === "admin" &&
+          company.permissionTierCode === "admin_override"
         : company.companyTypeCode === activeRoleCode ||
           company.companyTypeCode === "both",
     )?.id ?? companies[0]?.id;
@@ -773,6 +782,11 @@ export async function getSessionFromToken(token: string | undefined) {
   );
 
   const user = await getSessionUser(session);
+  if (
+    user.activeCompanyId &&
+    !user.companies.some((company) => company.id === user.activeCompanyId)
+  )
+    return undefined;
   if (!getAuthorizedRoles(user, user.companies).has(user.activeRoleCode)) {
     return undefined;
   }

@@ -1,3 +1,7 @@
+import { handleLabRoute } from './lab-routes.js';
+import { handleSampleRoute } from './sample-routes.js';
+import { validateOnboardingPreferences, readOnboardingPreferences } from './onboarding-preferences.js';
+import { handleListingRoute, requirePurchasableListing } from './listing-routes.js';
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   getBearerToken,
@@ -102,6 +106,8 @@ type OnboardingBody = {
   industry?: string;
   jobTitle?: string;
   website?: string;
+  feedstockInterests?: string[];
+  otherFeedstockInterest?: string | null;
   address?: string;
   location?: {
     name?: string;
@@ -127,30 +133,6 @@ type ProfileStatusBody = {
   billingStatusCode?: string;
   payoutStatusCode?: string;
   approvalStatusCode?: string;
-};
-
-type ListingBody = {
-  sellerCompanyId: number;
-  locationId: number;
-  title: string;
-  slug?: string;
-  materialTypeCode: string;
-  quantity: number;
-  quantityUnit: string;
-  minimumOrderQuantity: number;
-  pricePerUnit: number;
-  currencyCode?: string;
-  listingStatusCode?: string;
-  carbonIntensityKgCo2e?: number;
-  description?: string;
-};
-
-type ListingDocumentBody = {
-  listingId?: number;
-  documentTypeCode?: string;
-  fileName: string;
-  fileUrl: string;
-  verificationStatusCode?: string;
 };
 
 type QuoteBody = {
@@ -711,6 +693,10 @@ async function completeOnboarding(
   auth: AuthContext,
 ) {
   const body = await readJsonBody<OnboardingBody>(request);
+  const preferences = validateOnboardingPreferences(body);
+  const industry = getOptionalString(body,"industry",240);
+  const jobTitle = getOptionalString(body,"jobTitle",240);
+  const website = getOptionalString(body,"website",1000);
   const role = normalizeOnboardingRole(getRequiredString(body, "role", 20));
   const requestedActiveRole = getOptionalString(body, "activeRole", 20);
   if (
@@ -721,7 +707,7 @@ async function completeOnboarding(
     throw new ApiError(400, "activeRole must be buyer or seller.");
   }
   const activeRoleCode =
-    requestedActiveRole === "seller" && (role === "seller" || role === "both")
+    (requestedActiveRole === "seller" || (!requestedActiveRole && role === "seller")) && (role === "seller" || role === "both")
       ? "seller"
       : "buyer";
   const companyName = getRequiredString(body, "companyName", 240);
@@ -752,6 +738,9 @@ async function completeOnboarding(
   const locationTypeCode = role === "seller" ? "pickup" : "delivery";
 
   const result = await runInTransaction(async (transaction) => {
+    // Serialize retries, including requests authenticated before the first completion.
+    await queryRowsWithParamsInTransaction(transaction,
+      "SELECT Id FROM dbo.Users WITH (UPDLOCK,HOLDLOCK) WHERE Id=@userId",[intParam("userId",auth.userId)]);
     const companyTypeId = await lookupIdTx(transaction, "CompanyTypes", role);
     const verificationStatusId = await lookupIdTx(
       transaction,
@@ -796,18 +785,23 @@ async function completeOnboarding(
     );
 
     const existingCompany = (
-      await queryRowsWithParamsInTransaction<{ id: number }>(
+      await queryRowsWithParamsInTransaction<{ id: number; roleCode: string; memberStatus: string }>(
         transaction,
         `
-          SELECT TOP (1) c.Id AS id
+          SELECT TOP (1) c.Id AS id,mr.Code AS roleCode,ms.Code AS memberStatus
           FROM dbo.CompanyMembers cm
           INNER JOIN dbo.Companies c ON c.Id = cm.CompanyId
+          INNER JOIN dbo.MemberRoles mr ON mr.Id=cm.MemberRoleId
+          INNER JOIN dbo.AccountStatuses ms ON ms.Id=cm.MemberStatusId
           WHERE cm.UserId = @userId
-          ORDER BY c.Id ASC;
+          ORDER BY CASE WHEN c.Id=@activeCompanyId THEN 0 ELSE 1 END,c.Id ASC;
         `,
-        [intParam("userId", auth.userId)],
+        [intParam("userId", auth.userId),intParam("activeCompanyId",auth.companyId)],
       )
     )[0];
+    if (existingCompany && (existingCompany.memberStatus !== "active" || !["owner","admin"].includes(existingCompany.roleCode))) {
+      throw new ApiError(403,"Only an active company owner or admin may complete onboarding.");
+    }
 
     const companyRows = existingCompany
       ? await queryRowsWithParamsInTransaction<{
@@ -819,7 +813,7 @@ async function completeOnboarding(
             UPDATE dbo.Companies
             SET
               LegalName = @legalName,
-              CompanyTypeId = @companyTypeId,
+              CompanyTypeId = CASE WHEN CompanyTypeId <> @companyTypeId THEN (SELECT Id FROM dbo.CompanyTypes WHERE Code='both') ELSE CompanyTypeId END,
               VerificationStatusId = COALESCE(VerificationStatusId, @verificationStatusId),
               UpdatedByUserId = @updatedByUserId,
               UpdatedAt = SYSUTCDATETIME()
@@ -862,21 +856,7 @@ async function completeOnboarding(
     await queryRowsWithParamsInTransaction(
       transaction,
       `
-        IF EXISTS (SELECT 1 FROM dbo.CompanyMembers WHERE UserId = @userId AND CompanyId = @companyId)
-        BEGIN
-          UPDATE dbo.CompanyMembers
-          SET
-            MemberRoleId = @memberRoleId,
-            PermissionTierId = @permissionTierId,
-            MemberStatusId = @memberStatusId,
-            TransactionApprovalLimit = @transactionApprovalLimit,
-            CanApproveTransactions = 1,
-            CanExecuteTransactions = 1,
-            UpdatedByUserId = @updatedByUserId,
-            UpdatedAt = SYSUTCDATETIME()
-          WHERE UserId = @userId AND CompanyId = @companyId;
-        END
-        ELSE
+        IF NOT EXISTS (SELECT 1 FROM dbo.CompanyMembers WHERE UserId = @userId AND CompanyId = @companyId)
         BEGIN
           INSERT INTO dbo.CompanyMembers (
             UserId, CompanyId, MemberRoleId, PermissionTierId, MemberStatusId,
@@ -911,9 +891,7 @@ async function completeOnboarding(
             UPDATE dbo.BuyerProfiles
             SET
               OnboardingStatusId = @onboardingStatusId,
-              SubscriptionStatusId = @subscriptionStatusId,
-              BillingStatusId = @billingStatusId,
-              ApprovalStatusId = @approvalStatusId,
+
               UpdatedByUserId = @updatedByUserId,
               UpdatedAt = SYSUTCDATETIME()
             WHERE CompanyId = @companyId;
@@ -951,9 +929,7 @@ async function completeOnboarding(
             UPDATE dbo.SellerProfiles
             SET
               OnboardingStatusId = @onboardingStatusId,
-              SubscriptionStatusId = @subscriptionStatusId,
-              PayoutStatusId = @payoutStatusId,
-              ApprovalStatusId = @approvalStatusId,
+
               UpdatedByUserId = @updatedByUserId,
               UpdatedAt = SYSUTCDATETIME()
             WHERE CompanyId = @companyId;
@@ -981,6 +957,22 @@ async function completeOnboarding(
         ],
       );
     }
+
+    await queryRowsWithParamsInTransaction(transaction, `
+      IF NOT EXISTS (SELECT 1 FROM dbo.CompanyOnboardingPreferences WHERE CompanyId=@companyId)
+        INSERT dbo.CompanyOnboardingPreferences(CompanyId) VALUES(@companyId);
+      UPDATE dbo.CompanyOnboardingPreferences SET
+        Industry=CASE WHEN @hasIndustry=1 THEN @industry ELSE Industry END,
+        JobTitle=CASE WHEN @hasJobTitle=1 THEN @jobTitle ELSE JobTitle END,
+        Website=CASE WHEN @hasWebsite=1 THEN @website ELSE Website END,
+        FeedstockInterestsJson=COALESCE(@interests,FeedstockInterestsJson),
+        OtherFeedstockInterest=CASE WHEN @interests IS NOT NULL THEN @other ELSE OtherFeedstockInterest END,
+        UpdatedAt=SYSUTCDATETIME() WHERE CompanyId=@companyId;`,[
+        intParam("companyId",company.id),nvarcharParam("industry",industry,240),nvarcharParam("jobTitle",jobTitle,240),nvarcharParam("website",website,1000),
+        bitParam("hasIndustry","industry" in body),bitParam("hasJobTitle","jobTitle" in body),bitParam("hasWebsite","website" in body),
+        nvarcharParam("interests",preferences.interests === undefined ? undefined : JSON.stringify(preferences.interests),sql.MAX),
+        nvarcharParam("other",preferences.interests?.some(v=>["other","others"].includes(v.toLowerCase())) ? preferences.other ?? undefined : undefined,1000),
+      ]);
 
     const locationRows = await queryRowsWithParamsInTransaction<{
       id: number;
@@ -1652,6 +1644,7 @@ async function createCompanyMember(
 ) {
   await requireCompanyManager(auth, companyId);
   const body = await readJsonBody<MemberBody>(request);
+  if (!auth.isAdmin && normalizeCode(getOptionalString(body,"permissionTierCode",80) ?? "") === "admin_override") throw new ApiError(403,"Only a platform administrator can grant internal admin permissions.");
   const userId = getBodyInt(body, "userId");
   const memberRoleId = await lookupId(
     "MemberRoles",
@@ -1795,7 +1788,7 @@ async function createLocation(
   const longitude = getOptionalNumber(body, "longitude");
   const isDefault = getOptionalBoolean(body, "isDefault") ?? false;
 
-  const rows = await queryRowsWithParams(
+  const rows = await queryRowsWithParams<{id:number}>(
     `
       INSERT INTO dbo.Locations (
         CompanyId, LocationTypeId, Name, AddressLine1, AddressLine2, City, StateProvince,
@@ -1825,7 +1818,14 @@ async function createLocation(
     ],
   );
 
-  sendJson(response, 201, { ok: true, location: rows[0] });
+  const savedLocation = (await queryRowsWithParams(`
+    SELECT l.Id AS id,l.CompanyId AS companyId,lt.Code AS locationTypeCode,l.Name AS name,
+      l.AddressLine1 AS addressLine1,l.AddressLine2 AS addressLine2,l.City AS city,
+      l.StateProvince AS stateProvince,l.PostalCode AS postalCode,l.CountryCode AS countryCode,
+      l.Latitude AS latitude,l.Longitude AS longitude,l.IsDefault AS isDefault
+    FROM dbo.Locations l JOIN dbo.LocationTypes lt ON lt.Id=l.LocationTypeId WHERE l.Id=@id`,
+    [intParam("id",rows[0]?.id)]))[0];
+  sendJson(response, 201, { ok: true, location: savedLocation });
 }
 
 async function updateLocation(
@@ -1893,452 +1893,6 @@ async function deleteLocation(response: ServerResponse, id: number, auth: AuthCo
   }
 
   sendJson(response, 200, { ok: true, location: rows[0] });
-}
-
-async function listListings(response: ServerResponse, url: URL) {
-  const sellerCompanyId = url.searchParams.get("sellerCompanyId")
-    ? Number(url.searchParams.get("sellerCompanyId"))
-    : undefined;
-  const statusCode = url.searchParams.get("statusCode") ?? undefined;
-  const search = url.searchParams.get("search") ?? undefined;
-
-  const listings = await queryRowsWithParams(
-    `
-      SELECT TOP (100)
-        l.Id AS id,
-        l.SellerCompanyId AS sellerCompanyId,
-        c.LegalName AS sellerCompanyName,
-        l.LocationId AS locationId,
-        l.Title AS title,
-        l.Slug AS slug,
-        mt.Code AS materialTypeCode,
-        l.Quantity AS quantity,
-        l.QuantityUnit AS quantityUnit,
-        l.MinimumOrderQuantity AS minimumOrderQuantity,
-        l.PricePerUnit AS pricePerUnit,
-        l.CurrencyCode AS currencyCode,
-        ls.Code AS listingStatusCode,
-        l.CarbonIntensityKgCo2e AS carbonIntensityKgCo2e,
-        l.Description AS description
-      FROM dbo.Listings l
-      INNER JOIN dbo.Companies c ON c.Id = l.SellerCompanyId
-      INNER JOIN dbo.MaterialTypes mt ON mt.Id = l.MaterialTypeId
-      INNER JOIN dbo.ListingStatuses ls ON ls.Id = l.ListingStatusId
-      WHERE (@sellerCompanyId IS NULL OR l.SellerCompanyId = @sellerCompanyId)
-        AND (@statusCode IS NULL OR ls.Code = @statusCode)
-        AND (@search IS NULL OR l.Title LIKE '%' + @search + '%' OR l.Description LIKE '%' + @search + '%')
-      ORDER BY l.Id DESC;
-    `,
-    [
-      intParam(
-        "sellerCompanyId",
-        Number.isInteger(sellerCompanyId) &&
-          sellerCompanyId &&
-          sellerCompanyId > 0
-          ? sellerCompanyId
-          : undefined,
-      ),
-      varcharParam(
-        "statusCode",
-        statusCode ? normalizeCode(statusCode) : undefined,
-        80,
-      ),
-      nvarcharParam("search", search, 160),
-    ],
-  );
-
-  sendJson(response, 200, { ok: true, listings });
-}
-
-async function createListing(
-  request: IncomingMessage,
-  response: ServerResponse,
-  auth: AuthContext,
-) {
-  const body = await readJsonBody<ListingBody>(request);
-  const title = getRequiredString(body, "title", 200);
-  const sellerCompanyId = getBodyInt(body, "sellerCompanyId");
-  const locationId = getBodyInt(body, "locationId");
-  requireCompanyAccess(auth, sellerCompanyId);
-  const location = (await queryRowsWithParams<{ companyId: number }>(
-    "SELECT CompanyId AS companyId FROM dbo.Locations WHERE Id = @locationId;",
-    [intParam("locationId", locationId)],
-  ))[0];
-  if (!location) throw new ApiError(404, "Location not found.");
-  if (location.companyId !== sellerCompanyId) {
-    throw new ApiError(403, "A listing location must belong to the seller company.");
-  }
-  const materialTypeId = await lookupId(
-    "MaterialTypes",
-    getRequiredString(body, "materialTypeCode", 80),
-  );
-  const listingStatusId = await lookupId(
-    "ListingStatuses",
-    getOptionalString(body, "listingStatusCode", 80) ?? "draft",
-  );
-  const slug =
-    getOptionalString(body, "slug", 180) ?? `${slugify(title)}-${Date.now()}`;
-  const quantity = getOptionalNumber(body, "quantity");
-  const minimumOrderQuantity = getOptionalNumber(body, "minimumOrderQuantity");
-  const pricePerUnit = getOptionalNumber(body, "pricePerUnit");
-
-  if (
-    quantity === undefined ||
-    minimumOrderQuantity === undefined ||
-    pricePerUnit === undefined
-  ) {
-    throw new ApiError(
-      400,
-      "quantity, minimumOrderQuantity, and pricePerUnit are required.",
-    );
-  }
-
-  const rows = await queryRowsWithParams(
-    `
-      INSERT INTO dbo.Listings (
-        SellerCompanyId, LocationId, Title, Slug, MaterialTypeId, Quantity, QuantityUnit,
-        MinimumOrderQuantity, PricePerUnit, CurrencyCode, ListingStatusId, CarbonIntensityKgCo2e,
-        Description, CreatedByUserId, UpdatedByUserId
-      )
-      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.Slug AS slug
-      VALUES (
-        @sellerCompanyId, @locationId, @title, @slug, @materialTypeId, @quantity, @quantityUnit,
-        @minimumOrderQuantity, @pricePerUnit, @currencyCode, @listingStatusId, @carbonIntensityKgCo2e,
-        @description, @createdByUserId, @updatedByUserId
-      );
-    `,
-    [
-      intParam("sellerCompanyId", sellerCompanyId),
-      intParam("locationId", locationId),
-      nvarcharParam("title", title, 200),
-      varcharParam("slug", slug, 180),
-      intParam("materialTypeId", materialTypeId),
-      decimalParam("quantity", quantity),
-      varcharParam(
-        "quantityUnit",
-        getRequiredString(body, "quantityUnit", 40),
-        40,
-      ),
-      decimalParam("minimumOrderQuantity", minimumOrderQuantity),
-      moneyParam("pricePerUnit", pricePerUnit),
-      varcharParam(
-        "currencyCode",
-        getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? "USD",
-        3,
-      ),
-      intParam("listingStatusId", listingStatusId),
-      decimalParam(
-        "carbonIntensityKgCo2e",
-        getOptionalNumber(body, "carbonIntensityKgCo2e"),
-      ),
-      nvarcharParam(
-        "description",
-        getOptionalString(body, "description", 4000),
-        4000,
-      ),
-      intParam("createdByUserId", auth.userId),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-
-  sendJson(response, 201, { ok: true, listing: rows[0] });
-}
-
-async function updateListing(
-  request: IncomingMessage,
-  response: ServerResponse,
-  id: number,
-  auth: AuthContext,
-) {
-  await requireResourceCompany(
-    auth,
-    "SELECT SellerCompanyId AS companyId FROM dbo.Listings WHERE Id = @id;",
-    [intParam("id", id)],
-    "Listing",
-  );
-  const body = await readJsonBody<ListingBody>(request);
-  const title = getOptionalString(body, "title", 200);
-  const statusCode = getOptionalString(body, "listingStatusCode", 80);
-  const listingStatusId = statusCode
-    ? await lookupId("ListingStatuses", statusCode)
-    : undefined;
-
-  const rows = await queryRowsWithParams(
-    `
-      UPDATE dbo.Listings
-      SET
-        Title = COALESCE(@title, Title),
-        Quantity = COALESCE(@quantity, Quantity),
-        MinimumOrderQuantity = COALESCE(@minimumOrderQuantity, MinimumOrderQuantity),
-        PricePerUnit = COALESCE(@pricePerUnit, PricePerUnit),
-        ListingStatusId = COALESCE(@listingStatusId, ListingStatusId),
-        Description = COALESCE(@description, Description),
-        UpdatedByUserId = @updatedByUserId,
-        UpdatedAt = SYSUTCDATETIME()
-      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.Slug AS slug, INSERTED.ListingStatusId AS listingStatusId
-      WHERE Id = @id;
-    `,
-    [
-      intParam("id", id),
-      nvarcharParam("title", title, 200),
-      decimalParam("quantity", getOptionalNumber(body, "quantity")),
-      decimalParam(
-        "minimumOrderQuantity",
-        getOptionalNumber(body, "minimumOrderQuantity"),
-      ),
-      moneyParam("pricePerUnit", getOptionalNumber(body, "pricePerUnit")),
-      intParam("listingStatusId", listingStatusId),
-      nvarcharParam(
-        "description",
-        getOptionalString(body, "description", 4000),
-        4000,
-      ),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-
-  if (!rows[0]) {
-    throw new ApiError(404, "Listing not found.");
-  }
-
-  sendJson(response, 200, { ok: true, listing: rows[0] });
-}
-
-async function deleteListing(
-  response: ServerResponse,
-  id: number,
-  auth: AuthContext,
-) {
-  await requireResourceCompany(
-    auth,
-    "SELECT SellerCompanyId AS companyId FROM dbo.Listings WHERE Id = @id;",
-    [intParam("id", id)],
-    "Listing",
-  );
-  const closedStatusId = await lookupId("ListingStatuses", "closed");
-  const rows = await queryRowsWithParams(
-    `
-      UPDATE dbo.Listings
-      SET ListingStatusId = @statusId, UpdatedByUserId = @updatedByUserId, UpdatedAt = SYSUTCDATETIME()
-      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.Slug AS slug, INSERTED.ListingStatusId AS listingStatusId
-      WHERE Id = @id;
-    `,
-    [
-      intParam("id", id),
-      intParam("statusId", closedStatusId),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-
-  if (!rows[0]) {
-    throw new ApiError(404, "Listing not found.");
-  }
-
-  sendJson(response, 200, { ok: true, listing: rows[0] });
-}
-
-async function listListingDocuments(response: ServerResponse, url: URL) {
-  const listingId = url.searchParams.get("listingId")
-    ? Number(url.searchParams.get("listingId"))
-    : undefined;
-
-  const documents = await queryRowsWithParams(
-    `
-      SELECT
-        d.Id AS id,
-        d.ListingId AS listingId,
-        dt.Code AS documentTypeCode,
-        dt.Name AS documentTypeName,
-        d.FileName AS fileName,
-        d.FileUrl AS fileUrl,
-        vs.Code AS verificationStatusCode,
-        vs.Name AS verificationStatusName,
-        d.UploadedByUserId AS uploadedByUserId,
-        d.CreatedAt AS createdAt,
-        d.UpdatedAt AS updatedAt
-      FROM dbo.ListingDocuments d
-      INNER JOIN dbo.DocumentTypes dt ON dt.Id = d.DocumentTypeId
-      INNER JOIN dbo.AccountStatuses vs ON vs.Id = d.VerificationStatusId
-      WHERE (@listingId IS NULL OR d.ListingId = @listingId)
-      ORDER BY d.Id DESC;
-    `,
-    [
-      intParam(
-        "listingId",
-        Number.isInteger(listingId) && listingId && listingId > 0
-          ? listingId
-          : undefined,
-      ),
-    ],
-  );
-
-  sendJson(response, 200, { ok: true, documents });
-}
-
-async function createListingDocument(
-  request: IncomingMessage,
-  response: ServerResponse,
-  auth: AuthContext,
-) {
-  const body = await readJsonBody<ListingDocumentBody>(request);
-  const listingId = getBodyInt(body, "listingId");
-  await requireResourceCompany(
-    auth,
-    "SELECT SellerCompanyId AS companyId FROM dbo.Listings WHERE Id = @listingId;",
-    [intParam("listingId", listingId)],
-    "Listing",
-  );
-  const documentTypeId = await lookupId(
-    "DocumentTypes",
-    getOptionalString(body, "documentTypeCode", 80) ?? "other",
-  );
-  const verificationStatusId = await lookupId(
-    "AccountStatuses",
-    getOptionalString(body, "verificationStatusCode", 80) ??
-      "pending_verification",
-  );
-
-  const rows = await queryRowsWithParams(
-    `
-      INSERT INTO dbo.ListingDocuments (
-        ListingId, DocumentTypeId, FileName, FileUrl, VerificationStatusId,
-        UploadedByUserId, CreatedByUserId, UpdatedByUserId
-      )
-      OUTPUT INSERTED.Id AS id, INSERTED.ListingId AS listingId, INSERTED.FileName AS fileName, INSERTED.FileUrl AS fileUrl
-      VALUES (
-        @listingId, @documentTypeId, @fileName, @fileUrl, @verificationStatusId,
-        @uploadedByUserId, @createdByUserId, @updatedByUserId
-      );
-    `,
-    [
-      intParam("listingId", listingId),
-      intParam("documentTypeId", documentTypeId),
-      nvarcharParam("fileName", getRequiredString(body, "fileName", 240), 240),
-      nvarcharParam("fileUrl", getRequiredString(body, "fileUrl", 1000), 1000),
-      intParam("verificationStatusId", verificationStatusId),
-      intParam("uploadedByUserId", auth.userId),
-      intParam("createdByUserId", auth.userId),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-
-  await writeAuditLog({
-    auth,
-    request,
-    actionTypeCode: "created",
-    recordTypeCode: "listing",
-    recordId: listingId,
-    newValue: rows[0],
-    reason: "Listing document created.",
-  });
-
-  sendJson(response, 201, { ok: true, document: rows[0] });
-}
-
-async function updateListingDocument(
-  request: IncomingMessage,
-  response: ServerResponse,
-  id: number,
-  auth: AuthContext,
-) {
-  await requireResourceCompany(
-    auth,
-    `SELECT l.SellerCompanyId AS companyId
-       FROM dbo.ListingDocuments d
-       INNER JOIN dbo.Listings l ON l.Id = d.ListingId
-       WHERE d.Id = @id;`,
-    [intParam("id", id)],
-    "Listing document",
-  );
-  const body = await readJsonBody<ListingDocumentBody>(request);
-  const documentTypeCode = getOptionalString(body, "documentTypeCode", 80);
-  const verificationStatusCode = getOptionalString(
-    body,
-    "verificationStatusCode",
-    80,
-  );
-  const documentTypeId = documentTypeCode
-    ? await lookupId("DocumentTypes", documentTypeCode)
-    : undefined;
-  const verificationStatusId = verificationStatusCode
-    ? await lookupId("AccountStatuses", verificationStatusCode)
-    : undefined;
-
-  const rows = await queryRowsWithParams(
-    `
-      UPDATE dbo.ListingDocuments
-      SET
-        DocumentTypeId = COALESCE(@documentTypeId, DocumentTypeId),
-        FileName = COALESCE(@fileName, FileName),
-        FileUrl = COALESCE(@fileUrl, FileUrl),
-        VerificationStatusId = COALESCE(@verificationStatusId, VerificationStatusId),
-        UpdatedByUserId = @updatedByUserId,
-        UpdatedAt = SYSUTCDATETIME()
-      OUTPUT INSERTED.Id AS id, INSERTED.ListingId AS listingId, INSERTED.FileName AS fileName, INSERTED.FileUrl AS fileUrl
-      WHERE Id = @id;
-    `,
-    [
-      intParam("id", id),
-      intParam("documentTypeId", documentTypeId),
-      nvarcharParam("fileName", getOptionalString(body, "fileName", 240), 240),
-      nvarcharParam("fileUrl", getOptionalString(body, "fileUrl", 1000), 1000),
-      intParam("verificationStatusId", verificationStatusId),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-
-  if (!rows[0]) throw new ApiError(404, "Listing document not found.");
-
-  await writeAuditLog({
-    auth,
-    request,
-    actionTypeCode: verificationStatusCode ? "status_changed" : "updated",
-    recordTypeCode: "listing",
-    recordId: rows[0].listingId as number,
-    newValue: rows[0],
-    reason: "Listing document updated.",
-  });
-
-  sendJson(response, 200, { ok: true, document: rows[0] });
-}
-
-async function deleteListingDocument(
-  request: IncomingMessage,
-  response: ServerResponse,
-  id: number,
-  auth: AuthContext,
-) {
-  await requireResourceCompany(
-    auth,
-    `SELECT l.SellerCompanyId AS companyId
-       FROM dbo.ListingDocuments d
-       INNER JOIN dbo.Listings l ON l.Id = d.ListingId
-       WHERE d.Id = @id;`,
-    [intParam("id", id)],
-    "Listing document",
-  );
-  const rows = await queryRowsWithParams(
-    `
-      DELETE FROM dbo.ListingDocuments
-      OUTPUT DELETED.Id AS id, DELETED.ListingId AS listingId, DELETED.FileName AS fileName
-      WHERE Id = @id;
-    `,
-    [intParam("id", id)],
-  );
-
-  if (!rows[0]) throw new ApiError(404, "Listing document not found.");
-
-  await writeAuditLog({
-    auth,
-    request,
-    actionTypeCode: "status_changed",
-    recordTypeCode: "listing",
-    recordId: rows[0].listingId as number,
-    previousValue: rows[0],
-    reason: "Listing document deleted.",
-  });
-
-  sendJson(response, 200, { ok: true, document: rows[0] });
 }
 
 async function listQuotes(response: ServerResponse, url: URL, auth: AuthContext) {
@@ -2443,6 +1997,7 @@ async function createQuote(
   );
   const quantity = getOptionalNumber(body, "quantity");
   if (quantity === undefined) throw new ApiError(400, "quantity is required.");
+  await requirePurchasableListing(listingId,quantity,getOptionalString(body,"quantityUnit",40),getOptionalString(body,"currencyCode",3));
 
   const rows = await queryRowsWithParams(
     `
@@ -2500,6 +2055,9 @@ async function updateQuote(
     "Quote",
   );
   const body = await readJsonBody<QuoteBody>(request);
+  const currentQuote = (await queryRowsWithParams<{listingId:number;quantity:number;quantityUnit:string;currencyCode:string}>("SELECT ListingId AS listingId,Quantity AS quantity,QuantityUnit AS quantityUnit,CurrencyCode AS currencyCode FROM dbo.Quotes WHERE Id=@id",[intParam("id",id)]))[0];
+  if (!currentQuote) throw new ApiError(404,"Quote not found.");
+  if ("quantity" in body || "quantityUnit" in body) await requirePurchasableListing(currentQuote.listingId,getOptionalNumber(body,"quantity") ?? currentQuote.quantity,getOptionalString(body,"quantityUnit",40) ?? currentQuote.quantityUnit,currentQuote.currencyCode);
   const quoteStatusCode = getOptionalString(body, "quoteStatusCode", 80);
   const quoteStatusId = quoteStatusCode
     ? await lookupId("QuoteStatuses", quoteStatusCode)
@@ -2675,6 +2233,10 @@ async function createOrder(
     throw new ApiError(404, "Listing not found.");
   }
 
+  if (quote) {
+    if (listingId !== undefined && listingId !== quote.listingId) throw new ApiError(400,"Order listing must match its quote.");
+    await requirePurchasableListing(quote.listingId,quote.quantity,undefined,quote.currencyCode);
+  }
   const totalAmount =
     getOptionalNumber(body, "totalAmount") ??
     (quote ? Number(quote.quantity) * Number(quote.unitPrice) : undefined);
@@ -4423,6 +3985,9 @@ export async function handleApiRoute(
   response: ServerResponse,
   requestUrl: URL,
 ) {
+  if (await handleLabRoute(request,response,requestUrl)) return true;
+  if (await handleSampleRoute(request,response,requestUrl)) return true;
+  if (await handleListingRoute(request,response,requestUrl)) return true;
   const method = ensureMethod(request.method);
 
   if (method === "GET" && requestUrl.pathname === "/api/lookups") {
@@ -4431,6 +3996,7 @@ export async function handleApiRoute(
   }
 
   if (requestUrl.pathname === "/api/onboarding") {
+    if (method === "GET") { await readOnboardingPreferences(response,await requireSessionAuth(request)); return true; }
     if (method === "POST") {
       await completeOnboarding(
         request,
@@ -4608,85 +4174,6 @@ export async function handleApiRoute(
 
     if (method === "DELETE") {
       await deleteLocation(response, id, await requireSessionAuth(request));
-      return true;
-    }
-  }
-
-  if (requestUrl.pathname === "/api/listings") {
-    if (method === "GET") {
-      await listListings(response, requestUrl);
-      return true;
-    }
-
-    if (method === "POST") {
-      await createListing(request, response, await requireSessionAuth(request));
-      return true;
-    }
-  }
-
-  const listingMatch = matchPath(requestUrl.pathname, "/api/listings/:id");
-  if (listingMatch.matched) {
-    const id = parseId(listingMatch.params.id, "Listing ID");
-
-    if (method === "PATCH") {
-      await updateListing(
-        request,
-        response,
-        id,
-        await requireSessionAuth(request),
-      );
-      return true;
-    }
-
-    if (method === "DELETE") {
-      await deleteListing(response, id, await requireSessionAuth(request));
-      return true;
-    }
-  }
-
-  if (requestUrl.pathname === "/api/listing-documents") {
-    if (method === "GET") {
-      await listListingDocuments(response, requestUrl);
-      return true;
-    }
-
-    if (method === "POST") {
-      await createListingDocument(
-        request,
-        response,
-        await requireSessionAuth(request),
-      );
-      return true;
-    }
-  }
-
-  const listingDocumentMatch = matchPath(
-    requestUrl.pathname,
-    "/api/listing-documents/:id",
-  );
-  if (listingDocumentMatch.matched) {
-    const id = parseId(
-      listingDocumentMatch.params.id,
-      "Listing document ID",
-    );
-
-    if (method === "PATCH") {
-      await updateListingDocument(
-        request,
-        response,
-        id,
-        await requireSessionAuth(request),
-      );
-      return true;
-    }
-
-    if (method === "DELETE") {
-      await deleteListingDocument(
-        request,
-        response,
-        id,
-        await requireSessionAuth(request),
-      );
       return true;
     }
   }

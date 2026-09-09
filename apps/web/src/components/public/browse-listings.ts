@@ -1,3 +1,12 @@
+/**
+ * Marketplace listing view model shared by browse, detail, favorites, map
+ * and carbon-calculator surfaces.
+ *
+ * Instances are built from backend records via `toListing` in
+ * `@/lib/listing-view`. There is no static dataset: every consumer reads
+ * persisted listings through the backend API.
+ */
+
 export type Frequency =
   | "One-time"
   | "Weekly"
@@ -8,6 +17,17 @@ export type Frequency =
   | "Quarterly"
   | "Yearly";
 
+export const FREQUENCY_OPTIONS: Frequency[] = [
+  "One-time",
+  "Weekly",
+  "Biweekly",
+  "Monthly",
+  "Bimonthly",
+  "Twice a year",
+  "Quarterly",
+  "Yearly",
+];
+
 export type ListingState = "Solid" | "Liquid" | "Gas";
 
 export interface ListingSpec {
@@ -15,417 +35,77 @@ export interface ListingSpec {
   value: string;
 }
 
+export interface ListingDocumentRef {
+  id: number;
+  typeCode: string;
+  fileName: string;
+  /** Same-origin proxy URL for download. */
+  url: string;
+  contentType?: string | null;
+  byteLength?: number | null;
+  verificationStatusCode?: string | null;
+}
+
 export interface Listing {
+  /** Canonical backend id as a string, used in routes. */
   id: string;
+  backendId: number;
+  slug: string;
   title: string;
+  /** "City, Region" derived from the persisted location; empty when unknown. */
   location: string;
+  /** Distance is resolved against the viewer at render time; "—" when unknown. */
   distance: string;
+  /** Formatted MOQ with explicit unit, or "—" when not recorded. */
   moq: string;
+  moqNum: number | null;
+  /** Formatted carbon intensity or "—". */
   co2: string;
-  price: string;
-  unit: string;
-  image: string;
-  tags: string[];
-  lng: number;
-  lat: number;
-  category: string;
-  grade: "Standard" | "Great";
-  priceNum: number;
-  co2Num: number;
-  qtyNum: number;
+  co2Num: number | null;
   hasCarbonData: boolean;
-  // New: common-base attributes per product brief.
+  /** Formatted price label, or "Price unavailable" when not recorded. */
+  price: string;
+  priceNum: number | null;
+  /** True when the seller recorded a price of exactly zero. */
+  priceIsZero: boolean;
+  currencyCode: string;
+  /** "/t", "/kg", "/unit"… */
+  unit: string;
+  quantityUnit: string;
+  qtyNum: number | null;
+  /** Primary photo URL, or null when the seller has not uploaded one. */
+  image: string | null;
+  images: string[];
+  tags: string[];
+  lng: number | null;
+  lat: number | null;
+  category: string;
+  materialTypeCode: string;
+  grade: string | null;
   state: ListingState;
   quality?: string;
   composition?: string;
   availabilityFrom?: string;
   availabilityTo?: string;
-  frequency: Frequency;
+  frequency: Frequency | null;
   additionalSpecs?: ListingSpec[];
   sdsUrl?: string;
-  sellerFacilityId?: string;
+  sdsDocument?: ListingDocumentRef;
+  documents: ListingDocumentRef[];
+  sellerCompanyId: number;
+  sellerCompanyName: string | null;
+  sellerVerified: boolean;
+  sellerLocationId: number | null;
+  statusCode: string;
+  description: string | null;
+  claims: string[];
+  sustainabilityNotes?: string;
+  specifications: Record<string, string>;
 }
 
-type RawListing = Omit<Listing, "state" | "frequency"> &
-  Partial<Pick<Listing, "state" | "frequency">>;
-
-const STATE_OVERRIDES: Record<string, ListingState> = {
-  // Liquids
-  pyrolysis: "Liquid",
-  tar: "Liquid",
-  "epoxy-offspec": "Liquid",
-  "dark-viscous-liquids": "Liquid",
-  "used-cooking-oil": "Liquid",
-};
-
-const RAW_LISTINGS: RawListing[] = [
-  {
-    id: "pyrolysis",
-    title: "Pyrolysis Pitch",
-    location: "Houston, Texas",
-    distance: "2.1 mi",
-    moq: "1000 tons",
-    co2: "300 kg CO₂e",
-    price: "$50",
-    unit: "/ton",
-    image: "/products/generated/pyrolysis.png",
-    tags: ["pyrolysis", "certified feedstocks", "low co2 feedstocks"],
-    lng: -95.3698,
-    lat: 29.7604,
-    category: "Refinery Byproducts",
-    grade: "Great",
-    priceNum: 50,
-    co2Num: 300,
-    qtyNum: 12,
-    hasCarbonData: true,
-  },
-  {
-    id: "epoxy-offspec",
-    title: "Epoxy Off-Spec",
-    location: "Houston, Texas",
-    distance: "—",
-    moq: "2 tons",
-    co2: "280 kg CO₂e",
-    price: "$50",
-    unit: "/ton",
-    image: "/products/generated/epoxy-offspec.png",
-    tags: ["epoxy", "off spec", "chemical byproducts", "liquid"],
-    lng: -95.3698,
-    lat: 29.7604,
-    category: "Chemical Byproducts",
-    grade: "Standard",
-    priceNum: 50,
-    co2Num: 280,
-    qtyNum: 16,
-    hasCarbonData: true,
-  },
-  {
-    id: "bagasse",
-    title: "Shredded, Refined Sugar Bagasse",
-    location: "Port Allen, Louisiana",
-    distance: "3 mi",
-    moq: "200 tons",
-    co2: "300 kg CO₂e",
-    price: "$48",
-    unit: "/ton",
-    image: "/products/generated/bagasse.png",
-    tags: ["biomass", "certified", "low co2", "industrial by products"],
-    lng: -91.2103,
-    lat: 30.4524,
-    category: "Industrial Byproducts",
-    grade: "Standard",
-    priceNum: 48,
-    co2Num: 300,
-    qtyNum: 15,
-    hasCarbonData: true,
-  },
-  {
-    id: "polymer",
-    title: "Scrap Polymer Blend with Impurities",
-    location: "Houston, Texas",
-    distance: "3 mi",
-    moq: "1000 tons",
-    co2: "300 kg CO₂e",
-    price: "€60",
-    unit: "/ton",
-    image: "/products/generated/polymer.png",
-    tags: ["polymer", "industrial by products", "plastics"],
-    lng: -91.2343,
-    lat: 30.2893,
-    category: "Industrial Byproducts",
-    grade: "Standard",
-    priceNum: 60,
-    co2Num: 300,
-    qtyNum: 25,
-    hasCarbonData: true,
-  },
-  {
-    id: "black-gypsum",
-    title: "Black Gypsum",
-    location: "Houston, Texas",
-    distance: "3.4 mi",
-    moq: "3 tons",
-    co2: "240 kg CO₂e",
-    price: "$50",
-    unit: "/ton",
-    image: "/products/generated/black-gypsum.png",
-    tags: ["gypsum", "chemical byproducts", "industrial by products"],
-    lng: -95.2698,
-    lat: 29.7604,
-    category: "Industrial Byproducts",
-    grade: "Standard",
-    priceNum: 50,
-    co2Num: 240,
-    qtyNum: 30,
-    hasCarbonData: true,
-  },
-  {
-    id: "stover-walker",
-    title: "Harvested and Baled Corn Stover",
-    location: "Rotterdam, Netherlands",
-    distance: "2.5 mi",
-    moq: "3 tons",
-    co2: "300 kg CO₂e",
-    price: "$42",
-    unit: "/ton",
-    image: "/products/generated/stover-walker.png",
-    tags: ["biomass", "certified feedstocks", "low co2 feedstocks"],
-    lng: 4.4777,
-    lat: 51.9244,
-    category: "Biomass & Wood",
-    grade: "Standard",
-    priceNum: 42,
-    co2Num: 300,
-    qtyNum: 30,
-    hasCarbonData: true,
-  },
-  {
-    id: "wood-pellets",
-    title: "Biomass Wood Pellets, Grade A",
-    location: "Guadalajara, Mexico",
-    distance: "4.2 mi",
-    moq: "5 tons",
-    co2: "210 kg CO₂e",
-    price: "$120",
-    unit: "/ton",
-    image: "/products/generated/wood-pellets.png",
-    tags: ["biomass", "certified feedstocks", "low co2 feedstocks"],
-    lng: -103.3496,
-    lat: 20.6597,
-    category: "Biomass & Wood",
-    grade: "Great",
-    priceNum: 120,
-    co2Num: 210,
-    qtyNum: 50,
-    hasCarbonData: true,
-  },
-  {
-    id: "rice-husk",
-    title: "Industrial By-Product: Rice Husk",
-    location: "Sao Paulo, Brazil",
-    distance: "5.8 mi",
-    moq: "10 tons",
-    co2: "180 kg CO₂e",
-    price: "$28",
-    unit: "/ton",
-    image: "/products/generated/rice-husk.png",
-    tags: ["biomass", "industrial by products", "low co2 feedstocks"],
-    lng: -46.6333,
-    lat: -23.5505,
-    category: "Industrial Byproducts",
-    grade: "Standard",
-    priceNum: 28,
-    co2Num: 180,
-    qtyNum: 80,
-    hasCarbonData: true,
-  },
-  {
-    id: "wood-chips",
-    title: "Certified Organic Wood Chips",
-    location: "Baton Rouge, Louisiana",
-    distance: "1.8 mi",
-    moq: "2 tons",
-    co2: "150 kg CO₂e",
-    price: "$95",
-    unit: "/ton",
-    image: "/products/generated/wood-chips.png",
-    tags: ["biomass", "certified feedstocks"],
-    lng: -91.1403,
-    lat: 30.4515,
-    category: "Biomass & Wood",
-    grade: "Great",
-    priceNum: 95,
-    co2Num: 150,
-    qtyNum: 20,
-    hasCarbonData: true,
-  },
-  {
-    id: "tire-crumb",
-    title: "Recycled Tire Crumb Rubber",
-    location: "Nagoya, Japan",
-    distance: "7.2 mi",
-    moq: "6 tons",
-    co2: "420 kg CO₂e",
-    price: "$180",
-    unit: "/ton",
-    image: "/products/generated/tire-crumb.png",
-    tags: ["rubber", "tire-derived", "industrial by products"],
-    lng: 136.9066,
-    lat: 35.1815,
-    category: "Rubber & Tire-Derived",
-    grade: "Standard",
-    priceNum: 180,
-    co2Num: 420,
-    qtyNum: 35,
-    hasCarbonData: true,
-  },
-  {
-    id: "used-cooking-oil",
-    title: "Refined Used Cooking Oil (UCO)",
-    location: "Rotterdam, Netherlands",
-    distance: "8.5 mi",
-    moq: "4 tons",
-    co2: "540 kg CO₂e",
-    price: "$550",
-    unit: "/ton",
-    image: "/products/generated/used-cooking-oil.png",
-    tags: ["oils", "certified feedstocks"],
-    lng: 4.4777,
-    lat: 51.9244,
-    category: "Oils & Liquid Feedstocks",
-    grade: "Great",
-    priceNum: 550,
-    co2Num: 540,
-    qtyNum: 18,
-    hasCarbonData: true,
-  },
-  {
-    id: "used-dry-transformer",
-    title: "Used Dry Transformer",
-    location: "Houston, Texas",
-    distance: "5.4 mi",
-    moq: "50 units",
-    co2: "—",
-    price: "$800",
-    unit: "/unit",
-    image: "/products/generated/used-dry-transformer.png",
-    tags: ["used products", "industrial by products"],
-    lng: -95.3698,
-    lat: 29.7604,
-    category: "Used products",
-    grade: "Standard",
-    priceNum: 800,
-    co2Num: 0,
-    qtyNum: 4,
-    hasCarbonData: false,
-  },
-  {
-    id: "hydrochar",
-    title: "Hydrochar",
-    location: "Rotterdam, Netherlands",
-    distance: "—",
-    moq: "200 tons",
-    co2: "120 kg CO₂e",
-    price: "€75",
-    unit: "/ton",
-    image: "/products/generated/hydrochar.png",
-    tags: ["industrial by products", "certified feedstocks", "low co2 feedstocks"],
-    lng: 4.4777,
-    lat: 51.9244,
-    category: "Industrial Byproducts",
-    grade: "Great",
-    priceNum: 75,
-    co2Num: 120,
-    qtyNum: 22,
-    hasCarbonData: true,
-  },
-  {
-    id: "used-pallets",
-    title: "Used Pallets",
-    location: "Denham Springs, Louisiana",
-    distance: "2.3 mi",
-    moq: "100 tons",
-    co2: "—",
-    price: "$15",
-    unit: "/ton",
-    image: "/products/generated/used-pallets.png",
-    tags: ["used products"],
-    lng: -90.9559,
-    lat: 30.4844,
-    category: "Used products",
-    grade: "Standard",
-    priceNum: 15,
-    co2Num: 0,
-    qtyNum: 60,
-    hasCarbonData: false,
-  },
-  {
-    id: "biochar",
-    title: "Biochar",
-    location: "Guadalajara, Mexico",
-    distance: "3.7 mi",
-    moq: "3 tons",
-    co2: "85 kg CO₂e",
-    price: "$300",
-    unit: "/ton",
-    image: "/products/generated/biochar.png",
-    tags: ["biomass", "certified feedstocks", "low co2 feedstocks"],
-    lng: -103.3496,
-    lat: 20.6597,
-    category: "Biomass & Wood",
-    grade: "Great",
-    priceNum: 300,
-    co2Num: 85,
-    qtyNum: 28,
-    hasCarbonData: true,
-  },
-  {
-    id: "white-label",
-    title: "White Label",
-    location: "Jubail, Saudi Arabia",
-    distance: "4.2 mi",
-    moq: "5 tons",
-    co2: "210 kg CO₂e",
-    price: "$120",
-    unit: "/ton",
-    image: "/products/generated/white-label.png",
-    tags: ["industrial by products", "certified feedstocks"],
-    lng: 49.6583,
-    lat: 27.0046,
-    category: "Industrial Byproducts",
-    grade: "Standard",
-    priceNum: 120,
-    co2Num: 210,
-    qtyNum: 40,
-    hasCarbonData: true,
-  },
-  {
-    id: "tar",
-    title: "Tar",
-    location: "Houston, Texas",
-    distance: "—",
-    moq: "5 tons",
-    co2: "360 kg CO₂e",
-    price: "$50",
-    unit: "/ton",
-    image: "/products/generated/tar.png",
-    tags: ["tar", "dark liquids", "refinery byproducts", "chemical byproducts"],
-    lng: -95.3698,
-    lat: 29.7604,
-    category: "Refinery Byproducts",
-    grade: "Standard",
-    priceNum: 50,
-    co2Num: 360,
-    qtyNum: 35,
-    hasCarbonData: true,
-  },
-  {
-    id: "dark-viscous-liquids",
-    title: "Dark Viscous Liquid Tonnels",
-    location: "Jubail, Saudi Arabia",
-    distance: "—",
-    moq: "10 tons",
-    co2: "410 kg CO₂e",
-    price: "$620",
-    unit: "/ton",
-    image: "/products/generated/dark-viscous-liquids.png",
-    tags: ["dark liquids", "tonnels", "refinery byproducts", "chemical byproducts"],
-    lng: 49.6583,
-    lat: 27.0046,
-    category: "Refinery Byproducts",
-    grade: "Standard",
-    priceNum: 620,
-    co2Num: 410,
-    qtyNum: 44,
-    hasCarbonData: true,
-  },
-];
-
-export const listings: Listing[] = RAW_LISTINGS.map((l) => ({
-  ...l,
-  state: l.state ?? STATE_OVERRIDES[l.id] ?? "Solid",
-  frequency: l.frequency ?? "Monthly",
-  availabilityFrom: l.availabilityFrom ?? "01/01/2026",
-  availabilityTo: l.availabilityTo ?? "12/31/2026",
-  sdsUrl: l.sdsUrl ?? `/docs/${l.id}-sds.pdf`,
-}));
+/** Listings with coordinates can be pinned on a map. */
+export function hasCoordinates(
+  listing: Listing,
+): listing is Listing & { lng: number; lat: number } {
+  return typeof listing.lng === "number" && typeof listing.lat === "number";
+}

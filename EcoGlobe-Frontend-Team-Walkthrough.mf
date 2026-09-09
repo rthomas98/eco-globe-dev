@@ -1,0 +1,345 @@
+# EcoGlobe Frontend Team Walkthrough
+
+## Purpose
+
+This guide gives the team a structured frontend walkthrough of EcoGlobe from the Admin, Buyer, and Seller roles.
+
+The clearest overall product story is:
+
+Seller lists material → Buyer discovers and purchases it → Logistics and contracts fulfill it → Escrow settles it → Admin governs and audits the complete lifecycle.
+
+---
+
+## Preview Access
+
+### Admin
+
+- URL: https://eco-globe-dev-admin.vercel.app/login?next=%2Fadmin%2Fsales
+- Email: demo.admin@ecoglobe.com
+- Password: EcoGlobe!2026
+
+### Buyer
+
+- URL: https://eco-globe-dev-web.vercel.app/
+- Email: demo.buyer@ecoglobe.com
+- Password: Any password may be used in the frontend preview.
+
+### Seller
+
+- URL: https://eco-globe-dev-web.vercel.app/
+- Email: demo.seller@ecoglobe.com
+- Password: Any password may be used in the frontend preview.
+
+Open the Admin and marketplace Vercel development links in separate browser tabs. Buyer and Seller use the same marketplace link with their appropriate demo login.
+
+---
+
+## Admin Walkthrough
+
+### 1. Sales
+
+1. Open Sales from the sidebar.
+2. Select a transaction row.
+3. Review the order, buyer, seller, escrow, documents, and activity timeline.
+
+Talking point: Admin can trace the complete commercial record from one workspace.
+
+### 2. Partner Network
+
+1. Open Partner Network.
+2. Click View partner.
+3. Walk through relationship health, certification, trades, compliance, notes, and approval actions.
+
+Talking point: EcoGlobe supports customers, sellers, sponsors, assurers, and logistics providers as one connected network.
+
+### 3. Logistics and Delivery Tracking
+
+1. Open Logistics.
+2. Select a shipment.
+3. Review carrier quotes, cost, carbon impact, route, and fulfillment controls.
+4. Continue to Delivery Tracking.
+5. Show the live map, milestones, delivery confirmation, and proof-of-delivery controls.
+
+Talking point: Admin can monitor both commercial and physical fulfillment in real time.
+
+### 4. Contracts, E-signatures, and Documents
+
+1. Open Contracts.
+2. Click Create contract.
+3. Select an existing contract.
+4. Demonstrate Save notes, Request redline, and Send for signature.
+5. Open E-signatures to show the signature envelope workflow.
+6. Open Documents to show the connected document trail.
+
+Talking point: Negotiation, signatures, documents, escrow, and milestones remain connected to the transaction.
+
+### 5. Finance
+
+1. Open Accounting → Transactions.
+2. Select TX-50021.
+3. Open Payments and select a payment record.
+4. Open Escrow.
+5. Click Reconcile providers.
+6. Filter the queue to Disputed.
+7. Open ESC-50018.
+8. Show release controls, evidence, and audit history.
+
+Talking point: EcoGlobe protects funds through delivery confirmation and evidence-driven dispute handling.
+
+### 6. Reports
+
+1. Open Reports → Sales.
+2. Change the reporting period.
+3. Select a chart bar.
+4. Filter the records.
+5. Click Export report.
+6. Briefly show Products, Escrow, and Carbon reports.
+
+Talking point: Reports connect marketplace value, product demand, settlement performance, and environmental impact.
+
+### 7. Governance
+
+#### Moderation
+
+1. Open Operations → Moderation.
+2. Filter the review queue.
+3. Open MOD-24031.
+4. Show Overview, Evidence, Checks, and Activity.
+5. Demonstrate Request evidence, Reject, and Approve actions.
+
+#### KYC
+
+1. Open Operations → KYC.
+2. Open KYC-9211.
+3. Show identity, ownership, representative, banking, and screening checks.
+
+#### Disputes
+
+1. Open Operations → Disputes.
+2. Open DSP-2041.
+3. Show buyer, seller, shipment, transaction, escrow, evidence, and resolution controls.
+
+#### Audit
+
+1. Open Operations → Audit log.
+2. Search or filter the audit stream.
+3. Open AUD-90031.
+4. Show Event context, Changes, Security, and Integrity.
+5. Click Verify this event.
+
+Talking point: Every sensitive platform action has actor, resource, field-change, session, request, and integrity context.
+
+### Optional Admin Areas
+
+- Map Intelligence
+- Asset Verification
+- Blockchain Traceability
+- Smart Contracts
+- Analytics
+- Recommendations
+- Language
+- National Expansion
+- Mobile Access
+- Video Demo Center
+- Settings
+
+---
+
+## Buyer Walkthrough
+
+### 1. Search the Marketplace
+
+1. Open Search.
+2. Search for a material such as “gypsum.”
+3. Change the search radius.
+4. Open Filters and apply one or more criteria.
+5. Select a product card to open its full details.
+
+Talking point: Buyers can search by material, location, availability, price, grade, and carbon characteristics.
+
+### 2. Product Details and Carbon Analysis
+
+1. Review the material details, seller, specifications, location, and price.
+2. Click Save if desired.
+3. Click Open Carbon Calculator.
+4. Review or compare transportation scenarios.
+5. Close the calculator and click Buy Now.
+6. Open checkout to show pickup, delivery, and escrow-backed purchasing options.
+
+Talking point: Buyers can compare the commercial and environmental impact before committing to an order.
+
+### 3. My Orders
+
+1. Open My Orders.
+2. Select an order.
+3. Use View details or Track order.
+4. Show the lifecycle from order placement through escrow and delivery confirmation.
+5. Demonstrate Confirm delivery on an eligible order.
+
+Talking point: The buyer sees one timeline across the seller, carrier, documents, escrow, and delivery.
+
+### 4. Logistics
+
+1. Open Logistics.
+2. Click Calculate shipping.
+3. Enter or select origin, destination, quantity, and optimization preference.
+4. Click Compare carrier quotes.
+5. Select a quote.
+6. Click Book selected quote.
+7. Demonstrate delivery confirmation for an eligible shipment.
+
+Talking point: Buyers can compare cost, speed, on-time performance, and carbon impact before booking.
+
+### 5. Contracts
+
+1. Open Contracts.
+2. Click Create contract.
+3. Select an existing contract.
+4. Demonstrate Save notes.
+5. Click Request redline.
+6. Click Send for signature.
+
+Talking point: Recurring supply relationships can move from negotiation to signatures and escrow-backed milestones.
+
+### 6. Verification and Partners
+
+1. Open Verification.
+2. Click View requirements on a verification section.
+3. Click Submit document.
+4. Open Partners.
+5. Click View partner.
+
+Talking point: Buyers can understand exactly what is required for account, financial, and sustainability approval.
+
+### 7. Accounting
+
+1. Open Accounting → Transactions.
+2. Open a transaction detail.
+3. Open Payments.
+4. Open Escrow and select an escrow record.
+5. Review its release conditions and activity.
+
+### Optional Buyer Areas
+
+- Saved products
+- Requests for Quote
+- Delivery Tracking
+- Map Intelligence
+- Asset Verification
+- Blockchain Traceability
+- Smart Contracts
+- Analytics
+- Recommendations
+- Language
+- National Expansion
+- Mobile Access
+- Video Demo Center
+- Account and Help
+
+---
+
+## Seller Walkthrough
+
+### 1. Listings
+
+1. Open Listings.
+2. Switch between List View and Card View.
+3. Open a listing.
+4. Show Overview, Documents, Activity, map, specifications, and carbon data.
+5. Click Add Listing.
+6. Demonstrate the multi-step listing creation workflow.
+7. Use Save as Draft if the team does not want to complete every field.
+
+Talking point: Sellers can create a defensible material listing with specifications, evidence, availability, location, and carbon data.
+
+### 2. Sales
+
+1. Open Sales.
+2. Find an order with the Send quote action.
+3. Complete the quote modal and click Send Quote.
+4. Find an order with Upload Bill of Lading (BOL).
+5. Demonstrate the upload workflow.
+6. Open a sales row to show its full buyer and order lifecycle.
+
+Talking point: Sellers move from buyer inquiry to quote, fulfillment, documentation, and settlement in one workflow.
+
+### 3. Logistics
+
+1. Open Logistics.
+2. Select a shipment.
+3. Review carrier, cost, ETA, carbon, and pickup options.
+4. Demonstrate Send shipping quote.
+5. Demonstrate Upload Bill of Lading.
+6. Demonstrate Mark dispatched.
+7. Show the recommended lower-carbon carrier option.
+
+Talking point: The seller can coordinate fulfillment while keeping the buyer and admin informed.
+
+### 4. Contracts
+
+1. Open Contracts.
+2. Select an agreement.
+3. Demonstrate Redline sent.
+4. Demonstrate Signature requested.
+5. Demonstrate Renewal offered.
+
+### 5. Verification and Documentation
+
+1. Open Verification.
+2. Open Asset Verification.
+3. Open Documents.
+4. Open E-signatures.
+
+Talking point: Seller evidence supports listings, buyer confidence, contracts, delivery, and payouts.
+
+### 6. Accounting
+
+1. Open Accounting → Transactions.
+2. Open Payments.
+3. Open Escrow and select an escrow record.
+4. Explain when seller funds become available.
+5. Open Bank Account to show payout readiness.
+
+### 7. Reports and Intelligence
+
+1. Open Reports → Sales.
+2. Briefly show Product and Carbon reporting.
+3. Open Carbon Calculator.
+4. Finish with Analytics or Recommendations.
+
+### Optional Seller Areas
+
+- Delivery Tracking
+- Partner Network
+- Disputes
+- Blockchain Traceability
+- Smart Contracts
+- Language
+- National Expansion
+- Mobile Access
+- Video Demo Center
+
+---
+
+## Presenter Notes
+
+1. Open the Admin and marketplace Vercel development links in separate browser tabs.
+2. Buyer and Seller use the marketplace link with the appropriate demo login for each walkthrough.
+3. Many actions intentionally update frontend demonstration state. Avoid refreshing immediately after an action because some confirmations reset on reload.
+4. Upload buttons can open the operating system’s file picker. Have one harmless sample PDF ready or cancel the picker.
+5. Export buttons may create local downloads.
+6. Maps depend on the configured Mapbox preview token.
+7. Keep Settings, password reset, and administrator-role changes as optional material rather than part of the main product story.
+8. Prioritize the main transaction story before exploring every optional sidebar page.
+
+---
+
+## Condensed Walkthrough Version
+
+For a condensed presentation:
+
+1. Seller: Listings → Sales → Logistics.
+2. Buyer: Search → Product Details → Carbon Calculator → Logistics → Orders.
+3. Admin: Partner Network → Logistics → Escrow → Moderation → Disputes → Audit.
+
+This shorter route still demonstrates EcoGlobe’s complete marketplace, fulfillment, settlement, governance, and accountability story.

@@ -1,0 +1,11 @@
+{
+  "base": "01a0e593ea42458a78186791bc307ee7e8179158",
+  "candidate": "dpl_Gcc4S5zUGSgHfmAVwYnrjXBvo2MF",
+  "files": {
+    "apps/web/src/components/public/browse-listings.ts": "ba10ce6346c6b523d749a23fb0789e2b5905f09603df90c7d3a1b894aea6ee84",
+    "apps/web/src/lib/api-listings.ts": "43f9167e74b39f58ecde9b1a600414b24bc4ecaf1b3ab125d59b1f62f873dfb9",
+    "apps/web/src/components/public/product-detail-data.ts": "dc1fdd27a0d8accb0f790074a47933b85ebd0370fe8ab42e62d886a54eb239a6",
+    "apps/web/src/components/public/product-detail-page.tsx": "f51f0a1239b8929f3c47898ec7ea11d0dc29b6c88a59050e96fb46ba90c3bff4",
+    "apps/web/src/components/buyer/buyer-product-detail-page.tsx": "71c306380d7d9d9b2444e5b5c5f9dea85992ec3c5ff54a5c2a0d82d6faaa3283"
+  }
+}

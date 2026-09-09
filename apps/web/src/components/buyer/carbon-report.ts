@@ -10,6 +10,21 @@ import {
 } from "@/lib/carbon-emissions";
 import type { Listing } from "@/components/public/browse-listings";
 import type { Facility } from "@/lib/demo-user";
+import { formatMoney, describeUnit } from "@/lib/listing-format";
+import type { ValueRecoveryResult } from "@/lib/value-recovery";
+
+export interface ReportValueRecovery {
+  role: "seller" | "buyer";
+  currencyCode: string;
+  quantityUnit: string;
+  /** Quantity in the listing's pricing unit. */
+  quantity: number;
+  /** Explicit tonnes-per-unit basis when the listing is unit-priced. */
+  tonnesPerUnit: number | null;
+  listingPricePerUnit: number;
+  inputs: Record<string, number>;
+  result: ValueRecoveryResult;
+}
 
 export interface ReportScenario {
   name: string;
@@ -23,6 +38,8 @@ export interface ReportScenario {
   emissionTons: number;
   facilityLabel?: string;
   manualAddress?: string;
+  /** Value-recovery estimate for this scenario, when one was completed. */
+  valueRecovery?: ReportValueRecovery | null;
 }
 
 export interface ReportInput {
@@ -110,6 +127,43 @@ function renderReportHtml(input: ReportInput): string {
       ["Feedstock state", s.state],
       ["Transport mode", s.mode ? TRANSPORT_LABEL[s.mode] : "—"],
     ];
+  });
+
+  const valueRows = scenarios.flatMap((s, i) => {
+    const vr = s.valueRecovery;
+    if (!vr) return [];
+    const unit = describeUnit(vr.quantityUnit);
+    const money = (n: number) => formatMoney(n, vr.currencyCode) ?? "—";
+    const rows: string[][] = [
+      [`<strong>${escapeHtml(`Scenario ${i + 1} — ${s.name}`)}</strong>`, ""],
+      ["Estimate type", vr.role === "seller" ? "Seller value recovery" : "Buyer savings"],
+      ["Currency", vr.currencyCode],
+      ["Quantity", `${vr.quantity.toLocaleString("en-US", { maximumFractionDigits: 3 })} ${unit.plural}`],
+    ];
+    if (vr.tonnesPerUnit !== null && !unit.isMass) {
+      rows.push(["Weight basis", `${vr.tonnesPerUnit} t per ${unit.singular}`]);
+    }
+    rows.push(["Listing price", `${money(vr.listingPricePerUnit)} per ${unit.singular}`]);
+    if (vr.result.role === "seller") {
+      rows.push(
+        ["Disposal cost rate (incl. transport to disposal)", `${money((vr.inputs.disposalRatePerUnit ?? 0) + (vr.inputs.transportToDisposalRatePerUnit ?? 0))} per ${unit.singular}`],
+        ["Avoided disposal costs", money(vr.result.avoidedDisposalCost)],
+        ["Sale proceeds", money(vr.result.saleProceeds)],
+        ["<strong>Total estimated value recovered</strong>", `<strong>${money(vr.result.totalRecovery)}</strong>`],
+      );
+    } else {
+      rows.push(
+        ["Baseline delivered cost rate", `${money(vr.inputs.baselineDeliveredRatePerUnit ?? 0)} per ${unit.singular}`],
+        ["Baseline cost", money(vr.result.baselineCost)],
+        ["Alternative purchase cost", money(vr.result.purchaseCost)],
+        [
+          vr.result.savings < 0 ? "<strong>Estimated additional cost</strong>" : "<strong>Estimated savings</strong>",
+          `<strong>${money(vr.result.savings)}</strong>`,
+        ],
+      );
+    }
+    rows.push(["Exclusions", vr.result.exclusions.map(escapeHtml).join("<br/>")]);
+    return rows;
   });
 
   const calcRows = scenarios.map((s, i) => [
@@ -346,6 +400,17 @@ function renderReportHtml(input: ReportInput): string {
     </thead>
     <tbody>${rows(calcRows)}</tbody>
   </table>
+
+  ${
+    valueRows.length > 0
+      ? `<h2>3b. Value recovery estimate</h2>
+  <p>Estimates only. Amounts use the listing's recorded currency and pricing unit with no conversion. Shipping for the sale or the alternative purchase is excluded.</p>
+  <table>
+    <thead><tr><th>Field</th><th>Value</th></tr></thead>
+    <tbody>${rows(valueRows)}</tbody>
+  </table>`
+      : ""
+  }
 
   <h2>4. Results</h2>
   <table>

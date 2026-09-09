@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Search, SlidersHorizontal, DollarSign, CheckCircle2, Clock, RefreshCw, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown, X, FileText, Download, Info } from "lucide-react";
 import { Button, Select } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
+import { SampleRequestsPanel } from "@/components/samples/sample-requests-panel";
 
 type Action = "Send quote" | "Mark ready" | "Upload Bill of Lading (BOL)" | "Respond" | "View Detail";
 interface Order { id: string; buyer: string; product: string; qty: string; shipping: string; action: Action; }
@@ -235,6 +236,7 @@ export function SellerSalesPage() {
           <button onClick={()=>setShowFilters(true)} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700" style={{border:"1px solid #F0F0F0"}}><SlidersHorizontal className="size-4" /> Filters</button>
         </div>
       </div>
+      <SampleRequestsPanel role="seller" />
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-5">
         {[{l:"Total orders",v:"2300",i:DollarSign},{l:"New orders",v:"1900",i:CheckCircle2},{l:"In progress",v:"20",i:Clock},{l:"Completed",v:"380",i:RefreshCw}].map((s)=>(

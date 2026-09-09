@@ -1,0 +1,389 @@
+{
+  "database": "sqldb-ecoglobe-dev",
+  "sourceSha256": "e690f97005cb6a88b2f6c88ee8011d358b4d55e5baf792e6986683c2ed3b038d",
+  "applied": false,
+  "createdAt": "2026-09-09T18:32:19.470Z",
+  "changes": [
+    {
+      "sourceRow": 3,
+      "before": {
+        "Id": 7,
+        "Title": "Black Gypsum",
+        "Slug": "black-gypsum",
+        "PricePerUnit": 50,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 103,
+        "MinimumOrderQuantity": 3
+      },
+      "after": {
+        "Id": 7,
+        "Title": "Black Gypsum",
+        "Slug": "black-gypsum",
+        "PricePerUnit": 45,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 103,
+        "MinimumOrderQuantity": 3
+      }
+    },
+    {
+      "sourceRow": 4,
+      "before": {
+        "Id": 15,
+        "Title": "Hydrochar",
+        "Slug": "hydrochar",
+        "PricePerUnit": 75,
+        "CurrencyCode": "EUR",
+        "QuantityUnit": "tons",
+        "Quantity": 1000,
+        "MinimumOrderQuantity": 200
+      },
+      "after": {
+        "Id": 15,
+        "Title": "Hydrochar",
+        "Slug": "hydrochar",
+        "PricePerUnit": 100,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 1000,
+        "MinimumOrderQuantity": 200
+      }
+    },
+    {
+      "sourceRow": 5,
+      "before": {
+        "Id": 17,
+        "Title": "Biochar",
+        "Slug": "biochar",
+        "PricePerUnit": 300,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 103,
+        "MinimumOrderQuantity": 3
+      },
+      "after": {
+        "Id": 17,
+        "Title": "Biochar",
+        "Slug": "biochar",
+        "PricePerUnit": 500,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 103,
+        "MinimumOrderQuantity": 3
+      }
+    },
+    {
+      "sourceRow": 6,
+      "before": {
+        "Id": 4,
+        "Title": "Epoxy Off-Spec",
+        "Slug": "epoxy-offspec",
+        "PricePerUnit": 50,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 102,
+        "MinimumOrderQuantity": 2
+      },
+      "after": {
+        "Id": 4,
+        "Title": "Epoxy Off-Spec",
+        "Slug": "epoxy-offspec",
+        "PricePerUnit": 1900,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 102,
+        "MinimumOrderQuantity": 2
+      }
+    },
+    {
+      "sourceRow": 7,
+      "before": {
+        "Id": 6,
+        "Title": "Scrap Polymer Blend with Impurities",
+        "Slug": "polymer",
+        "PricePerUnit": 60,
+        "CurrencyCode": "EUR",
+        "QuantityUnit": "tons",
+        "Quantity": 5000,
+        "MinimumOrderQuantity": 1000
+      },
+      "after": {
+        "Id": 6,
+        "Title": "Scrap Polymer Blend with Impurities",
+        "Slug": "polymer",
+        "PricePerUnit": 225,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 5000,
+        "MinimumOrderQuantity": 1000
+      }
+    },
+    {
+      "sourceRow": 8,
+      "before": {
+        "Id": 22,
+        "Title": "Premium Rice Hull Ash",
+        "Slug": "premium-rice-hull-ash-1787843130990",
+        "PricePerUnit": 65,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 800,
+        "MinimumOrderQuantity": 20
+      },
+      "after": {
+        "Id": 22,
+        "Title": "Premium Rice Hull Ash",
+        "Slug": "premium-rice-hull-ash-1787843130990",
+        "PricePerUnit": 250,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 800,
+        "MinimumOrderQuantity": 20
+      }
+    },
+    {
+      "sourceRow": 9,
+      "before": {
+        "Id": 21,
+        "Title": "Guard Test Bagasse",
+        "Slug": "guard-test-bagasse-1",
+        "PricePerUnit": 40,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 500,
+        "MinimumOrderQuantity": 10
+      },
+      "after": {
+        "Id": 21,
+        "Title": "Guard Test Bagasse",
+        "Slug": "guard-test-bagasse-1",
+        "PricePerUnit": 60,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 500,
+        "MinimumOrderQuantity": 10
+      }
+    },
+    {
+      "sourceRow": 10,
+      "before": {
+        "Id": 9,
+        "Title": "Biomass Wood Pellets, Grade A",
+        "Slug": "wood-pellets",
+        "PricePerUnit": 120,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 105,
+        "MinimumOrderQuantity": 5
+      },
+      "after": {
+        "Id": 9,
+        "Title": "Biomass Wood Pellets, Grade A",
+        "Slug": "wood-pellets",
+        "PricePerUnit": 230,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 105,
+        "MinimumOrderQuantity": 5
+      }
+    },
+    {
+      "sourceRow": 11,
+      "before": {
+        "Id": 10,
+        "Title": "Industrial By-Product: Rice Husk",
+        "Slug": "rice-husk",
+        "PricePerUnit": 28,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 110,
+        "MinimumOrderQuantity": 10
+      },
+      "after": {
+        "Id": 10,
+        "Title": "Industrial By-Product: Rice Husk",
+        "Slug": "rice-husk",
+        "PricePerUnit": 30,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 110,
+        "MinimumOrderQuantity": 10
+      }
+    },
+    {
+      "sourceRow": 12,
+      "before": {
+        "Id": 8,
+        "Title": "Harvested and Baled Corn Stover",
+        "Slug": "stover-walker",
+        "PricePerUnit": 42,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 103,
+        "MinimumOrderQuantity": 3
+      },
+      "after": {
+        "Id": 8,
+        "Title": "Harvested and Baled Corn Stover",
+        "Slug": "stover-walker",
+        "PricePerUnit": 70,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 103,
+        "MinimumOrderQuantity": 3
+      }
+    },
+    {
+      "sourceRow": 13,
+      "before": {
+        "Id": 5,
+        "Title": "Shredded, Refined Sugar Bagasse",
+        "Slug": "bagasse",
+        "PricePerUnit": 48,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 1000,
+        "MinimumOrderQuantity": 200
+      },
+      "after": {
+        "Id": 5,
+        "Title": "Shredded, Refined Sugar Bagasse",
+        "Slug": "bagasse",
+        "PricePerUnit": 80,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 1000,
+        "MinimumOrderQuantity": 200
+      }
+    },
+    {
+      "sourceRow": 14,
+      "before": {
+        "Id": 3,
+        "Title": "Pyrolysis Pitch",
+        "Slug": "pyrolysis",
+        "PricePerUnit": 50,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 5000,
+        "MinimumOrderQuantity": 1000
+      },
+      "after": {
+        "Id": 3,
+        "Title": "Pyrolysis Pitch",
+        "Slug": "pyrolysis",
+        "PricePerUnit": 350,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 5000,
+        "MinimumOrderQuantity": 1000
+      }
+    },
+    {
+      "sourceRow": 15,
+      "before": {
+        "Id": 19,
+        "Title": "Tar",
+        "Slug": "tar",
+        "PricePerUnit": 50,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 105,
+        "MinimumOrderQuantity": 5
+      },
+      "after": {
+        "Id": 19,
+        "Title": "Tar",
+        "Slug": "tar",
+        "PricePerUnit": 225,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 105,
+        "MinimumOrderQuantity": 5
+      }
+    },
+    {
+      "sourceRow": 16,
+      "before": {
+        "Id": 13,
+        "Title": "Refined Used Cooking Oil (UCO)",
+        "Slug": "used-cooking-oil",
+        "PricePerUnit": 550,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 104,
+        "MinimumOrderQuantity": 4
+      },
+      "after": {
+        "Id": 13,
+        "Title": "Refined Used Cooking Oil (UCO)",
+        "Slug": "used-cooking-oil",
+        "PricePerUnit": 1300,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 104,
+        "MinimumOrderQuantity": 4
+      }
+    },
+    {
+      "sourceRow": 17,
+      "before": {
+        "Id": 11,
+        "Title": "Certified Organic Wood Chips",
+        "Slug": "wood-chips",
+        "PricePerUnit": 95,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 102,
+        "MinimumOrderQuantity": 2
+      },
+      "after": {
+        "Id": 11,
+        "Title": "Certified Organic Wood Chips",
+        "Slug": "wood-chips",
+        "PricePerUnit": 45,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "tons",
+        "Quantity": 102,
+        "MinimumOrderQuantity": 2
+      }
+    },
+    {
+      "sourceRow": 19,
+      "before": {
+        "Id": 14,
+        "Title": "Used Dry Transformer",
+        "Slug": "used-dry-transformer",
+        "PricePerUnit": 800,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "units",
+        "Quantity": 250,
+        "MinimumOrderQuantity": 50
+      },
+      "after": {
+        "Id": 14,
+        "Title": "Used Dry Transformer",
+        "Slug": "used-dry-transformer",
+        "PricePerUnit": 15000,
+        "CurrencyCode": "USD",
+        "QuantityUnit": "units",
+        "Quantity": 250,
+        "MinimumOrderQuantity": 50
+      }
+    }
+  ],
+  "excluded": [
+    "Used Pallets: quantity basis confirmation pending"
+  ],
+  "absentFromWorkbook": [
+    {
+      "id": 23,
+      "title": "Gasoline offspec"
+    },
+    {
+      "id": 24,
+      "title": "Gasoline offspec"
+    }
+  ]
+}

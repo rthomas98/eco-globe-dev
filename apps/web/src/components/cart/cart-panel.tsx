@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@eco-globe/ui";
 import { useCart } from "./cart-context";
 import Link from "next/link";
+import { formatMoney } from "@/lib/listing-format";
 
 export function CartButton() {
   const { itemCount, setIsOpen } = useCart();
@@ -28,10 +29,8 @@ export function CartButton() {
 }
 
 export function CartPanel() {
-  const { items, removeItem, updateQuantity, subtotal, isOpen, setIsOpen } = useCart();
+  const { items, removeItem, updateQuantity, subtotalsByCurrency, mixedCurrencies, isOpen, setIsOpen } = useCart();
   const router = useRouter();
-  const shipping = items.length > 0 ? 50 : 0;
-  const total = subtotal + shipping;
 
   const handleCheckout = () => {
     setIsOpen(false);
@@ -84,8 +83,8 @@ export function CartPanel() {
             <div className="divide-y divide-neutral-100">
               {items.map((item) => (
                 <div key={item.id} className="flex gap-4 px-6 py-5">
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-20">
-                    <img src={item.image} alt={item.title} className="h-full w-full object-cover" />
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-neutral-100 sm:h-20 sm:w-20">
+                    {item.image ? <img src={item.image} alt={item.title} className="h-full w-full object-cover" /> : null}
                   </div>
                   <div className="flex flex-1 flex-col">
                     <div className="flex items-start justify-between">
@@ -114,7 +113,7 @@ export function CartPanel() {
                         </button>
                       </div>
                       <p className="text-sm font-semibold text-neutral-900">
-                        ${(item.price * item.quantity).toFixed(2)}
+                        {formatMoney(item.price * item.quantity, item.currencyCode)}
                       </p>
                     </div>
                   </div>
@@ -128,17 +127,18 @@ export function CartPanel() {
         {items.length > 0 && (
           <div className="px-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4" style={{ borderTop: "1px solid #E0E0E0" }}>
             <div className="mb-4 flex flex-col gap-2">
+              {Object.entries(subtotalsByCurrency).map(([currency, amount]) => (
+                <div key={currency} className="flex items-center justify-between text-sm">
+                  <span className="text-neutral-700">Subtotal ({currency})</span>
+                  <span className="text-neutral-900">{formatMoney(amount, currency)}</span>
+                </div>
+              ))}
+              {mixedCurrencies && (
+                <p className="text-xs text-amber-700">Items are priced in different currencies and are kept separate; they are not converted or summed.</p>
+              )}
               <div className="flex items-center justify-between text-sm">
-                <span className="text-neutral-700">Subtotal</span>
-                <span className="text-neutral-900">${subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-neutral-700">Shipping estimate</span>
-                <span className="text-neutral-900">${shipping.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center justify-between pt-2 text-base font-bold" style={{ borderTop: "1px solid #F0F0F0" }}>
-                <span className="text-neutral-900">Total</span>
-                <span className="text-neutral-900">${total.toFixed(2)}</span>
+                <span className="text-neutral-700">Shipping</span>
+                <span className="text-neutral-500">Quoted per order</span>
               </div>
             </div>
             <Button variant="primary" size="lg" className="w-full" onClick={handleCheckout}>

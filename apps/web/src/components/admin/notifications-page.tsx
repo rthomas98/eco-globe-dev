@@ -8,6 +8,7 @@ import {
   type AdminNotification,
 } from "./notifications-data";
 import type { NotificationChannel } from "@/components/notifications/notifications-demo-data";
+import { LabNotificationsSection } from "./lab-notifications-section";
 
 type Tab = "all" | "unread";
 type Category =
@@ -102,6 +103,10 @@ export function AdminNotificationsPage() {
             </Link>
           </div>
         </div>
+
+        <LabNotificationsSection />
+
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Demo activity (sample data)</p>
 
         {/* Tabs + category filter */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">

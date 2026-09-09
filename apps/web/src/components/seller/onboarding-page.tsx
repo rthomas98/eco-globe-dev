@@ -1,16 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { X, Plus } from "lucide-react";
+import { X, FileText } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";
 import {
   BackendApiError,
   completeBackendOnboarding,
+  readBackendOnboarding,
   startBackendStripeOnboarding,
 } from "@/lib/backend-auth";
 import { getUserRoles, useDemoUser } from "@/lib/demo-user";
+import {
+  FeedstockInterestsField,
+  OTHERS_CODE,
+  feedstockInterestsValid,
+  type FeedstockInterestValue,
+} from "@/components/onboarding/feedstock-interests";
 
 type Step =
   | "welcome"
@@ -32,6 +39,7 @@ function OnboardingLayout({
   nextLabel,
   isBusy,
   error,
+  retryable,
 }: {
   step: Step;
   currentStep: number;
@@ -42,6 +50,8 @@ function OnboardingLayout({
   nextLabel?: string;
   isBusy?: boolean;
   error?: string;
+  /** True on the step whose Next performs the backend save, so an error offers Retry. */
+  retryable?: boolean;
 }) {
   const showNav = step !== "welcome" && step !== "success";
   const progress = currentStep / totalSteps;
@@ -90,8 +100,14 @@ function OnboardingLayout({
               Back
             </Button>
             {error ? (
-              <p className="max-w-[420px] rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-700">
+              <p role="alert" className="max-w-[420px] rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-700">
                 {error}
+                {error.includes("sign in") && (
+                  <>
+                    {" "}
+                    <Link href="/login?next=%2Fseller%2Fonboarding" className="font-bold underline">Sign in</Link>
+                  </>
+                )}
               </p>
             ) : (
               <div />
@@ -106,7 +122,7 @@ function OnboardingLayout({
                 isBusy ? { opacity: 0.5, cursor: "not-allowed" } : undefined
               }
             >
-              {isBusy ? "Saving..." : (nextLabel ?? "Next")}
+              {isBusy ? "Saving..." : error && retryable && !nextLabel ? "Retry" : (nextLabel ?? "Next")}
             </Button>
             {onSkip ? (
               <Button
@@ -243,24 +259,20 @@ function BusinessStep({
 function ProductStep({
   data,
   onChange,
+  interests,
+  onInterestsChange,
   onBack,
   onNext,
+  error,
 }: {
   data: Record<string, string>;
   onChange: (k: string, v: string) => void;
+  interests: FeedstockInterestValue;
+  onInterestsChange: (next: FeedstockInterestValue) => void;
   onBack: () => void;
   onNext: () => void;
+  error?: string;
 }) {
-  const feedstockTypes = [
-    { value: "", label: "-- Choose --" },
-    { value: "plastics", label: "Plastics" },
-    { value: "biomass", label: "Biomass & Wood" },
-    { value: "rubber", label: "Rubber & Tire-Derived" },
-    { value: "oils", label: "Oils & Liquid Feedstocks" },
-    { value: "metals", label: "Metals & Alloys" },
-    { value: "paper", label: "Paper & Cardboard" },
-    { value: "textiles", label: "Textiles" },
-  ];
   const restrictionOptions = [
     { value: "", label: "-- Choose --" },
     { value: "none", label: "No restrictions" },
@@ -275,6 +287,7 @@ function ProductStep({
       currentStep={2}
       onBack={onBack}
       onNext={onNext}
+      error={error}
     >
       <div className="flex flex-1 justify-center overflow-y-auto px-6 py-10">
         <div className="w-full max-w-[600px]">
@@ -285,12 +298,11 @@ function ProductStep({
             You can add detailed product information later.
           </p>
           <div className="flex flex-col gap-6">
-            <Select
+            <FeedstockInterestsField
               label="What type of feedstock are you generating?"
-              id="feedstockType"
-              options={feedstockTypes}
-              value={data.feedstockType}
-              onChange={(e) => onChange("feedstockType", e.target.value)}
+              value={interests}
+              onChange={onInterestsChange}
+              otherLabel="Describe the feedstock you generate"
             />
             <Input
               label="Could you tell us how this feedstock was generated?"
@@ -332,34 +344,18 @@ function ProductStep({
 
 /* ─── Step 4: Sustainability ─── */
 function SustainabilityStep({
-  files,
-  onFilesChange,
   onBack,
   onNext,
   onSkip,
   isBusy,
   error,
 }: {
-  files: File[];
-  onFilesChange: (f: File[]) => void;
   onBack: () => void;
   onNext: () => void;
   onSkip: () => void;
   isBusy?: boolean;
   error?: string;
 }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFiles = (newFiles: FileList | null) => {
-    if (!newFiles) return;
-    onFilesChange([...files, ...Array.from(newFiles)]);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    handleFiles(e.dataTransfer.files);
-  };
-
   return (
     <OnboardingLayout
       step="sustainability"
@@ -369,74 +365,42 @@ function SustainabilityStep({
       onSkip={onSkip}
       isBusy={isBusy}
       error={error}
+      retryable
     >
       <div className="flex flex-1 justify-center px-6 py-10">
         <div className="w-full max-w-[600px]">
           <h1 className="mb-2 text-3xl font-bold text-neutral-900">
-            Sustainability Information
+            Safety &amp; Sustainability Information
           </h1>
-          <p className="mb-8 text-base text-neutral-500">
-            Upload certifications and supporting documents to get verified and
-            increase buyer trust.
+          <p className="mb-6 text-base text-neutral-500">
+            Every feedstock you list must carry a Safety Data Sheet (SDS). Sustainability
+            certifications increase buyer trust and help your listings get verified.
           </p>
 
-          <p className="mb-3 text-sm font-medium text-neutral-900">Upload</p>
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className="flex cursor-pointer flex-col items-center gap-3 rounded-xl bg-neutral-50 py-10 transition-colors hover:bg-neutral-100"
-            style={{ border: "2px dashed #D0D0D0" }}
-          >
+          <div className="mb-4 rounded-xl bg-amber-50 p-4" style={{ border: "1px solid #FDE68A" }}>
+            <p className="mb-1 flex items-center gap-2 text-sm font-bold text-neutral-900">
+              <FileText className="size-4" />
+              Safety Data Sheet (SDS) — required per listing
+            </p>
             <p className="text-sm text-neutral-700">
-              <span className="font-semibold">Drop file here</span> or
+              Upload the SDS as a PDF (EU REACH or equivalent local format) when you create each
+              listing. Buyers cannot purchase a feedstock until its SDS is on file.
             </p>
-            <span
-              className="rounded-full px-4 py-1.5 text-sm font-medium text-neutral-700"
-              style={{ border: "1px solid #D0D0D0" }}
-            >
-              Browse
-            </span>
-            <p className="text-xs text-neutral-400">
-              Accepts .gif, .jpg, and .png
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".gif,.jpg,.jpeg,.png,.pdf"
-              className="hidden"
-              onChange={(e) => handleFiles(e.target.files)}
-            />
           </div>
 
-          {files.length > 0 && (
-            <div className="mt-4 flex flex-col gap-2">
-              {files.map((f, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-2"
-                >
-                  <span className="text-sm text-neutral-700">{f.name}</span>
-                  <button
-                    onClick={() =>
-                      onFilesChange(files.filter((_, idx) => idx !== i))
-                    }
-                    className="text-neutral-400 hover:text-red-500"
-                  >
-                    <X className="size-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="rounded-xl bg-neutral-50 p-4" style={{ border: "1px solid #E0E0E0" }}>
+            <p className="mb-1 text-sm font-bold text-neutral-900">Sustainability certifications</p>
+            <p className="text-sm text-neutral-700">
+              Certifications such as ISCC, RSB, FSC or GRS are uploaded as PDF documents on each
+              listing, alongside listing photos (PNG, JPEG or WebP). Files up to 5 MB are stored
+              with the listing and shown to buyers once the listing is published.
+            </p>
+          </div>
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="mt-4 flex items-center gap-2 text-sm font-semibold text-neutral-900"
-          >
-            <Plus className="size-4" /> Add More
-          </button>
+          <p className="mt-6 text-xs text-neutral-500">
+            Documents are attached to individual listings so buyers always see the SDS that matches
+            the material they are buying. Finish onboarding, then add your first listing to upload them.
+          </p>
         </div>
       </div>
     </OnboardingLayout>
@@ -554,14 +518,17 @@ export function SellerOnboardingPage() {
     website: "",
   });
   const [productData, setProductData] = useState({
-    feedstockType: "",
     generation: "",
     restrictions: "",
     annualVolume: "",
     specs: "",
     notes: "",
   });
-  const [files, setFiles] = useState<File[]>([]);
+  const [interests, setInterests] = useState<FeedstockInterestValue>({
+    codes: [],
+    otherDescription: "",
+  });
+  const [prefilled, setPrefilled] = useState(false);
 
   const updateBusiness = (k: string, v: string) =>
     setBusinessData((p) => ({ ...p, [k]: v }));
@@ -583,10 +550,48 @@ export function SellerOnboardingPage() {
     }
   }, []);
 
+  // Recover previously saved onboarding preferences so a retry or a returning
+  // user never has to re-enter what the backend already holds.
+  useEffect(() => {
+    if (!user?.token || prefilled) return;
+    let cancelled = false;
+    readBackendOnboarding(user.token)
+      .then((saved) => {
+        if (cancelled || !saved) return;
+        setBusinessData((prev) => ({
+          ...prev,
+          industry: prev.industry || saved.industry || "",
+          website: prev.website || saved.website || "",
+        }));
+        setInterests((prev) =>
+          prev.codes.length > 0
+            ? prev
+            : {
+                codes: saved.feedstockInterests ?? [],
+                otherDescription: saved.otherFeedstockInterest ?? "",
+              },
+        );
+      })
+      .catch(() => {
+        // Prefill is best-effort; the form still works without it.
+      })
+      .finally(() => {
+        if (!cancelled) setPrefilled(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.token, prefilled]);
+
   const completeSellerOnboarding = async () => {
     if (status === "saving") return;
     if (!user?.token) {
-      setError("Please log in again before completing onboarding.");
+      setError("Your session has expired. Please sign in again to continue; your entries stay on this page.");
+      return;
+    }
+    if (!feedstockInterestsValid(interests)) {
+      setError("Describe the feedstock you generate when Others is selected.");
+      setStep("product");
       return;
     }
 
@@ -604,14 +609,20 @@ export function SellerOnboardingPage() {
         industry: businessData.industry,
         website: businessData.website,
         address: businessData.address,
+        feedstockInterests: interests.codes,
+        otherFeedstockInterest: interests.codes.includes(OTHERS_CODE)
+          ? interests.otherDescription.trim()
+          : null,
       });
       setStep("stripe");
     } catch (err) {
-      setError(
-        err instanceof BackendApiError
-          ? err.message
-          : "Unable to save onboarding. Please check the backend and try again.",
-      );
+      if (err instanceof BackendApiError && err.kind === "unauthorized") {
+        setError("Your session has expired. Please sign in again; nothing you entered was lost.");
+      } else if (err instanceof BackendApiError) {
+        setError(`${err.message}${err.retryable ? " Your entries were kept — use Retry." : ""}`);
+      } else {
+        setError("Unable to save onboarding. Your entries were kept — please try again.");
+      }
     } finally {
       setStatus("idle");
     }
@@ -670,15 +681,23 @@ export function SellerOnboardingPage() {
         <ProductStep
           data={productData}
           onChange={updateProduct}
+          interests={interests}
+          onInterestsChange={setInterests}
           onBack={() => setStep("business")}
-          onNext={() => setStep("sustainability")}
+          onNext={() => {
+            if (!feedstockInterestsValid(interests)) {
+              setError("Describe the feedstock you generate when Others is selected.");
+              return;
+            }
+            setError("");
+            setStep("sustainability");
+          }}
+          error={step === "product" ? error : undefined}
         />
       );
     case "sustainability":
       return (
         <SustainabilityStep
-          files={files}
-          onFilesChange={setFiles}
           onBack={() => setStep("product")}
           onNext={() => void completeSellerOnboarding()}
           onSkip={() => void completeSellerOnboarding()}

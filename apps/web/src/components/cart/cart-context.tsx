@@ -3,14 +3,23 @@
 import { createContext, useContext, useState, useCallback } from "react";
 
 export interface CartItem {
+  /** Canonical backend listing id. */
   id: string;
   title: string;
   location: string;
+  /** Recorded unit price in `currencyCode`. */
   price: number;
+  currencyCode: string;
+  /** Display suffix such as "/t". */
   unit: string;
+  /** Recorded pricing unit code such as "ton". */
+  quantityUnit: string;
   quantity: number;
   moq: number;
-  image: string;
+  /** Seller's recorded available quantity, or null when unknown. */
+  available: number | null;
+  sellerName: string | null;
+  image: string | null;
 }
 
 interface CartContextType {
@@ -20,7 +29,9 @@ interface CartContextType {
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
   itemCount: number;
-  subtotal: number;
+  /** Subtotals kept per recorded currency; currencies are never summed together. */
+  subtotalsByCurrency: Record<string, number>;
+  mixedCurrencies: boolean;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
 }
@@ -55,18 +66,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateQuantity = useCallback((id: string, quantity: number) => {
     setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, quantity: Math.max(i.moq, quantity) } : i)),
+      prev.map((i) => {
+        if (i.id !== id) return i;
+        const floor = Math.max(i.moq, quantity);
+        return { ...i, quantity: i.available !== null ? Math.min(floor, Math.max(i.moq, i.available)) : floor };
+      }),
     );
   }, []);
 
   const clearCart = useCallback(() => setItems([]), []);
 
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
-  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const subtotalsByCurrency = items.reduce<Record<string, number>>((acc, i) => {
+    acc[i.currencyCode] = (acc[i.currencyCode] ?? 0) + i.price * i.quantity;
+    return acc;
+  }, {});
+  const mixedCurrencies = Object.keys(subtotalsByCurrency).length > 1;
 
   return (
     <CartContext.Provider
-      value={{ items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotal, isOpen, setIsOpen }}
+      value={{ items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotalsByCurrency, mixedCurrencies, isOpen, setIsOpen }}
     >
       {children}
     </CartContext.Provider>

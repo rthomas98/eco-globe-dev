@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/**/*.test.ts",
+    "src/lib/listing-format.ts",
+    "src/lib/value-recovery.ts",
+    "src/lib/lab-testing.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

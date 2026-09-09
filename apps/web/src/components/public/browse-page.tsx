@@ -10,11 +10,13 @@ import { SearchBar } from "./search-bar";
 import { CartButton } from "@/components/cart/cart-panel";
 import { HeaderUserMenu } from "@/components/auth/header-user-menu";
 import { FiltersPanel, defaultFilters, type FilterState } from "./filters-panel";
-import { listings, type Listing } from "./browse-listings";
+import { hasCoordinates, type Listing } from "./browse-listings";
 import { useDemoUser } from "@/lib/demo-user";
 import { useViewerLocation } from "@/lib/viewer-location";
-import { useCustomListings } from "@/lib/custom-listings";
+import { useListings } from "@/lib/use-listings";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
+import { formatQuantity } from "@/lib/listing-format";
+import { RefreshCw } from "lucide-react";
 
 function ListingCard({
   listing,
@@ -39,11 +41,15 @@ function ListingCard({
         onClick={onSelect}
         className="mb-3 h-[200px] w-full overflow-hidden rounded-xl"
       >
-        <img
-          src={listing.image}
-          alt={listing.title}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
+        {listing.image ? (
+          <img
+            src={listing.image}
+            alt={listing.title}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-xs text-neutral-500">No photo yet</div>
+        )}
       </button>
       <button
         type="button"
@@ -59,7 +65,7 @@ function ListingCard({
           </p>
         ) : (
           <p className="mt-1 text-sm text-neutral-500">
-            {listing.qtyNum} tons available
+            {formatQuantity(listing.qtyNum, listing.quantityUnit) ?? "Quantity not specified"} available
           </p>
         )}
       </button>
@@ -67,8 +73,8 @@ function ListingCard({
         <>
           <div className="mt-2 flex flex-wrap gap-2">
             <Badge>MOQ: {listing.moq}</Badge>
-            <Badge>{listing.co2}</Badge>
-            <Badge>{listing.frequency}</Badge>
+            {listing.hasCarbonData && <Badge>{listing.co2}</Badge>}
+            {listing.frequency && <Badge>{listing.frequency}</Badge>}
             {hasSds ? (
               <span className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
                 <FileText className="size-3" /> SDS
@@ -84,9 +90,9 @@ function ListingCard({
               <span className="text-lg font-semibold text-neutral-900">
                 {listing.price}
               </span>
-              <span className="text-sm text-neutral-700">{listing.unit}</span>
+              {listing.priceNum !== null && <span className="text-sm text-neutral-700">{listing.unit}</span>}
             </div>
-            <CarbonCalculatorButton listingId={listing.id} variant="ghost" label="Footprint" />
+            <CarbonCalculatorButton listing={listing} portal="buyer" variant="ghost" label="Footprint" />
           </div>
         </>
       ) : (
@@ -179,11 +185,8 @@ export function BrowsePage() {
       return false;
     });
 
-  const customListings = useCustomListings();
-  const allListings = useMemo(
-    () => [...customListings, ...listings],
-    [customListings],
-  );
+  const published = useListings("public");
+  const allListings = published.listings;
   const visibleListings = allListings.filter((l) => {
     const haystack = normalizeListingSearch(`${l.title} ${l.tags.join(" ")} ${l.category}`);
     if (q && !haystack.includes(q)) return false;
@@ -204,29 +207,29 @@ export function BrowsePage() {
       return false;
     }
     if (filters.categories.length > 0 && !filters.categories.includes(l.category)) return false;
-    if (filters.grades.length > 0 && !filters.grades.includes(l.grade)) return false;
-    if (priceMin !== null && l.priceNum < priceMin) return false;
-    if (priceMax !== null && l.priceNum > priceMax) return false;
-    if (qtyMin !== null && l.qtyNum < qtyMin) return false;
-    if (qtyMax !== null && l.qtyNum > qtyMax) return false;
-    if (filters.carbon.length > 0 && !matchesCarbonBucket(l.co2Num)) return false;
+    if (filters.grades.length > 0 && (l.grade === null || !filters.grades.includes(l.grade))) return false;
+    if (priceMin !== null && (l.priceNum === null || l.priceNum < priceMin)) return false;
+    if (priceMax !== null && (l.priceNum === null || l.priceNum > priceMax)) return false;
+    if (qtyMin !== null && (l.qtyNum === null || l.qtyNum < qtyMin)) return false;
+    if (qtyMax !== null && (l.qtyNum === null || l.qtyNum > qtyMax)) return false;
+    if (filters.carbon.length > 0 && (l.co2Num === null || !matchesCarbonBucket(l.co2Num))) return false;
     if (filters.carbonDataOnly && !l.hasCarbonData) return false;
     return true;
   });
 
   const mapListings: MapListing[] = useMemo(
     () =>
-      visibleListings.map((l) => ({
+      visibleListings.filter(hasCoordinates).map((l) => ({
         id: l.id,
         title: l.title,
         location: l.location,
         price: l.price,
-        unit: l.unit,
+        unit: l.priceNum !== null ? l.unit : "",
         moq: l.moq,
         co2: l.co2,
         lng: l.lng,
         lat: l.lat,
-        image: l.image,
+        image: l.image ?? undefined,
       })),
     [visibleListings],
   );
@@ -324,9 +327,16 @@ export function BrowsePage() {
               </button>
             )}
           </div>
-          {visibleListings.length === 0 ? (
+          {published.status === "loading" ? (
+            <p className="rounded-xl bg-neutral-50 py-16 text-center text-sm text-neutral-600" role="status">Loading listings…</p>
+          ) : published.status === "error" ? (
+            <div className="rounded-xl bg-red-50 p-6 text-sm text-red-700" role="alert">
+              <p>{published.error}</p>
+              <button type="button" onClick={published.reload} className="mt-2 inline-flex items-center gap-1 font-semibold underline"><RefreshCw className="size-3" /> Retry</button>
+            </div>
+          ) : visibleListings.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-xl bg-neutral-50 py-16 text-center">
-              <p className="text-base font-semibold text-neutral-900">No matches found</p>
+              <p className="text-base font-semibold text-neutral-900">{allListings.length === 0 ? "No published listings yet" : "No matches found"}</p>
               <p className="max-w-[360px] text-sm text-neutral-600">
                 Try a different keyword, loosen the filters, or clear everything to see all listings.
               </p>
