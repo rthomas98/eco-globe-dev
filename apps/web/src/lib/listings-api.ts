@@ -21,17 +21,31 @@ export const SELLER_STATUS_CODES: ListingStatusCode[] = [
   "closed",
 ];
 
-export type QuantityUnitCode = "ton" | "tonne" | "kg" | "lb" | "unit";
+/**
+ * Persisted quantity unit codes. Live listings use the plural aliases
+ * `tons`, `tonnes` and `units`; the backend stores whichever code was saved
+ * verbatim, so the UI must never relabel an existing value.
+ */
+export type QuantityUnitCode = "ton" | "tons" | "tonne" | "tonnes" | "kg" | "lb" | "unit" | "units";
 export const QUANTITY_UNIT_CODES: QuantityUnitCode[] = [
   "ton",
+  "tons",
   "tonne",
+  "tonnes",
   "kg",
   "lb",
   "unit",
+  "units",
 ];
 
-/** Response code for certifications is `certification`; uploads accept either spelling. */
-export type ListingDocumentTypeCode = "photo" | "sds" | "certification";
+/**
+ * Response code for certifications is `certification`; uploads accept either spelling.
+ * `tds` (Technical Data Sheet) and `coa` (Certificate of Analysis) are optional
+ * technical attachments buyers can download from the product page.
+ */
+export type ListingDocumentTypeCode = "photo" | "sds" | "certification" | "tds" | "coa";
+/** Every code the backend can return, including ones this UI does not upload. */
+export type AnyListingDocumentTypeCode = ListingDocumentTypeCode | "lab_report" | "other";
 
 export function normalizeDocumentTypeCode(code: string | null | undefined): ListingDocumentTypeCode | string {
   if (code === "certificate") return "certification";
@@ -63,8 +77,9 @@ export interface ListingSpecifications {
   additionalSpecs?: Array<{ label: string; value: string }> | null;
 }
 
+/** Location as returned with a listing; every field is null on a teaser. */
 export interface ListingLocation {
-  id: number;
+  id: number | null;
   name: string | null;
   addressLine1: string | null;
   addressLine2: string | null;
@@ -90,14 +105,27 @@ export interface ListingDocument {
   createdAt?: string | null;
 }
 
+/**
+ * Listing as projected for the requesting viewer (backend `listingForViewer`).
+ * Members and admins get every field; anonymous visitors and users without an
+ * active company get a teaser: `teaser` true, seller identity, exact location,
+ * MOQ, price, specifications and documents withheld, quantity rounded.
+ */
 export interface BackendListing {
   id: number;
   slug: string;
-  sellerCompanyId: number;
+  /** True when licensed fields were redacted for this viewer. */
+  teaser?: boolean;
+  sellerCompanyId: number | null;
   sellerCompanyName: string | null;
   sellerVerificationStatusCode?: string | null;
   sellerVerified?: boolean | null;
   locationId: number | null;
+  locationCity?: string | null;
+  locationStateProvince?: string | null;
+  locationCountryCode?: string | null;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
   location: ListingLocation | null;
   title: string;
   materialTypeCode: string;
@@ -237,6 +265,8 @@ export const DOCUMENT_ACCEPT: Record<ListingDocumentTypeCode, string> = {
   photo: "image/png,image/jpeg,image/webp",
   sds: "application/pdf",
   certification: "application/pdf",
+  tds: "application/pdf",
+  coa: "application/pdf",
 };
 
 export function readFileAsBase64(file: File): Promise<string> {
@@ -295,11 +325,16 @@ export async function deleteListingDocument(id: number) {
   });
 }
 
-/** Browser URL for a listing document through the same-origin proxy. */
+/**
+ * Browser URL for a listing document. Relative API paths go through the
+ * same-origin proxy; retained legacy absolute URLs (older blob references
+ * without stored content) are used as-is.
+ */
 export function documentDownloadUrl(document: Pick<ListingDocument, "fileUrl" | "id">) {
-  const path = document.fileUrl?.startsWith("/")
-    ? document.fileUrl
-    : `/api/listing-documents/${document.id}/download`;
+  const fileUrl = document.fileUrl?.trim() ?? "";
+  if (/^https?:\/\//i.test(fileUrl)) return fileUrl;
+  if (fileUrl.startsWith("/api/backend/")) return fileUrl;
+  const path = fileUrl.startsWith("/") ? fileUrl : `/api/listing-documents/${document.id}/download`;
   return `/api/backend${path}`;
 }
 

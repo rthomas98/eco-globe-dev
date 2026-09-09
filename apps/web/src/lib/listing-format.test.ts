@@ -43,3 +43,11 @@ test("optional number parsing distinguishes blank from zero", () => {
   assert.equal(parseOptionalNumber("1,250.5"), 1250.5);
   assert.equal(parseOptionalNumber("abc"), null);
 });
+
+test("plural unit aliases saved on live listings are preserved and formatted", () => {
+  assert.equal(describeUnit("tons").code, "ton");
+  assert.equal(describeUnit("tonnes").code, "ton");
+  assert.equal(describeUnit("units").code, "unit");
+  assert.equal(formatQuantityWithUnitName(100, "tons"), "100 t (metric tonnes)");
+  assert.equal(formatQuantityWithUnitName(3, "units"), "3 units");
+});

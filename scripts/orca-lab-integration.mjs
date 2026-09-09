@@ -431,6 +431,24 @@ try {
     { status: "received" },
     buyer.token,
   );
+  phase = "merged live marketplace routes and sample conversion";
+  const fullListing = (await call(`/api/listings/${listingId}`, "GET", undefined, buyer.token)).listing;
+  const onboarding = await call("/api/onboarding", "GET", undefined, buyer.token);
+  assert.ok(onboarding.company && onboarding.onboarding && onboarding.checklist);
+  const members = (await call(`/api/companies/${onboarding.company.id}/members`, "GET", undefined, buyer.token)).members;
+  await call(`/api/company-members/${members[0].id}`, "PATCH", {permissionTierCode:"admin_override"}, buyer.token, 403);
+
+  await call(`/api/listings/${listingId}/favorite`, "POST", {}, buyer.token);
+  await call(`/api/listings/${listingId}/favorite`, "DELETE", undefined, buyer.token);
+  await call(`/api/listings/${listingId}/interest`, "POST", {eventType:"detail_view"}, buyer.token, 201);
+  const order = (await call("/api/orders", "POST", {
+    listingId, buyerCompanyId: onboarding.company.id, creationSourceCode:"listing_checkout",
+    quantity: fullListing.minimumOrderQuantity, quantityUnit:fullListing.quantityUnit,
+    currencyCode:fullListing.currencyCode, deliveryMethod:"pickup",
+  }, buyer.token, 201)).order;
+  assert.equal(Number(order.totalAmount), fullListing.minimumOrderQuantity * fullListing.pricePerUnit);
+  await call(`/api/sample-requests/${sample.id}`, "PATCH", {convertedOrderId:order.id}, buyer.token);
+  await call("/api/reports/summary", "GET", undefined, admin.token);
   console.log(
     JSON.stringify({
       labIntegration: true,
@@ -449,6 +467,9 @@ try {
         "private visibility",
         "sharing revocation",
         "sample linkage",
+        "sample-to-order conversion",
+        "favorites and interest routes",
+        "merged onboarding and reports",
       ],
     }),
   );

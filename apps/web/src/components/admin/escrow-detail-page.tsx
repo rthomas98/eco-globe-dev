@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Lock, Unlock, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { LiveEscrowCard } from "./live-record-card";
 import { AdminDetailPage, DetailCard, KeyValueGrid } from "./admin-detail-page";
 import { formatEscrowMoney, getEscrowRecord } from "@/components/escrow/escrow-demo-data";
 
@@ -46,6 +47,7 @@ export function AdminEscrowDetailPage({ id }: { id: string }) {
         </>
       }
     >
+      <LiveEscrowCard uiId={id} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
           <DetailCard title="Escrow">

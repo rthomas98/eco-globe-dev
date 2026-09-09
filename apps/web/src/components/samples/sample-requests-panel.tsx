@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
-import { Check, FlaskConical, RefreshCw, Truck, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, FlaskConical, RefreshCw, ShoppingCart, Truck, X } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { describeBackendError, isBackendApiError } from "@/lib/backend-client";
 import {
   fetchSampleRequests,
+  stashSampleConversion,
   updateSampleRequest,
   type ApiSampleRequest,
   type SampleRequestStatus,
@@ -29,13 +31,14 @@ type State =
 /**
  * Sample-request queue shared by both sides of the marketplace, ported from
  * the live revision: sellers accept/decline and mark shipped; buyers confirm
- * receipt. The live "Order in bulk" conversion is intentionally absent
- * because the local checkout has no sample-conversion hook; buyers get a
- * plain link to the listing instead. Buyers can also request lab testing of
- * a sample from here (same form, same queue).
+ * receipt. A received sample offers "Order in bulk": the sample is parked in
+ * session storage, the buyer lands on the listing, and checkout links the
+ * placed order back to the sample so both sides see the conversion. Buyers
+ * can also request lab testing of a sample from here (same form, same queue).
  */
 export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" }) {
   const headingId = useId();
+  const router = useRouter();
   const [state, setState] = useState<State>({ status: "loading" });
   const [busyId, setBusyId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -77,6 +80,13 @@ export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" }) {
       setActionError(describeBackendError(error, "The sample request could not be updated."));
     }
     setBusyId(null);
+  };
+
+  // Sends the buyer to the product page; checkout links the placed order
+  // back to this sample so both sides see the conversion.
+  const orderInBulk = (sample: ApiSampleRequest) => {
+    stashSampleConversion(sample.id, sample.listingId);
+    router.push(`/buyer/browse/${sample.listingId}`);
   };
 
   // Hidden while there is nothing to show, matching the live behaviour.
@@ -149,6 +159,9 @@ export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" }) {
                 )}
                 {role === "buyer" && sample.status === "shipped" && (
                   <Button variant="primary" size="sm" disabled={busy} onClick={() => void act(sample, { status: "received" })}><Check className="size-4" aria-hidden="true" /> Mark received</Button>
+                )}
+                {role === "buyer" && sample.status === "received" && !sample.convertedOrderId && (
+                  <Button variant="primary" size="sm" disabled={busy} onClick={() => orderInBulk(sample)}><ShoppingCart className="size-4" aria-hidden="true" /> Order in bulk</Button>
                 )}
                 {role === "buyer" && sample.status !== "declined" && (
                   <Button variant="secondary" size="sm" onClick={() => setLabFor(sample)}><FlaskConical className="size-4" aria-hidden="true" /> Lab testing</Button>

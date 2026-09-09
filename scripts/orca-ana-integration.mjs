@@ -410,7 +410,9 @@ try {
     undefined,
     404,
   );
-  await call("/api/listing-documents", "GET", undefined, undefined, 400);
+  await call("/api/listing-documents", "GET", undefined, undefined, 401);
+  await call("/api/listing-documents", "GET", undefined, buyer.token, 403);
+  assert.ok((await call("/api/listing-documents", "GET", undefined, admin.token)).documents.some(d => d.id === sds.id));
   await call(
     "/api/listing-documents",
     "POST",
@@ -500,14 +502,17 @@ try {
     admin.token,
   );
   const published = (await call("/api/listings/" + listingId)).listing;
-  assert.equal(published.pricePerUnit, 450);
+  assert.equal(published.pricePerUnit, null);
+  assert.equal(published.teaser, true);
+  assert.equal((await call("/api/listings/" + listingId,"GET",undefined,buyer.token)).listing.pricePerUnit,450);
   assert.equal(published.sellerVerified, false);
   assert.ok(
     (await call("/api/listings?search=" + suffix)).listings.some(
       (row) => row.id === listingId,
     ),
   );
-  assert.equal((await fetch(origin + sds.fileUrl)).status, 200);
+  assert.equal((await fetch(origin + sds.fileUrl)).status, 401);
+  assert.equal((await fetch(origin + sds.fileUrl,{headers:{authorization:"Bearer "+buyer.token}})).status,200);
   await call(
     "/api/listings/not-a-real-listing",
     "GET",

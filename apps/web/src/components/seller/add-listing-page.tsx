@@ -34,7 +34,7 @@ import {
   GRADE_OPTIONS,
   LISTING_TYPE_OPTIONS,
   MATERIAL_TYPE_OPTIONS,
-  UNIT_OPTIONS,
+  unitOptionsFor,
   emptyListingForm,
   formToWriteBody,
   mergeListingForm,
@@ -49,6 +49,7 @@ import {
   useCompanyLocations,
 } from "./listing-location-picker";
 
+/** Reads a File as raw base64 (no data-URL prefix). */
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 const TOTAL = 7;
 
@@ -131,6 +132,7 @@ function TextArea({
     </div>
   );
 }
+
 
 export function AddListingPage() {
   const router = useRouter();
@@ -404,7 +406,7 @@ export function AddListingPage() {
           <h1 className="mb-8 text-3xl font-bold text-neutral-900">Pricing & Supply</h1>
           <div className="flex flex-col gap-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Select label="Quantity unit" id="unit" options={UNIT_OPTIONS} value={form.unit} onChange={(e) => up("unit", e.target.value)} />
+              <Select label="Quantity unit" id="unit" options={unitOptionsFor(form.unit)} value={form.unit} onChange={(e) => up("unit", e.target.value)} />
               <Select label="Currency" id="currency" options={CURRENCY_OPTIONS} value={form.currencyCode} onChange={(e) => up("currencyCode", e.target.value)} />
             </div>
             <div>
@@ -502,6 +504,17 @@ export function AddListingPage() {
               title="Certification upload"
               hint={record ? "Accepts PDF up to 5 MB each." : "Save as Draft first, then upload certification PDFs (up to 5 MB each)."}
             />
+            <div className="rounded-xl bg-neutral-50 p-4" style={{ border: "1px solid #E7E7E7" }}>
+              <p className="mb-1 flex items-center gap-2 text-sm font-bold text-neutral-900">
+                <FileText className="size-4" />
+                Technical documents (optional)
+              </p>
+              <p className="mb-3 text-xs text-neutral-700">Buyers see these on the product page. PDF up to 5 MB each.</p>
+              <div className="flex flex-col gap-4">
+                <ListingDocumentUploader listingId={record?.id ?? null} typeCode="tds" documents={documents} onChange={setDocuments} multiple={false} title="Technical Data Sheet (TDS)" hint={record ? "Accepts PDF up to 5 MB." : "Save as Draft first, then upload the TDS (PDF up to 5 MB)."} />
+                <ListingDocumentUploader listingId={record?.id ?? null} typeCode="coa" documents={documents} onChange={setDocuments} multiple={false} title="Certificate of Analysis (COA)" hint={record ? "Accepts PDF up to 5 MB." : "Save as Draft first, then upload the COA (PDF up to 5 MB)."} />
+              </div>
+            </div>
             <TextArea id="sustain-notes" label="Sustainability Notes (Optional)" rows={4} value={form.sustainNotes} onChange={(v) => up("sustainNotes", v)} />
           </div>
         </StepLayout>

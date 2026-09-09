@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clock3,
@@ -15,8 +15,15 @@ import { BuyerLayout } from "./buyer-layout";
 import {
   carrierQuotes,
   logisticsShipments,
+  mapLiveShipment,
   type LogisticsShipment,
 } from "../logistics/logistics-demo-data";
+import {
+  confirmOrderDelivery,
+  fetchShipments,
+} from "@/lib/api-fulfilment";
+import { fetchOrders } from "@/lib/api-orders";
+import { readDemoUser } from "@/lib/demo-user";
 
 function StatCard({
   label,
@@ -88,7 +95,31 @@ function formatQuoteCost(value: number) {
 }
 
 export function BuyerLogisticsPage() {
+  const [shipmentRows, setShipmentRows] = useState(logisticsShipments);
   const [selected, setSelected] = useState(logisticsShipments[0]);
+
+  // Live shipments on this buyer's orders render ahead of the demo rows.
+  useEffect(() => {
+    const user = readDemoUser();
+    if (!user?.activeCompanyId) return;
+    let cancelled = false;
+    Promise.all([fetchShipments(), fetchOrders({ buyerCompanyId: user.activeCompanyId })])
+      .then(([shipments, orders]) => {
+        if (cancelled) return;
+        const orderById = new Map(orders.map((o) => [o.id, o]));
+        const live = shipments
+          .filter((s) => orderById.has(s.orderId))
+          .map((s) => mapLiveShipment(s, orderById.get(s.orderId)));
+        if (live.length > 0) {
+          setShipmentRows([...live, ...logisticsShipments]);
+          setSelected(live[0]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [confirmed, setConfirmed] = useState<Record<string, boolean>>({});
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [receiverName, setReceiverName] = useState("");
@@ -123,10 +154,10 @@ export function BuyerLogisticsPage() {
     ? "Delivered"
     : selected.status;
   const activeShipmentCount =
-    logisticsShipments.filter(
+    shipmentRows.filter(
       (shipment) => shipment.status !== "Delivered" && !confirmed[shipment.id],
     ).length + (bookedQuote ? 1 : 0);
-  const awaitingConfirmationCount = logisticsShipments.filter(
+  const awaitingConfirmationCount = shipmentRows.filter(
     (shipment) => shipment.status === "Delivered" && !confirmed[shipment.id],
   ).length;
 
@@ -220,9 +251,29 @@ export function BuyerLogisticsPage() {
     setConfirmationOpen(true);
   };
 
-  const confirmDelivery = (event: React.FormEvent<HTMLFormElement>) => {
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmError, setConfirmError] = useState("");
+
+  const confirmDelivery = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!receiverName.trim() || !inspectionComplete) return;
+    if (!receiverName.trim() || !inspectionComplete || confirmBusy) return;
+    setConfirmError("");
+    // Live shipments run the real chain: shipment delivered -> escrow
+    // released -> order completed. Demo rows keep the local walkthrough.
+    const liveOrderId = /^EG-(\d+)$/.exec(selected.orderId)?.[1];
+    if (/^SHP-\d+$/.test(selected.id) && liveOrderId) {
+      setConfirmBusy(true);
+      try {
+        await confirmOrderDelivery(Number(liveOrderId));
+      } catch (error) {
+        setConfirmError(
+          error instanceof Error ? error.message : "Unable to confirm delivery.",
+        );
+        setConfirmBusy(false);
+        return;
+      }
+      setConfirmBusy(false);
+    }
     setConfirmed((current) => ({ ...current, [selected.id]: true }));
     setConfirmationDetails((current) => ({
       ...current,
@@ -311,7 +362,7 @@ export function BuyerLogisticsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {logisticsShipments.map((shipment) => (
+                  {shipmentRows.map((shipment) => (
                     <tr
                       key={shipment.id}
                       onClick={() => setSelected(shipment)}
@@ -809,7 +860,7 @@ export function BuyerLogisticsPage() {
                 </button>
               </div>
 
-              <form onSubmit={confirmDelivery} className="space-y-5 px-6 py-6">
+              <form onSubmit={(e) => void confirmDelivery(e)} className="space-y-5 px-6 py-6">
                 <div
                   id="delivery-confirmation-description"
                   className="rounded-2xl bg-neutral-50 p-4"
@@ -887,15 +938,20 @@ export function BuyerLogisticsPage() {
                   </span>
                 </label>
 
+                {confirmError && (
+                  <p className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">
+                    {confirmError}
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Button
                     type="submit"
                     variant="primary"
                     size="md"
-                    disabled={!receiverName.trim() || !inspectionComplete}
+                    disabled={!receiverName.trim() || !inspectionComplete || confirmBusy}
                   >
                     <CheckCircle2 className="size-4" />
-                    Record confirmation
+                    {confirmBusy ? "Confirming..." : "Record confirmation"}
                   </Button>
                   <Button
                     type="button"

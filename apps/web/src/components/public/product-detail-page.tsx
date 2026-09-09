@@ -18,6 +18,9 @@ import { HeaderUserMenu } from "@/components/auth/header-user-menu";
 import { formatMoney, describeUnit } from "@/lib/listing-format";
 import { ListingAnalysis } from "@/components/lab-testing/listing-analysis";
 import { RequestSampleModal } from "@/components/samples/request-sample-modal";
+import { recordListingInterest } from "@/lib/api-listings";
+import { fetchFavorites, setFavorite } from "@/lib/api-account";
+import { documentTypeLabel } from "@/components/seller/listing-documents";
 
 const FAVORITES_KEY = "ecoglobe.favoriteListings";
 
@@ -65,6 +68,13 @@ export function ProductDetailPage() {
   const [isSharePanelOpen, setIsSharePanelOpen] = useState(false);
   const [sampleOpen, setSampleOpen] = useState(false);
 
+  const backendId = listing?.backendId;
+
+  // Aggregate interest signal for the seller — never identifies the viewer.
+  useEffect(() => {
+    recordListingInterest(backendId, "detail_view");
+  }, [backendId]);
+
   useEffect(() => {
     if (!product) return;
     setSampleOpen(false);
@@ -85,7 +95,22 @@ export function ProductDetailPage() {
     } catch {
       setIsFavorite(false);
     }
-  }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Signed-in members: the backend favorite wins over local storage.
+    if (user && backendId) {
+      let cancelled = false;
+      fetchFavorites()
+        .then((favorites) => {
+          if (cancelled) return;
+          setIsFavorite(favorites.some((f) => f.listingId === backendId));
+        })
+        .catch(() => {
+          // Local storage already reflects the last known state.
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [product?.id, backendId, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!shareStatus) return;
@@ -139,6 +164,8 @@ export function ProductDetailPage() {
   const isOwner = !!user?.activeCompanyId && user.activeCompanyId === listing.sellerCompanyId;
   const canRequest = !!user?.activeCompanyId && !isOwner;
   const labListing = { id: listing.backendId, title: product.title, sellerCompanyName: product.seller.name, location: product.location };
+  // TDS / SDS / COA and certifications buyers can download; photos are shown in the gallery.
+  const attachments = product.documents.filter((doc) => doc.typeCode !== "photo");
 
   const handleAddToCart = () => {
     if (!priceKnown) return;
@@ -156,6 +183,7 @@ export function ProductDetailPage() {
       image: product.images[0] ?? null,
       quantity: qty,
     });
+    recordListingInterest(backendId, "cart_add");
   };
 
   const handleShare = async () => {
@@ -184,6 +212,12 @@ export function ProductDetailPage() {
         // Keep the visible state responsive even if storage is unavailable.
       }
       setFavoriteStatus(next ? "Added to favorites" : "Removed from favorites");
+      // Signed-in members persist favorites to their account.
+      if (user && backendId) {
+        void setFavorite(backendId, next).catch(() => {
+          // Best-effort; the local list already reflects the change.
+        });
+      }
       return next;
     });
   };
@@ -262,7 +296,7 @@ export function ProductDetailPage() {
             <div className="flex size-10 items-center justify-center rounded-full bg-neutral-200 text-sm font-bold text-neutral-700">{(product.seller.name ?? "?").slice(0, 1).toUpperCase()}</div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-neutral-900">{product.seller.name ?? "Seller name unavailable"}</span>
+                <span className="text-sm font-semibold text-neutral-900">{product.seller.name ?? (product.teaser ? "Shown to members" : "Seller name unavailable")}</span>
                 {product.seller.verified && <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-green-700" style={{ backgroundColor: "#DCFCE7" }}>verified <CheckCircle className="size-3" /></span>}
               </div>
               <p className="text-xs text-neutral-500">{product.seller.location} · {product.seller.type}</p>
@@ -291,7 +325,18 @@ export function ProductDetailPage() {
         <div className="order-first w-full shrink-0 lg:order-none lg:w-[300px]">
           <div className="sticky top-8 rounded-xl bg-white p-6" style={{ border: "1px solid #E0E0E0" }}>
             <p className="text-xl font-bold text-neutral-900 sm:text-2xl lg:text-3xl">{product.priceLabel}{priceKnown && <span className="ml-1 text-base font-normal text-neutral-500">{product.unit}</span>}</p>
-            {!priceKnown && <p className="mt-1 text-xs text-neutral-500">The seller has not published a price for this listing.</p>}
+            {!priceKnown && !product.teaser && <p className="mt-1 text-xs text-neutral-500">The seller has not published a price for this listing.</p>}
+            {product.teaser && (
+              <p className="mt-1 text-xs text-neutral-600" role="note">
+                Pricing, minimum order, seller details, specifications and documents are available to marketplace members.{" "}
+                {isMember ? (
+                  <Link href={user?.role === "seller" ? "/seller/onboarding" : "/buyer/onboarding"} className="font-semibold text-neutral-900 underline">Complete company onboarding</Link>
+                ) : (
+                  <Link href="/login" className="font-semibold text-neutral-900 underline">Sign in</Link>
+                )}{" "}
+                to unlock the full listing.
+              </p>
+            )}
             {product.priceIsZero && <p className="mt-1 text-xs text-neutral-500">Offered at no charge by the seller.</p>}
             <p className="mb-4 mt-2 text-sm text-neutral-700" style={{ borderBottom: "1px solid #F0F0F0", paddingBottom: "16px" }}>Minimum Order Quantity (MOQ): {product.minimumOrderLabel}</p>
 
@@ -316,19 +361,46 @@ export function ProductDetailPage() {
                 Request a Sample (5–10 lb)
               </button>
             )}
-            {isMember && !hasSds && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Seller hasn&apos;t uploaded the SDS yet — purchase blocked.</p>}
-            {isMember && !priceKnown && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />No price recorded — request a quote from the seller.</p>}
+            {isMember && !hasSds && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Seller hasn&apos;t uploaded the SDS yet — purchase blocked.</p>}
+            {isMember && !priceKnown && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />No price recorded — request a quote from the seller.</p>}
           </div>
 
           {isMember && (
             <div className="mt-4 flex flex-col gap-2 rounded-xl bg-white p-4" style={{ border: "1px solid #E0E0E0" }}>
               <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="primary" label="Open Carbon Calculator" />
               <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="ghost" label="Estimate savings" startAt="value-recovery" />
-              {hasSds ? (
+              {product.teaser ? (
+                <p className="flex items-start gap-1.5 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-600"><Lock className="mt-0.5 size-3 shrink-0" />Documents are shown once your company onboarding is complete.</p>
+              ) : hasSds ? (
                 <a href={product.sdsUrl ?? "#"} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50" style={{ border: "1px solid #E0E0E0" }}><FileText className="size-4" />Download SDS</a>
               ) : (
                 <p className="flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />SDS pending — request from seller before purchase.</p>
               )}
+            </div>
+          )}
+
+          {attachments.length > 0 && (
+            <div className="mt-4 rounded-xl bg-white p-4" style={{ border: "1px solid #E0E0E0" }}>
+              <p className="mb-3 text-sm font-bold text-neutral-900">Documents</p>
+              <div className="flex flex-col gap-2">
+                {attachments.map((doc) => (
+                  <div key={doc.id} className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ border: "1px solid #F0F0F0" }}>
+                    <FileText className="size-4 shrink-0 text-neutral-500" />
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-2 text-sm font-medium text-neutral-900">
+                        <span className="truncate">{documentTypeLabel(doc.typeCode)}</span>
+                        {doc.verificationStatusCode === "verified" && <span className="shrink-0 rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-700">Verified</span>}
+                      </p>
+                      <p className="truncate text-xs text-neutral-500">{doc.fileName}</p>
+                    </div>
+                    {isMember ? (
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-neutral-900 underline">Download</a>
+                    ) : (
+                      <span className="flex items-center gap-1 text-xs text-neutral-400"><Lock className="size-3" /> Members</span>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

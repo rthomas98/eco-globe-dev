@@ -37,11 +37,20 @@ export function materialTypeLabel(code: string | null | undefined) {
 
 export function formatLocation(location: ListingLocation | null | undefined) {
   if (!location) return "";
-  const parts = [location.city, location.stateProvince ?? location.countryCode]
+  // Teasers carry only region and country; members also get the city.
+  const parts = [
+    location.city,
+    location.stateProvince,
+    location.city ? undefined : location.countryCode,
+  ]
     .map((part) => part?.trim())
     .filter((part): part is string => !!part);
   return parts.join(", ");
 }
+
+/** Labels shown in place of redacted fields on a teaser. */
+export const TEASER_PRICE_LABEL = "Sign in to see price";
+export const TEASER_MOQ_LABEL = "Sign in to see MOQ";
 
 export function formatLocationAddress(location: ListingLocation | null | undefined) {
   if (!location) return "";
@@ -99,12 +108,25 @@ const SPEC_LABELS: Array<[key: string, label: string]> = [
 
 /** Convert a persisted backend listing into the shared marketplace view model. */
 export function toListing(record: BackendListing): Listing {
+  const teaser = record.teaser === true;
   const specs = record.specifications ?? {};
   const documents = (record.documents ?? []).map(toDocumentRef);
   const photos = documents.filter((doc) => doc.typeCode === "photo");
   const sds = documents.find((doc) => doc.typeCode === "sds");
   const price = describePrice(record.pricePerUnit, record.currencyCode, record.quantityUnit);
   const moq = formatQuantityWithUnitName(record.minimumOrderQuantity, record.quantityUnit);
+  const location = record.location ?? {
+    id: record.locationId ?? null,
+    name: null,
+    addressLine1: null,
+    addressLine2: null,
+    city: record.locationCity ?? null,
+    stateProvince: record.locationStateProvince ?? null,
+    postalCode: null,
+    countryCode: record.locationCountryCode ?? null,
+    latitude: record.locationLatitude ?? null,
+    longitude: record.locationLongitude ?? null,
+  };
   const co2 = formatCarbonIntensity(record.carbonIntensityKgCo2e);
   const category = clean(specs.category) ?? materialTypeLabel(record.materialTypeCode);
 
@@ -126,15 +148,16 @@ export function toListing(record: BackendListing): Listing {
     id: String(record.id),
     backendId: record.id,
     slug: record.slug,
+    teaser,
     title: record.title,
-    location: formatLocation(record.location),
+    location: formatLocation(location),
     distance: "—",
-    moq: moq ?? "—",
+    moq: teaser ? TEASER_MOQ_LABEL : (moq ?? "—"),
     moqNum: record.minimumOrderQuantity,
     co2: co2 ?? "—",
     co2Num: record.carbonIntensityKgCo2e,
     hasCarbonData: co2 !== null,
-    price: price.label,
+    price: teaser ? TEASER_PRICE_LABEL : price.label,
     priceNum: price.amount,
     priceIsZero: price.kind === "zero",
     currencyCode: (record.currencyCode ?? "USD").toUpperCase(),
@@ -144,8 +167,8 @@ export function toListing(record: BackendListing): Listing {
     image: photos[0]?.url ?? null,
     images: photos.map((doc) => doc.url),
     tags,
-    lng: record.location?.longitude ?? null,
-    lat: record.location?.latitude ?? null,
+    lng: location.longitude ?? null,
+    lat: location.latitude ?? null,
     category,
     materialTypeCode: record.materialTypeCode,
     grade: clean(specs.grade) ?? null,
@@ -164,7 +187,7 @@ export function toListing(record: BackendListing): Listing {
     sellerCompanyId: record.sellerCompanyId,
     sellerCompanyName: clean(record.sellerCompanyName) ?? null,
     sellerVerified: record.sellerVerified === true,
-    sellerLocationId: record.location?.id ?? record.locationId ?? null,
+    sellerLocationId: location.id ?? record.locationId ?? null,
     statusCode: record.listingStatusCode,
     description: clean(record.description) ?? null,
     claims: (specs.claims ?? []).filter((claim) => !!claim?.trim()),

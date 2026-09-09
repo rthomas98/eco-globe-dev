@@ -27,8 +27,12 @@ export function LoginPage() {
         password,
       });
       const role: UserRole = user.role;
-      const dest =
-        role === "seller"
+      const isExplorer =
+        (user.companies?.length ?? 0) === 0 &&
+        user.accountStatusCode === "unsubscribed";
+      const dest = isExplorer
+        ? "/welcome"
+        : role === "seller"
           ? "/seller/listings"
           : role === "buyer"
             ? "/buyer/browse"

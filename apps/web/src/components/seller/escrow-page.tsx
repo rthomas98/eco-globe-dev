@@ -20,10 +20,11 @@ import {
 import { Button, Input } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
 import {
-  escrowRecords,
   escrowStatusForSeller,
   formatEscrowMoney,
+  type EscrowRecord,
 } from "@/components/escrow/escrow-demo-data";
+import { useEscrowRecords } from "@/components/escrow/use-live-escrows";
 
 type EscrowStatus =
   | "Awaiting funding"
@@ -82,7 +83,7 @@ const legacyEscrows = [
 ];
 void legacyEscrows;
 
-const escrows: Escrow[] = escrowRecords.map((record) => ({
+const mapRecordToSellerEscrow = (record: EscrowRecord): Escrow => ({
   id: record.id,
   orderId: record.orderId,
   seller: record.seller,
@@ -106,7 +107,7 @@ const escrows: Escrow[] = escrowRecords.map((record) => ({
   disputeReason: record.disputeReason,
   documents: record.documents,
   activity: record.activity,
-}));
+});
 
 function formatMoney(n: number) {
   return formatEscrowMoney(n);
@@ -425,6 +426,7 @@ function Timeline({
 }
 
 export function EscrowPage() {
+  const escrows = useEscrowRecords().map(mapRecordToSellerEscrow);
   const [search, setSearch] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<Record<EscrowStatus, boolean>>({
@@ -468,7 +470,7 @@ export function EscrowPage() {
         e.product.toLowerCase().includes(q)
       );
     });
-  }, [search, appliedFilter]);
+  }, [search, appliedFilter, escrows]);
 
   const fundsOnHold = escrows.reduce((sum, e) => sum + e.amountHeld, 0);
   const pendingRelease = escrows

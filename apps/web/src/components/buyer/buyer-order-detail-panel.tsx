@@ -18,6 +18,15 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { DisputeThread } from "@/components/disputes/dispute-thread";
+import {
+  confirmOrderDelivery,
+  fetchDisputes,
+  fetchShipments,
+  fileDispute,
+  numericOrderId,
+  type ApiShipment,
+} from "@/lib/api-fulfilment";
 import { BuyerPaymentMethodScreen } from "./buyer-payment-method-screen";
 import { PanelHeaderMenu, downloadTextFile } from "./panel-header-menu";
 import { DocumentRow } from "./document-row";
@@ -185,6 +194,99 @@ function SectionCard({
 export function BuyerOrderDetailPanel({ order, onClose }: Props) {
   const [codeCopied, setCodeCopied] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState("");
+
+  // Live orders (EG-<id>) run the real backend chain; demo rows keep the
+  // local flow so the walkthrough still works offline.
+  const liveOrderId = order ? numericOrderId(order.orderId) : null;
+
+  const runConfirmDelivery = async (
+    successModal: "delivery-verified" | "pickup-success",
+  ) => {
+    if (actionBusy) return;
+    setActionError("");
+    if (!liveOrderId) {
+      setActiveModal(successModal);
+      return;
+    }
+    setActionBusy(true);
+    try {
+      await confirmOrderDelivery(liveOrderId);
+      setActiveModal(successModal);
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Unable to confirm delivery.",
+      );
+    }
+    setActionBusy(false);
+  };
+
+  const runFileDispute = async () => {
+    if (actionBusy) return;
+    setActionError("");
+    if (!liveOrderId) {
+      setActiveModal("dispute-submitted");
+      return;
+    }
+    setActionBusy(true);
+    try {
+      const issueTypeCode =
+        issueType === "quality"
+          ? "quality"
+          : issueType === "missing-docs"
+            ? "documentation"
+            : issueType === "damaged" || issueType === "wrong-quantity"
+              ? "delivery"
+              : "quality";
+      await fileDispute({
+        orderId: liveOrderId,
+        summary: `${issueType}: ${issueDetails}`.slice(0, 500),
+        issueTypeCode,
+      });
+      setActiveModal("dispute-submitted");
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Unable to submit the dispute.",
+      );
+    }
+    setActionBusy(false);
+  };
+  const [liveDisputeId, setLiveDisputeId] = useState<number | null>(null);
+  const [liveShipment, setLiveShipment] = useState<ApiShipment | null>(null);
+
+  // The real shipment record backs the tracking facts in the panel.
+  useEffect(() => {
+    setLiveShipment(null);
+    if (!liveOrderId) return;
+    let cancelled = false;
+    fetchShipments(liveOrderId)
+      .then((rows) => {
+        if (!cancelled && rows[0]) setLiveShipment(rows[0]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [liveOrderId, activeModal]);
+
+  // A filed dispute on a live order surfaces its conversation in the panel.
+  useEffect(() => {
+    setLiveDisputeId(null);
+    if (!liveOrderId) return;
+    let cancelled = false;
+    fetchDisputes()
+      .then((all) => {
+        if (cancelled) return;
+        const match = all.find((d) => d.orderId === liveOrderId);
+        if (match) setLiveDisputeId(match.id);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [liveOrderId, activeModal]);
+
   const [requestText, setRequestText] = useState("");
   const [paymentScreenOpen, setPaymentScreenOpen] = useState(false);
   const [issueType, setIssueType] = useState("");
@@ -229,13 +331,14 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
   const isReadyForPickup = order.status === "Ready for pickup";
   const isAwaitingPayment = order.status === "Awaiting payment";
   const isBuyerVerification = order.status === "Buyer verification";
+  const isProcessing = order.status === "Processing";
   const headerCta = isQuoteAwaiting
     ? "Approve Quote"
     : isReadyForPickup
       ? "Confirm Pickup Completed"
       : isAwaitingPayment
         ? "Payment Method"
-        : isBuyerVerification
+        : isBuyerVerification || isProcessing
           ? "Mark as Delivered"
           : null;
 
@@ -287,7 +390,7 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
                   if (isQuoteAwaiting) setActiveModal("quote-approved");
                   else if (isReadyForPickup) setActiveModal("confirm-pickup");
                   else if (isAwaitingPayment) setPaymentScreenOpen(true);
-                  else if (isBuyerVerification)
+                  else if (isBuyerVerification || isProcessing)
                     setActiveModal("confirm-delivery");
                 }}
               >
@@ -453,6 +556,61 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
                       {order.quote.sellerNote}
                     </p>
                   </div>
+                </section>
+              )}
+
+              {liveShipment && (
+                <section
+                  className="rounded-2xl bg-white p-6"
+                  style={{ border: "1px solid #F0F0F0" }}
+                >
+                  <p className="mb-4 text-base font-bold text-neutral-900">
+                    Shipment SHP-{liveShipment.id}
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
+                    <Field
+                      label="Status"
+                      value={liveShipment.shipmentStatusName ?? liveShipment.shipmentStatusCode}
+                    />
+                    <Field label="Carrier" value={liveShipment.carrierName ?? "—"} />
+                    <Field label="Tracking #" value={liveShipment.trackingNumber ?? "—"} />
+                    <Field
+                      label="Shipping cost"
+                      value={
+                        liveShipment.shippingCost != null
+                          ? `$${Number(liveShipment.shippingCost).toLocaleString()}`
+                          : "—"
+                      }
+                    />
+                    <Field
+                      label="Pickup scheduled"
+                      value={
+                        liveShipment.pickupScheduledAt
+                          ? new Date(liveShipment.pickupScheduledAt).toLocaleDateString()
+                          : "—"
+                      }
+                    />
+                    <Field
+                      label="Delivered"
+                      value={
+                        liveShipment.deliveryConfirmedAt
+                          ? new Date(liveShipment.deliveryConfirmedAt).toLocaleDateString()
+                          : "—"
+                      }
+                    />
+                  </div>
+                </section>
+              )}
+
+              {liveDisputeId !== null && (
+                <section
+                  className="rounded-2xl bg-white p-6"
+                  style={{ border: "1px solid #F0F0F0" }}
+                >
+                  <p className="mb-4 text-base font-bold text-neutral-900">
+                    Dispute DSP-{liveDisputeId}
+                  </p>
+                  <DisputeThread disputeId={liveDisputeId} viewerRole="buyer" />
                 </section>
               )}
 
@@ -689,6 +847,12 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
         </div>
       </aside>
 
+      {actionError && (
+        <div className="fixed bottom-6 left-1/2 z-[90] -translate-x-1/2 rounded-lg bg-red-600 px-5 py-3 text-sm font-medium text-white shadow-lg">
+          {actionError}
+        </div>
+      )}
+
       {activeModal === "request-changes" && (
         <Modal onClose={() => setActiveModal(null)}>
           <div className="-mt-2">
@@ -789,9 +953,10 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
               <Button
                 variant="primary"
                 size="md"
-                onClick={() => setActiveModal("pickup-success")}
+                onClick={() => void runConfirmDelivery("pickup-success")}
+                disabled={actionBusy}
               >
-                Yes, confirm
+                {actionBusy ? "Confirming..." : "Yes, confirm"}
               </Button>
             </div>
           </div>
@@ -824,9 +989,10 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
               <Button
                 variant="primary"
                 size="md"
-                onClick={() => setActiveModal("delivery-verified")}
+                onClick={() => void runConfirmDelivery("delivery-verified")}
+                disabled={actionBusy}
               >
-                Confirm Delivery
+                {actionBusy ? "Confirming..." : "Confirm Delivery"}
               </Button>
             </div>
           </div>
@@ -949,10 +1115,7 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
                     : undefined
                 }
                 onClick={() => {
-                  setActiveModal("dispute-submitted");
-                  setIssueType("");
-                  setIssueDetails("");
-                  setIssueFile(null);
+                  void runFileDispute();
                 }}
               >
                 Submit

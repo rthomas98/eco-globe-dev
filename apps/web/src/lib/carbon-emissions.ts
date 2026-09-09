@@ -79,6 +79,41 @@ export function distanceMiles(
   return km * 0.621371;
 }
 
+const geocodeCache = new Map<string, { lat: number; lng: number } | null>();
+
+/**
+ * Geocode a free-text address via Mapbox (same token the maps use).
+ * Returns null when the token is missing or the address can't be located.
+ */
+export async function geocodeAddress(
+  query: string,
+): Promise<{ lat: number; lng: number } | null> {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+  if (geocodeCache.has(trimmed)) return geocodeCache.get(trimmed) ?? null;
+
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  if (!token) return null;
+
+  try {
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(trimmed)}.json?access_token=${token}&limit=1`,
+    );
+    if (!response.ok) throw new Error(String(response.status));
+    const body = (await response.json()) as {
+      features?: Array<{ center?: [number, number] }>;
+    };
+    const center = body.features?.[0]?.center;
+    const result =
+      center && center.length === 2 ? { lng: center[0], lat: center[1] } : null;
+    geocodeCache.set(trimmed, result);
+    return result;
+  } catch {
+    geocodeCache.set(trimmed, null);
+    return null;
+  }
+}
+
 export type WeightUnit =
   | "metric-tons"
   | "pallets"

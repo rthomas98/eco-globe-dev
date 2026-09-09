@@ -1,6 +1,32 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
+import {
+  fetchOrders,
+  formatOrderMoney,
+  type ApiOrder,
+} from "@/lib/api-orders";
+import { readDemoUser } from "@/lib/demo-user";
+import {
+  numericOrderId,
+  fetchCarriers,
+  sendShippingQuote,
+  type ApiCarrier,
+  uploadBillOfLading,
+} from "@/lib/api-fulfilment";
+
+/** Reads a File as raw base64 (no data-URL prefix). */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? "");
+      resolve(result.includes(",") ? result.slice(result.indexOf(",") + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 import { Search, SlidersHorizontal, DollarSign, CheckCircle2, Clock, RefreshCw, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown, X, FileText, Download, Info } from "lucide-react";
 import { Button, Select } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
@@ -34,6 +60,26 @@ const orders: Order[] = [
 
 const tabs = ["All Order", "Action needed", "Processing", "Completed", "Disputes"];
 
+const SELLER_ACTION_BY_CODE: Record<string, Action> = {
+  draft: "Respond",
+  approval_required: "Send quote",
+  escrow_required: "Send quote",
+  in_progress: "Upload Bill of Lading (BOL)",
+  completed: "View Detail",
+  cancelled: "View Detail",
+};
+
+function mapApiOrderToSellerRow(order: ApiOrder): Order {
+  return {
+    id: `EG-${order.id}`,
+    buyer: order.buyerCompanyName,
+    product: `${order.listingTitle ?? "Marketplace order"} · ${formatOrderMoney(order.totalAmount, order.currencyCode)}`,
+    qty: order.orderStatusCode.replace(/_/g, " "),
+    shipping: "Delivery",
+    action: SELLER_ACTION_BY_CODE[order.orderStatusCode] ?? "View Detail",
+  };
+}
+
 function ActionButton({ action, onClick }: { action: Action; onClick: () => void }) {
   const isBlack = action !== "View Detail";
   return (
@@ -64,29 +110,44 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
 }
 
 /* ─── Create Quote Modal ─── */
-function CreateQuoteModal({ onClose, onSend }: { onClose: () => void; onSend: () => void }) {
+function CreateQuoteModal({ order, onClose, onSend }: { order: Order | null; onClose: () => void; onSend: (quote: { shippingCost: number; carrierCode?: string; eta: string; note: string }) => void }) {
+  const [cost, setCost] = useState("0.00");
+  const [carriers, setCarriers] = useState<ApiCarrier[]>([]);
+  const [carrierCode, setCarrierCode] = useState("");
+  const [eta, setEta] = useState("");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    fetchCarriers()
+      .then((rows) => {
+        setCarriers(rows);
+        if (rows[0]) setCarrierCode(rows[0].code);
+      })
+      .catch(() => {});
+  }, []);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center"><div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative z-10 w-full max-w-[680px] rounded-2xl bg-white p-8" style={{boxShadow:"0 20px 60px rgba(0,0,0,0.15)"}}>
         <div className="mb-6 flex items-center justify-between"><h2 className="text-xl font-bold text-neutral-900">Create Quote</h2><button onClick={onClose} className="text-neutral-400"><X className="size-5" /></button></div>
-        <div className="grid grid-cols-2 gap-4 mb-4"><div><p className="text-xs font-semibold text-neutral-500">Order ID</p><p className="text-sm text-neutral-900">OD20411</p></div><div><p className="text-xs font-semibold text-neutral-500">Buyer</p><p className="text-sm text-neutral-900">AgriCorp Solutions</p></div></div>
+        <div className="grid grid-cols-2 gap-4 mb-4"><div><p className="text-xs font-semibold text-neutral-500">Order ID</p><p className="text-sm text-neutral-900">{order?.id ?? "—"}</p></div><div><p className="text-xs font-semibold text-neutral-500">Buyer</p><p className="text-sm text-neutral-900">{order?.buyer ?? "—"}</p></div></div>
         <div className="mb-4"><p className="text-xs font-semibold text-neutral-500">Delivery address</p><p className="text-sm text-neutral-900">2012 Rue Beauregard, STE 202, Lafayette, LA 70508</p></div>
-        <div className="mb-6"><p className="text-xs font-semibold text-neutral-500">Product</p><p className="text-sm text-neutral-900">Pyrolysis Pitch - 20 tons</p></div>
+        <div className="mb-6"><p className="text-xs font-semibold text-neutral-500">Product</p><p className="text-sm text-neutral-900">{order?.product ?? "—"}</p></div>
         <div style={{borderTop:"1px solid #F0F0F0",paddingTop:"16px"}} className="mb-4"><h3 className="mb-4 text-base font-bold text-neutral-900">Product</h3>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="mb-1.5 block text-sm font-medium text-neutral-900">Shipping cost</label><div className="flex items-center rounded-lg" style={{border:"1px solid #E0E0E0"}}><span className="px-3 text-sm text-neutral-400">$</span><input type="text" defaultValue="0.00" className="flex-1 bg-transparent px-2 py-3 text-sm outline-none" /></div></div>
-            <Select label="Estimated delivery time" id="edt" options={[{value:"",label:"-- Choose --"},{value:"3d",label:"3 days"},{value:"1w",label:"1 week"},{value:"2w",label:"2 weeks"}]} />
+            <div><label className="mb-1.5 block text-sm font-medium text-neutral-900">Shipping cost</label><div className="flex items-center rounded-lg" style={{border:"1px solid #E0E0E0"}}><span className="px-3 text-sm text-neutral-400">$</span><input type="text" value={cost} onChange={(e)=>setCost(e.target.value)} className="flex-1 bg-transparent px-2 py-3 text-sm outline-none" /></div></div>
+            <Select label="Estimated delivery time" id="edt" value={eta} onChange={(e)=>setEta(e.target.value)} options={[{value:"",label:"-- Choose --"},{value:"3d",label:"3 days"},{value:"1w",label:"1 week"},{value:"2w",label:"2 weeks"}]} />
+            <Select label="Carrier" id="quote-carrier" value={carrierCode} onChange={(e)=>setCarrierCode(e.target.value)} options={carriers.length > 0 ? carriers.map((c)=>({value:c.code,label:c.name})) : [{value:"ecofreight",label:"EcoFreight"}]} />
           </div>
         </div>
-        <div className="mb-6"><label className="mb-1.5 block text-sm font-medium text-neutral-900">Note to buyer</label><textarea rows={4} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none" style={{border:"1px solid #E0E0E0"}} /></div>
-        <div className="flex justify-end gap-3"><Button variant="secondary" size="md" onClick={onClose}>Cancel</Button><Button variant="primary" size="md" onClick={onSend}>Send Quote</Button></div>
+        <div className="mb-6"><label className="mb-1.5 block text-sm font-medium text-neutral-900">Note to buyer</label><textarea rows={4} value={note} onChange={(e)=>setNote(e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400 resize-none" style={{border:"1px solid #E0E0E0"}} /></div>
+        <div className="flex justify-end gap-3"><Button variant="secondary" size="md" onClick={onClose}>Cancel</Button><Button variant="primary" size="md" onClick={()=>onSend({ shippingCost: parseFloat(cost)||0, carrierCode: carrierCode || undefined, eta, note })}>Send Quote</Button></div>
       </div>
     </div>
   );
 }
 
 /* ─── Upload Bill of Lading (BOL) Modal ─── */
-function UploadBOLModal({ onClose, onUpload }: { onClose: () => void; onUpload: () => void }) {
+function UploadBOLModal({ onClose, onUpload }: { onClose: () => void; onUpload: (file?: File) => void }) {
   const [files, setFiles] = useState<File[]>([]);
   const ref = useRef<HTMLInputElement>(null);
   return (
@@ -104,7 +165,7 @@ function UploadBOLModal({ onClose, onUpload }: { onClose: () => void; onUpload: 
             <button onClick={() => setFiles(files.filter((_,idx)=>idx!==i))} className="text-neutral-400"><X className="size-4" /></button>
           </div>
         ))}
-        <div className="mt-4 flex justify-end gap-3"><Button variant="secondary" size="md" onClick={onClose}>Cancel</Button><Button variant="primary" size="md" onClick={onUpload}>Upload Bill of Lading (BOL)</Button></div>
+        <div className="mt-4 flex justify-end gap-3"><Button variant="secondary" size="md" onClick={onClose}>Cancel</Button><Button variant="primary" size="md" onClick={()=>onUpload(files[0])}>Upload Bill of Lading (BOL)</Button></div>
       </div>
     </div>
   );
@@ -217,14 +278,104 @@ export function SellerSalesPage() {
   const [showBOLModal, setShowBOLModal] = useState(false);
   const [successModal, setSuccessModal] = useState<{title:string;message:string;status:string}|null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [orderRows, setOrderRows] = useState<Order[]>(orders);
 
-  const filtered = orders.filter((o) => !searchQuery.trim() || o.buyer.toLowerCase().includes(searchQuery.toLowerCase()) || o.product.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Live sales from the backend render ahead of the demo rows.
+  useEffect(() => {
+    const user = readDemoUser();
+    if (!user?.activeCompanyId) return;
+    let cancelled = false;
+    fetchOrders({ sellerCompanyId: user.activeCompanyId })
+      .then((apiOrders) => {
+        if (cancelled || apiOrders.length === 0) return;
+        const live = apiOrders.map(mapApiOrderToSellerRow);
+        setOrderRows((prev) => [
+          ...live,
+          ...prev.filter((o) => !live.some((l) => l.id === o.id)),
+        ]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const handleAction = (action: string) => {
+  const filtered = orderRows.filter((o) => !searchQuery.trim() || o.buyer.toLowerCase().includes(searchQuery.toLowerCase()) || o.product.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const [actionOrder, setActionOrder] = useState<Order | null>(null);
+
+  const handleAction = (action: string, row?: Order) => {
+    const target = row ?? actionOrder ?? orderRows[0];
+    setActionOrder(target);
     if (action === "Send quote") setShowQuoteModal(true);
     else if (action === "Upload Bill of Lading (BOL)") setShowBOLModal(true);
-    else if (action === "Mark ready" || action === "Respond") setSelectedOrder(orders[0]);
-    else setSelectedOrder(orders[0]);
+    else setSelectedOrder(target);
+  };
+
+  const submitShippingQuote = async ({ shippingCost, carrierCode, eta, note }: { shippingCost: number; carrierCode?: string; eta: string; note: string }) => {
+    const liveId = actionOrder ? numericOrderId(actionOrder.id) : null;
+    setShowQuoteModal(false);
+    if (liveId) {
+      const etaDays = eta === "3d" ? 3 : eta === "1w" ? 7 : eta === "2w" ? 14 : undefined;
+      const pickupScheduledAt = etaDays
+        ? new Date(Date.now() + etaDays * 24 * 60 * 60 * 1000).toISOString()
+        : undefined;
+      try {
+        await sendShippingQuote({
+          orderId: liveId,
+          carrierCode: carrierCode ?? "ecofreight",
+          shippingCost,
+          pickupScheduledAt,
+          note: note.trim() || undefined,
+        });
+      } catch (error) {
+        setSuccessModal({
+          title: "Quote could not be sent",
+          message:
+            error instanceof Error ? error.message : "Please try again.",
+          status: "Status: Not sent",
+        });
+        return;
+      }
+    }
+    setSuccessModal({
+      title: "Shipping quote has been sent",
+      message:
+        "The buyer will review your quote. Once approved, they can fund escrow and you can proceed with fulfillment.",
+      status: "Status: Awaiting buyer approval",
+    });
+  };
+
+  const submitBol = async (file: File | undefined) => {
+    const liveId = actionOrder ? numericOrderId(actionOrder.id) : null;
+    setShowBOLModal(false);
+    if (liveId && file) {
+      try {
+        const dataBase64 = await fileToBase64(file);
+        await uploadBillOfLading({
+          orderId: liveId,
+          fileName: file.name,
+          contentType: file.type || "application/pdf",
+          dataBase64,
+        });
+      } catch (error) {
+        setSuccessModal({
+          title: "BOL upload failed",
+          message:
+            error instanceof Error ? error.message : "Please try again.",
+          status: "Status: Not uploaded",
+        });
+        return;
+      }
+    }
+    setSuccessModal({
+      title: "Bill of Lading (BOL) uploaded",
+      message:
+        "The shipment is now marked in transit. The buyer will confirm delivery to release escrow.",
+      status: "Status: Awaiting buyer delivery confirmation",
+    });
   };
 
   return (
@@ -237,9 +388,10 @@ export function SellerSalesPage() {
         </div>
       </div>
       <SampleRequestsPanel role="seller" />
+
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-5">
-        {[{l:"Total orders",v:"2300",i:DollarSign},{l:"New orders",v:"1900",i:CheckCircle2},{l:"In progress",v:"20",i:Clock},{l:"Completed",v:"380",i:RefreshCw}].map((s)=>(
+        {(()=>{const live=orderRows.filter((o)=>numericOrderId(o.id));const inProgress=live.filter((o)=>o.action==="Mark ready").length;const completed=live.filter((o)=>o.qty==="completed").length;return [{l:"Total orders",v:String(live.length||orderRows.length),i:DollarSign},{l:"New orders",v:String(live.filter((o)=>o.action==="View Detail"&&o.qty==="escrow required").length),i:CheckCircle2},{l:"In progress",v:String(inProgress),i:Clock},{l:"Completed",v:String(completed),i:RefreshCw}];})().map((s)=>(
           <div key={s.l} className="flex flex-col gap-2 rounded-xl px-5 py-4" style={{border:"1px solid #F0F0F0"}}><div className="flex items-center justify-between"><span className="text-sm text-neutral-500">{s.l}</span><s.i className="size-4 text-neutral-400"/></div><span className="text-2xl font-bold text-neutral-900">{s.v}</span></div>
         ))}
       </div>
@@ -253,7 +405,7 @@ export function SellerSalesPage() {
         <tbody>{filtered.map((o,i)=>(
           <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{borderBottom:"1px solid #F8F8F8"}} onClick={()=>setSelectedOrder(o)}>
             <td className="py-3.5 text-sm text-neutral-900">{o.id}</td><td className="py-3.5 text-sm text-neutral-700">{o.buyer}</td><td className="py-3.5 text-sm text-neutral-700">{o.product}</td><td className="py-3.5 text-sm text-neutral-700">{o.qty}</td><td className="py-3.5 text-sm text-neutral-700">{o.shipping}</td>
-            <td className="py-3.5"><ActionButton action={o.action} onClick={()=>handleAction(o.action)} /></td>
+            <td className="py-3.5"><ActionButton action={o.action} onClick={()=>handleAction(o.action, o)} /></td>
             <td className="py-3.5"><button className="text-neutral-400"><MoreHorizontal className="size-4" /></button></td>
           </tr>
         ))}</tbody>
@@ -266,8 +418,8 @@ export function SellerSalesPage() {
 
       {showFilters && <FiltersPanel onClose={()=>setShowFilters(false)} />}
       {selectedOrder && <OrderDetailDrawer order={selectedOrder} onClose={()=>setSelectedOrder(null)} onAction={(a)=>{setSelectedOrder(null);handleAction(a);}} />}
-      {showQuoteModal && <CreateQuoteModal onClose={()=>setShowQuoteModal(false)} onSend={()=>{setShowQuoteModal(false);setSuccessModal({title:"Shipping quote has been sent",message:"The buyer will review your quote. Once approved, they can fund escrow and you can proceed with fulfillment.",status:"Status: Awaiting buyer approval"});}} />}
-      {showBOLModal && <UploadBOLModal onClose={()=>setShowBOLModal(false)} onUpload={()=>{setShowBOLModal(false);setSuccessModal({title:"Bill of Lading (BOL) uploaded",message:"The buyer will review your quote. Once approved, they can fund escrow and you can proceed with fulfillment.",status:"Status: Awaiting buyer delivery confirmation"});}} />}
+      {showQuoteModal && <CreateQuoteModal order={actionOrder} onClose={()=>setShowQuoteModal(false)} onSend={(quote)=>void submitShippingQuote(quote)} />}
+      {showBOLModal && <UploadBOLModal onClose={()=>setShowBOLModal(false)} onUpload={(file)=>void submitBol(file)} />}
       {successModal && <SuccessModal {...successModal} onClose={()=>setSuccessModal(null)} />}
     </SellerLayout>
   );

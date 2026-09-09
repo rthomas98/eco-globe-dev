@@ -6,6 +6,9 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/components/cart/cart-context";
 import { formatMoney, formatQuantityWithUnitName } from "@/lib/listing-format";
+import { placeCheckoutOrder } from "@/lib/api-orders";
+import { takeSampleConversion, updateSampleRequest } from "@/lib/api-samples";
+import { readDemoUser } from "@/lib/demo-user";
 import {
   Shield,
   Package,
@@ -849,7 +852,7 @@ function PaymentPickerModal({
 export function BuyerCheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { items } = useCart();
+  const { items, clearCart } = useCart();
   // Checkout is bounded to one persisted listing: the one handed over from the
   // detail page when present, otherwise the first cart item. No invented product.
   const requestedId = searchParams.get("listing");
@@ -920,6 +923,8 @@ export function BuyerCheckoutPage() {
   const [selectedBillingId, setSelectedBillingId] = useState<string | null>("addr-2");
 
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [placing, setPlacing] = useState(false);
+  const [placeError, setPlaceError] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -951,18 +956,77 @@ export function BuyerCheckoutPage() {
         : "Payment"
       : "Confirm Order";
 
+  // Places the real order against the backend: order -> escrow funding ->
+  // payment -> in_progress. Cart items are always persisted listings (their
+  // id is the backend listing id), so no local reference is ever invented.
+  const finalizeOrder = async () => {
+    if (placing || !cartItem) return;
+    const listingId = Number(cartItem.id);
+    const buyerCompanyId = readDemoUser()?.activeCompanyId;
+    if (!Number.isInteger(listingId) || listingId <= 0) {
+      setPlaceError("This cart item is not a saved listing. Open the listing and use Buy Now again.");
+      return;
+    }
+    if (!buyerCompanyId) {
+      setPlaceError("Sign in with your buyer company to place this order. Your cart is kept.");
+      return;
+    }
+    setPlacing(true);
+    setPlaceError("");
+    try {
+      const address = deliveryAddress
+        ? [deliveryAddress.street, deliveryAddress.city, deliveryAddress.state, deliveryAddress.zip, deliveryAddress.country]
+            .filter(Boolean)
+            .join(", ")
+        : undefined;
+      const result = await placeCheckoutOrder({
+        listingId,
+        quantity: cartItem.quantity,
+        // Units and currency are the listing's recorded values carried on the cart item.
+        quantityUnit: cartItem.quantityUnit,
+        currencyCode: cartItem.currencyCode,
+        buyerCompanyId,
+        deliveryMethod: shippingType ?? undefined,
+        deliveryAddress: shippingType === "delivery" ? address : undefined,
+        pickupRequestedAt:
+          shippingType === "pickup" && pickup.date
+            ? new Date(pickup.date).toISOString()
+            : undefined,
+      });
+      setOrderId(`EG-${result.order.id}`);
+      // If this purchase started from a received sample ("Order in bulk"),
+      // link the order back so both sides see the conversion.
+      const conversion = takeSampleConversion(listingId);
+      if (conversion) {
+        await updateSampleRequest(conversion.sampleId, {
+          convertedOrderId: result.order.id,
+        }).catch(() => {
+          // The order exists either way; the link is best-effort.
+        });
+      }
+      clearCart();
+      setStep("success");
+    } catch (error) {
+      setPlaceError(
+        error instanceof Error
+          ? error.message
+          : "Unable to place this order. Please try again.",
+      );
+    } finally {
+      setPlacing(false);
+    }
+  };
+
   const handlePrimary = () => {
     if (step === "shipping" && canContinueShipping) {
       if (shippingType === "delivery") {
-        setOrderId(`EG-${Math.floor(20000 + Math.random() * 80000)}`);
-        setStep("success");
+        void finalizeOrder();
       } else {
         setStep("payment");
       }
     } else if (step === "payment" && canConfirmOrder) {
-      setOrderId(`EG-${Math.floor(20000 + Math.random() * 80000)}`);
-      setStep("success");
-    } else if (step === "success") router.push("/buyer/browse");
+      void finalizeOrder();
+    } else if (step === "success") router.push("/buyer/orders");
   };
 
   if (!product) {
@@ -986,7 +1050,7 @@ export function BuyerCheckoutPage() {
     const isPickup = shippingType === "pickup";
     const summaryRows = isPickup
       ? [
-          { label: "Order reference (local, not yet submitted)", value: orderId ?? "" },
+          { label: "Order reference", value: orderId ?? "" },
           { label: "Seller", value: product.seller },
           { label: "Product", value: product.title },
           { label: "Quantity", value: quantityLabel },
@@ -999,7 +1063,7 @@ export function BuyerCheckoutPage() {
           { label: "Status", value: "Awaiting seller confirmation" },
         ]
       : [
-          { label: "Order reference (local, not yet submitted)", value: orderId ?? "" },
+          { label: "Order reference", value: orderId ?? "" },
           { label: "Seller", value: product.seller },
           { label: "Product", value: product.title },
           { label: "Quantity", value: quantityLabel },
@@ -1363,20 +1427,29 @@ export function BuyerCheckoutPage() {
               size="lg"
               className="w-full"
               disabled={
+                placing ||
                 (step === "shipping" && !canContinueShipping) ||
                 (step === "payment" && !canConfirmOrder)
               }
               style={
-                (step === "shipping" && !canContinueShipping) ||
-                (step === "payment" && !canConfirmOrder)
-                  ? { opacity: 0.4, cursor: "not-allowed" }
-                  : undefined
+                placing
+                  ? { opacity: 0.6, cursor: "wait" }
+                  : (step === "shipping" && !canContinueShipping) ||
+                      (step === "payment" && !canConfirmOrder)
+                    ? { opacity: 0.4, cursor: "not-allowed" }
+                    : undefined
               }
               onClick={handlePrimary}
             >
-              {primaryButtonLabel}
+              {placing ? "Placing order..." : primaryButtonLabel}
             </Button>
           </div>
+
+          {placeError && (
+            <p className="mt-3 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {placeError}
+            </p>
+          )}
 
           {shippingType === "delivery" && step === "shipping" && (
             <div

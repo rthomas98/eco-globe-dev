@@ -14,6 +14,7 @@ import { hasCoordinates, type Listing } from "./browse-listings";
 import { useDemoUser } from "@/lib/demo-user";
 import { useViewerLocation } from "@/lib/viewer-location";
 import { useListings } from "@/lib/use-listings";
+import { createSavedSearch } from "@/lib/api-portal";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
 import { formatQuantity } from "@/lib/listing-format";
 import { RefreshCw } from "lucide-react";
@@ -185,6 +186,21 @@ export function BrowsePage() {
       return false;
     });
 
+  const [saveSearchState, setSaveSearchState] = useState<
+    "idle" | "saving" | "saved"
+  >("idle");
+  const handleSaveSearch = async () => {
+    const query = urlQuery || urlTag;
+    if (!query || saveSearchState !== "idle") return;
+    setSaveSearchState("saving");
+    try {
+      await createSavedSearch({ name: query, searchQuery: query });
+      setSaveSearchState("saved");
+    } catch {
+      setSaveSearchState("idle");
+    }
+  };
+
   const published = useListings("public");
   const allListings = published.listings;
   const visibleListings = allListings.filter((l) => {
@@ -315,16 +331,31 @@ export function BrowsePage() {
               )}
             </p>
             {(urlQuery || urlLocation || urlCategory || urlTag || activeFilterCount > 0) && (
-              <button
-                onClick={() => {
-                  setSelectedId(null);
-                  setFilters(defaultFilters);
-                  router.push("/browse");
-                }}
-                className="text-sm font-medium text-neutral-900 underline"
-              >
-                Clear all
-              </button>
+              <span className="flex items-center gap-4">
+                {user && (urlQuery || urlTag) && (
+                  <button
+                    onClick={() => void handleSaveSearch()}
+                    disabled={saveSearchState === "saving"}
+                    className="text-sm font-medium text-neutral-900 underline"
+                  >
+                    {saveSearchState === "saved"
+                      ? "Search saved — alerts on"
+                      : saveSearchState === "saving"
+                        ? "Saving..."
+                        : "Save search & get alerts"}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setSelectedId(null);
+                    setFilters(defaultFilters);
+                    router.push("/browse");
+                  }}
+                  className="text-sm font-medium text-neutral-900 underline"
+                >
+                  Clear all
+                </button>
+              </span>
             )}
           </div>
           {published.status === "loading" ? (

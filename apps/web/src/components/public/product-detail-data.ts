@@ -7,6 +7,8 @@ import { formatQuantityWithUnitName } from "@/lib/listing-format";
  */
 export interface ProductDetailModel {
   id: string;
+  /** True when the backend withheld licensed fields for this viewer. */
+  teaser: boolean;
   title: string;
   location: string;
   moq: string;
@@ -70,6 +72,7 @@ export function buildProductDetail(listing: Listing): ProductDetailModel {
 
   return {
     id: listing.id,
+    teaser: listing.teaser,
     title: listing.title,
     location: listing.location || "Location not provided",
     moq: listing.moq,
@@ -81,11 +84,15 @@ export function buildProductDetail(listing: Listing): ProductDetailModel {
     unit: listing.unit,
     quantityUnit: listing.quantityUnit,
     minOrder: listing.moqNum !== null && listing.moqNum > 0 ? listing.moqNum : 1,
-    minimumOrderLabel: listing.moqNum !== null ? listing.moq : "Not specified by seller",
+    minimumOrderLabel: listing.teaser
+      ? listing.moq
+      : listing.moqNum !== null
+        ? listing.moq
+        : "Not specified by seller",
     available: listing.qtyNum,
     availableLabel:
       listing.qtyNum !== null
-        ? `${formatQuantityWithUnitName(listing.qtyNum, listing.quantityUnit)} available`
+        ? `${listing.teaser ? "Approx. " : ""}${formatQuantityWithUnitName(listing.qtyNum, listing.quantityUnit)} available`
         : "Availability not specified",
     images: listing.images,
     specs: uniqueSpecs,

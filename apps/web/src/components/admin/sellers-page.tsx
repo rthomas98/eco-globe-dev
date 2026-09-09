@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { fetchSellerProfiles, verifyCompany } from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 import {
   Search,
   SlidersHorizontal,
@@ -21,6 +24,7 @@ import { Button } from "@eco-globe/ui";
 type SellerStatus = "Active" | "Inactive" | "Pending";
 
 interface Seller {
+  companyId?: number;
   name: string;
   industry: string;
   location: string;
@@ -339,6 +343,57 @@ function SellerDetailDrawer({ seller, onClose }: { seller: Seller; onClose: () =
 
 /* ─── Main Sellers Page ─── */
 export function AdminSellersPage() {
+  const router = useRouter();
+  const [sellerRows, setSellerRows] = useState<Seller[]>(sellers);
+
+  const [verifyingId, setVerifyingId] = useState<number | null>(null);
+  const handleVerify = async (row: Seller) => {
+    if (!row.companyId || verifyingId) return;
+    setVerifyingId(row.companyId);
+    try {
+      await verifyCompany(row.companyId);
+      setSellerRows((prev) =>
+        prev.map((r) =>
+          r.companyId === row.companyId ? { ...r, status: "Active" } : r,
+        ),
+      );
+    } catch {
+      // Row state stays unchanged if the backend rejects the action.
+    }
+    setVerifyingId(null);
+  };
+
+  // Live seller companies render ahead of the demo rows.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchSellerProfiles()
+      .then((profiles) => {
+        if (cancelled || profiles.length === 0) return;
+        const live: Seller[] = profiles.map((profile) => ({
+          name: profile.companyName,
+          companyId: profile.companyId,
+          industry: "Marketplace seller",
+          location: "—",
+          totalOrders: profile.onboardingStatusCode,
+          totalGMV: profile.approvalStatusCode.replace(/_/g, " "),
+          status:
+            profile.approvalStatusCode === "verified"
+              ? "Active"
+              : profile.subscriptionStatusCode === "subscribed_seller"
+                ? "Pending"
+                : "Inactive",
+        }));
+        setSellerRows([...live, ...sellers]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
@@ -382,8 +437,8 @@ export function AdminSellersPage() {
             </tr>
           </thead>
           <tbody>
-            {sellers.map((seller, i) => (
-              <tr key={i} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedSeller(seller)}>
+            {sellerRows.map((seller, i) => (
+              <tr key={i} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => (seller.companyId ? router.push(`/admin/sellers/${seller.companyId}`) : setSelectedSeller(seller))}>
                 <td className="py-3.5">
                   <div className="flex items-center gap-3">
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-600">A</div>
@@ -394,7 +449,20 @@ export function AdminSellersPage() {
                 <td className="py-3.5 text-sm text-neutral-700">{seller.location}</td>
                 <td className="py-3.5 text-sm text-neutral-700">{seller.totalOrders}</td>
                 <td className="py-3.5 text-sm text-neutral-900">{seller.totalGMV}</td>
-                <td className="py-3.5"><StatusBadge status={seller.status} /></td>
+                <td className="py-3.5">
+                  <span className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <StatusBadge status={seller.status} />
+                    {seller.companyId && seller.status !== "Active" && (
+                      <button
+                        onClick={() => void handleVerify(seller)}
+                        disabled={verifyingId === seller.companyId}
+                        className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-white"
+                      >
+                        {verifyingId === seller.companyId ? "..." : "Verify"}
+                      </button>
+                    )}
+                  </span>
+                </td>
                 <td className="py-3.5"><button className="text-neutral-400 hover:text-neutral-700"><MoreHorizontal className="size-4" /></button></td>
               </tr>
             ))}

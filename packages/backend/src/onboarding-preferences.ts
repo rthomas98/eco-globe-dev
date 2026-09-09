@@ -39,37 +39,18 @@ export function validateOnboardingPreferences(body: Record<string, unknown>) {
     other: typeof other === "string" ? other.trim() || null : null,
   };
 }
-export async function readOnboardingPreferences(
-  response: ServerResponse,
-  auth: AuthContext,
-) {
-  if (!auth.companyId)
-    throw new ApiError(404, "Complete company onboarding first.");
+export async function getOnboardingPreferences(auth: AuthContext) {
+  if (!auth.companyId) return null;
   const rows = await queryRowsWithParams(
     `SELECT CompanyId AS companyId,Industry AS industry,JobTitle AS jobTitle,Website AS website,FeedstockInterestsJson AS interestsJson,OtherFeedstockInterest AS otherFeedstockInterest FROM dbo.CompanyOnboardingPreferences WHERE CompanyId=@id`,
     [{ name: "id", type: sql.Int, value: auth.companyId }],
   );
   const row = rows[0];
-  if (!row) {
-    sendJson(response, 200, {
-      ok: true,
-      onboarding: {
-        companyId: auth.companyId,
-        industry: null,
-        jobTitle: null,
-        website: null,
-        feedstockInterests: [],
-        otherFeedstockInterest: null,
-      },
-    });
-    return;
-  }
+  if (!row) return { companyId: auth.companyId, industry: null, jobTitle: null, website: null, feedstockInterests: [], otherFeedstockInterest: null };
   const { interestsJson, ...fields } = row;
-  sendJson(response, 200, {
-    ok: true,
-    onboarding: {
-      ...fields,
-      feedstockInterests: JSON.parse(String(interestsJson)),
-    },
-  });
+  return { ...fields, feedstockInterests: JSON.parse(String(interestsJson)) };
+}
+export async function readOnboardingPreferences(response: ServerResponse, auth: AuthContext) {
+  if (!auth.companyId) throw new ApiError(404, "Complete company onboarding first.");
+  sendJson(response, 200, { ok: true, onboarding: await getOnboardingPreferences(auth) });
 }

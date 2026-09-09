@@ -23,7 +23,9 @@ import {
   escrowRecords,
   escrowStatusForBuyer,
   formatEscrowMoney,
+  type EscrowRecord,
 } from "@/components/escrow/escrow-demo-data";
+import { useEscrowRecords } from "@/components/escrow/use-live-escrows";
 
 type EscrowStatus = "In escrow" | "Ready to release" | "Released" | "Disputed";
 
@@ -234,7 +236,7 @@ const LEGACY_ESCROWS = [
 ];
 void LEGACY_ESCROWS;
 
-const ESCROWS: Escrow[] = escrowRecords.map((record) => ({
+const mapRecordToBuyerEscrow = (record: EscrowRecord): Escrow => ({
   id: record.id,
   orderId: record.orderId,
   buyer: record.seller,
@@ -255,7 +257,7 @@ const ESCROWS: Escrow[] = escrowRecords.map((record) => ({
   disputeReason: record.disputeReason,
   documents: record.documents,
   activity: record.activity,
-}));
+});
 
 interface Filters {
   statuses: EscrowStatus[];
@@ -284,7 +286,7 @@ const defaultFilters: Filters = {
 };
 
 /** Distinct seller names for the counterparty filter dropdown. */
-const BUYERS = Array.from(new Set(ESCROWS.map((e) => e.buyer))).sort();
+const BUYERS = Array.from(new Set(escrowRecords.map((e) => e.seller))).sort();
 
 const FIELD_CLASS =
   "w-full rounded-lg bg-white px-4 py-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 focus:ring-2 focus:ring-neutral-900/20";
@@ -689,6 +691,7 @@ export function BuyerEscrowPage() {
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(null);
+  const ESCROWS = useEscrowRecords().map(mapRecordToBuyerEscrow);
 
   const handleSort = (key: SortKey) => {
     setPage(1);

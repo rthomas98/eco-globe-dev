@@ -16,8 +16,16 @@ import {
 const TYPE_LABEL: Record<ListingDocumentTypeCode, string> = {
   sds: "Safety Data Sheet (SDS)",
   certification: "Certification",
+  tds: "Technical Data Sheet (TDS)",
+  coa: "Certificate of Analysis (COA)",
   photo: "Listing photo",
 };
+
+/** Human label for any document type code, including ones this form does not upload. */
+export function documentTypeLabel(code: string | null | undefined) {
+  const normalized = normalizeDocumentTypeCode(code) as ListingDocumentTypeCode;
+  return TYPE_LABEL[normalized] ?? (code ?? "Document").replace(/_/g, " ");
+}
 
 export function formatBytes(bytes: number | null | undefined) {
   if (!bytes || !Number.isFinite(bytes)) return null;

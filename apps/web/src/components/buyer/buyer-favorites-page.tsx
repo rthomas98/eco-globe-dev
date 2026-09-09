@@ -7,11 +7,30 @@ import { Badge, Button } from "@eco-globe/ui";
 import { BuyerLayout } from "./buyer-layout";
 import type { Listing } from "../public/browse-listings";
 import { useListings } from "@/lib/use-listings";
+import { fetchFavorites, setFavorite } from "@/lib/api-account";
+import { useDemoUser } from "@/lib/demo-user";
 
 const FAVORITES_KEY = "ecoglobe.favoriteListings";
 
 export function BuyerFavoritesPage() {
   const [ids, setIds] = useState<string[]>([]);
+  const [apiFavoriteIds, setApiFavoriteIds] = useState<number[]>([]);
+  const user = useDemoUser();
+  const published = useListings("public");
+
+  // Signed-in members: account favorites from the backend join the local list.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchFavorites()
+      .then((rows) => {
+        if (!cancelled) setApiFavoriteIds(rows.map((f) => f.listingId));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     try {
@@ -42,10 +61,20 @@ export function BuyerFavoritesPage() {
       }
       return next;
     });
+    // Backend favorites are keyed by the numeric listing id, which is also
+    // the canonical route id used for the local list.
+    const backendId = published.listings.find((l) => l.id === id)?.backendId;
+    if (user && backendId) {
+      setApiFavoriteIds((prev) => prev.filter((x) => x !== backendId));
+      void setFavorite(backendId, false).catch(() => {
+        // Best-effort; the local list already reflects the change.
+      });
+    }
   };
 
-  const published = useListings("public");
-  const favorites: Listing[] = ids
+  // Signed-in members: account favorites from the backend join the local list.
+  const favoriteIds = new Set([...ids, ...apiFavoriteIds.map((listingId) => String(listingId))]);
+  const favorites: Listing[] = [...favoriteIds]
     .map((id) => published.listings.find((l) => l.id === id))
     .filter((l): l is Listing => !!l);
 

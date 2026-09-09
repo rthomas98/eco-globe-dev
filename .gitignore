@@ -57,3 +57,4 @@ playwright-report/
 
 # Python setup tooling
 __pycache__/
+.vercel

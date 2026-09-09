@@ -10,6 +10,10 @@ import {
   type SellerNotification,
 } from "./notifications-data";
 import {
+  markLiveNotificationRead,
+  useLiveNotifications,
+} from "@/components/notifications/use-live-notifications";
+import {
   NotificationDetailDrawer,
   type NotificationPortal,
 } from "./notification-detail-drawer";
@@ -29,13 +33,14 @@ export function NotificationsPanel({
   const [showMenu, setShowMenu] = useState(false);
   const [selected, setSelected] = useState<SellerNotification | null>(null);
   const [readIds, setReadIds] = useState<string[]>([]);
+  const liveNotifications = useLiveNotifications();
   const menuRef = useRef<HTMLDivElement>(null);
   const portal: NotificationPortal = seeAllHref.startsWith("/buyer")
     ? "buyer"
     : "seller";
   const settingsHref = portal === "buyer" ? "/buyer/account" : "/seller/account";
   const notifications =
-    portal === "buyer" ? buyerNotifications : sellerNotifications;
+    [...liveNotifications, ...(portal === "buyer" ? buyerNotifications : sellerNotifications)];
 
   const isUnread = (notification: SellerNotification) =>
     notification.unread && !readIds.includes(notification.id);
@@ -100,6 +105,7 @@ export function NotificationsPanel({
                     <button
                       type="button"
                       onClick={() => {
+                        notifications.forEach((n) => markLiveNotificationRead(n.id));
                         setReadIds(notifications.map((n) => n.id));
                         setShowMenu(false);
                       }}

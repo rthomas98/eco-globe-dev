@@ -18,8 +18,14 @@ import {
 } from "@/lib/demo-user";
 import { notificationPreferenceCategories } from "@/components/notifications/notifications-demo-data";
 import { BuyerLayout } from "./buyer-layout";
+import { TeamTab } from "@/components/account/team-tab";
+import {
+  fetchNotificationPreferences,
+  setNotificationPreference,
+  updateUserName,
+} from "@/lib/api-account";
 
-type Tab = "profile" | "company" | "security" | "preferences";
+type Tab = "profile" | "company" | "team" | "security" | "preferences";
 
 interface ProfileForm {
   name: string;
@@ -237,19 +243,75 @@ function SecurityTab() {
   );
 }
 
+const CHANNEL_CODES: Record<PreferenceChannel, string> = {
+  email: "email",
+  sms: "sms",
+  inApp: "in_app",
+};
+
+/** FE category card ids map to backend NotificationCategories codes. */
+function categoryCode(catId: string): string {
+  const code = catId.toLowerCase();
+  return ["orders", "payments", "logistics", "compliance", "sustainability"].includes(code)
+    ? code
+    : "sustainability";
+}
+
 function PreferencesTab() {
   const [categories, setCategories] = useState<BuyerPreferenceCategory[]>(
     buyerPreferenceCategories,
   );
   const [paused, setPaused] = useState(false);
+  const user = useDemoUser();
+
+  // Load persisted preferences: a disabled (category, channel) row turns that
+  // channel off for every item in the category.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    fetchNotificationPreferences()
+      .then((prefs) => {
+        if (cancelled) return;
+        setCategories((prev) =>
+          prev.map((c) => {
+            const disabledChannels = (
+              Object.keys(CHANNEL_CODES) as PreferenceChannel[]
+            ).filter((channel) =>
+              prefs.some(
+                (p) =>
+                  p.userId === user.id &&
+                  p.notificationCategoryCode === categoryCode(c.id) &&
+                  p.notificationChannelCode === CHANNEL_CODES[channel] &&
+                  !p.enabled,
+              ),
+            );
+            if (disabledChannels.length === 0) return c;
+            return {
+              ...c,
+              items: c.items.map((item) => ({
+                ...item,
+                channels: {
+                  ...item.channels,
+                  ...Object.fromEntries(disabledChannels.map((ch) => [ch, false])),
+                },
+              })),
+            };
+          }),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const toggleChannel = (
     categoryId: string,
     itemId: string,
     channel: PreferenceChannel,
   ) => {
-    setCategories((current) =>
-      current.map((category) =>
+    setCategories((current) => {
+      const next = current.map((category) =>
         category.id !== categoryId
           ? category
           : {
@@ -266,8 +328,20 @@ function PreferencesTab() {
                     },
               ),
             },
-      ),
-    );
+      );
+      // Persist the category-level signal: enabled while any item still is.
+      const category = next.find((c) => c.id === categoryId);
+      if (user?.id && category) {
+        const enabled = category.items.some((item) => item.channels[channel]);
+        void setNotificationPreference(
+          user.id,
+          categoryCode(categoryId),
+          CHANNEL_CODES[channel],
+          enabled,
+        ).catch(() => {});
+      }
+      return next;
+    });
   };
 
   return (
@@ -367,6 +441,9 @@ export function BuyerAccountPage() {
       email: form.email,
       userRole: form.jobTitle as DemoUser["userRole"],
     });
+    if (user.id && form.name.trim()) {
+      void updateUserName(user.id, form.name.trim()).catch(() => {});
+    }
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2500);
   };
@@ -374,6 +451,7 @@ export function BuyerAccountPage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "profile", label: "Profile" },
     { id: "company", label: "Company" },
+    { id: "team", label: "Team" },
     { id: "security", label: "Login & Security" },
     { id: "preferences", label: "Preferences" },
   ];
@@ -425,6 +503,13 @@ export function BuyerAccountPage() {
                 <ProfileTab form={form} setForm={setForm} onSave={handleSave} />
               )}
               {tab === "company" && <CompanyTab user={user} />}
+              {tab === "team" && (
+                <TeamTab
+                  companyId={user.activeCompanyId}
+                  currentUserId={user.id}
+                  operatorRole="buyer_operator"
+                />
+              )}
               {tab === "security" && <SecurityTab />}
               {tab === "preferences" && <PreferencesTab />}
             </div>

@@ -5,6 +5,12 @@ import { Search, DollarSign, CheckCircle2, Settings2, MoreHorizontal, ChevronLef
 import { LineChart } from "./line-chart";
 import { ExportDropdown } from "./export-dropdown";
 import { DateRangeDropdown } from "./date-range-dropdown";
+import {
+  fetchReportSummary,
+  portalMoney,
+  type ApiReportSummary,
+} from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -126,6 +132,111 @@ const salesOrders = [
   { id: "TS98779", buyer: "NutriCrops Inc", seller: "VitalCrops Group", product: "Crop Nutrient Fortifiers", qty: "400 lb", shipping: "Delivery", grossAmount: "$8,300", createdDate: "03/30/2028", completedDate: "03/30/2028", status: "Completed" },
 ];
 
+
+/** Live totals from the backend, shown above the report demo data. */
+function LiveReportSummary() {
+  const [summary, setSummary] = useState<ApiReportSummary | null>(null);
+
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchReportSummary()
+      .then((next) => {
+        if (!cancelled) setSummary(next);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!summary) return null;
+
+  const tiles = [
+    { label: "Total orders", value: String(summary.totalOrders) },
+    { label: "Active", value: String(summary.activeOrders) },
+    { label: "Completed", value: String(summary.completedOrders) },
+    { label: "GMV", value: portalMoney(Number(summary.grossMerchandiseValue)) },
+    { label: "Escrow held", value: portalMoney(Number(summary.fundsHeld)) },
+    { label: "Escrow released", value: portalMoney(Number(summary.fundsReleased)) },
+  ];
+
+  return (
+    <div className="mb-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {tiles.map((tile) => (
+          <div key={tile.label} className="rounded-xl bg-white p-4" style={{ border: "1px solid #F0F0F0" }}>
+            <p className="text-xs text-neutral-500">{tile.label}</p>
+            <p className="mt-1 text-lg font-bold text-neutral-900">{tile.value}</p>
+          </div>
+        ))}
+      </div>
+      <SampleFunnel samples={summary.samples} />
+    </div>
+  );
+}
+
+/**
+ * Sample-to-purchase funnel: how many lab samples move through
+ * requested -> accepted -> shipped -> received, and how many of those turn
+ * into bulk orders (with the revenue they produced).
+ */
+function SampleFunnel({ samples }: { samples: ApiReportSummary["samples"] }) {
+  if (!samples || Number(samples.requested) === 0) return null;
+
+  const stages = [
+    { label: "Requested", value: Number(samples.requested) },
+    { label: "Accepted", value: Number(samples.accepted) },
+    { label: "Shipped", value: Number(samples.shipped) },
+    { label: "Received", value: Number(samples.received) },
+    { label: "Converted", value: Number(samples.converted) },
+  ];
+  const conversionRate = Math.round(
+    (Number(samples.converted) / Number(samples.requested)) * 100,
+  );
+
+  return (
+    <div className="mt-3 rounded-xl bg-white p-4" style={{ border: "1px solid #F0F0F0" }}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-neutral-900">Sample funnel</p>
+        <p className="text-xs text-neutral-500">
+          <span className="font-semibold text-neutral-900">{conversionRate}%</span>{" "}
+          sample-to-order conversion ·{" "}
+          <span className="font-semibold text-neutral-900">
+            {portalMoney(Number(samples.convertedRevenue))}
+          </span>{" "}
+          converted revenue
+          {Number(samples.declined) > 0 && ` · ${samples.declined} declined`}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {stages.map((stage, i) => (
+          <div key={stage.label} className="flex items-center gap-2">
+            {i > 0 && <span className="text-neutral-300">→</span>}
+            <div
+              className="flex items-baseline gap-1.5 rounded-lg px-3 py-1.5"
+              style={{ background: i === stages.length - 1 ? "#DCFCE7" : "#FAFAFA" }}
+            >
+              <span
+                className="text-sm font-bold"
+                style={{ color: i === stages.length - 1 ? "#166534" : "#171717" }}
+              >
+                {stage.value}
+              </span>
+              <span
+                className="text-xs"
+                style={{ color: i === stages.length - 1 ? "#166534" : "#737373" }}
+              >
+                {stage.label}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SalesReportPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState("30d");
@@ -134,6 +245,7 @@ export function SalesReportPage() {
 
   return (
     <div className="flex h-full flex-col">
+      <div className="px-6 pt-5"><LiveReportSummary /></div>
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
         <h1 className="text-2xl font-bold text-neutral-900">Sales Reports</h1>
         <div className="flex items-center gap-3">

@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { fetchBuyerProfiles, verifyCompany } from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 import {
   Search,
   SlidersHorizontal,
@@ -19,6 +22,7 @@ import { Button, Input, Select } from "@eco-globe/ui";
 type BuyerStatus = "Active" | "Inactive" | "Pending";
 
 interface Buyer {
+  companyId?: number;
   name: string;
   industry: string;
   location: string;
@@ -515,6 +519,57 @@ function AddBuyerDrawer({ onClose }: { onClose: () => void }) {
 
 /* ─── Main Buyers Page ─── */
 export function AdminBuyersPage() {
+  const router = useRouter();
+  const [buyerRows, setBuyerRows] = useState<Buyer[]>(buyers);
+
+  const [verifyingId, setVerifyingId] = useState<number | null>(null);
+  const handleVerify = async (row: Buyer) => {
+    if (!row.companyId || verifyingId) return;
+    setVerifyingId(row.companyId);
+    try {
+      await verifyCompany(row.companyId);
+      setBuyerRows((prev) =>
+        prev.map((r) =>
+          r.companyId === row.companyId ? { ...r, status: "Active" } : r,
+        ),
+      );
+    } catch {
+      // Row state stays unchanged if the backend rejects the action.
+    }
+    setVerifyingId(null);
+  };
+
+  // Live buyer companies render ahead of the demo rows.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchBuyerProfiles()
+      .then((profiles) => {
+        if (cancelled || profiles.length === 0) return;
+        const live: Buyer[] = profiles.map((profile) => ({
+          name: profile.companyName,
+          companyId: profile.companyId,
+          industry: "Marketplace buyer",
+          location: "—",
+          totalOrders: profile.onboardingStatusCode,
+          totalGMV: profile.approvalStatusCode.replace(/_/g, " "),
+          status:
+            profile.approvalStatusCode === "verified"
+              ? "Active"
+              : profile.subscriptionStatusCode === "subscribed_buyer"
+                ? "Pending"
+                : "Inactive",
+        }));
+        setBuyerRows([...live, ...buyers]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBuyer, setSelectedBuyer] = useState<Buyer | null>(null);
@@ -556,8 +611,8 @@ export function AdminBuyersPage() {
             </tr>
           </thead>
           <tbody>
-            {buyers.map((buyer, i) => (
-              <tr key={i} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedBuyer(buyer)}>
+            {buyerRows.map((buyer, i) => (
+              <tr key={i} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => (buyer.companyId ? router.push(`/admin/buyers/${buyer.companyId}`) : setSelectedBuyer(buyer))}>
                 <td className="py-3.5">
                   <div className="flex items-center gap-3">
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-600">A</div>
@@ -568,7 +623,20 @@ export function AdminBuyersPage() {
                 <td className="py-3.5 text-sm text-neutral-700">{buyer.location}</td>
                 <td className="py-3.5 text-sm text-neutral-700">{buyer.totalOrders}</td>
                 <td className="py-3.5 text-sm text-neutral-900">{buyer.totalGMV}</td>
-                <td className="py-3.5"><StatusBadge status={buyer.status} /></td>
+                <td className="py-3.5">
+                  <span className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <StatusBadge status={buyer.status} />
+                    {buyer.companyId && buyer.status !== "Active" && (
+                      <button
+                        onClick={() => void handleVerify(buyer)}
+                        disabled={verifyingId === buyer.companyId}
+                        className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-white"
+                      >
+                        {verifyingId === buyer.companyId ? "..." : "Verify"}
+                      </button>
+                    )}
+                  </span>
+                </td>
                 <td className="py-3.5"><button className="text-neutral-400 hover:text-neutral-700"><MoreHorizontal className="size-4" /></button></td>
               </tr>
             ))}

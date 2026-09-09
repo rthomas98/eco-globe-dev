@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { requireSessionAuth } from "./auth.js";
+import { getOptionalSessionAuth, requireSessionAuth } from "./auth.js";
 import {
   queryRowsWithParams as query,
   queryRowsWithParamsInTransaction,
@@ -152,9 +152,9 @@ async function documents(listingId: unknown) {
   return query(
     `SELECT d.Id AS id,d.ListingId AS listingId,dt.Code AS documentTypeCode,d.FileName AS fileName,
     d.ContentType AS contentType,d.ByteLength AS byteLength,d.Sha256 AS sha256,
-    CONCAT('/api/listing-documents/',d.Id,'/download') AS fileUrl,vs.Code AS verificationStatusCode
+    CASE WHEN d.Content IS NOT NULL THEN CONCAT('/api/listing-documents/',d.Id,'/download') ELSE d.FileUrl END AS fileUrl,vs.Code AS verificationStatusCode
     FROM dbo.ListingDocuments d JOIN dbo.DocumentTypes dt ON dt.Id=d.DocumentTypeId JOIN dbo.AccountStatuses vs ON vs.Id=d.VerificationStatusId
-    WHERE d.ListingId=@listingId AND d.DeletedAt IS NULL AND d.Content IS NOT NULL ORDER BY CASE WHEN dt.Code='sds' THEN 0 ELSE 1 END,d.Id`,
+    WHERE d.ListingId=@listingId AND d.DeletedAt IS NULL AND (d.Content IS NOT NULL OR d.FileUrl IS NOT NULL) ORDER BY CASE WHEN dt.Code='sds' THEN 0 ELSE 1 END,d.Id`,
     [int("listingId", listingId)],
   );
 }
@@ -174,6 +174,9 @@ async function project(row: Record<string, unknown>) {
   } = row;
   return {
     ...listing,
+    teaser: false,
+    locationCity: city, locationStateProvince: stateProvince, locationCountryCode: countryCode,
+    locationLatitude: latitude, locationLongitude: longitude,
     sellerVerified: row.sellerVerificationStatusCode === "verified",
     specifications:
       typeof specificationsJson === "string"
@@ -192,6 +195,19 @@ async function project(row: Record<string, unknown>) {
       longitude,
     },
     documents: await documents(row.id),
+  };
+}
+export function listingForViewer<T extends Record<string, unknown>>(listing: T, viewer?: AuthContext) {
+  if (viewer && (viewer.isAdmin || viewer.companyId)) return { ...listing, teaser: false };
+  const quantity = Number(listing.quantity);
+  const magnitude = quantity > 0 ? 10 ** Math.floor(Math.log10(quantity)) : 1;
+  const location = listing.location as Record<string, unknown> | undefined;
+  return { ...listing, teaser: true, sellerCompanyId: null, sellerCompanyName: null,
+    locationId: null, minimumOrderQuantity: null, pricePerUnit: null,
+    quantity: listing.quantity !== null && listing.quantity !== undefined && Number.isFinite(quantity) ? Math.round(quantity / magnitude) * magnitude : null,
+    description: typeof listing.description === "string" ? listing.description.slice(0, 140) : null,
+    specifications: {}, documents: [], locationCity: null, locationLatitude: null, locationLongitude: null,
+    location: { ...location, id: null, name: null, addressLine1: null, addressLine2: null, city: null, postalCode: null, latitude: null, longitude: null },
   };
 }
 async function readListing(
@@ -257,6 +273,7 @@ async function save(
   request: IncomingMessage,
   response: ServerResponse,
   key?: string,
+  onPublished?: (id: number, actor: number) => Promise<void>,
 ) {
   const auth = await requireSessionAuth(request);
   const body = object(await readJsonBody(request));
@@ -314,7 +331,7 @@ async function save(
     if (quantity !== null && moq !== null && moq > quantity)
       throw new ApiError(400, "MOQ cannot exceed available quantity.");
     const unit = text(merged.quantityUnit, "quantityUnit", 40) ?? "";
-    if (unit && !["ton", "tonne", "kg", "lb", "unit"].includes(unit))
+    if (unit && !["ton", "tons", "tonne", "tonnes", "kg", "lb", "unit", "units"].includes(unit))
       throw new ApiError(400, "Unsupported quantity unit.");
     const currency =
       text(merged.currencyCode, "currencyCode", 3)?.toUpperCase() ?? "";
@@ -394,6 +411,7 @@ async function save(
     );
     return rows[0]?.id;
   });
+  if (body.listingStatusCode === "published" && onPublished) await onPublished(Number(savedId), auth.userId);
   sendJson(response, key ? 200 : 201, {
     ok: true,
     listing: await project(await readListing(String(savedId), auth)),
@@ -408,7 +426,7 @@ export function validateUpload(body: Record<string, unknown>) {
       : body.documentTypeCode;
   if (!fileName || /[\x00-\x1f\x7f/\\]/.test(fileName))
     throw new ApiError(400, "Invalid file name.");
-  if (!["photo", "sds", "certification"].includes(String(type)))
+  if (!["photo", "sds", "certification", "tds", "coa", "lab_report", "other"].includes(String(type)))
     throw new ApiError(400, "Unsupported document type.");
   if (
     typeof body.contentBase64 !== "string" ||
@@ -494,29 +512,35 @@ export async function handleListingRoute(
   request: IncomingMessage,
   response: ServerResponse,
   url: URL,
+  onPublished?: (id: number, actor: number) => Promise<void>,
 ) {
   if (!/^\/api\/(listings|listing-documents)(\/|$)/.test(url.pathname))
     return false;
+  // These live marketplace and moderation routes remain owned by the core API.
+  if (/^\/api\/listings\/[^/]+\/(interest|favorite)$/.test(url.pathname) ||
+      (request.method === "PATCH" && /^\/api\/listing-documents\/\d+$/.test(url.pathname)) ||
+      (request.method === "GET" && url.pathname === "/api/listing-documents" && !url.searchParams.has("listingId"))) return false;
   const parts = url.pathname.split("/").filter(Boolean);
   const owned = url.searchParams.get("scope") === "owned";
   const method = request.method;
   if (parts[1] === "listings") {
     if (method === "POST" && parts.length === 2) {
-      await save(request, response);
+      await save(request, response, undefined, onPublished);
       return true;
     }
     if (method === "PATCH" && parts.length === 3) {
-      await save(request, response, decodeURIComponent(parts[2]!));
+      await save(request, response, decodeURIComponent(parts[2]!), onPublished);
       return true;
     }
     if (method === "GET" && parts.length <= 3) {
-      const auth = owned ? await requireSessionAuth(request) : undefined;
+      const viewer = await getOptionalSessionAuth(request);
+      const auth = owned ? await requireSessionAuth(request) : viewer?.isAdmin ? viewer : undefined;
       if (parts[2]) {
         sendJson(response, 200, {
           ok: true,
-          listing: await project(
+          listing: listingForViewer(await project(
             await readListing(decodeURIComponent(parts[2]), auth),
-          ),
+          ), viewer),
         });
         return true;
       }
@@ -549,7 +573,7 @@ export async function handleListingRoute(
       );
       sendJson(response, 200, {
         ok: true,
-        listings: await Promise.all(rows.map(project)),
+        listings: await Promise.all(rows.map(async row => listingForViewer(await project(row), viewer))),
       });
       return true;
     }
@@ -576,18 +600,19 @@ export async function handleListingRoute(
       const key = url.searchParams.get("listingId");
       if (!key || !/^\d+$/.test(key))
         throw new ApiError(400, "listingId is required.");
-      const auth = owned ? await requireSessionAuth(request) : undefined;
+      const viewer = await getOptionalSessionAuth(request);
+      const auth = owned ? await requireSessionAuth(request) : viewer?.isAdmin ? viewer : undefined;
       const listing = await readListing(key, auth);
       sendJson(response, 200, {
         ok: true,
-        documents: await documents(listing.id),
+        documents: viewer && (viewer.companyId || viewer.isAdmin) ? await documents(listing.id) : [],
       });
       return true;
     }
     if (parts.length >= 3 && /^\d+$/.test(parts[2]!)) {
       const docId = Number(parts[2]);
       const rows = await query(
-        "SELECT ListingId AS listingId,FileName AS fileName,ContentType AS contentType,Content AS content FROM dbo.ListingDocuments WHERE Id=@id AND DeletedAt IS NULL AND Content IS NOT NULL",
+        "SELECT ListingId AS listingId,FileName AS fileName,ContentType AS contentType,Content AS content,(SELECT Code FROM dbo.DocumentTypes WHERE Id=DocumentTypeId) AS documentTypeCode FROM dbo.ListingDocuments WHERE Id=@id AND DeletedAt IS NULL",
         [int("id", docId)],
       );
       const doc = rows[0];
@@ -605,6 +630,7 @@ export async function handleListingRoute(
             throw error;
           listing = await readListing(String(doc.listingId), auth);
         }
+        if (doc.documentTypeCode !== "photo" && (!auth || (!auth.companyId && !auth.isAdmin))) throw new ApiError(auth ? 403 : 401, "Company membership required to download documents.");
         if (!listing || !Buffer.isBuffer(doc.content))
           throw new ApiError(404, "Document not found.");
         response.writeHead(200, {

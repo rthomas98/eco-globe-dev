@@ -21,6 +21,7 @@ import { locationsToFacilities, useCompanyLocations } from "@/lib/use-company-lo
 import { describeUnit } from "@/lib/listing-format";
 import { hasCoordinates, type Listing } from "@/components/public/browse-listings";
 import { useListing, useListings } from "@/lib/use-listings";
+import { recordListingInterest } from "@/lib/api-listings";
 import { CarbonGauge } from "./carbon-gauge";
 import { ListingMap, type MapListing } from "@/components/public/listing-map";
 import { generateCarbonReport, type ReportScenario } from "./carbon-report";
@@ -246,6 +247,12 @@ export function CarbonCalculatorModal({ open, listing, initialListingId, portal,
     if (!open) setScenarios([]);
   }, [open]);
 
+  // High-intent interest signal for the seller's aggregate analytics.
+  const initialBackendId = initial?.backendId;
+  useEffect(() => {
+    if (open && initialBackendId) recordListingInterest(initialBackendId, "view");
+  }, [open, initialBackendId]);
+
   // Backfill facility + miles once useDemoUser hydrates after mount.
   useEffect(() => {
     if (!open || facilities.length === 0) return;
@@ -468,7 +475,7 @@ export function CarbonCalculatorModal({ open, listing, initialListingId, portal,
             {step === 1 && <StepWeight active={active} listing={activeListing} cap={weightCap} onChange={setActive} />}
             {step === 2 && <StepTransport active={active} onChange={setActive} />}
             {step === VALUE_STEP && <StepValueRecovery inputs={active.valueRecovery} listing={activeListing} portal={activePortal} metricTons={active.metricTons} onChange={setActiveValue} />}
-            {step === RESULT_STEP && <StepResult active={active} targetTons={targetTons} setTargetTons={setTargetTons} onRename={renameScenario} valueReport={valueResolution.kind === "ready" ? valueResolution.report : null} />}
+            {step === RESULT_STEP && <StepResult active={active} listing={activeListing} targetTons={targetTons} setTargetTons={setTargetTons} onRename={renameScenario} valueReport={valueResolution.kind === "ready" ? valueResolution.report : null} />}
             {step === 5 && <StepBau bauTons={bauTons} setBauTons={setBauTons} active={active} />}
             {step === 6 && <StepCompare scenarios={sortedScenarios} bauTons={bauTons} />}
             {step === 7 && (
@@ -697,7 +704,9 @@ function StepTransport({ active, onChange }: { active: Scenario; onChange: (patc
   );
 }
 
-function StepResult({ active, targetTons, setTargetTons, onRename, valueReport }: { active: Scenario; targetTons: number | ""; setTargetTons: (n: number | "") => void; onRename: (name: string) => void; valueReport: ReportScenario["valueRecovery"] }) {
+function StepResult({ active, listing, targetTons, setTargetTons, onRename, valueReport }: { active: Scenario; listing: Listing; targetTons: number | ""; setTargetTons: (n: number | "") => void; onRename: (name: string) => void; valueReport: ReportScenario["valueRecovery"] }) {
+  // Declared material-production intensity (kg CO₂e per t, from the listing record) × shipment tonnage.
+  const productionTons = listing.hasCarbonData && listing.co2Num !== null && active.metricTons > 0 ? (listing.co2Num * active.metricTons) / 1000 : null;
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -712,6 +721,11 @@ function StepResult({ active, targetTons, setTargetTons, onRename, valueReport }
           <div><p className="text-xs text-neutral-500">Volume</p><p className="text-sm font-bold text-neutral-900">{active.metricTons.toFixed(2)} t</p></div>
           <div><p className="text-xs text-neutral-500">Mode</p><p className="text-sm font-bold text-neutral-900">{active.mode ? TRANSPORT_LABEL[active.mode] : "—"}</p></div>
         </div>
+        <p className="mt-5 text-xs text-neutral-500">
+          {productionTons !== null
+            ? `Transport only. The seller's declared material-production intensity adds ${productionTons.toFixed(2)} t CO₂eq for this volume (${(active.emissionTons + productionTons).toFixed(2)} t combined).`
+            : "Transport only. The seller has not declared a material-production carbon intensity for this listing."}
+        </p>
       </div>
       {valueReport && <ValueRecoverySummary report={valueReport} />}
       <Field label="Name this scenario">

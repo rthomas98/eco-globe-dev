@@ -1,6 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  fetchBuyerProfiles,
+  fetchSellerProfiles,
+  trailingNumericId,
+  verifyCompany,
+} from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 import Link from "next/link";
 import { Shield, Check, X, FileText, Filter } from "lucide-react";
 
@@ -29,10 +36,48 @@ const STAGES: Array<Stage | "All"> = ["All", "Submitted", "In review", "Awaiting
 
 export function AdminKycPage() {
   const [requests, setRequests] = useState<KycRequest[]>(initialRequests);
+
+  // Live companies awaiting verification render ahead of the demo queue.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    Promise.all([fetchSellerProfiles(), fetchBuyerProfiles()])
+      .then(([sellers, buyers]) => {
+        if (cancelled) return;
+        const live: KycRequest[] = [
+          ...sellers.map((p) => ({ profile: p, type: "Seller" as const })),
+          ...buyers.map((p) => ({ profile: p, type: "Buyer" as const })),
+        ].map(({ profile, type }) => ({
+          id: `KYC-${profile.companyId}`,
+          entity: profile.companyName,
+          type,
+          country: "—",
+          submitted: new Date(profile.createdAt).toISOString().slice(0, 10),
+          stage:
+            profile.approvalStatusCode === "verified"
+              ? "Approved"
+              : profile.approvalStatusCode === "suspended"
+                ? "Rejected"
+                : "Submitted",
+          docs: 0,
+          flags: 0,
+        }));
+        if (live.length > 0) setRequests([...live, ...initialRequests]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [filter, setFilter] = useState<Stage | "All">("All");
   const visible = requests.filter((r) => filter === "All" || r.stage === filter);
 
   const updateStage = (id: string, stage: Stage) => {
+    // Live rows (KYC-<companyId>) persist approval on the backend.
+    const companyId = id.startsWith("KYC-") ? trailingNumericId(id) : null;
+    if (companyId && stage === "Approved") {
+      void verifyCompany(companyId).catch(() => {});
+    }
     setRequests((current) =>
       current.map((request) =>
         request.id === id ? { ...request, stage, flags: stage === "Rejected" ? Math.max(1, request.flags) : request.flags } : request,

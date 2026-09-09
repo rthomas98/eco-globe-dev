@@ -18,7 +18,7 @@ import {
   GRADE_OPTIONS,
   LISTING_TYPE_OPTIONS,
   MATERIAL_TYPE_OPTIONS,
-  UNIT_OPTIONS,
+  unitOptionsFor,
   formFromRecord,
   formToWriteBody,
   validateForSubmission,
@@ -65,7 +65,9 @@ function EditForm({ record, onSaved, onCancel }: { record: BackendListing; onSav
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState<string>(record.listingStatusCode);
-  const locations = useCompanyLocations(record.sellerCompanyId);
+  // Owned listings are never teasers, so the seller company id is always present.
+  const sellerCompanyId = record.sellerCompanyId ?? undefined;
+  const locations = useCompanyLocations(sellerCompanyId);
   const unit = describeUnit(form.unit);
   const hasSds = documents.some((d) => d.documentTypeCode === "sds");
 
@@ -140,7 +142,7 @@ function EditForm({ record, onSaved, onCancel }: { record: BackendListing; onSav
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-5 text-lg font-semibold text-neutral-900">Pricing & supply</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Select label="Quantity unit" id="unit" options={UNIT_OPTIONS} value={form.unit} onChange={(e) => setField("unit", e.target.value)} />
+                <Select label="Quantity unit" id="unit" options={unitOptionsFor(form.unit)} value={form.unit} onChange={(e) => setField("unit", e.target.value)} />
                 <Select label="Currency" id="currency" options={CURRENCY_OPTIONS} value={form.currencyCode} onChange={(e) => setField("currencyCode", e.target.value)} />
                 <Input label={`Unit price (${form.currencyCode || "currency"} per ${form.unit ? unit.singular : "unit"})`} id="price" inputMode="decimal" value={form.price} onChange={(e) => setField("price", e.target.value)} />
                 <Input label={`Minimum Order Quantity (MOQ) in ${form.unit ? unit.plural : "the chosen unit"}`} id="moq" inputMode="decimal" value={form.moq} onChange={(e) => setField("moq", e.target.value)} />
@@ -217,6 +219,15 @@ function EditForm({ record, onSaved, onCancel }: { record: BackendListing; onSav
             </section>
 
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
+              <h2 className="mb-2 text-lg font-semibold text-neutral-900">Technical documents</h2>
+              <p className="mb-4 text-xs text-neutral-600">Optional TDS and COA files buyers can download from the product page.</p>
+              <div className="flex flex-col gap-4">
+                <ListingDocumentUploader listingId={record.id} typeCode="tds" documents={documents} onChange={setDocuments} multiple={false} title="Technical Data Sheet (TDS)" />
+                <ListingDocumentUploader listingId={record.id} typeCode="coa" documents={documents} onChange={setDocuments} multiple={false} title="Certificate of Analysis (COA)" />
+              </div>
+            </section>
+
+            <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-5 text-lg font-semibold text-neutral-900">Photos</h2>
               <ListingDocumentUploader listingId={record.id} typeCode="photo" documents={documents} onChange={setDocuments} />
             </section>
@@ -237,7 +248,7 @@ function EditForm({ record, onSaved, onCancel }: { record: BackendListing; onSav
             </section>
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-4 text-lg font-semibold text-neutral-900">Ships from</h2>
-              <ListingLocationPicker companyId={record.sellerCompanyId} value={form.locationId} onChange={(id) => setField("locationId", id)} locations={locations} />
+              <ListingLocationPicker companyId={sellerCompanyId} value={form.locationId} onChange={(id) => setField("locationId", id)} locations={locations} />
             </section>
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-4 text-lg font-semibold text-neutral-900">Listing ID</h2>

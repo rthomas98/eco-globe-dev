@@ -38,8 +38,24 @@ import { NotificationsPanel } from "./notifications-panel";
 import {
   buildDemoUser,
   readDemoUser,
+  useDemoUser,
   writeDemoUser,
 } from "@/lib/demo-user";
+
+function userInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const initials = parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+  return initials || "EG";
+}
+
+function shortDisplayName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return name;
+  return `${parts[0]} ${parts[1][0]?.toUpperCase() ?? ""}`.trim();
+}
 import { logoutBackendUser } from "@/lib/backend-auth";
 
 type NavChild = { label: string; href: string };
@@ -108,6 +124,9 @@ function UserMenu({
   onLogout: () => void;
   onSwitchToBuyer: () => void;
 }) {
+  const user = useDemoUser();
+  const displayName = user?.name ?? "EcoGlobe Seller";
+  const displayEmail = user?.email ?? "";
   return (
     <>
       <button
@@ -122,11 +141,11 @@ function UserMenu({
       >
         <div className="mb-4 flex flex-col gap-3">
           <div className="flex size-14 items-center justify-center rounded-full bg-amber-200 text-lg font-semibold text-amber-700">
-            JS
+            {userInitials(displayName)}
           </div>
           <div>
-            <p className="text-base font-bold text-neutral-900">John Senna</p>
-            <p className="text-sm text-neutral-500">johnsenna@mail.com</p>
+            <p className="text-base font-bold text-neutral-900">{displayName}</p>
+            <p className="text-sm text-neutral-500">{displayEmail}</p>
           </div>
         </div>
         <div className="my-3" style={{ borderTop: "1px solid #F0F0F0" }} />
@@ -180,6 +199,8 @@ function UserMenu({
 export function SellerSidebar({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
+  const sessionUser = useDemoUser();
+  const sidebarName = sessionUser?.name ?? "EcoGlobe Seller";
 
   const [openSection, setOpenSection] = useState<string | null>(() => {
     const match = navItems.find(
@@ -201,8 +222,10 @@ export function SellerSidebar({ className, onNavigate }: { className?: string; o
     const current = readDemoUser();
     writeDemoUser(
       buildDemoUser("buyer", {
-        name: current?.name || "John Senna",
-        email: current?.email || "johnsenna@mail.com",
+        ...current,
+        role: "buyer",
+        name: current?.name || "EcoGlobe Buyer",
+        email: current?.email || "",
       }),
     );
     setUserMenuOpen(false);
@@ -322,9 +345,11 @@ export function SellerSidebar({ className, onNavigate }: { className?: string; o
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 hover:bg-neutral-50"
         >
           <div className="flex size-8 items-center justify-center rounded-full bg-amber-200 text-sm font-semibold text-amber-700">
-            JS
+            {userInitials(sidebarName)}
           </div>
-          <span className="flex-1 text-left text-sm font-semibold text-neutral-900">John S</span>
+          <span className="flex-1 text-left text-sm font-semibold text-neutral-900">
+            {shortDisplayName(sidebarName)}
+          </span>
           {userMenuOpen ? (
             <ChevronUp className="size-4 text-neutral-400" />
           ) : (

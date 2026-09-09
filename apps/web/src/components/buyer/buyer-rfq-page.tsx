@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchWantedListings } from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 import Link from "next/link";
 import { Plus, MessageSquare, ChevronRight } from "lucide-react";
 import { Button } from "@eco-globe/ui";
@@ -31,7 +33,36 @@ const FILTERS: Array<RFQStatus | "All"> = ["All", "Open", "Quoted", "Accepted", 
 
 export function BuyerRfqPage() {
   const [filter, setFilter] = useState<RFQStatus | "All">("All");
-  const visible = rfqs.filter((r) => filter === "All" || r.status === filter);
+  const [rows, setRows] = useState<RFQ[]>(rfqs);
+
+  // The buyer's live wanted listings render ahead of the demo rows.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchWantedListings(true)
+      .then((wanted) => {
+        if (cancelled || wanted.length === 0) return;
+        const live: RFQ[] = wanted.map((w) => ({
+          id: `RFQ-${w.id}`,
+          product: w.title,
+          category: w.materialTypeName,
+          quantity: `${w.quantity} ${w.quantityUnit}`,
+          needBy: "\u2014",
+          responses: 0,
+          status: w.isOpen ? "Open" : "Expired",
+          created: new Date(w.createdAt).toISOString().slice(0, 10),
+        }));
+        setRows([...live, ...rfqs]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const visible = rows.filter((r) => filter === "All" || r.status === filter);
 
   return (
     <BuyerLayout>

@@ -12,10 +12,12 @@ import {
 import { Button, Input } from "@eco-globe/ui";
 import {
   buildDemoUser,
+  readDemoUser,
   type Facility,
   useDemoUser,
   writeDemoUser,
 } from "@/lib/demo-user";
+import { fetchCompanyLocations } from "@/lib/api-portal";
 import { BuyerLayout } from "./buyer-layout";
 
 type Row = {
@@ -196,6 +198,37 @@ export function BuyerCompanyPage() {
   useEffect(() => {
     setLocations(user.facilities ?? []);
   }, [user.facilities]);
+
+  // Overlay the live receiving locations from the backend.
+  useEffect(() => {
+    const sessionUser = readDemoUser();
+    if (!sessionUser?.activeCompanyId) return;
+    let cancelled = false;
+    fetchCompanyLocations(sessionUser.activeCompanyId)
+      .then((liveLocations) => {
+        if (cancelled || liveLocations.length === 0) return;
+        setLocations(
+          liveLocations.map((location) => ({
+            id: `loc-${location.id}`,
+            label: location.name,
+            address: [
+              location.addressLine1,
+              location.city,
+              location.stateProvince,
+              location.countryCode,
+            ]
+              .filter(Boolean)
+              .join(", "),
+          })),
+        );
+      })
+      .catch(() => {
+        // Demo facilities remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const openAddLocation = () => {
     setModalMode("add");

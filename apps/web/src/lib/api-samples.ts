@@ -38,6 +38,36 @@ export interface ApiSampleRequest {
 
 export const SAMPLE_QUANTITY_OPTIONS_LB = [5, 10, 25] as const;
 
+/**
+ * Pending sample-to-order conversion, parked while the buyer walks through
+ * checkout. Set when they click "Order in bulk" on a received sample; the
+ * checkout success handler links the placed order back to the sample.
+ */
+const CONVERSION_KEY = "ecoglobe.sampleConversion";
+
+export function stashSampleConversion(sampleId: number, listingId: number) {
+  try {
+    sessionStorage.setItem(CONVERSION_KEY, JSON.stringify({ sampleId, listingId }));
+  } catch {
+    // sessionStorage may be unavailable; conversion linking is best-effort.
+  }
+}
+
+export function takeSampleConversion(
+  listingId: number,
+): { sampleId: number } | null {
+  try {
+    const raw = sessionStorage.getItem(CONVERSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { sampleId?: number; listingId?: number };
+    if (parsed.listingId !== listingId || !parsed.sampleId) return null;
+    sessionStorage.removeItem(CONVERSION_KEY);
+    return { sampleId: parsed.sampleId };
+  } catch {
+    return null;
+  }
+}
+
 /** Sample requests visible to the caller (their buys and their sales). */
 export async function fetchSampleRequests(): Promise<ApiSampleRequest[]> {
   const body = await apiFetch<{ ok: true; samples: ApiSampleRequest[] }>(
@@ -68,6 +98,8 @@ export async function updateSampleRequest(
     status?: Exclude<SampleRequestStatus, "requested">;
     sellerResponse?: string;
     trackingNumber?: string;
+    /** Buyer/admin only: links a received sample to the bulk order it led to. */
+    convertedOrderId?: number;
   },
 ) {
   const body = await apiFetch<{ ok: true; sample: { id: number; status: SampleRequestStatus } }>(

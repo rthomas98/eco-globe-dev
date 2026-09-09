@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchAllListings, moderateListing, trailingNumericId } from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 import Link from "next/link";
 import { Flag, Filter, Check, X, Eye } from "lucide-react";
 
@@ -28,8 +30,64 @@ const items: ModItem[] = [
 const STATUSES: Array<ModStatus | "All"> = ["All", "Pending", "Flagged", "Approved", "Rejected"];
 
 export function AdminModerationPage() {
+  const [rows, setRows] = useState<ModItem[]>(items);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Live listings awaiting review render ahead of the demo queue.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchAllListings()
+      .then((listings) => {
+        if (cancelled) return;
+        const live: ModItem[] = listings
+          .filter((l) => l.listingStatusCode !== "closed")
+          .map((l) => ({
+            id: `LS-${l.id}`,
+            product: l.title,
+            seller: l.sellerCompanyName,
+            image: "/products/generated/bagasse.png",
+            submitted: "—",
+            status:
+              l.listingStatusCode === "pending_review"
+                ? "Pending"
+                : l.listingStatusCode === "published"
+                  ? "Approved"
+                  : l.listingStatusCode === "paused"
+                    ? "Flagged"
+                    : "Rejected",
+          }));
+        if (live.length > 0) setRows([...live, ...items]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const decide = async (item: ModItem, decision: "approve" | "reject") => {
+    const liveId = trailingNumericId(item.id);
+    setBusyId(item.id);
+    if (liveId && item.id.startsWith("LS-")) {
+      try {
+        await moderateListing(liveId, decision);
+      } catch {
+        setBusyId(null);
+        return;
+      }
+    }
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === item.id
+          ? { ...r, status: decision === "approve" ? "Approved" : "Rejected" }
+          : r,
+      ),
+    );
+    setBusyId(null);
+  };
+  void busyId;
   const [filter, setFilter] = useState<ModStatus | "All">("All");
-  const visible = items.filter((i) => filter === "All" || i.status === filter);
+  const visible = rows.filter((i) => filter === "All" || i.status === filter);
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -97,10 +155,10 @@ export function AdminModerationPage() {
                     <Eye className="size-3" />
                     Review
                   </Link>
-                  <button className="flex size-8 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100" title="Reject">
+                  <button onClick={() => void decide(item, "reject")} className="flex size-8 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100" title="Reject">
                     <X className="size-3" />
                   </button>
-                  <button className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-white hover:bg-neutral-800" title="Approve">
+                  <button onClick={() => void decide(item, "approve")} className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-white hover:bg-neutral-800" title="Approve">
                     <Check className="size-3" />
                   </button>
                 </div>

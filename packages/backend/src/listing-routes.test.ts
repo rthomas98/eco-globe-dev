@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Readable } from "node:stream";
 import type { IncomingMessage } from "node:http";
-import { validateSpecifications, validateUpload } from "./listing-routes.js";
+import { validateSpecifications, validateUpload, listingForViewer } from "./listing-routes.js";
 import { validateOnboardingPreferences } from "./onboarding-preferences.js";
 import { ApiError, readJsonBody } from "./http.js";
 
@@ -69,4 +69,16 @@ test("body reader caps accumulated bytes before parsing", async () => {
     readJsonBody(request as IncomingMessage),
     (error: unknown) => error instanceof ApiError && error.status === 413,
   );
+});
+
+test("listing teasers retain region but never disclose gated price, identity or specifications", () => {
+  const listing = { id: 7, pricePerUnit: 225, quantity: 234, minimumOrderQuantity: 10, sellerCompanyId: 3, sellerCompanyName: "Private", specifications: { composition: "Private" }, documents: [{ fileUrl: "private" }], location: { city: "Private", stateProvince: "LA", addressLine1: "Private", latitude: 30 } };
+  const teaser = listingForViewer(listing);
+  assert.equal(listingForViewer({...listing,quantity:null}).quantity,null);
+  assert.equal(teaser.pricePerUnit, null);
+  assert.equal(teaser.sellerCompanyName, null);
+  assert.deepEqual(teaser.specifications, {});
+  assert.deepEqual(teaser.documents, []);
+  assert.equal(teaser.location.city, null);
+  assert.equal(teaser.location.stateProvince, "LA");
 });

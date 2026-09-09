@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, DollarSign, RefreshCw, CheckCircle2, AlertTriangle, MoreHorizontal, ChevronLeft, ChevronRight, ChevronDown, X, FileText, Download } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { ExportDropdown } from "./export-dropdown";
 import { DateRangeDropdown } from "./date-range-dropdown";
 import {
-  escrowRecords,
+  type EscrowRecord,
   escrowStatusForAdmin,
   formatEscrowMoney,
 } from "@/components/escrow/escrow-demo-data";
+import { useEscrowRecords } from "@/components/escrow/use-live-escrows";
 
 type EscrowStatus = "In Progress" | "Ready to release" | "Disputed" | "Completed";
 interface EscrowItem {
@@ -34,7 +36,7 @@ interface EscrowItem {
   status: EscrowStatus;
 }
 
-const escrowItems: EscrowItem[] = escrowRecords.map((record) => ({
+const mapRecordToAdminItem = (record: EscrowRecord): EscrowItem => ({
   id: record.id,
   date: record.orderDate,
   escrow: record.status === "Released" ? "Escrow released" : "Funds held",
@@ -54,7 +56,7 @@ const escrowItems: EscrowItem[] = escrowRecords.map((record) => ({
   documents: record.documents,
   activity: record.activity,
   status: escrowStatusForAdmin(record.status),
-}));
+});
 
 function StatusBadge({ status }: { status: EscrowStatus }) {
   const s: Record<EscrowStatus, string> = {
@@ -153,6 +155,9 @@ function FiltersPanel({ onClose }: { onClose: () => void }) {
 }
 
 export function EscrowPage() {
+  const router = useRouter();
+  const liveRecords = useEscrowRecords();
+  const escrowItems = liveRecords.map(mapRecordToAdminItem);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState("30d");
   const [showFilters, setShowFilters] = useState(false);
@@ -164,14 +169,14 @@ export function EscrowPage() {
     const q = searchQuery.toLowerCase();
     return item.id.toLowerCase().includes(q) || item.orderId.toLowerCase().includes(q) || item.buyer.toLowerCase().includes(q) || item.seller.toLowerCase().includes(q);
   });
-  const fundsOnHold = escrowRecords.reduce((sum, item) => sum + item.amountHeld, 0);
-  const pendingRelease = escrowRecords
+  const fundsOnHold = liveRecords.reduce((sum, item) => sum + item.amountHeld, 0);
+  const pendingRelease = liveRecords
     .filter((item) => item.status === "Held in escrow" || item.status === "Ready to release")
     .reduce((sum, item) => sum + item.amountHeld, 0);
-  const releasedFunds = escrowRecords
+  const releasedFunds = liveRecords
     .filter((item) => item.status === "Released")
     .reduce((sum, item) => sum + item.sellerPayout, 0);
-  const disputedFunds = escrowRecords
+  const disputedFunds = liveRecords
     .filter((item) => item.status === "Disputed")
     .reduce((sum, item) => sum + item.amountHeld, 0);
 
@@ -204,7 +209,7 @@ export function EscrowPage() {
           <thead><tr className="text-left" style={{ borderBottom: "1px solid #F0F0F0" }}><th className="pb-3 text-sm font-medium text-neutral-500">Transctn ID</th><th className="pb-3 text-sm font-medium text-neutral-500">Date</th><th className="pb-3 text-sm font-medium text-neutral-500">Escrow</th><th className="pb-3 text-sm font-medium text-neutral-500">Order ID</th><th className="pb-3 text-sm font-medium text-neutral-500">Buyer</th><th className="pb-3 text-sm font-medium text-neutral-500">Seller</th><th className="pb-3 text-sm font-medium text-neutral-500">Amount</th><th className="pb-3 text-sm font-medium text-neutral-500">Status</th><th className="pb-3"></th></tr></thead>
           <tbody>
             {filteredItems.map((item, i) => (
-              <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => setSelectedItem(item)}>
+              <tr key={i} className="cursor-pointer hover:bg-neutral-50" style={{ borderBottom: "1px solid #F8F8F8" }} onClick={() => (/^ESC-\d+$/.test(item.id) ? router.push(`/admin/accounting/escrow/${item.id}`) : setSelectedItem(item))}>
                 <td className="py-3.5 text-sm text-neutral-900">{item.id}</td><td className="py-3.5 text-sm text-neutral-700">{item.date}</td><td className="py-3.5 text-sm text-neutral-700">{item.escrow}</td><td className="py-3.5 text-sm text-neutral-700">{item.orderId}</td><td className="py-3.5 text-sm text-neutral-700">{item.buyer}</td><td className="py-3.5 text-sm text-neutral-700">{item.seller}</td><td className="py-3.5 text-sm text-neutral-900">{item.amount}</td><td className="py-3.5"><StatusBadge status={item.status} /></td><td className="py-3.5"><button className="text-neutral-400"><MoreHorizontal className="size-4" /></button></td>
               </tr>
             ))}

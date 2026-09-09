@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createWantedListing } from "@/lib/api-portal";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Upload, Send } from "lucide-react";
@@ -30,6 +31,18 @@ const RECURRENCE = [
   "Semi-annually",
 ];
 
+
+const MATERIAL_TYPE_BY_CATEGORY: Record<string, string> = {
+  "Biomass & wood": "certified_feedstock",
+  Plastics: "industrial_byproduct",
+  "Oils & liquids": "certified_feedstock",
+  Rubber: "used_product",
+  "Refinery byproducts": "industrial_byproduct",
+  Chemicals: "industrial_byproduct",
+  "Industrial byproducts": "industrial_byproduct",
+  Other: "industrial_byproduct",
+};
+
 export function BuyerRfqNewPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +68,24 @@ export function BuyerRfqNewPage() {
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 600));
+    try {
+      await createWantedListing({
+        title: form.title.trim(),
+        materialTypeCode:
+          MATERIAL_TYPE_BY_CATEGORY[form.category] ?? "industrial_byproduct",
+        quantity: Number(form.quantity) || 1,
+        quantityUnit: form.unit.toLowerCase().includes("ton") ? "tons" : form.unit.toLowerCase(),
+        targetPricePerUnit: form.budget ? Number(form.budget) || undefined : undefined,
+        countryCode: "US",
+        stateProvince: form.deliveryLocation || undefined,
+        notes:
+          [form.description, form.notes, `Need by ${form.needBy}`, form.recurrence]
+            .filter(Boolean)
+            .join(" — ") || undefined,
+      });
+    } catch {
+      // The list page shows whatever the backend accepted.
+    }
     setSubmitting(false);
     router.push("/buyer/rfq");
   };

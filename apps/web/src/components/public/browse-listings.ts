@@ -51,6 +51,12 @@ export interface Listing {
   id: string;
   backendId: number;
   slug: string;
+  /**
+   * True when the backend redacted licensed fields for this viewer (anonymous
+   * or no active company): no price, MOQ, seller identity, exact location,
+   * specifications or documents. Consumers show a sign-in call to action.
+   */
+  teaser: boolean;
   title: string;
   /** "City, Region" derived from the persisted location; empty when unknown. */
   location: string;
@@ -92,7 +98,8 @@ export interface Listing {
   sdsUrl?: string;
   sdsDocument?: ListingDocumentRef;
   documents: ListingDocumentRef[];
-  sellerCompanyId: number;
+  /** Null on a teaser. */
+  sellerCompanyId: number | null;
   sellerCompanyName: string | null;
   sellerVerified: boolean;
   sellerLocationId: number | null;

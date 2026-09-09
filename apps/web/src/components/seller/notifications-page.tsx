@@ -9,6 +9,10 @@ import {
   type SellerNotification,
 } from "./notifications-data";
 import { NotificationDetailDrawer } from "./notification-detail-drawer";
+import {
+  markLiveNotificationRead,
+  useLiveNotifications,
+} from "@/components/notifications/use-live-notifications";
 
 const groupOrder: NotificationGroup[] = ["Earlier", "Last 7 days", "Last 30 days"];
 
@@ -16,6 +20,8 @@ export function SellerNotificationsPage() {
   const [tab, setTab] = useState<"all" | "unread">("all");
   const [selected, setSelected] = useState<SellerNotification | null>(null);
   const [readIds, setReadIds] = useState<string[]>([]);
+  const liveNotifications = useLiveNotifications();
+  const allNotifications = [...liveNotifications, ...sellerNotifications];
 
   const isUnread = (notification: SellerNotification) =>
     notification.unread && !readIds.includes(notification.id);
@@ -23,6 +29,7 @@ export function SellerNotificationsPage() {
   const openNotification = (notification: SellerNotification) => {
     setSelected(notification);
     if (notification.unread) {
+      markLiveNotificationRead(notification.id);
       setReadIds((current) =>
         current.includes(notification.id)
           ? current
@@ -32,7 +39,7 @@ export function SellerNotificationsPage() {
   };
 
   const visible =
-    tab === "unread" ? sellerNotifications.filter((n) => isUnread(n)) : sellerNotifications;
+    tab === "unread" ? allNotifications.filter((n) => isUnread(n)) : allNotifications;
 
   return (
     <SellerLayout title="Notifications">

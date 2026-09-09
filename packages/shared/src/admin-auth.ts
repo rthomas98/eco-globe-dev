@@ -1,5 +1,5 @@
 export const ADMIN_DEMO_EMAIL = "demo.admin@ecoglobe.com";
-export const ADMIN_DEMO_PASSWORD = "EcoGlobe!2026";
+export const ADMIN_DEMO_PASSWORD = "EcoDemo2026!";
 export const ADMIN_AUTH_EVENT = "ecoglobe.admin-auth.changed";
 
 const PERSISTENT_SESSION_KEY = "ecoglobe.admin.session";
@@ -72,6 +72,35 @@ export function clearAdminSession() {
   announceAuthChange();
 }
 
+/** Persist the admin session locally and announce the change. */
+function storeAdminSession(
+  name: string,
+  email: string,
+  remember: boolean,
+): AdminSession {
+  const session: AdminSession = {
+    email,
+    name,
+    role: "Platform administrator",
+    expiresAt:
+      Date.now() + (remember ? 7 * 24 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000),
+    remembered: remember,
+  };
+  clearAdminSession();
+  const storage = remember ? localStorage : sessionStorage;
+  const key = remember ? PERSISTENT_SESSION_KEY : TAB_SESSION_KEY;
+  storage.setItem(key, JSON.stringify(session));
+  announceAuthChange();
+  return session;
+}
+
+/**
+ * Real backend admin login through the same-origin proxy: the proxy stores
+ * the bearer token as an httpOnly session cookie, so every aliased portal
+ * component authenticates against live data. The legacy hashed demo
+ * credential remains only as an offline fallback when the backend is
+ * unreachable.
+ */
 export async function authenticateAdmin({
   email,
   password,
@@ -84,29 +113,60 @@ export async function authenticateAdmin({
   if (!inBrowser()) return null;
 
   const normalizedEmail = email.trim().toLowerCase();
+
+  let response: Response | null = null;
+  try {
+    response = await fetch("/api/backend/auth/login", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: normalizedEmail, password, role: "admin" }),
+    });
+  } catch {
+    response = null;
+  }
+
+  if (response) {
+    if (!response.ok) return null;
+    const payload = (await response.json().catch(() => ({}))) as {
+      user?: {
+        id: number;
+        name: string;
+        email: string;
+        activeCompanyId?: number;
+        activeRoleCode?: string;
+      };
+    };
+    const user = payload.user;
+    if (!user) return null;
+    // The aliased portal components read this session mirror; the bearer
+    // token itself lives only in the httpOnly cookie the proxy set.
+    try {
+      localStorage.setItem(
+        "ecoglobe.demoUser",
+        JSON.stringify({
+          id: user.id,
+          role: "admin",
+          roles: ["admin"],
+          name: user.name,
+          email: user.email,
+          activeCompanyId: user.activeCompanyId,
+        }),
+      );
+    } catch {
+      // Best-effort mirror; the cookie session still authenticates requests.
+    }
+    return storeAdminSession(user.name, user.email, remember);
+  }
+
+  // Offline fallback: the local demo credential only.
   const storedHash = localStorage.getItem(PASSWORD_HASH_KEY);
   const expectedHash = storedHash ?? (await hashValue(ADMIN_DEMO_PASSWORD));
   const suppliedHash = await hashValue(password);
-
   if (normalizedEmail !== ADMIN_DEMO_EMAIL || suppliedHash !== expectedHash) {
     return null;
   }
-
-  const session: AdminSession = {
-    email: ADMIN_DEMO_EMAIL,
-    name: "EcoGlobe Administrator",
-    role: "Platform administrator",
-    expiresAt:
-      Date.now() + (remember ? 7 * 24 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000),
-    remembered: remember,
-  };
-
-  clearAdminSession();
-  const storage = remember ? localStorage : sessionStorage;
-  const key = remember ? PERSISTENT_SESSION_KEY : TAB_SESSION_KEY;
-  storage.setItem(key, JSON.stringify(session));
-  announceAuthChange();
-  return session;
+  return storeAdminSession("EcoGlobe Administrator", ADMIN_DEMO_EMAIL, remember);
 }
 
 export function createAdminRecoveryRequest(email: string) {

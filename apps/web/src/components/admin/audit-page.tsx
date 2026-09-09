@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchAuditLogs } from "@/lib/api-portal";
+import { readDemoUser } from "@/lib/demo-user";
 import Link from "next/link";
 import { Search, Filter, Download } from "lucide-react";
 import { Button } from "@eco-globe/ui";
@@ -34,10 +36,46 @@ const entries: AuditEntry[] = [
 const CATEGORIES: Category[] = ["All", "Auth", "Listings", "Orders", "Escrow", "KYC", "Settings"];
 
 export function AdminAuditPage() {
+  const [entryRows, setEntryRows] = useState<AuditEntry[]>(entries);
+
+  // Live audit trail renders ahead of the demo rows.
+  useEffect(() => {
+    if (!readDemoUser()) return;
+    let cancelled = false;
+    fetchAuditLogs()
+      .then((logs) => {
+        if (cancelled || logs.length === 0) return;
+        const categoryFor = (recordType: string | null): Exclude<Category, "All"> => {
+          if (recordType === "listing") return "Listings";
+          if (recordType === "order" || recordType === "quote" || recordType === "shipment") return "Orders";
+          if (recordType === "escrow" || recordType === "payment") return "Escrow";
+          if (recordType === "user" || recordType === "company") return "KYC";
+          return "Settings";
+        };
+        const live: AuditEntry[] = logs.map((log) => ({
+          id: `AUD-${log.id}`,
+          timestamp: new Date(log.createdAt).toLocaleString("en-US"),
+          actor: log.actorUserName ?? "System",
+          category: categoryFor(log.recordTypeCode),
+          action: `${log.actionTypeCode.replace(/_/g, " ")}${log.reason ? ` — ${log.reason}` : ""}`,
+          resourceId: log.recordTypeCode ? `${log.recordTypeCode}-${log.recordId}` : undefined,
+          severity: log.actionTypeCode === "escrow_released" ? "Warning" : "Info",
+          ip: "—",
+        }));
+        setEntryRows([...live, ...entries]);
+      })
+      .catch(() => {
+        // Demo rows remain when the backend is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [category, setCategory] = useState<Category>("All");
   const [search, setSearch] = useState("");
 
-  const visible = entries.filter((e) => {
+  const visible = entryRows.filter((e) => {
     if (category !== "All" && e.category !== category) return false;
     if (search.trim()) {
       const q = search.toLowerCase();

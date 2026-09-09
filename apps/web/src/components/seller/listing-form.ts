@@ -28,12 +28,28 @@ export const MATERIAL_TYPE_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
+/**
+ * Quantity unit choices. The plural aliases are the codes live listings were
+ * saved with; they stay selectable so an existing listing keeps its recorded
+ * unit on edit instead of being silently relabeled to the singular code.
+ */
 export const UNIT_OPTIONS = [
   { value: "ton", label: "t (metric tonne)" },
+  { value: "tons", label: "tons (metric tonnes)" },
+  { value: "tonne", label: "tonne (metric tonne)" },
+  { value: "tonnes", label: "tonnes (metric tonnes)" },
   { value: "kg", label: "kg (kilogram)" },
   { value: "lb", label: "lb (pound)" },
   { value: "unit", label: "unit (per item)" },
+  { value: "units", label: "units (per item)" },
 ];
+
+/** Options for a form, including a recorded unit this list does not know so it is never dropped. */
+export function unitOptionsFor(current: string | null | undefined) {
+  const value = (current ?? "").trim();
+  if (!value || UNIT_OPTIONS.some((option) => option.value === value)) return UNIT_OPTIONS;
+  return [...UNIT_OPTIONS, { value, label: `${value} (as recorded)` }];
+}
 
 export const CURRENCY_OPTIONS = [
   { value: "USD", label: "USD ($)" },

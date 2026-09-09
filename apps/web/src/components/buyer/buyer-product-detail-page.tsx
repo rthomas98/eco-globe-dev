@@ -15,6 +15,8 @@ import { formatMoney, describeUnit } from "@/lib/listing-format";
 import { useDemoUser } from "@/lib/demo-user";
 import { ListingAnalysis } from "@/components/lab-testing/listing-analysis";
 import { RequestSampleModal } from "@/components/samples/request-sample-modal";
+import { recordListingInterest } from "@/lib/api-listings";
+import { documentTypeLabel } from "@/components/seller/listing-documents";
 
 export function BuyerProductDetailPage() {
   const params = useParams<{ id?: string }>();
@@ -29,6 +31,12 @@ export function BuyerProductDetailPage() {
   const [showFullOverview, setShowFullOverview] = useState(false);
   const [sampleOpen, setSampleOpen] = useState(false);
   const user = useDemoUser();
+  const backendId = listing?.backendId;
+
+  // Aggregate interest signal for the seller — never identifies the viewer.
+  useEffect(() => {
+    recordListingInterest(backendId, "detail_view");
+  }, [backendId]);
 
   useEffect(() => {
     if (!product) return;
@@ -87,6 +95,8 @@ export function BuyerProductDetailPage() {
   const isOwner = !!user?.activeCompanyId && user.activeCompanyId === listing.sellerCompanyId;
   const canRequest = !!user?.activeCompanyId && !isOwner;
   const labListing = { id: listing.backendId, title: product.title, sellerCompanyName: product.seller.name, location: product.location };
+  // TDS / SDS / COA and certifications; photos are shown in the gallery.
+  const attachments = product.documents.filter((doc) => doc.typeCode !== "photo");
   const handleBuyNow = () => {
     if (buyDisabled || !priceKnown) return;
     addItem({
@@ -103,6 +113,7 @@ export function BuyerProductDetailPage() {
       image: product.images[0] ?? null,
       quantity: qty,
     });
+    recordListingInterest(backendId, "cart_add");
     setIsOpen(false);
     router.push(`/buyer/checkout?listing=${encodeURIComponent(product.id)}`);
   };
@@ -139,6 +150,27 @@ export function BuyerProductDetailPage() {
         <div className="mb-10">
           {product.sellerCoords ? <SellerLocationMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} heightClassName="h-[260px]" /> : <p className="rounded-xl bg-neutral-50 p-6 text-sm text-neutral-600">The seller&apos;s facility has no saved coordinates, so it cannot be shown on the map.</p>}
         </div>
+
+        {attachments.length > 0 && (
+          <div className="mb-8">
+            <h2 className="mb-4 text-xl font-bold text-neutral-900">Documents</h2>
+            <div className="flex flex-col gap-2">
+              {attachments.map((doc) => (
+                <div key={doc.id} className="flex items-center gap-3 rounded-lg px-4 py-3" style={{ border: "1px solid #F0F0F0" }}>
+                  <FileText className="size-4 shrink-0 text-neutral-500" />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 text-sm font-medium text-neutral-900">
+                      <span className="truncate">{documentTypeLabel(doc.typeCode)}</span>
+                      {doc.verificationStatusCode === "verified" && <span className="shrink-0 rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-700">Verified</span>}
+                    </p>
+                    <p className="truncate text-xs text-neutral-500">{doc.fileName}</p>
+                  </div>
+                  <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-neutral-900 underline">Download</a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <h2 className="mb-4 text-xl font-bold text-neutral-900">Specifications</h2>
         <div className="mb-10">
@@ -191,7 +223,13 @@ export function BuyerProductDetailPage() {
       <div className="w-full shrink-0 lg:w-[380px]">
         <div className="sticky top-8 rounded-2xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
           <p className="text-3xl font-bold text-neutral-900">{product.priceLabel}{priceKnown && <span className="ml-1 text-base font-normal text-neutral-500">{product.unit}</span>}</p>
-          {!priceKnown && <p className="mt-1 text-xs text-neutral-500">The seller has not published a price for this listing.</p>}
+          {!priceKnown && !product.teaser && <p className="mt-1 text-xs text-neutral-500">The seller has not published a price for this listing.</p>}
+          {product.teaser && (
+            <p className="mt-1 text-xs text-neutral-600" role="note">
+              Pricing, minimum order, seller details, specifications and documents unlock once your company onboarding is complete.{" "}
+              <Link href="/buyer/onboarding" className="font-semibold text-neutral-900 underline">Complete onboarding</Link>
+            </p>
+          )}
           {product.priceIsZero && <p className="mt-1 text-xs text-neutral-500">Offered at no charge by the seller.</p>}
           <p className="mt-1 pb-5 text-sm text-neutral-500" style={{ borderBottom: "1px solid #F0F0F0" }}>Minimum Order Quantity (MOQ): {product.minimumOrderLabel}</p>
 
@@ -217,8 +255,8 @@ export function BuyerProductDetailPage() {
               Request a Sample (5–10 lb)
             </button>
           )}
-          {!hasSds && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Seller hasn&apos;t uploaded the SDS yet — purchase blocked.</p>}
-          {!priceKnown && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />No price recorded — request a quote from the seller.</p>}
+          {!hasSds && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Seller hasn&apos;t uploaded the SDS yet — purchase blocked.</p>}
+          {!priceKnown && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />No price recorded — request a quote from the seller.</p>}
           <div className="mt-4 flex flex-col gap-2">
             <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="ghost" label="Open Carbon Calculator" />
             <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="ghost" label="Estimate savings" startAt="value-recovery" />
