@@ -10,6 +10,13 @@ import {
   type ListingScope,
 } from "./listings-api";
 import { toListing } from "./listing-view";
+import { useDemoUser } from "./demo-user";
+
+/** Revalidate server-owned listing visibility after login, logout or company changes. */
+function useListingViewerKey() {
+  const user = useDemoUser();
+  return user ? `${user.id ?? user.email}:${user.activeCompanyId ?? ""}:${user.role}` : "guest";
+}
 
 export type LoadStatus = "loading" | "ready" | "error" | "not-found";
 
@@ -31,6 +38,7 @@ export function useListings(
   options: { search?: string; enabled?: boolean } = {},
 ): ListingsState {
   const { search, enabled = true } = options;
+  const viewerKey = useListingViewerKey();
   const [state, setState] = useState<Omit<ListingsState, "reload">>({
     status: "loading",
     listings: [],
@@ -69,7 +77,7 @@ export function useListings(
     return () => {
       cancelled = true;
     };
-  }, [scope, search, enabled, version]);
+  }, [scope, search, enabled, version, viewerKey]);
 
   return { ...state, reload };
 }
@@ -91,6 +99,7 @@ export function useListing(
   options: { enabled?: boolean } = {},
 ): ListingDetailState {
   const { enabled = true } = options;
+  const viewerKey = useListingViewerKey();
   const [state, setState] = useState<Omit<ListingDetailState, "reload" | "replace">>({
     status: "loading",
     listing: null,
@@ -132,7 +141,7 @@ export function useListing(
     return () => {
       cancelled = true;
     };
-  }, [idOrSlug, scope, enabled, version]);
+  }, [idOrSlug, scope, enabled, version, viewerKey]);
 
   return { ...state, reload, replace };
 }
