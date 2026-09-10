@@ -98,6 +98,13 @@ function ListingCard({
           Sign in to see pricing
         </Link>
       )}
+      <Link
+        href={`/browse/${listing.id}`}
+        aria-label={`View details for ${listing.title}`}
+        className="mt-3 flex items-center justify-center rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-900 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+      >
+        View details
+      </Link>
     </div>
   );
 }
