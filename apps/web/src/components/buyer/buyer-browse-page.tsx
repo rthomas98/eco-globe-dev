@@ -12,7 +12,7 @@ import { hasCoordinates, type Listing } from "../public/browse-listings";
 import { useListings } from "@/lib/use-listings";
 import { CarbonCalculatorButton } from "./carbon-calculator-button";
 import { BuyerLayout } from "./buyer-layout";
-import { useDemoUser } from "@/lib/demo-user";
+import { useViewerLocation } from "@/lib/viewer-location";
 
 function ListingCard({
   listing,
@@ -73,8 +73,7 @@ function LocationPill({ value }: { value: string }) {
 
 export function BuyerBrowsePage() {
   const router = useRouter();
-  const user = useDemoUser();
-  const originFacility = user?.facilities?.find((f) => f.lat && f.lng);
+  const { location: viewerLocation } = useViewerLocation();
   const [search, setSearch] = useState("");
   const [radius, setRadius] = useState("2");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -168,7 +167,7 @@ export function BuyerBrowsePage() {
             <select
               aria-label="Search radius"
               value={radius}
-              onChange={(e) => setRadius(e.target.value)}
+              onChange={(e) => { setSelectedId(null); setRadius(e.target.value); }}
               className="rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none"
               style={{ border: "1px solid #E0E0E0" }}
             >
@@ -260,15 +259,8 @@ export function BuyerBrowsePage() {
               onSelect={(id) =>
                 setSelectedId((curr) => (curr === id ? null : id))
               }
-              origin={
-                originFacility?.lat && originFacility?.lng
-                  ? {
-                      lng: originFacility.lng,
-                      lat: originFacility.lat,
-                      label: originFacility.label,
-                    }
-                  : undefined
-              }
+              origin={viewerLocation ?? undefined}
+              radiusFitListings={false}
               radiusMiles={parseInt(radius, 10) || undefined}
             />
             <button

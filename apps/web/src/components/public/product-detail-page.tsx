@@ -1,4 +1,5 @@
 "use client";
+import { DemoSdsFlow } from "@/components/public/demo-sds-flow";
 import { MaterialImage } from "@/components/public/material-image";
 
 import { useEffect, useMemo, useState } from "react";
@@ -363,6 +364,7 @@ export function ProductDetailPage() {
               </button>
             )}
             {isMember && !hasSds && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Seller hasn&apos;t uploaded the SDS yet — purchase blocked.</p>}
+            <DemoSdsFlow key={product.id} />
             {isMember && !priceKnown && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />No price recorded — request a quote from the seller.</p>}
           </div>
 
