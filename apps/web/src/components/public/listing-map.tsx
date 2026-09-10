@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { materialImage, isMaterialIllustration } from "@/lib/material-images";
 import { STREET_STYLE } from "@/lib/street-map-style";
 import { type ViewerLocation, useViewerLocation } from "@/lib/viewer-location";
 
@@ -45,15 +46,15 @@ function buildPopupContent(
     const img = document.createElement("img");
     img.src = listing.image;
     img.alt = listing.title;
-    const useIllustration = () => {
+    const showIllustration = () => {
       if (
-        listing.title.trim().toLowerCase() !== "tar" ||
+        !materialImage(listing.title) ||
         img.dataset.illustrative
       )
         return;
       img.dataset.illustrative = "true";
-      img.src = "/images/materials/tar-illustrative.png";
-      img.alt = "Illustrative sample of black industrial tar";
+      img.src = materialImage(listing.title)!;
+      img.alt = `Illustrative image of ${listing.title}`;
       const caption = document.createElement("span");
       caption.textContent = "Illustrative image";
       caption.style.cssText =
@@ -61,9 +62,9 @@ function buildPopupContent(
       imgWrap.style.position = "relative";
       imgWrap.appendChild(caption);
     };
-    img.addEventListener("error", useIllustration);
+    img.addEventListener("error", showIllustration);
     img.addEventListener("load", () => {
-      if (img.naturalWidth <= 1 && img.naturalHeight <= 1) useIllustration();
+      if (img.naturalWidth <= 1 && img.naturalHeight <= 1) showIllustration();
     });
     Object.assign(img.style, {
       width: "100%",
@@ -71,6 +72,7 @@ function buildPopupContent(
       objectFit: "cover",
       display: "block",
     });
+    if (isMaterialIllustration(listing.image)) showIllustration();
     imgWrap.appendChild(img);
     container.appendChild(imgWrap);
   }

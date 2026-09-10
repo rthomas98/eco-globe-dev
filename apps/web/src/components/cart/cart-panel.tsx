@@ -6,6 +6,7 @@ import { Button } from "@eco-globe/ui";
 import { useCart } from "./cart-context";
 import Link from "next/link";
 import { formatMoney } from "@/lib/listing-format";
+import { MaterialImage } from "@/components/public/material-image";
 
 export function CartButton() {
   const { itemCount, setIsOpen } = useCart();
@@ -84,7 +85,7 @@ export function CartPanel() {
               {items.map((item) => (
                 <div key={item.id} className="flex gap-4 px-6 py-5">
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-neutral-100 sm:h-20 sm:w-20">
-                    {item.image ? <img src={item.image} alt={item.title} className="h-full w-full object-cover" /> : null}
+                    <MaterialImage src={item.image} title={item.title} showCaption={false} />
                   </div>
                   <div className="flex flex-1 flex-col">
                     <div className="flex items-start justify-between">

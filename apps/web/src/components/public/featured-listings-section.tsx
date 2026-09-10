@@ -1,4 +1,5 @@
 "use client";
+import { MaterialImage } from "./material-image";
 
 import Link from "next/link";
 import { Button, Badge } from "@eco-globe/ui";
@@ -8,12 +9,8 @@ import { useListings } from "@/lib/use-listings";
 function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link href={`/browse/${listing.id}`} className="group flex cursor-pointer flex-col gap-3">
-      <div className="h-[240px] overflow-hidden rounded-xl bg-neutral-100">
-        {listing.image ? (
-          <img src={listing.image} alt={listing.title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-neutral-500">No photo yet</div>
-        )}
+      <div className="relative h-[240px] overflow-hidden rounded-xl bg-neutral-100">
+        <MaterialImage src={listing.image} title={listing.title} />
       </div>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">

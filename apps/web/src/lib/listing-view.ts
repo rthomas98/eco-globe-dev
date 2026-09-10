@@ -1,3 +1,4 @@
+import { materialImage } from "./material-images";
 import type {
   Frequency,
   Listing,
@@ -164,8 +165,8 @@ export function toListing(record: BackendListing): Listing {
     unit: perUnitSuffix(record.quantityUnit),
     quantityUnit: record.quantityUnit ?? "ton",
     qtyNum: record.quantity,
-    image: photos[0]?.url ?? null,
-    images: photos.map((doc) => doc.url),
+    image: photos[0]?.url ?? materialImage(record.title),
+    images: photos.length ? photos.map((doc) => doc.url) : [materialImage(record.title)].filter((url): url is string => !!url),
     tags,
     lng: location.longitude ?? null,
     lat: location.latitude ?? null,

@@ -1,4 +1,5 @@
 "use client";
+import { MaterialImage } from "./material-image";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -40,17 +41,9 @@ function ListingCard({
       <button
         type="button"
         onClick={onSelect}
-        className="mb-3 h-[200px] w-full overflow-hidden rounded-xl"
+        className="relative mb-3 h-[200px] w-full overflow-hidden rounded-xl"
       >
-        {listing.image ? (
-          <img
-            src={listing.image}
-            alt={listing.title}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-xs text-neutral-500">No photo yet</div>
-        )}
+        <MaterialImage src={listing.image} title={listing.title} />
       </button>
       <button
         type="button"

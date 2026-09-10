@@ -1,4 +1,5 @@
 "use client";
+import { MaterialImage } from "@/components/public/material-image";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -136,7 +137,7 @@ export function BuyerProductDetailPage() {
 
         <div className="relative mb-4 h-[400px] overflow-hidden rounded-2xl bg-neutral-100 sm:h-[450px] lg:h-[500px]">
           {product.images.length > 0 ? (
-            <img src={product.images[selectedImg] ?? product.images[0]} alt={product.title} className="h-full w-full object-cover" />
+            <MaterialImage src={product.images[selectedImg] ?? product.images[0]} title={product.title} />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-neutral-500">The seller has not uploaded photos for this listing.</div>
           )}

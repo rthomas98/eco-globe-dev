@@ -1,5 +1,7 @@
 "use client";
 
+import { materialImage } from "./material-images";
+
 /**
  * Client helpers for the marketplace money path: direct listing checkout
  * (order → escrow funding → payment) plus buyer/seller order reads, all via
@@ -165,32 +167,8 @@ export async function placeCheckoutOrder({
   return { order: finalOrder.order, escrowId, paymentId };
 }
 
-const LISTING_IMAGE_BY_TITLE: Record<string, string> = {
-  "Pyrolysis Pitch": "/products/generated/pyrolysis.png",
-  "Epoxy Off-Spec": "/products/generated/epoxy-offspec.png",
-  "Shredded, Refined Sugar Bagasse": "/products/generated/bagasse.png",
-  "Scrap Polymer Blend with Impurities": "/products/generated/polymer.png",
-  "Black Gypsum": "/products/generated/black-gypsum.png",
-  "Harvested and Baled Corn Stover": "/products/generated/stover-walker.png",
-  "Biomass Wood Pellets, Grade A": "/products/generated/wood-pellets.png",
-  "Industrial By-Product: Rice Husk": "/products/generated/rice-husk.png",
-  "Certified Organic Wood Chips": "/products/generated/wood-chips.png",
-  "Recycled Tire Crumb Rubber": "/products/generated/tire-crumb.png",
-  "Refined Used Cooking Oil (UCO)": "/products/generated/used-cooking-oil.png",
-  "Used Dry Transformer": "/products/generated/used-dry-transformer.png",
-  Hydrochar: "/products/generated/hydrochar.png",
-  "Used Pallets": "/products/generated/used-pallets.png",
-  Biochar: "/products/generated/biochar.png",
-  "White Label": "/products/generated/white-label.png",
-  Tar: "/products/generated/tar.png",
-  "Dark Viscous Liquid Tonnels": "/products/generated/dark-viscous-liquids.png",
-};
-
 export function listingImageForTitle(title: string | null) {
-  return (
-    (title && LISTING_IMAGE_BY_TITLE[title]) ||
-    "/products/generated/bagasse.png"
-  );
+ return title ? materialImage(title) ?? "" : "";
 }
 
 export function formatOrderDate(value: string) {
