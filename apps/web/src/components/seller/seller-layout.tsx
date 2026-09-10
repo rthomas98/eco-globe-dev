@@ -16,7 +16,7 @@ export function SellerLayout({
   return (
     <div className="flex h-dvh overflow-hidden bg-neutral-100">
       {/* Desktop sidebar */}
-      <SellerSidebar className="hidden lg:flex" />
+      <div className="fixed inset-y-0 left-0 hidden lg:block"><SellerSidebar /></div>
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
@@ -41,9 +41,9 @@ export function SellerLayout({
         </>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:ml-[240px]">
         {/* Top bar */}
-        <header className="flex h-16 items-center justify-between bg-white px-4 sm:px-6" style={{ borderBottom: "1px solid #E0E0E0" }}>
+        <header className="flex h-16 shrink-0 items-center justify-between bg-white px-4 sm:px-6" style={{ borderBottom: "1px solid #E0E0E0" }}>
           <div className="flex items-center gap-3">
             <button
               type="button"

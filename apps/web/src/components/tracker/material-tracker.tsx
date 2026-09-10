@@ -213,6 +213,19 @@ function MaterialCard({
   const [selected, setSelected] = useState<string | null>(null),
     [allFiles, setAllFiles] = useState(false);
   const stage = selected ?? stages[current];
+  const statusLabel = (index: number) => {
+    const name = stages[index];
+    if (!evidence[index]) return `${name} — No activity`;
+    const source = name === "Sample" ? records.samples
+      : name === "Testing" ? records.labs
+      : name === "Pilot" ? records.pilots
+      : ["Order", "Shipping", "In transit", "Delivered", "Paid"].includes(name ?? "") ? records.orders : [];
+    const statuses = [...new Set(source.map((record) => nice(
+      ["Shipping", "In transit", "Delivered"].includes(name ?? "")
+        ? record.shippingStatus ?? record.status : record.status
+    )))];
+    return `${name} — ${statuses.join(", ") || "Recorded"}${index === current ? " (current stage)" : ""}`;
+  };
   const files = [
     ...records.samples.map((s) => ({
       id: s.id,
@@ -308,14 +321,14 @@ function MaterialCard({
         </div>
         {!expanded && (
           <span
-            aria-hidden="true"
             className="hidden min-w-[180px] flex-1 items-center px-4 xl:flex"
           >
             {evidence.map((recorded, i) => (
               <span key={stages[i]} className="flex flex-1 items-center">
-                <span
-                  className={`size-3 shrink-0 rounded-full border-2 ${i === current ? "border-emerald-700 bg-emerald-700" : recorded ? "border-neutral-950 bg-neutral-950" : "border-neutral-200 bg-white"}`}
-                />
+                <span className="group relative flex size-6 shrink-0 items-center justify-center" title={statusLabel(i)} aria-label={statusLabel(i)}>
+                  <span className={`size-3 rounded-full border-2 ${i === current ? "border-emerald-700 bg-emerald-700" : recorded ? "border-neutral-950 bg-neutral-950" : "border-neutral-200 bg-white"}`} />
+                  <span role="tooltip" className="pointer-events-none absolute left-1/2 top-full z-20 hidden w-max max-w-64 -translate-x-1/2 rounded-md bg-neutral-950 px-3 py-2 text-xs font-medium text-white shadow-lg group-hover:block">{statusLabel(i)}</span>
+                </span>
                 {i < evidence.length - 1 && (
                   <span className="h-0.5 flex-1 bg-neutral-200" />
                 )}
@@ -343,7 +356,9 @@ function MaterialCard({
                     setAllFiles(false);
                   }}
                   aria-pressed={stage === name}
-                  className="relative flex flex-1 flex-col items-center gap-2 py-3 text-xs"
+                  title={statusLabel(i)}
+                  aria-label={statusLabel(i)}
+                  className="group relative flex flex-1 flex-col items-center gap-2 py-3 text-xs"
                 >
                   <span
                     className={`z-10 flex size-8 items-center justify-center rounded-full border-[3px] ${stage === name ? "border-emerald-200 bg-emerald-700 text-white" : evidence[i] ? "border-neutral-950 bg-neutral-950 text-white" : "border-neutral-200 bg-white text-neutral-400"}`}
@@ -353,6 +368,7 @@ function MaterialCard({
                   {i < stages.length - 1 && (
                     <span className="absolute left-1/2 right-[-50%] top-7 h-0.5 bg-neutral-200" />
                   )}
+                  <span role="tooltip" className="pointer-events-none absolute left-1/2 top-12 z-20 hidden w-max max-w-64 -translate-x-1/2 rounded-md bg-neutral-950 px-3 py-2 text-xs font-medium text-white shadow-lg group-hover:block group-focus-visible:block">{statusLabel(i)}</span>
                   <strong
                     className={
                       stage === name ? "text-emerald-700" : "text-neutral-600"

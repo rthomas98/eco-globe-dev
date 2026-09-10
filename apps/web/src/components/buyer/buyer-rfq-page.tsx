@@ -19,6 +19,10 @@ interface RFQ {
   responses: number;
   status: RFQStatus;
   created: string;
+  notes?: string | null;
+  location?: string;
+  targetPrice?: string;
+  live?: boolean;
 }
 
 const rfqs: RFQ[] = [
@@ -32,6 +36,7 @@ const rfqs: RFQ[] = [
 const FILTERS: Array<RFQStatus | "All"> = ["All", "Open", "Quoted", "Accepted", "Declined", "Expired"];
 
 export function BuyerRfqPage() {
+  const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState<RFQStatus | "All">("All");
   const [rows, setRows] = useState<RFQ[]>(rfqs);
 
@@ -44,6 +49,10 @@ export function BuyerRfqPage() {
         if (cancelled || wanted.length === 0) return;
         const live: RFQ[] = wanted.map((w) => ({
           id: `RFQ-${w.id}`,
+          live: true,
+          notes: w.notes,
+          location: [w.stateProvince, w.countryCode].filter(Boolean).join(", "),
+          targetPrice: w.targetPricePerUnit === null ? "Not specified" : `${w.currencyCode} ${w.targetPricePerUnit} / ${w.quantityUnit}`,
           product: w.title,
           category: w.materialTypeName,
           quantity: `${w.quantity} ${w.quantityUnit}`,
@@ -108,9 +117,13 @@ export function BuyerRfqPage() {
             </div>
           ) : (
             visible.map((r, i) => (
-              <div
-                key={r.id}
-                className="flex items-start gap-4 px-5 py-4 hover:bg-neutral-50"
+              <div key={r.id}>
+              <button
+                type="button"
+                aria-expanded={selected === r.id}
+                aria-controls={`details-${r.id}`}
+                onClick={() => setSelected(selected === r.id ? null : r.id)}
+                className="flex w-full items-start gap-4 px-5 py-4 text-left hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-emerald-700"
                 style={{ borderBottom: i === visible.length - 1 ? undefined : "1px solid #F4F4F5" }}
               >
                 <div className="flex-1">
@@ -129,7 +142,23 @@ export function BuyerRfqPage() {
                   <MessageSquare className="size-4 text-neutral-400" />
                   <span>{r.responses} quote{r.responses === 1 ? "" : "s"}</span>
                 </div>
-                <ChevronRight className="mt-2 size-4 text-neutral-300" />
+                <ChevronRight className={`mt-2 size-4 text-neutral-500 transition-transform ${selected === r.id ? "rotate-90" : ""}`} />
+              </button>
+              {selected === r.id && (
+                <section id={`details-${r.id}`} aria-label={`${r.id} details`} className="border-t border-neutral-100 bg-neutral-50 px-5 py-6">
+                  <h2 className="text-lg font-semibold">Request details</h2>
+                  {!r.live && <p className="mt-2 text-sm text-amber-800">Demo request — example summary data. Seller quote details are not available for this example.</p>}
+                  <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                    {[['Material', r.product], ['Category', r.category], ['Quantity', r.quantity], ['Needed by', r.needBy === '—' ? 'Not specified' : r.needBy], ['Submitted', r.created], ['Status', r.status], ['Delivery region', r.location ?? 'Not specified'], ['Target unit price', r.targetPrice ?? 'Not specified']].map(([label, value]) => (
+                      <div key={label}><dt className="text-neutral-500">{label}</dt><dd className="mt-1 font-medium">{value}</dd></div>
+                    ))}
+                  </dl>
+                  <h3 className="mt-6 font-semibold">Requirements and notes</h3>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{r.notes || 'No additional requirements provided.'}</p>
+                  <h3 className="mt-6 font-semibold">Seller quotes</h3>
+                  <p className="mt-2 text-sm text-neutral-700">{r.live ? 'No seller quotes are available for this request yet.' : `${r.responses} quotes shown in the demo summary; no individual quote records are attached.`}</p>
+                </section>
+              )}
               </div>
             ))
           )}

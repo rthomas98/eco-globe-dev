@@ -346,7 +346,7 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[220px] shrink-0 flex-col bg-white transition-transform duration-200 lg:relative lg:z-auto lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[220px] shrink-0 flex-col bg-white transition-transform duration-200 lg:z-auto lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         style={{ borderRight: "1px solid #E0E0E0" }}
@@ -530,7 +530,7 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
         )}
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain lg:ml-[220px]">
         <header
           className="flex h-14 shrink-0 items-center gap-3 px-4 lg:hidden"
           style={{ borderBottom: "1px solid #E0E0E0" }}
@@ -554,7 +554,7 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
             />
           </Link>
         </header>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
           {children}
         </div>
       </main>
