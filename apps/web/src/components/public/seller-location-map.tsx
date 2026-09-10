@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { useEffect, useRef, useState } from "react";
+import * as maplibregl from "maplibre-gl";
+import { STREET_STYLE } from "@/lib/street-map-style";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { type ViewerLocation, useViewerLocation } from "@/lib/viewer-location";
 
 interface SellerLocationMapProps {
   lng: number;
   lat: number;
   heightClassName?: string;
-}
-
-function isValidToken(t: string | undefined): t is string {
-  return !!t && t !== "placeholder" && t.startsWith("pk.");
 }
 
 function createSellerMarkerElement() {
@@ -72,65 +69,45 @@ function buildViewerPopupContent(location: ViewerLocation): HTMLDivElement {
   return container;
 }
 
-function getFallbackPoint(
-  lng: number,
-  lat: number,
-  viewerLocation?: ViewerLocation | null,
-) {
-  const lngs = [lng, ...(viewerLocation ? [viewerLocation.lng] : [])];
-  const lats = [lat, ...(viewerLocation ? [viewerLocation.lat] : [])];
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const padX = (maxLng - minLng) * 0.2 || 0.3;
-  const padY = (maxLat - minLat) * 0.2 || 0.3;
-  const lngRange = maxLng - minLng + padX * 2 || 1;
-  const latRange = maxLat - minLat + padY * 2 || 1;
-
-  return (pointLng: number, pointLat: number) => ({
-    xPct: ((pointLng - minLng + padX) / lngRange) * 100,
-    yPct: (1 - (pointLat - minLat + padY) / latRange) * 100,
-  });
-}
-
 export function SellerLocationMap({
   lng,
   lat,
   heightClassName = "h-[280px]",
 }: SellerLocationMapProps) {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  const validToken = isValidToken(token);
+  const [mapError, setMapError] = useState(false);
+  const [retry, setRetry] = useState(0);
   const { location: viewerLocation } = useViewerLocation();
   const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const viewerMarkerRef = useRef<{ marker: mapboxgl.Marker; popup: mapboxgl.Popup } | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const viewerMarkerRef = useRef<{ marker: maplibregl.Marker; popup: maplibregl.Popup } | null>(null);
 
   useEffect(() => {
-    if (!validToken) return;
     if (!mapContainer.current) return;
 
-    mapboxgl.accessToken = token!;
-    const map = new mapboxgl.Map({
+    const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
+      style: STREET_STYLE,
       center: [lng, lat],
       zoom: 11,
     });
 
-    map.addControl(new mapboxgl.NavigationControl(), "top-right");
-    new mapboxgl.Marker(createSellerMarkerElement()).setLngLat([lng, lat]).addTo(map);
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    new maplibregl.Marker({ element: createSellerMarkerElement() }).setLngLat([lng, lat]).addTo(map);
     mapRef.current = map;
+    map.on("error", () => setMapError(true));
+    map.on("idle", () => { if (map.areTilesLoaded()) setMapError(false); });
+    const observer = new ResizeObserver(() => map.resize());
+    observer.observe(mapContainer.current);
 
     return () => {
+      observer.disconnect();
       viewerMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
-  }, [lng, lat, token, validToken]);
+  }, [lng, lat, retry]);
 
   useEffect(() => {
-    if (!validToken) return;
     const map = mapRef.current;
     if (!map) return;
 
@@ -140,92 +117,31 @@ export function SellerLocationMap({
 
     if (!viewerLocation) return;
 
-    const popup = new mapboxgl.Popup({
+    const popup = new maplibregl.Popup({
       offset: 18,
       closeButton: false,
       maxWidth: "240px",
     }).setDOMContent(buildViewerPopupContent(viewerLocation));
 
-    const marker = new mapboxgl.Marker(createViewerMarkerElement())
+    const marker = new maplibregl.Marker({ element: createViewerMarkerElement() })
       .setLngLat([viewerLocation.lng, viewerLocation.lat])
       .setPopup(popup)
       .addTo(map);
 
-    const bounds = new mapboxgl.LngLatBounds();
+    const bounds = new maplibregl.LngLatBounds();
     bounds.extend([lng, lat]);
     bounds.extend([viewerLocation.lng, viewerLocation.lat]);
     map.fitBounds(bounds, { padding: 80, maxZoom: 11, duration: 600 });
 
     viewerMarkerRef.current = { marker, popup };
-  }, [lng, lat, validToken, viewerLocation]);
+  }, [lng, lat, retry, viewerLocation]);
 
-  if (!validToken) {
-    const toPoint = getFallbackPoint(lng, lat, viewerLocation);
-    const seller = toPoint(lng, lat);
-    const viewer = viewerLocation
-      ? toPoint(viewerLocation.lng, viewerLocation.lat)
-      : null;
-
-    return (
-      <div
-        className={`relative w-full overflow-hidden rounded-xl ${heightClassName}`}
-        style={{
-          background:
-            "linear-gradient(135deg, #E8F1ED 0%, #F4F8F2 50%, #E0EAE3 100%)",
-        }}
-      >
-        <svg className="absolute inset-0 h-full w-full opacity-40" aria-hidden>
-          <defs>
-            <pattern id="grid-detail-location" width="48" height="48" patternUnits="userSpaceOnUse">
-              <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#C8D7CD" strokeWidth="0.5" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid-detail-location)" />
-        </svg>
-
-        <div
-          className="absolute z-10 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{
-            left: `${seller.xPct}%`,
-            top: `${seller.yPct}%`,
-            background: "#378853",
-            border: "2.5px solid white",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
-          }}
-          aria-label="Seller location"
-        />
-
-        {viewer && (
-          <div
-            className="absolute z-20 -translate-x-1/2 -translate-y-1/2"
-            style={{ left: `${viewer.xPct}%`, top: `${viewer.yPct}%` }}
-            aria-label="Your location"
-            title="Your location"
-          >
-            <div
-              className="size-7 rounded-full bg-blue-600"
-              style={{
-                border: "3px solid white",
-                boxShadow: "0 0 0 8px rgba(37,99,235,0.18), 0 3px 10px rgba(0,0,0,0.25)",
-              }}
-            />
-            <div className="absolute left-1/2 top-9 -translate-x-1/2 whitespace-nowrap rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-blue-700 shadow-sm">
-              You are here
-            </div>
-          </div>
-        )}
-
-        <div className="absolute bottom-3 left-3 max-w-[260px] rounded-md bg-white/85 px-2 py-1 text-[10px] font-medium text-neutral-700 backdrop-blur-sm">
-          {getViewerLocationLabel(viewerLocation)}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={`relative w-full ${heightClassName}`}>
+      {mapError && <div role="status" className="absolute left-3 top-3 z-10 rounded-md bg-white p-2 text-xs shadow">Street map could not load. <button className="underline" onClick={() => { setMapError(false); setRetry((value) => value + 1); }}>Retry</button></div>}
       <div ref={mapContainer} className="h-full w-full rounded-xl" />
-      <div className="absolute bottom-3 left-3 max-w-[280px] rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-neutral-700 shadow-sm backdrop-blur-sm">
+      <div className="absolute bottom-8 left-3 max-w-[280px] rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-neutral-700 shadow-sm backdrop-blur-sm">
         {getViewerLocationLabel(viewerLocation)}
       </div>
     </div>

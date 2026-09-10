@@ -8,7 +8,8 @@
     "src/**/*.test.ts",
     "src/lib/listing-format.ts",
     "src/lib/value-recovery.ts",
-    "src/lib/lab-testing.ts"
+    "src/lib/lab-testing.ts",
+    "src/lib/pilots.ts"
   ],
   "exclude": [
     "node_modules"

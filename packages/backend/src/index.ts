@@ -1,3 +1,4 @@
+import { processSampleShipping } from './sample-shipping-routes.js';
 import { createServer } from "node:http";
 import { handleApiRoute } from "./api.js";
 import { handleAuthRoute } from "./auth-routes.js";
@@ -1020,3 +1021,13 @@ const server = createServer(async (request, response) => {
 server.listen(port, host, () => {
   console.log(`EcoGlobe backend API listening on http://${host}:${port}`);
 });
+
+// Bounded recurring reconciliation; SQL locks serialize concurrent instances.
+let samplesProcessing = false;
+const sampleTimer = setInterval(async () => {
+  if (samplesProcessing) return;
+  samplesProcessing = true;
+  try { await processSampleShipping(); } catch { /* Retry on the next tick; per-request errors are persisted. */ }
+  finally { samplesProcessing = false; }
+}, 60_000);
+sampleTimer.unref();

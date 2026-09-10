@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { useEffect, useRef, useState, useMemo } from "react";
+import * as maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { STREET_STYLE } from "@/lib/street-map-style";
 import { type ViewerLocation, useViewerLocation } from "@/lib/viewer-location";
 
 export interface MapListing {
@@ -18,14 +19,8 @@ export interface MapListing {
   image?: string;
 }
 
-const fallbackListings: MapListing[] = [
-  { id: "bagasse", title: "Shredded, Refined Sugar Bagasse", location: "Port Allen, Louisiana", price: "$48", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -91.2103, lat: 30.4524 },
-  { id: "polymer", title: "Scrap Polymer Blend", location: "Houston, Texas", price: "€60", unit: "/ton", moq: "3 tons", co2: "300 kg CO₂e", lng: -95.3698, lat: 29.7604 },
-  { id: "pyrolysis", title: "Pyrolysis Pitch", location: "Houston, Texas", price: "$50", unit: "/ton", moq: "1000 tons", co2: "300 kg CO₂e", lng: -95.3698, lat: 29.7604 },
-  { id: "tar", title: "Tar", location: "Houston, Texas", price: "$50", unit: "/ton", moq: "5 tons", co2: "360 kg CO₂e", lng: -95.3698, lat: 29.7604 },
-  { id: "used-cooking-oil", title: "Refined Used Cooking Oil (UCO)", location: "Rotterdam, Netherlands", price: "$550", unit: "/ton", moq: "4 tons", co2: "540 kg CO₂e", lng: 4.4777, lat: 51.9244 },
-  { id: "epoxy-offspec", title: "Epoxy Off-Spec", location: "Houston, Texas", price: "$50", unit: "/ton", moq: "2 tons", co2: "280 kg CO₂e", lng: -95.3698, lat: 29.7604 },
-];
+const EMPTY_LISTINGS: MapListing[] = [];
+
 
 function buildPopupContent(
   listing: MapListing,
@@ -50,6 +45,26 @@ function buildPopupContent(
     const img = document.createElement("img");
     img.src = listing.image;
     img.alt = listing.title;
+    const useIllustration = () => {
+      if (
+        listing.title.trim().toLowerCase() !== "tar" ||
+        img.dataset.illustrative
+      )
+        return;
+      img.dataset.illustrative = "true";
+      img.src = "/images/materials/tar-illustrative.png";
+      img.alt = "Illustrative sample of black industrial tar";
+      const caption = document.createElement("span");
+      caption.textContent = "Illustrative image";
+      caption.style.cssText =
+        "position:absolute;bottom:4px;left:4px;background:white;border-radius:8px;padding:2px 6px;font-size:10px";
+      imgWrap.style.position = "relative";
+      imgWrap.appendChild(caption);
+    };
+    img.addEventListener("error", useIllustration);
+    img.addEventListener("load", () => {
+      if (img.naturalWidth <= 1 && img.naturalHeight <= 1) useIllustration();
+    });
     Object.assign(img.style, {
       width: "100%",
       height: "100%",
@@ -177,10 +192,6 @@ interface ListingMapProps {
   radiusFitListings?: boolean;
 }
 
-function isValidToken(t: string | undefined): t is string {
-  return !!t && t !== "placeholder" && t.startsWith("pk.");
-}
-
 /**
  * Build the LngLatBounds we want the map to fit. Includes the listings and
  * the optional origin pin. We DO NOT extend by the radius envelope — the
@@ -190,8 +201,8 @@ function isValidToken(t: string | undefined): t is string {
 function buildBounds(
   data: MapListing[],
   origin?: { lng: number; lat: number },
-): mapboxgl.LngLatBounds {
-  const bounds = new mapboxgl.LngLatBounds();
+): maplibregl.LngLatBounds {
+  const bounds = new maplibregl.LngLatBounds();
   data.forEach((l) => bounds.extend([l.lng, l.lat]));
   if (origin) bounds.extend([origin.lng, origin.lat]);
   return bounds;
@@ -279,210 +290,21 @@ function createViewerMarkerElement() {
   return el;
 }
 
-function extendBoundsWithMapData(bounds: mapboxgl.LngLatBounds, data: MapListing[], viewerLocation?: ViewerLocation | null) {
+function extendBoundsWithMapData(
+  bounds: maplibregl.LngLatBounds,
+  data: MapListing[],
+  viewerLocation?: ViewerLocation | null,
+) {
   data.forEach((l) => bounds.extend([l.lng, l.lat]));
   if (viewerLocation) bounds.extend([viewerLocation.lng, viewerLocation.lat]);
 }
 
 function getViewerLocationLabel(viewerLocation?: ViewerLocation | null) {
-  if (!viewerLocation) return "Enable location to show where you are browsing from";
+  if (!viewerLocation)
+    return "Enable location to show where you are browsing from";
   return viewerLocation.source === "browser"
     ? "Showing your approximate login location"
     : `Showing saved company location: ${viewerLocation.label}`;
-}
-
-function FallbackMap({ data, selectedId, onSelect, onView, origin, radiusMiles, viewerLocation }: {
-  data: MapListing[];
-  selectedId?: string | null;
-  onSelect?: (id: string) => void;
-  onView?: (id: string) => void;
-  origin?: { lng: number; lat: number; label?: string };
-  radiusMiles?: number;
-  viewerLocation?: ViewerLocation | null;
-}) {
-  const lngs = [...data.map((d) => d.lng), ...(origin ? [origin.lng] : []), ...(viewerLocation ? [viewerLocation.lng] : [])];
-  const lats = [...data.map((d) => d.lat), ...(origin ? [origin.lat] : []), ...(viewerLocation ? [viewerLocation.lat] : [])];
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const padX = (maxLng - minLng) * 0.15 || 0.3;
-  const padY = (maxLat - minLat) * 0.15 || 0.3;
-  const lngRange = (maxLng - minLng) + padX * 2 || 1;
-  const latRange = (maxLat - minLat) + padY * 2 || 1;
-  const toPoint = (lng: number, lat: number) => ({
-    xPct: ((lng - minLng + padX) / lngRange) * 100,
-    yPct: (1 - (lat - minLat + padY) / latRange) * 100,
-  });
-
-  // Approximate radius in % of viewport: ~69 mi per degree latitude.
-  const radiusDeg = radiusMiles ? radiusMiles / 69 : 0;
-  const radiusPctY = radiusDeg ? (radiusDeg / latRange) * 100 : 0;
-
-  return (
-    <div
-      className="relative h-full w-full overflow-hidden rounded-xl"
-      style={{
-        background:
-          "linear-gradient(135deg, #E8F1ED 0%, #F4F8F2 50%, #E0EAE3 100%)",
-      }}
-    >
-      {/* Decorative grid */}
-      <svg className="absolute inset-0 h-full w-full opacity-40" aria-hidden>
-        <defs>
-          <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
-            <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#C8D7CD" strokeWidth="0.5" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
-
-      {/* Radius circle */}
-      {origin && radiusPctY > 0 && (() => {
-        const ox = ((origin.lng - minLng + padX) / lngRange) * 100;
-        const oy = (1 - (origin.lat - minLat + padY) / latRange) * 100;
-        return (
-          <div
-            className="pointer-events-none absolute z-0 rounded-full"
-            style={{
-              left: `${ox}%`,
-              top: `${oy}%`,
-              width: `${radiusPctY * 2}%`,
-              aspectRatio: "1 / 1",
-              transform: "translate(-50%, -50%)",
-              background: "rgba(55,136,83,0.12)",
-              border: "2px dashed #1F5F3A",
-            }}
-          />
-        );
-      })()}
-
-      {/* Origin pin */}
-      {origin && (() => {
-        const ox = ((origin.lng - minLng + padX) / lngRange) * 100;
-        const oy = (1 - (origin.lat - minLat + padY) / latRange) * 100;
-        return (
-          <div
-            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full"
-            style={{
-              left: `${ox}%`,
-              top: `${oy}%`,
-              width: 20,
-              height: 20,
-              background: "#1F2937",
-              border: "3px solid white",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
-            }}
-            aria-label={origin.label ?? "Origin"}
-          />
-        );
-      })()}
-
-      {/* Pins */}
-      {data.map((listing) => {
-        const { xPct, yPct } = toPoint(listing.lng, listing.lat);
-        const isSelected = listing.id === selectedId;
-        return (
-          <button
-            key={listing.id}
-            type="button"
-            onClick={() => onSelect?.(listing.id)}
-            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform hover:scale-110"
-            style={{
-              left: `${xPct}%`,
-              top: `${yPct}%`,
-              width: 24,
-              height: 24,
-              background: isSelected ? "#1F5F3A" : "#378853",
-              border: "2.5px solid white",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
-              transform: `translate(-50%, -50%) scale(${isSelected ? 1.35 : 1})`,
-            }}
-            aria-label={listing.title}
-          />
-        );
-      })}
-
-      {viewerLocation &&
-        (() => {
-          const { xPct, yPct } = toPoint(viewerLocation.lng, viewerLocation.lat);
-          return (
-            <div
-              className="absolute z-20 -translate-x-1/2 -translate-y-1/2"
-              style={{ left: `${xPct}%`, top: `${yPct}%` }}
-              aria-label="Your location"
-              title="Your location"
-            >
-              <div
-                className="size-7 rounded-full bg-blue-600"
-                style={{
-                  border: "3px solid white",
-                  boxShadow: "0 0 0 8px rgba(37,99,235,0.18), 0 3px 10px rgba(0,0,0,0.25)",
-                }}
-              />
-              <div className="absolute left-1/2 top-9 -translate-x-1/2 whitespace-nowrap rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-blue-700 shadow-sm">
-                You are here
-              </div>
-            </div>
-          );
-        })()}
-
-      {/* Selected popup */}
-      {selectedId &&
-        (() => {
-          const sel = data.find((l) => l.id === selectedId);
-          if (!sel) return null;
-          const { xPct, yPct } = toPoint(sel.lng, sel.lat);
-          return (
-            <div
-              className="absolute z-20 w-[240px] -translate-x-1/2 overflow-hidden rounded-lg bg-white shadow-lg"
-              style={{ left: `${xPct}%`, top: `calc(${yPct}% - 18px)`, transform: "translate(-50%, -100%)" }}
-            >
-              {sel.image && (
-                <div className="h-[120px] w-full overflow-hidden bg-neutral-100">
-                  <img
-                    src={sel.image}
-                    alt={sel.title}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              )}
-              <div className="p-3">
-                <p className="text-sm font-semibold text-neutral-900">{sel.title}</p>
-                <p className="mt-0.5 text-xs text-neutral-500">{sel.location}</p>
-                <div className="mt-2 flex gap-1">
-                  <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-600">{sel.moq}</span>
-                  <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-600">{sel.co2}</span>
-                </div>
-                <p className="mt-2 text-base font-semibold text-neutral-900">
-                  {sel.price}
-                  <span className="ml-1 text-xs font-normal text-neutral-400">{sel.unit}</span>
-                </p>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onView) onView(sel.id);
-                    else window.location.href = `/browse/${sel.id}`;
-                  }}
-                  className="mt-3 w-full rounded-full bg-neutral-900 py-2 text-xs font-semibold text-white hover:opacity-90"
-                >
-                  View details
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-
-      {/* Subtle hint */}
-      <div className="absolute bottom-3 right-3 rounded-md bg-white/80 px-2 py-1 text-[10px] text-neutral-500 backdrop-blur-sm">
-        Map preview · Set NEXT_PUBLIC_MAPBOX_TOKEN to enable
-      </div>
-      <div className="absolute bottom-3 left-3 max-w-[260px] rounded-md bg-white/85 px-2 py-1 text-[10px] font-medium text-neutral-700 backdrop-blur-sm">
-        {getViewerLocationLabel(viewerLocation)}
-      </div>
-    </div>
-  );
 }
 
 export function ListingMap({
@@ -490,102 +312,153 @@ export function ListingMap({
   selectedId,
   onSelect,
   onView,
-  origin,
+  origin: suppliedOrigin,
   radiusMiles,
   activeId,
   showOriginPin = true,
   radiusFitListings = true,
 }: ListingMapProps = {}) {
-  const data = listings && listings.length > 0 ? listings : fallbackListings;
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  const validToken = isValidToken(token);
+  const data = listings ?? EMPTY_LISTINGS;
+  const originLng = suppliedOrigin?.lng;
+  const originLat = suppliedOrigin?.lat;
+  const originLabel = suppliedOrigin?.label;
+  const origin = useMemo(
+    () =>
+      originLng === undefined || originLat === undefined
+        ? undefined
+        : { lng: originLng, lat: originLat, label: originLabel },
+    [originLng, originLat, originLabel],
+  );
+  const [mapError, setMapError] = useState(false);
+  const selectRef = useRef(onSelect);
+  const viewRef = useRef(onView);
+  useEffect(() => {
+    selectRef.current = onSelect;
+    viewRef.current = onView;
+  }, [onSelect, onView]);
   const { location: viewerLocation } = useViewerLocation();
 
   const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<Map<string, { marker: mapboxgl.Marker; popup: mapboxgl.Popup; el: HTMLDivElement }>>(new globalThis.Map());
-  const originMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const viewerMarkerRef = useRef<{ marker: mapboxgl.Marker; popup: mapboxgl.Popup } | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<
+    Map<
+      string,
+      { marker: maplibregl.Marker; popup: maplibregl.Popup; el: HTMLDivElement }
+    >
+  >(new globalThis.Map());
+  const originMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const viewerMarkerRef = useRef<{
+    marker: maplibregl.Marker;
+    popup: maplibregl.Popup;
+  } | null>(null);
 
   useEffect(() => {
-    if (!validToken) return;
     if (!mapContainer.current || mapRef.current) return;
 
-    mapboxgl.accessToken = token!;
-
-    const mapInstance = new mapboxgl.Map({
+    const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
+      style: STREET_STYLE,
+      attributionControl: { compact: false },
+      maxZoom: 19,
+      renderWorldCopies: false,
       center: [-91.15, 30.45],
       zoom: 8.5,
     });
 
-    mapInstance.addControl(new mapboxgl.NavigationControl(), "top-right");
+    mapInstance.addControl(new maplibregl.NavigationControl(), "bottom-right");
     mapRef.current = mapInstance;
+    mapInstance.on("error", () => setMapError(true));
+    mapInstance.on("idle", () => {
+      if (mapInstance.areTilesLoaded()) setMapError(false);
+    });
+    const resize = new ResizeObserver(() => mapInstance.resize());
+    resize.observe(mapContainer.current);
+    const markers = markersRef.current;
 
     return () => {
+      resize.disconnect();
       mapInstance.remove();
       mapRef.current = null;
-      markersRef.current.clear();
+      markers.clear();
       viewerMarkerRef.current = null;
     };
-  }, [validToken, token]);
+  }, []);
 
   // Sync markers to listings
   useEffect(() => {
-    if (!validToken) return;
     const mapInstance = mapRef.current;
     if (!mapInstance) return;
 
     // Clear existing
-    markersRef.current.forEach(({ marker }) => marker.remove());
+    markersRef.current.forEach(({ marker, popup }) => {
+      marker.remove();
+      popup.remove();
+    });
     markersRef.current.clear();
 
     data.forEach((listing) => {
       const el = document.createElement("div");
+      el.setAttribute("role", "button");
+      el.setAttribute("aria-label", `${listing.title} — ${listing.location}`);
+      el.tabIndex = 0;
+      el.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          el.click();
+        }
+      });
       const isActive = listing.id === activeId;
       const bg = isActive ? "#FFD600" : "#378853";
       const border = isActive ? "#1F2937" : "white";
-      el.style.cssText =
-        `width:${isActive ? 28 : 24}px;height:${isActive ? 28 : 24}px;border-radius:50%;background:${bg};border:2.5px solid ${border};cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.25);transition:transform 150ms ease, background 150ms ease;`;
+      el.style.cssText = `width:${isActive ? 28 : 24}px;height:${isActive ? 28 : 24}px;border-radius:50%;background:${bg};border:2.5px solid ${border};cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.25);transition:transform 150ms ease, background 150ms ease;`;
 
-      const popup = new mapboxgl.Popup({
+      const popup = new maplibregl.Popup({
         offset: 16,
         closeButton: false,
         maxWidth: "260px",
-      }).setDOMContent(buildPopupContent(listing, onView));
-
-      const marker = new mapboxgl.Marker(el)
+      })
         .setLngLat([listing.lng, listing.lat])
-        .setPopup(popup)
+        .setDOMContent(
+          buildPopupContent(listing, (id) =>
+            viewRef.current
+              ? viewRef.current(id)
+              : window.location.assign(`/browse/${id}`),
+          ),
+        );
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([listing.lng, listing.lat])
         .addTo(mapInstance);
 
       el.addEventListener("click", (e) => {
         e.stopPropagation();
-        onSelect?.(listing.id);
+        selectRef.current?.(listing.id);
       });
 
       markersRef.current.set(listing.id, { marker, popup, el });
     });
 
-    // Fit bounds to all markers when listings change. We skip the fit when a
-    // radius is active — the radius/origin effect runs its own fitBounds that
-    // includes the circle envelope, and the two were fighting each other.
-    if (
-      data.length > 0 &&
-      (viewerLocation || data.length !== fallbackListings.length) &&
-      !(origin && radiusMiles && radiusMiles > 0)
-    ) {
-      const bounds = buildBounds(data, origin);
-      extendBoundsWithMapData(bounds, [], viewerLocation);
-      mapInstance.fitBounds(bounds, { padding: 80, maxZoom: 11, duration: 600 });
-    }
-  }, [data, onSelect, onView, validToken, origin, radiusMiles, activeId, viewerLocation]);
+  }, [data, activeId]);
 
-  // Sync origin pin + radius circle (mapbox path)
+  // Keep camera fitting independent of asynchronous style/overlay loading.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || selectedId) return;
+    const hasRadius = origin && radiusMiles && radiusMiles > 0;
+    const bounds = buildBounds(hasRadius && !radiusFitListings ? [] : data, origin);
+    extendBoundsWithMapData(bounds, [], viewerLocation);
+    if (hasRadius) {
+      const dLat = radiusMiles / 69;
+      const dLng = radiusMiles / (69 * Math.max(0.1, Math.cos(origin.lat * Math.PI / 180)));
+      bounds.extend([origin.lng - dLng, origin.lat - dLat]);
+      bounds.extend([origin.lng + dLng, origin.lat + dLat]);
+    }
+    if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 60, maxZoom: 11, duration: 0 });
+  }, [data, origin, radiusMiles, radiusFitListings, viewerLocation, selectedId]);
+
+  // Sync origin pin + radius circle (map renderer)
 
   useEffect(() => {
-    if (!validToken) return;
     const mapInstance = mapRef.current;
     if (!mapInstance) return;
 
@@ -616,7 +489,7 @@ export function ListingMap({
         const el = document.createElement("div");
         el.style.cssText =
           "width:22px;height:22px;border-radius:50%;background:#1F2937;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);";
-        originMarkerRef.current = new mapboxgl.Marker(el)
+        originMarkerRef.current = new maplibregl.Marker({ element: el })
           .setLngLat([origin.lng, origin.lat])
           .addTo(mapInstance);
       }
@@ -638,7 +511,10 @@ export function ListingMap({
           },
           properties: {},
         };
-        mapInstance.addSource(ROUTE_SOURCE_ID, { type: "geojson", data: route });
+        mapInstance.addSource(ROUTE_SOURCE_ID, {
+          type: "geojson",
+          data: route,
+        });
         mapInstance.addLayer({
           id: ROUTE_LINE_ID,
           type: "line",
@@ -670,7 +546,7 @@ export function ListingMap({
           },
         },
         // Insert the radius fill UNDER the route line when the route exists,
-        // otherwise let mapbox stack it on top normally.
+        // otherwise let the map stack it on top normally.
         hasRouteLine ? ROUTE_LINE_ID : undefined,
       );
       mapInstance.addLayer({
@@ -684,38 +560,20 @@ export function ListingMap({
         },
       });
 
-      // Auto-zoom to fit the entire circle so the user can actually see it.
-      // The earlier bounds-fit only included origin + listings, which left
-      // the dashed outline outside the viewport at city zoom levels.
-      const dLat = radiusMiles / 69;
-      const dLng =
-        radiusMiles /
-        (69 * Math.max(0.1, Math.cos((origin.lat * Math.PI) / 180)));
-      const radiusBounds = new mapboxgl.LngLatBounds(
-        [origin.lng - dLng, origin.lat - dLat],
-        [origin.lng + dLng, origin.lat + dLat],
-      );
-      // Also include any listings already on the map — unless the caller wants
-      // the view kept on the origin + circle (listings may be far away).
-      if (radiusFitListings) {
-        data.forEach((l) => radiusBounds.extend([l.lng, l.lat]));
-      }
-      mapInstance.fitBounds(radiusBounds, {
-        padding: 60,
-        duration: 700,
-      });
     };
 
     if (mapInstance.isStyleLoaded()) {
       apply();
     } else {
-      mapInstance.once("load", apply);
+      mapInstance.once("idle", apply);
     }
-  }, [origin, radiusMiles, validToken, activeId, data, showOriginPin, radiusFitListings]);
+    return () => {
+      mapInstance.off("idle", apply);
+    };
+  }, [origin, radiusMiles, activeId, data, showOriginPin, radiusFitListings]);
 
-  // Sync viewer ("you are here") marker (mapbox path)
+  // Sync viewer ("you are here") marker (map renderer)
   useEffect(() => {
-    if (!validToken) return;
     const mapInstance = mapRef.current;
     if (!mapInstance) return;
 
@@ -725,34 +583,33 @@ export function ListingMap({
 
     if (!viewerLocation) return;
 
-    const popup = new mapboxgl.Popup({
+    const popup = new maplibregl.Popup({
       offset: 18,
       closeButton: false,
       maxWidth: "240px",
     }).setDOMContent(buildViewerPopupContent(viewerLocation));
 
-    const marker = new mapboxgl.Marker(createViewerMarkerElement())
+    const marker = new maplibregl.Marker({
+      element: createViewerMarkerElement(),
+    })
       .setLngLat([viewerLocation.lng, viewerLocation.lat])
       .setPopup(popup)
       .addTo(mapInstance);
 
     viewerMarkerRef.current = { marker, popup };
-  }, [validToken, viewerLocation]);
+  }, [viewerLocation]);
 
   // React to selection changes — fly to and highlight
   useEffect(() => {
-    if (!validToken) return;
     const mapInstance = mapRef.current;
     if (!mapInstance) return;
 
     markersRef.current.forEach(({ el, popup }, id) => {
       if (id === selectedId) {
         el.style.background = "#1F5F3A";
-        el.style.transform = "scale(1.35)";
         popup.addTo(mapInstance);
       } else {
         el.style.background = "#378853";
-        el.style.transform = "scale(1)";
         popup.remove();
       }
     });
@@ -767,41 +624,27 @@ export function ListingMap({
           essential: true,
         });
       }
-    } else if (
-      data.length > 0 &&
-      !(origin && radiusMiles && radiusMiles > 0)
-    ) {
-      // Deselected: zoom back out to fit all visible listings.
-      // Skipped when a radius is active so we don't fight the radius effect's
-      // own fitBounds (which fits the circle envelope).
-      const bounds = buildBounds(data, origin);
-      extendBoundsWithMapData(bounds, [], viewerLocation);
-      mapInstance.fitBounds(bounds, {
-        padding: 80,
-        maxZoom: 11,
-        duration: 700,
-      });
     }
-  }, [selectedId, data, validToken, origin, radiusMiles, viewerLocation]);
-
-  if (!validToken) {
-    return (
-      <FallbackMap
-        data={data}
-        selectedId={selectedId}
-        onSelect={onSelect}
-        onView={onView}
-        origin={origin}
-        radiusMiles={radiusMiles}
-        viewerLocation={viewerLocation}
-      />
-    );
-  }
+  }, [selectedId, data, origin, radiusMiles, viewerLocation]);
 
   return (
     <div className="relative h-full w-full">
+      {mapError && (
+        <div
+          role="alert"
+          className="absolute left-3 top-3 z-10 rounded-lg bg-white p-3 text-sm shadow"
+        >
+          Street map could not load.{" "}
+          <button
+            className="underline"
+            onClick={() => mapRef.current?.setStyle(STREET_STYLE)}
+          >
+            Retry map
+          </button>
+        </div>
+      )}
       <div ref={mapContainer} className="h-full w-full rounded-xl" />
-      <div className="absolute bottom-3 left-3 max-w-[280px] rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-neutral-700 shadow-sm backdrop-blur-sm">
+      <div className="absolute bottom-8 left-3 max-w-[280px] rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-neutral-700 shadow-sm backdrop-blur-sm">
         {getViewerLocationLabel(viewerLocation)}
       </div>
     </div>

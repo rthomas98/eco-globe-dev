@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/components/cart/cart-context";
 import { formatMoney, formatQuantityWithUnitName } from "@/lib/listing-format";
 import { placeCheckoutOrder } from "@/lib/api-orders";
+import { sampleApi } from "@/lib/api-sample-shipping";
 import { takeSampleConversion, updateSampleRequest } from "@/lib/api-samples";
 import { readDemoUser } from "@/lib/demo-user";
 import {
@@ -939,8 +940,12 @@ export function BuyerCheckoutPage() {
 
   const deliveryAddress = billings.find((b) => b.id === deliveryAddressId) ?? null;
 
+  const [sampleCreditCents, setSampleCreditCents] = useState(0);
+  const sampleListingId = cartItem?.id;
+  useEffect(() => { let active = true; setSampleCreditCents(0); if (sampleListingId) sampleApi<{cents:number}>(`/credits?listingId=${sampleListingId}`).then(r => {if(active)setSampleCreditCents(r.cents);}).catch(() => {}); return () => {active=false;}; }, [sampleListingId]);
   const itemSubtotal = product ? product.qty * product.unitPrice : 0;
-  const subtotal = itemSubtotal;
+  const sampleCredit = product?.currencyCode === "USD" ? Math.min(itemSubtotal, sampleCreditCents / 100) : 0;
+  const subtotal = itemSubtotal - sampleCredit;
   const money = (n: number) => (product ? (formatMoney(n, product.currencyCode) ?? "—") : "—");
   const quantityLabel = product ? (formatQuantityWithUnitName(product.qty, product.quantityUnit) ?? String(product.qty)) : "";
 
@@ -1417,6 +1422,7 @@ export function BuyerCheckoutPage() {
               )}
             </div>
 
+            {sampleCredit > 0 && <p className="mt-3 text-sm text-emerald-800">Sample shipping credit: −{money(sampleCredit)} (confirmed when the order is saved)</p>}
             <div className="my-4 flex items-center justify-between text-base font-bold">
               <span className="text-neutral-900">Subtotal</span>
               <span className="text-neutral-900">{money(subtotal)} <span className="text-xs font-normal text-neutral-500">excl. shipping</span></span>

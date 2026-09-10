@@ -106,4 +106,5 @@ async function proxy(request: Request, { params }: RouteContext) {
 export const GET = proxy;
 export const POST = proxy;
 export const PATCH = proxy;
+export const PUT = proxy;
 export const DELETE = proxy;

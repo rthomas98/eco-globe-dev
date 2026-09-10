@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, MapPin, SlidersHorizontal, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import { Badge } from "@eco-globe/ui";
 import { ListingMap, type MapListing } from "../public/listing-map";
@@ -21,6 +22,12 @@ function ListingCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const [unusablePhoto, setUnusablePhoto] = useState<string | null>(null);
+  const illustration = listing.title.trim().toLowerCase() === "tar"
+    ? "/images/materials/tar-illustrative.png"
+    : null;
+  const showIllustration = !!illustration && (!listing.image || unusablePhoto === listing.image);
+  const image = showIllustration ? illustration : listing.image;
   return (
     <div
       onMouseEnter={onSelect}
@@ -29,16 +36,24 @@ function ListingCard({
       }`}
     >
       <Link href={`/buyer/browse/${listing.id}`} className="block">
-        <div className="mb-3 h-[200px] w-full overflow-hidden rounded-xl">
-          {listing.image ? (
+        <div className="relative mb-3 h-[200px] w-full overflow-hidden rounded-xl bg-neutral-100">
+          {image ? (
             <img
-              src={listing.image}
-              alt={listing.title}
+              src={image}
+              alt={showIllustration ? "Illustrative sample of black industrial tar" : listing.title}
+              onError={() => { if (!showIllustration) setUnusablePhoto(listing.image); }}
+              onLoad={(event) => {
+                // Tiny fixture images are valid downloads but contain no usable product photo.
+                if (!showIllustration && event.currentTarget.naturalWidth <= 1 && event.currentTarget.naturalHeight <= 1) {
+                  setUnusablePhoto(listing.image);
+                }
+              }}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-xs text-neutral-500">No photo yet</div>
           )}
+          {showIllustration && <span className="absolute bottom-2 left-2 rounded-full bg-white/95 px-2 py-1 text-[10px] font-medium text-neutral-700">Illustrative image</span>}
         </div>
         <h3 className="text-base font-medium text-neutral-900">{listing.title}</h3>
         <p className="mt-1 text-sm text-neutral-700">
@@ -78,6 +93,7 @@ function LocationPill({ value }: { value: string }) {
 }
 
 export function BuyerBrowsePage() {
+  const router = useRouter();
   const user = useDemoUser();
   const originFacility = user?.facilities?.find((f) => f.lat && f.lng);
   const [search, setSearch] = useState("");
@@ -260,6 +276,7 @@ export function BuyerBrowsePage() {
           >
             <ListingMap
               listings={mapListings}
+              onView={(id) => router.push(`/buyer/browse/${id}`)}
               selectedId={selectedId}
               onSelect={(id) =>
                 setSelectedId((curr) => (curr === id ? null : id))

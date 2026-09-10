@@ -36,6 +36,7 @@ import {
   Rocket,
   MonitorSmartphone,
   FlaskConical,
+  Handshake,
 } from "lucide-react";
 
 interface NavItem {
@@ -54,7 +55,9 @@ const coreAdminNavItems: NavItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Sales", href: "/admin/sales", icon: ShoppingCart },
   { label: "Listings", href: "/admin/listings", icon: ClipboardList },
+  { label: "Sample shipping", href: "/admin/samples", icon: FlaskConical },
   { label: "Lab testing", href: "/admin/lab-testing", icon: FlaskConical },
+  { label: "Pilot desk", href: "/admin/pilots", icon: Handshake },
 ];
 
 const marketplaceAdminNavItems: NavItem[] = [

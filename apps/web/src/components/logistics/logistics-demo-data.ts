@@ -1,6 +1,8 @@
 export type LogisticsStatus =
   | "Quote needed"
   | "Quote sent"
+  /** Pilot shipments awaiting off-platform coordination; never a price quote. */
+  | "Awaiting coordination"
   | "Booked"
   | "In transit"
   | "Out for delivery"
@@ -235,6 +237,11 @@ const LIVE_STATUS_BY_CODE: Record<string, LogisticsStatus> = {
   exception: "Exception",
 };
 
+/** Shown for pilot shipments still being arranged with buyer and seller. */
+export const PILOT_AWAITING_COORDINATION_LABEL = "Awaiting coordination";
+export const PILOT_AWAITING_COORDINATION_STEP =
+  "EcoGlobe is coordinating the movement with the buyer and seller. No carrier is booked and nothing is priced online.";
+
 const NEXT_STEP_BY_CODE: Record<string, string> = {
   quote_pending: "Awaiting buyer approval of the shipping quote.",
   scheduled: "Upload the Bill of Lading to dispatch.",
@@ -248,12 +255,22 @@ export function mapLiveShipment(
   shipment: ApiShipment,
   order: ApiOrder | undefined,
 ): LogisticsShipment {
-  const status = LIVE_STATUS_BY_CODE[shipment.shipmentStatusCode] ?? "Booked";
+  const pilot = shipment.pilotRequestId != null;
+  // A pilot shipment starts in quote_pending too, but nothing is priced online
+  // for pilots, so it is shown as awaiting coordination rather than a quote.
+  const status: LogisticsStatus =
+    pilot && shipment.shipmentStatusCode === "quote_pending"
+      ? "Awaiting coordination"
+      : (LIVE_STATUS_BY_CODE[shipment.shipmentStatusCode] ?? "Booked");
   return {
     id: `SHP-${shipment.id}`,
-    orderId: `EG-${shipment.orderId}`,
+    orderId: shipment.pilotRequestId
+      ? `Pilot PR-${shipment.pilotRequestId}`
+      : shipment.orderId != null
+        ? `EG-${shipment.orderId}`
+        : "—",
     trackingId: shipment.trackingNumber ?? "—",
-    product: order?.listingTitle ?? "Marketplace order",
+    product: order?.listingTitle ?? (shipment.pilotRequestId ? "Pilot shipment" : "Marketplace order"),
     buyer: order?.buyerCompanyName ?? "Marketplace buyer",
     seller: order?.sellerCompanyName ?? "Marketplace seller",
     origin: "Seller facility",
@@ -263,7 +280,8 @@ export function mapLiveShipment(
       order?.quantity != null
         ? `${Number(order.quantity).toLocaleString()} ${order.quantityUnit ?? "tons"}`
         : "—",
-    carrier: shipment.carrierName ?? "EcoFreight",
+    // Pilots never get a default carrier: nothing is booked until staff arrange it.
+    carrier: shipment.carrierName ?? (pilot ? "No carrier booked" : "EcoFreight"),
     service: "Standard freight",
     status,
     cost:
@@ -276,7 +294,10 @@ export function mapLiveShipment(
     carbonKg: Number(shipment.carbonImpactKgCo2e ?? 0),
     optimizedCarbonKg: Number(shipment.carbonImpactKgCo2e ?? 0),
     lastUpdate: new Date(shipment.updatedAt).toLocaleDateString(),
-    nextStep: NEXT_STEP_BY_CODE[shipment.shipmentStatusCode] ?? "—",
+    nextStep:
+      status === "Awaiting coordination"
+        ? PILOT_AWAITING_COORDINATION_STEP
+        : (NEXT_STEP_BY_CODE[shipment.shipmentStatusCode] ?? "—"),
     route: [],
     documents: [],
     sustainableOption: "Balanced",

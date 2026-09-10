@@ -38,12 +38,14 @@ import {
   type LogisticsShipment,
   type LogisticsStatus,
 } from "./logistics-demo-data";
+import { PilotShipmentsSection } from "./pilot-shipments-section";
 
 type ShipmentTab = "Overview" | "Documents" | "Exceptions" | "Activity";
 
 const SHIPMENT_PROGRESS: Record<LogisticsStatus, number> = {
   "Quote needed": 8,
   "Quote sent": 16,
+  "Awaiting coordination": 12,
   Booked: 28,
   "In transit": 64,
   "Out for delivery": 88,
@@ -164,7 +166,7 @@ function LogisticsOverview({
 
   const active = shipments.filter(
     (shipment) =>
-      !["Delivered", "Quote needed", "Quote sent"].includes(shipment.status),
+      !["Delivered", "Quote needed", "Quote sent", "Awaiting coordination"].includes(shipment.status),
   ).length;
   const exceptions = shipments.filter(
     (shipment) => shipment.status === "Exception",
@@ -202,6 +204,8 @@ function LogisticsOverview({
             <Plus className="size-4" /> Create shipment
           </button>
         </div>
+
+        <PilotShipmentsSection />
 
         <section className="overflow-hidden rounded-[28px] bg-neutral-950 text-white shadow-sm">
           <div className="grid gap-8 px-6 py-7 lg:grid-cols-[1fr_auto] lg:items-end lg:px-8 lg:py-9">
@@ -313,6 +317,7 @@ function LogisticsOverview({
                   "Booked",
                   "Quote needed",
                   "Quote sent",
+                  "Awaiting coordination",
                 ]}
               />
               <FilterSelect

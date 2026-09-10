@@ -35,7 +35,10 @@ async function proxy<T>(
 
 export interface ApiShipment {
   id: number;
-  orderId: number;
+  /** Null for pilot shipments, which hang off a pilot request instead. */
+  orderId: number | null;
+  /** Set when the shipment came from a buyer-agreed pilot handoff. */
+  pilotRequestId?: number | null;
   carrierId: number | null;
   carrierCode: string | null;
   carrierName: string | null;

@@ -36,10 +36,21 @@ async function hashValue(value: string) {
 function parseSession(raw: string | null): AdminSession | null {
   if (!raw) return null;
   try {
-    const session = JSON.parse(raw) as AdminSession;
-    if (session.expiresAt <= Date.now()) return null;
-    if (session.email !== ADMIN_DEMO_EMAIL) return null;
-    return session;
+    const session = JSON.parse(raw) as Partial<AdminSession>;
+    if (
+      typeof session.expiresAt !== "number" ||
+      !Number.isFinite(session.expiresAt) ||
+      session.expiresAt <= Date.now() ||
+      typeof session.email !== "string" ||
+      !session.email.includes("@") ||
+      typeof session.name !== "string" ||
+      session.role !== "Platform administrator" ||
+      typeof session.remembered !== "boolean"
+    )
+      return null;
+    // This is a UI mirror only. Every data request still requires the
+    // backend-validated, HttpOnly bearer session and administrator role.
+    return session as AdminSession;
   } catch {
     return null;
   }
@@ -138,7 +149,7 @@ export async function authenticateAdmin({
       };
     };
     const user = payload.user;
-    if (!user) return null;
+    if (!user || user.activeRoleCode !== "admin") return null;
     // The aliased portal components read this session mirror; the bearer
     // token itself lives only in the httpOnly cookie the proxy set.
     try {
@@ -166,7 +177,11 @@ export async function authenticateAdmin({
   if (normalizedEmail !== ADMIN_DEMO_EMAIL || suppliedHash !== expectedHash) {
     return null;
   }
-  return storeAdminSession("EcoGlobe Administrator", ADMIN_DEMO_EMAIL, remember);
+  return storeAdminSession(
+    "EcoGlobe Administrator",
+    ADMIN_DEMO_EMAIL,
+    remember,
+  );
 }
 
 export function createAdminRecoveryRequest(email: string) {

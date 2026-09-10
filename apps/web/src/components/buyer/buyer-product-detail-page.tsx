@@ -15,6 +15,7 @@ import { formatMoney, describeUnit } from "@/lib/listing-format";
 import { useDemoUser } from "@/lib/demo-user";
 import { ListingAnalysis } from "@/components/lab-testing/listing-analysis";
 import { RequestSampleModal } from "@/components/samples/request-sample-modal";
+import {sampleApi,type SampleConfig} from "@/lib/api-sample-shipping";
 import { recordListingInterest } from "@/lib/api-listings";
 import { documentTypeLabel } from "@/components/seller/listing-documents";
 
@@ -32,6 +33,10 @@ export function BuyerProductDetailPage() {
   const [sampleOpen, setSampleOpen] = useState(false);
   const user = useDemoUser();
   const backendId = listing?.backendId;
+  const [sampleConfig,setSampleConfig]=useState<SampleConfig|null>(null);
+  const [sampleConfigError,setSampleConfigError]=useState(false);
+  const [sampleConfigVersion,setSampleConfigVersion]=useState(0);
+  useEffect(()=>{let active=true;setSampleConfig(null);setSampleConfigError(false);if(backendId)sampleApi<SampleConfig>(`/config?listingId=${backendId}`).then(c=>{if(active)setSampleConfig(c);}).catch(()=>{if(active)setSampleConfigError(true);});return()=>{active=false;};},[backendId,sampleConfigVersion]);
 
   // Aggregate interest signal for the seller — never identifies the viewer.
   useEffect(() => {
@@ -250,10 +255,17 @@ export function BuyerProductDetailPage() {
           <div className="mb-5 mt-3 flex items-center justify-between text-base font-bold"><span className="text-neutral-900">Subtotal (excl. shipping)</span><span className="text-neutral-900">{money(itemSubtotal)}</span></div>
 
           <Button variant="primary" size="lg" className="w-full" onClick={handleBuyNow} disabled={buyDisabled} style={buyDisabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}>Buy Now</Button>
-          {canRequest && (
-            <button type="button" onClick={() => setSampleOpen(true)} className="mt-3 w-full rounded-full bg-white py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-900/40" style={{ border: "1px solid #E0E0E0" }}>
-              Request a Sample (5–10 lb)
+          {canRequest && sampleConfigError && <p className="mt-3 text-sm text-amber-800">Sample availability could not load. <button className="underline" onClick={()=>setSampleConfigVersion(v=>v+1)}>Retry</button></p>}
+          {canRequest && sampleConfig?.eligibility.code !== "disabled" && (
+            <button type="button" disabled={!sampleConfig} onClick={() => setSampleOpen(true)} className="mt-3 w-full rounded-full bg-white py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-900/40" style={{ border: "1px solid #E0E0E0" }}>
+              {!sampleConfig ? "Checking sample availability…" : sampleConfig.eligibility.eligible ? "Request a sample" : "Ask EcoGlobe about a sample"}
             </button>
+          )}
+          {canRequest && sampleConfig && !sampleConfig.eligibility.eligible && <p className="mt-2 text-sm text-neutral-500">{sampleConfig.eligibility.reason}</p>}
+          {canRequest && (
+            <Link href={`/buyer/pilots/new?listing=${listing.backendId}`} className="mt-3 block w-full rounded-full bg-white py-2.5 text-center text-sm font-medium text-neutral-900 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-900/40" style={{ border: "1px solid #E0E0E0" }}>
+              Request a pilot (plant-scale trial)
+            </Link>
           )}
           {!hasSds && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Seller hasn&apos;t uploaded the SDS yet — purchase blocked.</p>}
           {!priceKnown && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />No price recorded — request a quote from the seller.</p>}

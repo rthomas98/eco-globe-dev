@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button, Select } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
+import { PilotShipmentsSection } from "@/components/logistics/pilot-shipments-section";
 import { carrierQuotes, logisticsShipments, mapLiveShipment } from "../logistics/logistics-demo-data";
 import Link from "next/link";
 import {
@@ -58,17 +59,18 @@ export function SellerLogisticsPage() {
       .then(([shipments, orders]) => {
         if (cancelled) return;
         const orderById = new Map(orders.map((o) => [o.id, o]));
+        // Order shipments only; pilot shipments render in PilotShipmentsSection.
         const live = shipments
-          .filter((s) => orderById.has(s.orderId))
-          .map((s) => mapLiveShipment(s, orderById.get(s.orderId)));
+          .filter((s) => s.pilotRequestId == null && s.orderId != null && orderById.has(s.orderId))
+          .map((s) => mapLiveShipment(s, orderById.get(s.orderId as number)));
         if (live.length > 0) {
           setSellerShipments([...live, ...demoShipments]);
           setLiveIds(new Set(live.map((row) => row.id)));
           setLiveOrderIds(
             Object.fromEntries(
               shipments
-                .filter((sh) => orderById.has(sh.orderId))
-                .map((sh) => [`SHP-${sh.id}`, sh.orderId]),
+                .filter((sh) => sh.orderId != null && orderById.has(sh.orderId))
+                .map((sh) => [`SHP-${sh.id}`, sh.orderId as number]),
             ),
           );
           setSelected(live[0]);
@@ -175,6 +177,10 @@ export function SellerLogisticsPage() {
         <Link href="/seller/sales">
           <Button variant="primary" size="md">Request carrier quote</Button>
         </Link>
+      </div>
+
+      <div className="mb-6">
+        <PilotShipmentsSection portal="seller" />
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">

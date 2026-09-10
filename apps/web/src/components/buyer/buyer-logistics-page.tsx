@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button, Select } from "@eco-globe/ui";
 import { BuyerLayout } from "./buyer-layout";
+import { PilotShipmentsSection } from "@/components/logistics/pilot-shipments-section";
 import {
   carrierQuotes,
   logisticsShipments,
@@ -107,9 +108,11 @@ export function BuyerLogisticsPage() {
       .then(([shipments, orders]) => {
         if (cancelled) return;
         const orderById = new Map(orders.map((o) => [o.id, o]));
+        // Order shipments only. Pilot shipments are staff-managed and render in
+        // PilotShipmentsSection below without quote or delivery controls.
         const live = shipments
-          .filter((s) => orderById.has(s.orderId))
-          .map((s) => mapLiveShipment(s, orderById.get(s.orderId)));
+          .filter((s) => s.pilotRequestId == null && s.orderId != null && orderById.has(s.orderId))
+          .map((s) => mapLiveShipment(s, orderById.get(s.orderId as number)));
         if (live.length > 0) {
           setShipmentRows([...live, ...logisticsShipments]);
           setSelected(live[0]);
@@ -310,6 +313,10 @@ export function BuyerLogisticsPage() {
           >
             Calculate shipping
           </Button>
+        </div>
+
+        <div className="mb-6">
+          <PilotShipmentsSection portal="buyer" />
         </div>
 
         <div className="mb-6 grid gap-4 md:grid-cols-4">

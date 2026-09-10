@@ -1,3 +1,4 @@
+import { applySampleShippingCredit } from './sample-shipping-credit.js';
 type ListingDocumentBody = {
   listingId?: number;
   documentTypeCode?: string;
@@ -20,7 +21,10 @@ type ListingBody = {
   carbonIntensityKgCo2e?: number;
   description?: string;
 };
+import { handleTrackerRoute } from './tracker-routes.js';
 import { handleLabRoute } from './lab-routes.js';
+import { handlePilotRoute } from './pilot-routes.js';
+import { handleSampleShippingRoute } from './sample-shipping-routes.js';
 import { handleSampleRoute } from './sample-routes.js';
 import { validateOnboardingPreferences, getOnboardingPreferences } from './onboarding-preferences.js';
 import { handleListingRoute, requirePurchasableListing } from './listing-routes.js';
@@ -3694,6 +3698,7 @@ async function listOrders(response: ServerResponse, url: URL, auth: AuthContext)
         os.Name AS orderStatusName,
         src.Code AS creationSourceCode,
         o.TotalAmount AS totalAmount,
+        o.SampleShippingCreditCents AS sampleShippingCreditCents,
         o.CurrencyCode AS currencyCode,
         o.EscrowRequired AS escrowRequired,
         o.DirectOrderReason AS directOrderReason,
@@ -3759,6 +3764,7 @@ async function getOrder(
         os.Name AS orderStatusName,
         src.Code AS creationSourceCode,
         o.TotalAmount AS totalAmount,
+        o.SampleShippingCreditCents AS sampleShippingCreditCents,
         o.CurrencyCode AS currencyCode,
         o.EscrowRequired AS escrowRequired,
         o.DirectOrderReason AS directOrderReason,
@@ -3909,7 +3915,8 @@ async function createOrder(
     creationSourceCode,
   );
 
-  const rows = await queryRowsWithParams(
+  const rows = await runInTransaction(async (transaction) => {
+    const created = await queryRowsWithParamsInTransaction(transaction,
     `
       INSERT INTO dbo.Orders (
         QuoteId, ListingId, BuyerCompanyId, SellerCompanyId, CreationSourceId,
@@ -3947,6 +3954,10 @@ async function createOrder(
       intParam("updatedByUserId", auth.userId),
     ],
   );
+
+    const appliedCredit = await applySampleShippingCredit((statement, params = []) => queryRowsWithParamsInTransaction(transaction, statement, params), Number(created[0]?.id));
+    return created.map((row): Record<string, unknown> => ({...row, totalAmount: Number(row.totalAmount) - appliedCredit / 100, sampleShippingCreditCents: appliedCredit}));
+  });
 
   await writeAuditLog({
     auth,
@@ -4900,19 +4911,20 @@ async function listShipments(response: ServerResponse, url: URL, auth: AuthConte
   const shipments = await queryRowsWithParams(
     `
       SELECT TOP (100)
-        s.Id AS id, s.OrderId AS orderId, s.CarrierId AS carrierId, c.Code AS carrierCode,
+        s.Id AS id, s.PilotRequestId AS pilotRequestId, s.OrderId AS orderId, s.CarrierId AS carrierId, c.Code AS carrierCode,
         c.Name AS carrierName, s.TrackingNumber AS trackingNumber,
         s.OriginLocationId AS originLocationId, s.DestinationLocationId AS destinationLocationId,
         ss.Code AS shipmentStatusCode, ss.Name AS shipmentStatusName,
-        s.ShippingCost AS shippingCost, s.CarbonImpactKgCo2e AS carbonImpactKgCo2e,
+        CASE WHEN s.PilotRequestId IS NULL OR @isAdmin=1 THEN s.ShippingCost ELSE NULL END AS shippingCost, s.CarbonImpactKgCo2e AS carbonImpactKgCo2e,
         s.PickupScheduledAt AS pickupScheduledAt, s.DeliveryConfirmedAt AS deliveryConfirmedAt,
         s.CreatedAt AS createdAt, s.UpdatedAt AS updatedAt
       FROM dbo.Shipments s
-      INNER JOIN dbo.Orders o ON o.Id = s.OrderId
+      LEFT JOIN dbo.Orders o ON o.Id = s.OrderId
+      LEFT JOIN dbo.PilotRequests p ON p.Id=s.PilotRequestId
       LEFT JOIN dbo.Carriers c ON c.Id = s.CarrierId
       INNER JOIN dbo.ShipmentStatuses ss ON ss.Id = s.ShipmentStatusId
       WHERE (@orderId IS NULL OR s.OrderId = @orderId)
-        AND (@isAdmin = 1 OR o.BuyerCompanyId = @authCompanyId OR o.SellerCompanyId = @authCompanyId)
+        AND (@isAdmin = 1 OR o.BuyerCompanyId = @authCompanyId OR o.SellerCompanyId = @authCompanyId OR (p.BuyerConsentedAt IS NOT NULL AND (p.BuyerCompanyId=@authCompanyId OR p.SellerCompanyId=@authCompanyId)))
         AND (@statusCode IS NULL OR ss.Code = @statusCode)
       ORDER BY s.Id DESC;
     `,
@@ -5018,12 +5030,18 @@ async function updateShipment(
   id: number,
   auth: AuthContext,
 ) {
-  const shipmentOrder = (await queryRowsWithParams<{ orderId: number }>(
-    "SELECT OrderId AS orderId FROM dbo.Shipments WHERE Id = @id;",
+  const shipmentOrder = (await queryRowsWithParams<{ orderId: number | null; pilotRequestId: number | null }>(
+    "SELECT OrderId AS orderId,PilotRequestId AS pilotRequestId FROM dbo.Shipments WHERE Id = @id;",
     [intParam("id", id)],
   ))[0];
   if (!shipmentOrder) throw new ApiError(404, "Shipment not found.");
-  await requireOrderAccess(auth, shipmentOrder.orderId);
+  if (shipmentOrder.pilotRequestId) {
+    if (!auth.isAdmin) throw new ApiError(403, 'Pilot shipments are managed by EcoGlobe.');
+  } else if (shipmentOrder.orderId) {
+    await requireOrderAccess(auth, shipmentOrder.orderId);
+  } else {
+    throw new ApiError(409, 'Shipment has no fulfilment source.');
+  }
   const body = await readJsonBody<ShipmentBody>(request);
   const statusCode = getOptionalString(body, "shipmentStatusCode", 80);
   if (statusCode) {
@@ -5092,7 +5110,7 @@ async function updateShipment(
     reason: "Shipment updated.",
   });
 
-  if (statusCode) {
+  if (statusCode && shipmentOrder.orderId) {
     const parties = await requireOrderAccess(auth, shipmentOrder.orderId);
     await notifyCompanies({
       actorUserId: auth.userId,
@@ -6806,7 +6824,10 @@ export async function handleApiRoute(
 ) {
   // The modular handlers own listing/sample CRUD. Legacy core implementations below
   // remain for reference; only explicitly forwarded marketplace/moderation paths reach them.
+  if (await handleTrackerRoute(request,response,requestUrl)) return true;
+  if (await handlePilotRoute(request,response,requestUrl)) return true;
   if (await handleLabRoute(request,response,requestUrl)) return true;
+  if (await handleSampleShippingRoute(request,response,requestUrl)) return true;
   if (await handleSampleRoute(request,response,requestUrl)) return true;
   if (await handleListingRoute(request,response,requestUrl,notifySavedSearchMatches)) return true;
   const method = ensureMethod(request.method);

@@ -38,6 +38,7 @@ import {
   MonitorSmartphone,
   Menu,
   X,
+  Handshake,
 } from "lucide-react";
 import { NotificationsPanel } from "../seller/notifications-panel";
 import {
@@ -74,6 +75,9 @@ const buyerNavGroups: NavGroup[] = [
       { href: "/buyer/partners", icon: Network, label: "Partners" },
       { href: "/buyer/favorites", icon: Heart, label: "Saved" },
       { href: "/buyer/rfq", icon: FileQuestion, label: "Requests for quote" },
+      { href: "/buyer/tracker", icon: Handshake, label: "Tracker" },
+      { href: "/buyer/samples", icon: Handshake, label: "Samples" },
+      { href: "/buyer/pilots", icon: Handshake, label: "Pilots" },
     ],
   },
   {

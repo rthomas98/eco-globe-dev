@@ -230,7 +230,7 @@ async function event(
 /** In-app notification for a saved sample party; never an outbound email. */
 export async function notifySampleCompany(
   exec: Executor,
-  actor: number,
+  actor: number | null,
   company: number,
   listingId: number,
   subject: string,

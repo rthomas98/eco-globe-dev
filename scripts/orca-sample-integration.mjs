@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {readFile} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+const require=createRequire(new URL('../packages/backend/package.json',import.meta.url));const sql=require('mssql');
+assert.match(process.env.AZURE_SQL_CONNECTION_STRING??'',/^Server=127\.0\.0\.1,/);
+const pool=await new sql.ConnectionPool(process.env.AZURE_SQL_CONNECTION_STRING).connect();
+let phase='ownership';
+try{
+ const owner=(await pool.request().query('SELECT DB_NAME() db,Token FROM dbo.OrcaOwner')).recordset[0];assert.equal(owner.db,process.env.ORCA_SQL_DATABASE);assert.equal(owner.Token,process.env.ORCA_SQL_MARKER);
+ const fixture=JSON.parse(await readFile(process.env.ORCA_ANA_FIXTURE,'utf8'));assert.equal(fixture.database,owner.db);
+ const origin=process.env.ECOGLOBE_API_BASE_URL;assert.match(origin,/^http:\/\/127\.0\.0\.1:\d+$/);
+ async function call(path,method='GET',body,token,status=200){const r=await fetch(origin+path,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:body?JSON.stringify(body):undefined});const b=await r.json();assert.equal(r.status,status,`${phase} ${path}: ${b.error??r.status}`);return b;}
+ const login=async role=>(await call('/auth/login','POST',{email:fixture[role].email,password:fixture.password,role})).token;
+ const buyer=await login('buyer'),seller=await login('seller'),admin=await login('admin');
+ const original=fixture.listings.find(l=>l.status==='published').id;
+ const listing=(await pool.request().input('id',sql.Int,original).input('slug',sql.VarChar(180),`sample-e2e-${randomUUID()}`).query(`INSERT dbo.Listings(SellerCompanyId,LocationId,Title,Slug,MaterialTypeId,Quantity,QuantityUnit,MinimumOrderQuantity,PricePerUnit,CurrencyCode,ListingStatusId,Description) OUTPUT INSERTED.Id id SELECT SellerCompanyId,LocationId,'Sample Shipping E2E - simulated solid',@slug,MaterialTypeId,Quantity,QuantityUnit,MinimumOrderQuantity,PricePerUnit,CurrencyCode,ListingStatusId,'Synthetic local sample-shipping test fixture. Not an actual offered material.' FROM dbo.Listings WHERE Id=@id`)).recordset[0].id;
+ const base='/api/sample-shipping';phase='eligibility';
+ await call(base+'/requests','GET',undefined,undefined,401);await call(base+'/admin','GET',undefined,buyer,403);
+ let c=await call(`${base}/config?listingId=${listing}`,'GET',undefined,buyer);assert.equal(c.mode,'simulation');assert.equal(c.eligibility.eligible,false);
+ const locationId=c.locations[0].id;
+ await call(`${base}/policies/${listing}`,'PATCH',{enabled:true,classification:'liquid',specialHandling:false},admin);
+ c=await call(`${base}/config?listingId=${listing}`,'GET',undefined,buyer);assert.equal(c.eligibility.code,'restricted');
+ await call(base+'/quotes','POST',{listingId:listing,locationId,boxCode:'medium'},buyer,409);
+ await call(`${base}/policies/${listing}`,'PATCH',{enabled:true,classification:'standard_solid',specialHandling:false},admin);
+ await call(`${base}/sites/${locationId}/verify`,'POST',{},admin);
+ await call(base+'/quotes','POST',{listingId:listing,locationId:2147483647,boxCode:'medium'},buyer,400);
+ await call(base+'/quotes','POST',{listingId:listing,locationId,boxCode:'custom'},buyer,400);
+ const create=async()=>{const q=(await call(base+'/quotes','POST',{listingId:listing,locationId,boxCode:'medium'},buyer,201)).quote;const input={quoteId:q.id,rateId:q.rates[0].id,consent:true};const one=await call(base+'/checkout','POST',input,buyer);const retry=await call(base+'/checkout','POST',input,buyer);assert.equal(one.id,retry.id);await call(`${base}/requests/${one.id}/simulate-payment`,'POST',{},buyer);await call(`${base}/requests/${one.id}/simulate-payment`,'POST',{},buyer);return one.id;};
+ phase='delivery and credit';const delivered=await create();
+ await call(`${base}/requests/${delivered}/dispatch`,'POST',{},buyer,403);
+ await call(`/api/sample-requests/${delivered}`,'PATCH',{status:'shipped'},seller,409);
+ await call(`${base}/requests/${delivered}/dispatch`,'POST',{},seller);await call(`${base}/requests/${delivered}/dispatch`,'POST',{},seller);
+ await call(`${base}/requests/${delivered}/simulate-delivery`,'POST',{},buyer,403);
+ await call(`${base}/requests/${delivered}/simulate-delivery`,'POST',{},admin);await call(`${base}/requests/${delivered}/simulate-delivery`,'POST',{},admin);
+ let record=(await call(`${base}/requests/${delivered}`,'GET',undefined,buyer)).request;assert.equal(record.creditCents,3160);
+ const listingRow=(await pool.request().input('id',sql.Int,listing).query('SELECT SellerCompanyId seller,QuantityUnit unit,MinimumOrderQuantity quantity,PricePerUnit price FROM dbo.Listings WHERE Id=@id')).recordset[0];
+ const orderInput={listingId:listing,buyerCompanyId:record.buyerCompanyId,sellerCompanyId:listingRow.seller,creationSourceCode:'listing_checkout',quantity:Number(listingRow.quantity),quantityUnit:listingRow.unit,currencyCode:'USD',deliveryMethod:'pickup'};
+ const orders=await Promise.all([call('/api/orders','POST',orderInput,buyer,201),call('/api/orders','POST',orderInput,buyer,201)]);
+ assert.equal(orders.reduce((n,o)=>n+o.order.sampleShippingCreditCents,0),3160);
+ const applied=(await pool.request().input('id',sql.Int,delivered).query('SELECT SUM(AmountCents) amount FROM dbo.SampleCreditApplications WHERE SampleRequestId=@id')).recordset[0];assert.equal(applied.amount,3160);
+ phase='decline refund';const declined=await create();await call(`${base}/requests/${declined}/decline`,'POST',{},seller);await call(`${base}/requests/${declined}/decline`,'POST',{},seller);record=(await call(`${base}/requests/${declined}`,'GET',undefined,buyer)).request;assert.equal(record.refundState,'succeeded');assert.equal(record.labelVoidState,'succeeded');
+ phase='expiry refund';const expired=await create();await call(`${base}/requests/${expired}/simulate-expiry`,'POST',{},admin);record=(await call(`${base}/requests/${expired}`,'GET',undefined,buyer)).request;assert.equal(record.state,'expired');assert.equal(record.refundState,'succeeded');await call(`${base}/requests/${expired}/dispatch`,'POST',{},seller,409);
+ phase='scheduled expiry';const due=await create();await pool.request().input('id',sql.Int,due).query('UPDATE dbo.SampleShipping SET DispatchDeadline=DATEADD(day,-1,SYSUTCDATETIME()) WHERE SampleRequestId=@id');await call(base+'/admin/reconcile','POST',{},admin);await call(base+'/admin/reconcile','POST',{},admin);record=(await call(`${base}/requests/${due}`,'GET',undefined,buyer)).request;assert.equal(record.state,'expired');assert.equal(record.refundState,'succeeded');
+ phase='label download';const waiting=await create();const label=await fetch(`${origin}${base}/requests/${waiting}/label`,{headers:{Authorization:`Bearer ${seller}`}});assert.equal(label.status,200);assert.equal(label.headers.get('content-type'),'application/pdf');assert.ok((await label.arrayBuffer()).byteLength>500);
+ phase='referral';const ref=await call(base+'/referrals','POST',{listingId:listing,note:'Local E2E assistance request'},buyer,201);assert.ok(ref.referral.id);
+ console.log(JSON.stringify({passed:true,database:owner.db,listingId:listing,delivered,declined,expired,awaitingDispatch:waiting,checks:['eligibility','authorization','duplicate checkout/payment/actions','delivery','concurrent order credit','decline refund','expiry refund','scheduled reconciliation','label PDF','referral persistence']}));
+}catch(e){console.error(`${phase}: ${e.message}`);process.exitCode=1;}finally{await pool.close();}

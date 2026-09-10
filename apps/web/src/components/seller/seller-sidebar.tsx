@@ -25,6 +25,7 @@ import {
   PenLine,
   ShieldCheck,
   Video,
+  Handshake,
   Route,
   Network,
   Lightbulb,
@@ -70,6 +71,9 @@ const navItems: NavItem[] = [
   { label: "Home", href: "/", icon: Home },
   { label: "Listings", href: "/seller/listings", icon: LayoutGrid },
   { label: "Sales", href: "/seller/sales", icon: TrendingUp },
+  { label: "Tracker", href: "/seller/tracker", icon: Handshake },
+  { label: "Sample dispatch", href: "/seller/samples", icon: Handshake },
+  { label: "Pilot interest", href: "/seller/pilots", icon: Handshake },
   { label: "Logistics", href: "/seller/logistics", icon: Truck },
   { label: "Contracts", href: "/seller/contracts", icon: FileSignature },
   { label: "E-signatures", href: "/seller/e-signatures", icon: PenLine },
@@ -254,7 +258,7 @@ export function SellerSidebar({ className, onNavigate }: { className?: string; o
       {/* Nav items */}
       <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pt-4">
         {navItems.map((item) => {
-          const isActive = pathname.startsWith(item.href);
+          const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const isOpen = openSection === item.label;
 
           if (item.children) {

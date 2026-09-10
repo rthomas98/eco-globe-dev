@@ -1,3 +1,4 @@
+import { SampleShippingDesk } from "@/components/samples/sample-shipping-desk";
 import { notFound, redirect } from "next/navigation";
 import { AccountPage } from "@/components/admin/account-page";
 import { AdminBuyerDetailPage } from "@/components/admin/buyer-detail-page";
@@ -8,6 +9,8 @@ import { AdminLogisticsCommandCenter } from "@/components/logistics/admin-logist
 import { AdminListingDetailPage } from "@/components/admin/listing-detail-page";
 import { AdminListingsPage } from "@/components/admin/listings-page";
 import { AdminNotificationsPage } from "@/components/admin/notifications-page";
+import { AdminPilotDeskPage } from "@/components/admin/pilot-desk-page";
+import { AdminPilotAvailabilityPage } from "@/components/admin/pilot-availability-page";
 import { AdminSaleDetailPage } from "@/components/admin/sale-detail-page";
 import { SalesPage } from "@/components/admin/sales-page";
 import { AdminSellerDetailPage } from "@/components/admin/seller-detail-page";
@@ -124,6 +127,12 @@ export default async function Page({ params }: PageProps) {
 
   if (section === "buyers") {
     return second ? <AdminBuyerDetailPage id={second} /> : <AdminBuyersPage />;
+  }
+
+  if (section === "samples") return <SampleShippingDesk role="admin" />;
+  if (section === "pilots") {
+    if (second === "availability") return <AdminPilotAvailabilityPage />;
+    return <AdminPilotDeskPage id={second} />;
   }
 
   if (section === "logistics")

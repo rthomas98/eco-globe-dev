@@ -23,7 +23,7 @@ export type RouteMatch = {
 export function corsHeaders() {
   return {
     "access-control-allow-origin": process.env.CORS_ORIGIN ?? "*",
-    "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+    "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
     "access-control-allow-headers": "content-type,authorization",
     "access-control-max-age": "86400",
   };

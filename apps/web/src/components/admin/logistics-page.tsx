@@ -12,6 +12,7 @@ import {
   Truck,
 } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";
+import { PilotShipmentsSection } from "../logistics/pilot-shipments-section";
 import {
   carrierIntegrations,
   logisticsShipments,
@@ -271,6 +272,9 @@ export function AdminLogisticsPage() {
           <Button type="button" variant="primary" size="md" onClick={openAddCarrierForm}>
             Add carrier integration
           </Button>
+        </div>
+        <div className="mb-6">
+          <PilotShipmentsSection />
         </div>
 
         <div className="mb-6 grid gap-4 md:grid-cols-4">
