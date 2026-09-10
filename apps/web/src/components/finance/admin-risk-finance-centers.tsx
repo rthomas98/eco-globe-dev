@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DemoOrdersPanel } from "@/components/demo/demo-orders-panel";
 import {
   Activity,
   Archive,
@@ -1100,6 +1101,7 @@ function TransactionsHome() {
       }
     >
       {notice && <Notice message={notice} onClose={() => setNotice("")} />}
+      <DemoOrdersPanel />
       <Hero
         icon={Landmark}
         eyebrow="MARKETPLACE LEDGER"
