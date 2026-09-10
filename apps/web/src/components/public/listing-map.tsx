@@ -224,7 +224,7 @@ function circlePolygon(
   const radiusKm = radiusMiles * 1.609344;
   const earthRadiusKm = 6371;
   const coords: [number, number][] = [];
-  for (let i = 0; i <= points; i++) {
+  for (let i = 0; i < points; i++) {
     const bearing = (i / points) * 2 * Math.PI;
     const dByR = radiusKm / earthRadiusKm;
     const lat1 = (lat * Math.PI) / 180;
@@ -241,6 +241,7 @@ function circlePolygon(
       );
     coords.push([(lng2 * 180) / Math.PI, (lat2 * 180) / Math.PI]);
   }
+  coords.push(coords[0]!);
   return {
     type: "Feature",
     geometry: { type: "Polygon", coordinates: [coords] },
@@ -357,6 +358,9 @@ export function ListingMap({
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
+    // Serve the matching module worker directly; bundling its import URL can
+    // leave GeoJSON overlays waiting indefinitely while raster tiles still load.
+    maplibregl.setWorkerUrl(new URL("/vendor/maplibre/maplibre-gl-worker.mjs", window.location.origin).href);
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
       style: STREET_STYLE,
@@ -564,13 +568,12 @@ export function ListingMap({
 
     };
 
-    if (mapInstance.isStyleLoaded()) {
-      apply();
-    } else {
-      mapInstance.once("idle", apply);
-    }
+    // Style readiness is sufficient for overlays; idle also waits for every
+    // street tile and may never arrive on a slow or interrupted tile request.
+    mapInstance.on("style.load", apply);
+    if (mapInstance.getStyle()?.layers) apply();
     return () => {
-      mapInstance.off("idle", apply);
+      mapInstance.off("style.load", apply);
     };
   }, [origin, radiusMiles, activeId, data, showOriginPin, radiusFitListings]);
 

@@ -128,7 +128,8 @@ export function BrowsePage() {
   }));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Default to a visible search radius so the map opens framed on the customer.
-  const [radiusMiles, setRadiusMiles] = useState<number>(50);
+  const parsedRadius = parseFloat(urlDistance);
+  const radiusMiles = Number.isFinite(parsedRadius) && parsedRadius > 0 ? parsedRadius : 0;
 
   // The map centers on the customer's address by default: their detected
   // browser location, falling back to a saved company facility.
@@ -209,7 +210,7 @@ export function BrowsePage() {
     if (loc && !normalizeListingSearch(l.location).includes(loc)) return false;
     if (
       loc &&
-      Number.isFinite(radiusMax) &&
+      Number.isFinite(radiusMax) && radiusMax > 0 &&
       l.distance !== "—" &&
       parseFloat(l.distance) > radiusMax
     ) {
@@ -402,7 +403,13 @@ export function BrowsePage() {
               <span className="font-semibold text-neutral-700">Search radius</span>
               <select
                 value={radiusMiles}
-                onChange={(e) => setRadiusMiles(parseInt(e.target.value, 10))}
+                aria-label="Map search radius"
+                onChange={(e) => {
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set("distance", e.target.value === "0" ? "Any" : `${e.target.value} mi`);
+                  setSelectedId(null);
+                  router.replace(`/browse?${params.toString()}`, { scroll: false });
+                }}
                 className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs outline-none"
               >
                 <option value={0}>Off</option>

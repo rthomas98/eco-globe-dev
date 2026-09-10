@@ -88,6 +88,8 @@ export function BuyerProductDetailPage() {
 
   const unit = describeUnit(product.quantityUnit);
   const priceKnown = product.price !== null;
+  const priceLabel = product.teaser ? "Complete company setup to see pricing" : product.priceLabel;
+  const minimumOrderLabel = product.teaser ? "Available after company setup" : product.minimumOrderLabel;
   const hasSds = !!product.sdsUrl;
   const exceedsStock = product.available !== null && qty > product.available;
   const itemSubtotal = priceKnown ? product.price! * qty : null;
@@ -132,7 +134,7 @@ export function BuyerProductDetailPage() {
           <span>{product.location}</span>
           <span className="text-neutral-400">·</span>
           <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-700">{product.availableLabel}</span>
-          <Badge>MOQ: {product.moq}</Badge>
+          <Badge>MOQ: {minimumOrderLabel}</Badge>
         </div>
 
         <div className="relative mb-4 h-[400px] overflow-hidden rounded-2xl bg-neutral-100 sm:h-[450px] lg:h-[500px]">
@@ -228,16 +230,16 @@ export function BuyerProductDetailPage() {
 
       <div className="w-full shrink-0 lg:w-[380px]">
         <div className="sticky top-8 rounded-2xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
-          <p className="text-3xl font-bold text-neutral-900">{product.priceLabel}{priceKnown && <span className="ml-1 text-base font-normal text-neutral-500">{product.unit}</span>}</p>
+          <p className="text-3xl font-bold text-neutral-900">{priceLabel}{priceKnown && <span className="ml-1 text-base font-normal text-neutral-500">{product.unit}</span>}</p>
           {!priceKnown && !product.teaser && <p className="mt-1 text-xs text-neutral-500">The seller has not published a price for this listing.</p>}
           {product.teaser && (
             <p className="mt-1 text-xs text-neutral-600" role="note">
-              Pricing, minimum order, seller details, specifications and documents unlock once your company onboarding is complete.{" "}
+              You are signed in. Pricing, minimum order, seller details, specifications and documents unlock once your company onboarding is complete.{" "}
               <Link href="/buyer/onboarding" className="font-semibold text-neutral-900 underline">Complete onboarding</Link>
             </p>
           )}
           {product.priceIsZero && <p className="mt-1 text-xs text-neutral-500">Offered at no charge by the seller.</p>}
-          <p className="mt-1 pb-5 text-sm text-neutral-500" style={{ borderBottom: "1px solid #F0F0F0" }}>Minimum Order Quantity (MOQ): {product.minimumOrderLabel}</p>
+          <p className="mt-1 pb-5 text-sm text-neutral-500" style={{ borderBottom: "1px solid #F0F0F0" }}>Minimum Order Quantity (MOQ): {minimumOrderLabel}</p>
 
           <div className="my-5 flex items-center justify-between">
             <span className="text-sm text-neutral-700">Quantity ({unit.plural})</span>
