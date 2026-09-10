@@ -1,4 +1,5 @@
 "use client";
+import { DemoOrdersPanel } from "@/components/demo/demo-orders-panel";
 
 import { useEffect, useState, useRef } from "react";
 import {
@@ -387,6 +388,7 @@ export function SellerSalesPage() {
           <button onClick={()=>setShowFilters(true)} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-neutral-700" style={{border:"1px solid #F0F0F0"}}><SlidersHorizontal className="size-4" /> Filters</button>
         </div>
       </div>
+<DemoOrdersPanel />
       <SampleRequestsPanel role="seller" />
 
       {/* Stats */}

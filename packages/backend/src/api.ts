@@ -1,3 +1,4 @@
+import { handleDemoOrderRoute } from "./demo-order-routes.js";
 import { applySampleShippingCredit } from './sample-shipping-credit.js';
 type ListingDocumentBody = {
   listingId?: number;
@@ -6825,6 +6826,7 @@ export async function handleApiRoute(
   // The modular handlers own listing/sample CRUD. Legacy core implementations below
   // remain for reference; only explicitly forwarded marketplace/moderation paths reach them.
   if (await handleTrackerRoute(request,response,requestUrl)) return true;
+  if (await handleDemoOrderRoute(request,response,requestUrl)) return true;
   if (await handlePilotRoute(request,response,requestUrl)) return true;
   if (await handleLabRoute(request,response,requestUrl)) return true;
   if (await handleSampleShippingRoute(request,response,requestUrl)) return true;

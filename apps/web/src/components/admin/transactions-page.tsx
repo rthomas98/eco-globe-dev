@@ -1,4 +1,5 @@
 "use client";
+import { DemoOrdersPanel } from "@/components/demo/demo-orders-panel";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -190,6 +191,7 @@ export function TransactionsPage() {
 
   return (
     <div className="flex h-full flex-col">
+      <DemoOrdersPanel />
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
         <h1 className="text-2xl font-bold text-neutral-900">Transactions</h1>
         <div className="flex items-center gap-3">

@@ -1,4 +1,5 @@
 "use client";
+import { DemoOrdersPanel } from "@/components/demo/demo-orders-panel";
 
 import { useEffect, useState } from "react";
 import {
@@ -1004,6 +1005,7 @@ export function BuyerOrdersPage() {
   return (
     <BuyerLayout>
       <div className="flex h-full flex-col bg-neutral-50">
+<DemoOrdersPanel />
         {/* Top bar */}
         <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-8 sm:py-6">
           <h1 className="text-2xl font-bold text-neutral-900">My Orders</h1>
