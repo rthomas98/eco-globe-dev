@@ -30,7 +30,7 @@ import {
   listingImageForTitle,
   type ApiOrder,
 } from "@/lib/api-orders";
-import { readDemoUser } from "@/lib/demo-user";
+import { useDemoUser } from "@/lib/demo-user";
 import { cancelOrder, numericOrderId } from "@/lib/api-fulfilment";
 
 const BUYER_STATUS_BY_CODE: Record<string, OrderStatus> = {
@@ -44,6 +44,7 @@ const BUYER_STATUS_BY_CODE: Record<string, OrderStatus> = {
 
 function mapApiOrderToBuyerRow(order: ApiOrder): Order {
   return {
+    apiOrder: order,
     id: `api-${order.id}`,
     orderId: `EG-${order.id}`,
     orderPlaced: formatOrderDate(order.createdAt),
@@ -62,6 +63,17 @@ function mapApiOrderToBuyerRow(order: ApiOrder): Order {
 }
 
 export function buildOrderDetail(order: Order): OrderDetail {
+  if (order.apiOrder) {
+    const record = order.apiOrder;
+    return {
+      orderId: order.orderId, shipping: order.shipping, status: order.status,
+      orderPlaced: new Date(record.createdAt).toLocaleString(), seller: order.seller,
+      quantity: order.qty, product: { name: order.product, price: order.productPrice, unit: record.quantityUnit ?? "", image: order.productImage },
+      payment: { transactionId: "Not recorded", escrowAmount: "Not available", escrowStatus: "See payment records", releaseDate: "Not recorded" },
+      documents: [], activity: [{ label: "Order placed", date: formatOrderDate(record.createdAt), complete: true }],
+      summary: { productCount: 1, itemSubtotal: order.total, fees: formatOrderMoney(0, record.currencyCode), total: order.total },
+    };
+  }
   const isQuoteAwaiting = order.status === "Quote awaiting approval";
   const isReadyForPickup = order.status === "Ready for pickup";
   const isPickup = order.shipping === "Pickup";
@@ -198,6 +210,7 @@ type Tab =
   | "Cancelled";
 
 export interface Order {
+  apiOrder?: ApiOrder;
   id: string;
   orderId: string;
   orderPlaced: string;
@@ -920,30 +933,25 @@ export function BuyerOrdersPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [orderList, setOrderList] = useState<Order[]>(orders);
+  const user = useDemoUser();
+  const [orderList, setOrderList] = useState<Order[]>([]);
+  const [loadError, setLoadError] = useState("");
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   // Live orders from the backend render ahead of the demo rows.
   useEffect(() => {
-    const user = readDemoUser();
+    setOrderList([]);
     if (!user?.activeCompanyId) return;
     let cancelled = false;
     fetchOrders({ buyerCompanyId: user.activeCompanyId })
       .then((apiOrders) => {
-        if (cancelled || apiOrders.length === 0) return;
-        const live = apiOrders.map(mapApiOrderToBuyerRow);
-        setOrderList((prev) => [
-          ...live,
-          ...prev.filter((o) => !live.some((l) => l.id === o.id)),
-        ]);
+        if (!cancelled) { setOrderList(apiOrders.map(mapApiOrderToBuyerRow)); setLoadError(""); }
       })
-      .catch(() => {
-        // Demo rows remain when the backend is unreachable.
-      });
+      .catch(() => { if (!cancelled) setLoadError("Orders could not be loaded. Please reload to retry."); });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user?.activeCompanyId]);
 
   const handleCancel = (id: string) => {
     setConfirmCancelId(id);
@@ -1006,6 +1014,7 @@ export function BuyerOrdersPage() {
     <BuyerLayout>
       <div className="flex h-full flex-col bg-neutral-50">
 <DemoOrdersPanel />
+      {loadError && <p role="alert" className="p-4 text-red-700">{loadError}</p>}
         {/* Top bar */}
         <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-8 sm:py-6">
           <h1 className="text-2xl font-bold text-neutral-900">My Orders</h1>

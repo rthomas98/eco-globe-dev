@@ -158,7 +158,7 @@ function updateScenario(s: Scenario, listing: Listing, facilities: Facility[]): 
   }
 
   let miles = 0;
-  if (s.distanceSource !== "manual" && chosen?.lat && chosen?.lng && hasCoordinates(listing)) {
+  if (s.distanceSource !== "manual" && typeof chosen?.lat === "number" && typeof chosen?.lng === "number" && hasCoordinates(listing)) {
     miles = distanceMiles({ lat: listing.lat, lng: listing.lng }, { lat: chosen.lat, lng: chosen.lng });
   } else if (s.distanceSource === "manual" && typeof s.manualDistanceValue === "number" && s.manualDistanceValue > 0) {
     // Explicit user-entered distance; km → mi is a unit identity, not an estimate.
@@ -577,6 +577,9 @@ function StepDistance({ active, listing, facilities, onChange }: { active: Scena
         <ListingMap listings={mapListing ? [mapListing] : []} activeId={listing.id} origin={originFacility?.lat && originFacility?.lng ? { lng: originFacility.lng, lat: originFacility.lat, label: originFacility.label } : undefined} radiusMiles={radiusMiles > 0 ? radiusMiles : undefined} />
       </div>
 
+      {active.distanceSource !== "manual" && active.miles <= 0 && (
+        <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">We cannot calculate a distance from this saved address. Its coordinates may be missing, or it may match the listing location. Select “Enter the distance manually” below and enter the shipping distance to continue.</p>
+      )}
       <div className="flex flex-col gap-3">
         {facilities.length > 0 && (
           <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-neutral-200 bg-white p-4">

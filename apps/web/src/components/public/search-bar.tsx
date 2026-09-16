@@ -62,6 +62,8 @@ export function SearchBar({
       <div className="flex items-center rounded-full bg-white px-1 py-1" style={{ border: "1px solid #E0E0E0" }}>
         <input
           type="text"
+          placeholder="What"
+          aria-label="What"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => { setActiveDropdown("feedstock"); setRadiusOpen(false); }}
@@ -71,6 +73,8 @@ export function SearchBar({
         <div className="h-5 w-px bg-neutral-300" />
         <input
           type="text"
+          placeholder="Where"
+          aria-label="Where"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           onFocus={() => { setActiveDropdown("location"); setRadiusOpen(false); }}
@@ -78,6 +82,7 @@ export function SearchBar({
           className="w-24 sm:w-48 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-neutral-500"
         />
         <button
+          aria-label="Search listings"
           onClick={handleSearch}
           className="flex size-9 items-center justify-center rounded-full bg-neutral-900 text-white"
         >

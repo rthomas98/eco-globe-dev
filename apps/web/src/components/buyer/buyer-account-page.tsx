@@ -1,4 +1,5 @@
 "use client";
+import { useCompanyLocations, locationsToFacilities } from "@/lib/use-company-locations";
 
 import { useEffect, useState } from "react";
 import {
@@ -36,11 +37,11 @@ interface ProfileForm {
 }
 
 const defaultProfile: ProfileForm = {
-  name: "Joanna Bell",
-  email: "demo.buyer@ecoglobe.com",
-  phone: "225-555-0198",
-  jobTitle: "Sustainability Manager",
-  department: "Strategic Sourcing",
+  name: "",
+  email: "",
+  phone: "",
+  jobTitle: "",
+  department: "",
 };
 
 type PreferenceChannel = "email" | "sms" | "inApp";
@@ -176,7 +177,9 @@ function ProfileTab({
 }
 
 function CompanyTab({ user }: { user: DemoUser }) {
-  const facilities = user.facilities ?? [];
+  const companyLocations = useCompanyLocations(user.activeCompanyId);
+  const facilities = locationsToFacilities(companyLocations.locations);
+  const company = user.companies?.find(item => item.id === user.activeCompanyId);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
@@ -188,11 +191,11 @@ function CompanyTab({ user }: { user: DemoUser }) {
           <Building2 className="size-5 text-neutral-700" />
           <h2 className="text-lg font-bold text-neutral-900">Buyer company</h2>
         </div>
-        <FieldRow label="Company name" value="AgriCorp Solutions" />
-        <FieldRow label="Industry" value={user.industry ?? "Carbon Black"} />
-        <FieldRow label="Company size" value={user.companySize ?? "Big"} />
-        <FieldRow label="Decision role" value={user.userRole ?? "Sustainability Manager"} />
-        <FieldRow label="Account status" value="Verified buyer" verified />
+        <FieldRow label="Company name" value={company?.legalName ?? "No company selected"} />
+        <FieldRow label="Industry" value={user.industry ?? "Not provided"} />
+        <FieldRow label="Company size" value={user.companySize ?? "Not provided"} />
+        <FieldRow label="Decision role" value={user.userRole ?? "Not provided"} />
+        <FieldRow label="Account status" value={user.accountStatusCode ?? "Not available"} />
       </section>
 
       <section
@@ -420,7 +423,7 @@ function PreferencesTab() {
 
 export function BuyerAccountPage() {
   const demoUser = useDemoUser();
-  const user = demoUser ?? buildDemoUser("buyer");
+  const user = demoUser ?? buildDemoUser("buyer", { name: "", email: "", facilities: [], industry: undefined, companySize: undefined, userRole: undefined });
   const [tab, setTab] = useState<Tab>("profile");
   const [form, setForm] = useState<ProfileForm>(defaultProfile);
   const [saved, setSaved] = useState(false);

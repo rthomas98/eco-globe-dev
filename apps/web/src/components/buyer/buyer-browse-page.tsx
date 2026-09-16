@@ -1,4 +1,5 @@
 "use client";
+import { matchesListingCategory } from "@/lib/listing-category";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -99,7 +100,7 @@ export function BuyerBrowsePage() {
   const visibleListings = published.listings.filter((l) => {
     const haystack = `${l.title} ${l.tags.join(" ")}`.toLowerCase();
     if (q && !haystack.includes(q)) return false;
-    if (filters.categories.length > 0 && !filters.categories.includes(l.category)) return false;
+    if (filters.categories.length > 0 && !filters.categories.some(category => matchesListingCategory(l, category))) return false;
     if (filters.grades.length > 0 && (l.grade === null || !filters.grades.includes(l.grade))) return false;
     if (priceMin !== null && (l.priceNum === null || l.priceNum < priceMin)) return false;
     if (priceMax !== null && (l.priceNum === null || l.priceNum > priceMax)) return false;

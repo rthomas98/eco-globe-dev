@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useCompanyLocations, locationsToFacilities } from "./use-company-locations";
 import { useDemoUser } from "./demo-user";
 
 export type ViewerLocationSource = "browser" | "saved";
@@ -63,9 +64,10 @@ function writeCachedLocation(location: ViewerLocation) {
 
 export function useViewerLocation() {
   const user = useDemoUser();
+  const companyLocations = useCompanyLocations(user?.activeCompanyId);
   const savedFacility = useMemo(
-    () => user?.facilities?.find((facility) => isValidCoord(facility.lat, facility.lng)),
-    [user?.facilities],
+    () => locationsToFacilities(companyLocations.locations).find((facility) => isValidCoord(facility.lat, facility.lng)),
+    [companyLocations.locations],
   );
   const savedLocation = useMemo<ViewerLocation | null>(() => {
     if (!savedFacility || !isValidCoord(savedFacility.lat, savedFacility.lng)) return null;

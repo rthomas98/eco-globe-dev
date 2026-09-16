@@ -1,4 +1,5 @@
 "use client";
+import { matchesListingCategory } from "@/lib/listing-category";
 import { MaterialImage } from "./material-image";
 
 import { useEffect, useMemo, useState } from "react";
@@ -223,7 +224,7 @@ export function BrowsePage() {
     ) {
       return false;
     }
-    if (filters.categories.length > 0 && !filters.categories.includes(l.category)) return false;
+    if (filters.categories.length > 0 && !filters.categories.some(category => matchesListingCategory(l, category))) return false;
     if (filters.grades.length > 0 && (l.grade === null || !filters.grades.includes(l.grade))) return false;
     if (priceMin !== null && (l.priceNum === null || l.priceNum < priceMin)) return false;
     if (priceMax !== null && (l.priceNum === null || l.priceNum > priceMax)) return false;

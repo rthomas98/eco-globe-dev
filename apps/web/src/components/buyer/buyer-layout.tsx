@@ -44,7 +44,7 @@ import {
 } from "lucide-react";
 import { NotificationsPanel } from "../seller/notifications-panel";
 import {
-  buildDemoUser,
+  useDemoUser,
   readDemoUser,
   writeDemoUser,
 } from "@/lib/demo-user";
@@ -193,6 +193,7 @@ function UserMenu({
   onLogout: () => void;
   onSwitchToSeller: () => void;
 }) {
+  const user = useDemoUser();
   return (
     <>
       <button
@@ -210,11 +211,11 @@ function UserMenu({
       >
         <div className="mb-4 flex flex-col gap-3">
           <div className="flex size-14 items-center justify-center rounded-full bg-rose-200 text-lg font-semibold text-rose-700">
-            J
+            {user?.name?.charAt(0).toUpperCase() || "?"}
           </div>
           <div>
-            <p className="text-base font-bold text-neutral-900">Joanna Bell</p>
-            <p className="text-sm text-neutral-500">joanna@buyer.com</p>
+            <p className="text-base font-bold text-neutral-900">{user?.name || "Account"}</p>
+            <p className="text-sm text-neutral-500">{user?.email || ""}</p>
           </div>
         </div>
         <div className="my-3" style={{ borderTop: "1px solid #F0F0F0" }} />
@@ -266,6 +267,7 @@ function UserMenu({
 }
 
 export function BuyerLayout({ children }: { children: React.ReactNode }) {
+  const user = useDemoUser();
   const pathname = usePathname();
   const router = useRouter();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -325,12 +327,8 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
 
   const handleSwitchToSeller = () => {
     const current = readDemoUser();
-    writeDemoUser(
-      buildDemoUser("seller", {
-        name: current?.name || "Joanna Bell",
-        email: current?.email || "joanna@buyer.com",
-      }),
-    );
+    if (!current) return;
+    writeDemoUser({ ...current, role: "seller" });
     setUserMenuOpen(false);
     router.push("/seller/listings");
   };
@@ -508,10 +506,10 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 hover:bg-neutral-50"
           >
             <div className="flex size-8 items-center justify-center rounded-full bg-rose-200 text-sm font-semibold text-rose-700">
-              J
+              {user?.name?.charAt(0).toUpperCase() || "?"}
             </div>
             <span className="flex-1 text-left text-sm font-semibold text-neutral-900">
-              Joanna B
+              {user?.name || "Account"}
             </span>
             {userMenuOpen ? (
               <ChevronUp className="size-4 text-neutral-400" />
