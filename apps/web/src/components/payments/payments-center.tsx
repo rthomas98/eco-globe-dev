@@ -1,304 +1,439 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Download, Receipt, ShieldCheck, X } from "lucide-react";
 import { fetchPayments, portalDate, portalMoney } from "@/lib/api-portal";
 import { fetchOrders } from "@/lib/api-orders";
-import { readDemoUser } from "@/lib/demo-user";
+import { useDemoUser } from "@/lib/demo-user";
+import { startBackendStripeOnboarding } from "@/lib/backend-auth";
 import {
-  ArrowDownToLine,
-  BadgeCheck,
-  Building2,
-  CreditCard,
-  Download,
-  Leaf,
-  Receipt,
-  RefreshCw,
-  ShieldCheck,
-} from "lucide-react";
+  paymentReceiptHtml,
+  paymentsCsv,
+  type PaymentDocument,
+} from "@/lib/payment-documents";
 
 type Role = "buyer" | "seller" | "admin";
-type PaymentStatus = "Paid" | "Processing" | "Needs review" | "Scheduled";
+type Panel = "setup" | "receipt" | "review" | null;
+const button =
+  "rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-semibold disabled:opacity-50";
 
-interface PaymentRecord {
-  id: string;
-  title: string;
-  counterparty: string;
-  method: string;
-  amount: string;
-  status: PaymentStatus;
-  date: string;
-  carbonOffset: string;
+function download(name: string, content: string, type: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = name;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-const payments: PaymentRecord[] = [
-  {
-    id: "PAY-8042",
-    title: "Black Gypsum monthly delivery",
-    counterparty: "EcoPack Co. to GreenHarvest Co.",
-    method: "ACH escrow draw",
-    amount: "$10,400",
-    status: "Paid",
-    date: "Jul 8, 2026",
-    carbonOffset: "1.8 t CO2e matched",
-  },
-  {
-    id: "PAY-8041",
-    title: "Scrap Polymer Blend deposit",
-    counterparty: "BrightFuture Corp to TerraGenesis Biofuels",
-    method: "Wire transfer",
-    amount: "EUR 15,000",
-    status: "Processing",
-    date: "Jul 13, 2026",
-    carbonOffset: "Offset quote pending",
-  },
-  {
-    id: "PAY-8036",
-    title: "Used Dry Transformer inspection hold",
-    counterparty: "NutriFeed Industries to Metal Reclaim LLC",
-    method: "Card authorization",
-    amount: "$40,000",
-    status: "Needs review",
-    date: "Jul 14, 2026",
-    carbonOffset: "0.4 t CO2e matched",
-  },
-  {
-    id: "PAY-8031",
-    title: "Corn Stover recurring invoice",
-    counterparty: "AgriCorp Solutions to Louisiana BioMass Partners",
-    method: "Monthly invoice",
-    amount: "$4,200",
-    status: "Scheduled",
-    date: "Aug 1, 2026",
-    carbonOffset: "2.1 t CO2e forecast",
-  },
-];
-
-const roleCopy: Record<Role, { eyebrow: string; title: string; body: string }> = {
-  buyer: {
-    eyebrow: "PAYMENT CENTER",
-    title: "Manage saved methods, invoices, receipts, and escrow-funded payments.",
-    body: "Buyer-facing view for funding orders, downloading receipts, and tracking carbon-offset options tied to each transaction.",
-  },
-  seller: {
-    eyebrow: "PAYOUT CENTER",
-    title: "Track incoming payments, payout timing, and held escrow balances.",
-    body: "Seller-facing view for payout readiness, receipt history, and payment methods accepted on active listings.",
-  },
-  admin: {
-    eyebrow: "PAYMENT OPERATIONS",
-    title: "Monitor payment rails, exceptions, receipts, and green payment settings.",
-    body: "Admin-facing view for reviewing transaction funding, payment methods, carbon-offset status, and items needing finance approval.",
-  },
-};
-
-const methods = [
-  { name: "ACH", detail: "Default for escrow funding", enabled: true, icon: Building2 },
-  { name: "Wire", detail: "High-value bulk transactions", enabled: true, icon: ArrowDownToLine },
-  { name: "Card", detail: "Deposits and inspection holds", enabled: true, icon: CreditCard },
-  { name: "Green offsets", detail: "Carbon offset matching at checkout", enabled: true, icon: Leaf },
-];
+function PaymentDialog({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    ref.current?.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      onCancel={onClose}
+      onClose={onClose}
+      aria-labelledby="payment-dialog-title"
+      className="m-auto max-h-[90vh] w-[min(92vw,640px)] overflow-y-auto rounded-2xl bg-white p-6 text-neutral-950 shadow-xl backdrop:bg-black/40"
+    >
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <h2 id="payment-dialog-title" className="text-xl font-bold">
+          {title}
+        </h2>
+        <button type="button" onClick={onClose} aria-label="Close dialog">
+          <X className="size-5" />
+        </button>
+      </div>
+      {children}
+    </dialog>
+  );
+}
 
 export function PaymentsCenter({ role }: { role: Role }) {
-  const [rows, setRows] = useState<PaymentRecord[]>(payments);
-  const [selected, setSelected] = useState(payments[0]);
-  const [status, setStatus] = useState<Record<string, PaymentStatus>>({});
-  const copy = roleCopy[role];
+  const user = useDemoUser();
+  const companyId = user?.activeCompanyId;
+  const userId = user?.id;
+  const [rows, setRows] = useState<PaymentDocument[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
+  const [panel, setPanel] = useState<Panel>(null);
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupMessage, setSetupMessage] = useState("");
+  const [setupError, setSetupError] = useState("");
+  const [notice, setNotice] = useState("");
+  const selected = rows.find((row) => row.id === selectedId);
 
-  // Live payments (RBAC-scoped by the backend) render ahead of demo rows.
   useEffect(() => {
-    if (!readDemoUser()) return;
     let cancelled = false;
+    setRows([]);
+    setSelectedId(null);
+    setPanel(null);
+    setError("");
+    setLoading(true);
+    if (!userId || (!companyId && role !== "admin")) {
+      setLoading(false);
+      setError("Sign in with an active company to view payments.");
+      return;
+    }
     Promise.all([fetchPayments(), fetchOrders()])
-      .then(([apiPayments, orders]) => {
-        if (cancelled || apiPayments.length === 0) return;
-        const orderById = new Map(orders.map((o) => [o.id, o]));
-        const live: PaymentRecord[] = apiPayments.map((payment) => {
+      .then(([payments, orders]) => {
+        if (cancelled) return;
+        const orderById = new Map(orders.map((order) => [order.id, order]));
+        const records = payments.flatMap((payment) => {
           const order = orderById.get(payment.orderId);
-          return {
-            id: `TX-${payment.id}`,
-            title: order?.listingTitle ?? "Marketplace payment",
-            counterparty:
-              role === "seller"
-                ? `from ${payment.payerCompanyName}`
-                : `to ${order?.sellerCompanyName ?? "seller"}`,
-            method: payment.escrowId ? "Escrow funding" : "Direct payment",
-            amount: portalMoney(Number(payment.amount), payment.currencyCode),
-            status:
-              payment.paymentStatusCode === "captured"
-                ? "Paid"
-                : payment.paymentStatusCode === "failed"
-                  ? "Needs review"
-                  : "Processing",
-            date: portalDate(payment.createdAt),
-            carbonOffset: "—",
-          };
+          if (
+            role !== "admin" &&
+            (!order ||
+              (role === "seller"
+                ? order.sellerCompanyId !== companyId
+                : order.buyerCompanyId !== companyId))
+          )
+            return [];
+          return [
+            {
+              id: payment.id,
+              orderId: payment.orderId,
+              title: order?.listingTitle ?? "Marketplace payment",
+              payer: payment.payerCompanyName,
+              payee: order?.sellerCompanyName ?? "Not recorded",
+              amount: Number(payment.amount),
+              currency: payment.currencyCode,
+              status: payment.paymentStatusCode,
+              type: payment.paymentTypeCode,
+              reference: payment.providerPaymentId,
+              createdAt: payment.createdAt,
+              escrowId: payment.escrowId,
+            },
+          ];
         });
-        setRows([...live, ...payments]);
-        setSelected(live[0]);
+        setRows(records);
+        setSelectedId(records[0]?.id ?? null);
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (!cancelled)
+          setError(
+            err instanceof Error ? err.message : "Unable to load payments.",
+          );
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, userId, role, reload]);
+
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get("stripe");
+    if (result === "success")
+      setNotice(
+        "Provider setup returned. Verification and payout readiness depend on the provider; returning here does not confirm approval.",
+      );
+    if (result === "cancelled")
+      setNotice("Payment setup was cancelled. You can try again.");
   }, []);
 
-  const visiblePayments =
-    role === "buyer"
-      ? rows.filter((item) => item.counterparty.includes("to"))
-      : role === "seller"
-        ? rows.filter((item) => item.status !== "Needs review")
-        : rows;
-
-  const activeStatus = status[selected.id] ?? selected.status;
-
-  const markReviewed = () => {
-    setStatus((current) => ({ ...current, [selected.id]: "Processing" }));
-  };
+  async function startSetup() {
+    if (role === "admin") return;
+    setSetupBusy(true);
+    setSetupError("");
+    setSetupMessage("");
+    try {
+      const returnUrl = `${window.location.origin}/${role}/accounting/payments`;
+      const result = await startBackendStripeOnboarding({
+        role,
+        returnUrl,
+        refreshUrl: returnUrl,
+      });
+      if (result.mode === "stripe") {
+        window.location.assign(result.redirectUrl);
+        return;
+      }
+      setSetupMessage(
+        "Demo setup recorded by the backend. No bank account or card was connected, and no money can be transferred through this demo setup.",
+      );
+    } catch (err) {
+      setSetupError(
+        err instanceof Error
+          ? err.message
+          : "Unable to start payment setup. Please try again.",
+      );
+    } finally {
+      setSetupBusy(false);
+    }
+  }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-neutral-50">
-      <div className="px-8 py-8">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="mb-2 text-xs font-semibold tracking-[0.28em] text-emerald-700">
-              {copy.eyebrow}
-            </p>
-            <h1 className="max-w-3xl text-3xl font-bold text-neutral-950">{copy.title}</h1>
-            <p className="mt-2 max-w-2xl text-sm text-neutral-600">{copy.body}</p>
-          </div>
-          <button className="rounded-full bg-neutral-950 px-5 py-2.5 text-sm font-semibold text-white">
+    <div className="h-full overflow-y-auto bg-neutral-50 p-5 md:p-8">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="mb-2 text-xs font-semibold tracking-[0.25em] text-emerald-700">
+            {role === "seller" ? "PAYOUT CENTER" : "PAYMENT CENTER"}
+          </p>
+          <h1 className="text-3xl font-bold">
+            {role === "seller"
+              ? "Track incoming payments and escrow funding."
+              : "Payment records and receipts"}
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-neutral-600">
+            Recorded transactions for your account. Escrow funding and seller
+            payouts are separate stages.
+          </p>
+        </div>
+        {role !== "admin" && (
+          <button
+            type="button"
+            className={`${button} bg-neutral-950 text-white`}
+            onClick={() => {
+              setSetupMessage("");
+              setSetupError("");
+              setPanel("setup");
+            }}
+          >
             Add payment method
           </button>
+        )}
+      </div>
+      {notice && (
+        <p role="status" className="mb-4 text-sm">
+          {notice}
+        </p>
+      )}
+      {error && (
+        <div role="alert" className="mb-4 rounded-xl bg-amber-50 p-4">
+          {error}{" "}
+          <button
+            className="underline"
+            onClick={() => setReload((value) => value + 1)}
+          >
+            Retry
+          </button>
         </div>
-
-        <div className="mb-6 grid gap-4 md:grid-cols-4">
-          {methods.map((method) => (
-            <div key={method.name} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-200">
-              <method.icon className="mb-4 size-5 text-neutral-700" />
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-semibold text-neutral-950">{method.name}</p>
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                  Enabled
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-neutral-500">{method.detail}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[1.35fr_0.85fr]">
-          <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-200">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-neutral-950">Payment history</h2>
-                <p className="text-sm text-neutral-500">Sample transaction funding and receipt records.</p>
-              </div>
-              <button className="inline-flex items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium">
-                <Download className="size-4" />
-                Export
-              </button>
-            </div>
-            <div className="overflow-hidden rounded-xl border border-neutral-100">
-              {visiblePayments.map((payment) => {
-                const isSelected = selected.id === payment.id;
-                return (
-                  <button
-                    key={payment.id}
-                    type="button"
-                    onClick={() => setSelected(payment)}
-                    className={`grid w-full gap-3 px-4 py-4 text-left transition md:grid-cols-[120px_1fr_120px_130px] ${
-                      isSelected ? "bg-neutral-950 text-white" : "bg-white hover:bg-neutral-50"
-                    }`}
-                  >
-                    <span className="font-mono text-xs">{payment.id}</span>
-                    <span>
-                      <span className="block text-sm font-semibold">{payment.title}</span>
-                      <span className={isSelected ? "text-xs text-neutral-300" : "text-xs text-neutral-500"}>
-                        {payment.counterparty}
-                      </span>
-                    </span>
-                    <span className="text-sm font-semibold">{payment.amount}</span>
-                    <StatusBadge status={status[payment.id] ?? payment.status} inverted={isSelected} />
-                  </button>
+      )}
+      <div className="grid gap-6 lg:grid-cols-[1.35fr_0.85fr]">
+        <section className="rounded-2xl border border-neutral-200 bg-white p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-bold">Payment history</h2>
+            <button
+              type="button"
+              className={button}
+              disabled={!rows.length || loading}
+              onClick={() => {
+                download(
+                  "ecoglobe-payments.csv",
+                  paymentsCsv(rows),
+                  "text/csv;charset=utf-8",
                 );
-              })}
-            </div>
-          </section>
-
-          <aside className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-200">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold text-neutral-950">Payment detail</h2>
-                <p className="text-sm text-neutral-500">{selected.id}</p>
-              </div>
-              <StatusBadge status={activeStatus} />
-            </div>
-            <div className="space-y-4 text-sm">
-              <Detail label="Amount" value={selected.amount} />
-              <Detail label="Method" value={selected.method} />
-              <Detail label="Date" value={selected.date} />
-              <Detail label="Carbon offset" value={selected.carbonOffset} />
-            </div>
-            <div className="mt-6 grid grid-cols-2 gap-2">
-              <button className="rounded-full border border-neutral-200 px-4 py-2 text-sm font-semibold">
-                <Receipt className="mr-1 inline size-4" />
-                Receipt
-              </button>
-              <button className="rounded-full bg-neutral-950 px-4 py-2 text-sm font-semibold text-white">
-                <ShieldCheck className="mr-1 inline size-4" />
-                Review
-              </button>
-            </div>
-            {role === "admin" && activeStatus === "Needs review" && (
+                setNotice("Payment history exported as CSV.");
+              }}
+            >
+              <Download className="mr-2 inline size-4" />
+              Export
+            </button>
+          </div>
+          {loading ? (
+            <p role="status">Loading payments…</p>
+          ) : !rows.length && !error ? (
+            <p className="py-8 text-neutral-600">No payment records yet.</p>
+          ) : (
+            rows.map((row) => (
               <button
                 type="button"
-                onClick={markReviewed}
-                className="mt-3 w-full rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-900"
+                key={row.id}
+                onClick={() => setSelectedId(row.id)}
+                aria-pressed={row.id === selectedId}
+                className={`grid w-full gap-3 border-b border-neutral-100 p-4 text-left md:grid-cols-[75px_1fr_auto] ${row.id === selectedId ? "bg-neutral-950 text-white" : "hover:bg-neutral-50"}`}
               >
-                Mark finance review in progress
+                <span>TX-{row.id}</span>
+                <span>
+                  <strong className="block">{row.title}</strong>
+                  <span className="text-xs">
+                    {role === "seller"
+                      ? `from ${row.payer}`
+                      : `to ${row.payee}`}
+                  </span>
+                </span>
+                <span>
+                  {portalMoney(row.amount, row.currency)}
+                  <span className="block text-xs">
+                    {row.status.replaceAll("_", " ")}
+                  </span>
+                </span>
               </button>
-            )}
-            <div className="mt-6 rounded-xl bg-emerald-50 p-4">
-              <div className="mb-2 flex items-center gap-2 font-semibold text-emerald-900">
-                <BadgeCheck className="size-4" />
-                Demo workflow ready
+            ))
+          )}
+        </section>
+        <aside className="rounded-2xl border border-neutral-200 bg-white p-5">
+          <h2 className="mb-4 text-lg font-bold">Payment detail</h2>
+          {selected ? (
+            <>
+              <PaymentFields payment={selected} />
+              <div className="mt-6 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={button}
+                  onClick={() => setPanel("receipt")}
+                >
+                  <Receipt className="mr-2 inline size-4" />
+                  Receipt
+                </button>
+                <button
+                  type="button"
+                  className={`${button} bg-neutral-950 text-white`}
+                  onClick={() => setPanel("review")}
+                >
+                  <ShieldCheck className="mr-2 inline size-4" />
+                  Review
+                </button>
               </div>
-              <p className="text-sm text-emerald-800">
-                The frontend now shows payment rails, receipt actions, review status, and offset visibility for this role.
-              </p>
-            </div>
-          </aside>
-        </div>
+            </>
+          ) : (
+            <p className="text-sm text-neutral-600">
+              Select a payment to see its details.
+            </p>
+          )}
+        </aside>
       </div>
+      {panel === "setup" && (
+        <PaymentDialog
+          title={
+            role === "seller"
+              ? "Set up your payout method"
+              : "Set up your payment method"
+          }
+          onClose={() => {
+            if (!setupBusy) setPanel(null);
+          }}
+        >
+          <p className="mb-4 text-sm leading-6">
+            Continue to secure provider setup to add{" "}
+            {role === "seller" ? "a payout account" : "a payment method"}. Bank
+            and card details are entered with the provider. If this environment
+            uses demo mode, only a demo setup is recorded.
+          </p>
+          {setupError && (
+            <p role="alert" className="mb-4 text-red-700">
+              {setupError}
+            </p>
+          )}
+          {setupMessage ? (
+            <p role="status" className="mb-4 rounded-lg bg-neutral-100 p-4">
+              {setupMessage}
+            </p>
+          ) : (
+            <button
+              className={`${button} bg-black text-white`}
+              disabled={setupBusy}
+              onClick={() => void startSetup()}
+            >
+              {setupBusy ? "Starting setup…" : "Continue to payment setup"}
+            </button>
+          )}
+        </PaymentDialog>
+      )}
+      {selected && panel === "receipt" && (
+        <PaymentDialog
+          title={
+            selected.status === "captured"
+              ? `Receipt · TX-${selected.id}`
+              : `Payment record · TX-${selected.id}`
+          }
+          onClose={() => setPanel(null)}
+        >
+          <PaymentFields payment={selected} />
+          <p className="my-4 text-sm text-neutral-600">
+            {selected.status !== "captured"
+              ? "This payment is not recorded as captured. The download is a payment record, not a paid receipt. "
+              : ""}
+            Escrow funding does not confirm seller payout. Simulated
+            transactions do not represent money moved.
+          </p>
+          <button
+            className={`${button} bg-black text-white`}
+            onClick={() => {
+              download(
+                `ecoglobe-payment-${selected.id}.html`,
+                paymentReceiptHtml(selected),
+                "text/html;charset=utf-8",
+              );
+              setNotice(
+                `TX-${selected.id} downloaded. Open the document to print or save as PDF.`,
+              );
+            }}
+          >
+            Download printable{" "}
+            {selected.status === "captured" ? "receipt" : "record"}
+          </button>
+        </PaymentDialog>
+      )}
+      {selected && panel === "review" && (
+        <PaymentDialog
+          title={`Review payment · TX-${selected.id}`}
+          onClose={() => setPanel(null)}
+        >
+          <PaymentFields payment={selected} />
+          <dl className="mt-4 space-y-3 text-sm">
+            <Detail label="Payer" value={selected.payer} />
+            <Detail label="Seller" value={selected.payee} />
+            <Detail
+              label="Provider reference"
+              value={selected.reference ?? "Not recorded"}
+            />
+            <Detail label="Recorded at" value={selected.createdAt} />
+          </dl>
+          <p className="my-4 text-sm text-neutral-600">
+            This is a review of the recorded transaction. Viewing it does not
+            release escrow or change its payment status.
+          </p>
+          <button className={button} onClick={() => setPanel(null)}>
+            Done
+          </button>
+        </PaymentDialog>
+      )}
     </div>
   );
 }
 
+function PaymentFields({ payment }: { payment: PaymentDocument }) {
+  return (
+    <dl className="space-y-3 text-sm">
+      <Detail label="Payment" value={`TX-${payment.id}`} />
+      <Detail label="Order" value={`EG-${payment.orderId}`} />
+      <Detail label="Material" value={payment.title} />
+      <Detail
+        label="Amount"
+        value={portalMoney(payment.amount, payment.currency)}
+      />
+      <Detail label="Status" value={payment.status.replaceAll("_", " ")} />
+      <Detail label="Type" value={payment.type.replaceAll("_", " ")} />
+      <Detail label="Date" value={portalDate(payment.createdAt)} />
+      <Detail
+        label="Escrow"
+        value={payment.escrowId ? `ESC-${payment.escrowId}` : "None recorded"}
+      />
+    </dl>
+  );
+}
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
-      <span className="text-neutral-500">{label}</span>
-      <span className="font-medium text-neutral-950">{value}</span>
+    <div className="flex justify-between gap-6 border-b border-neutral-100 pb-2">
+      <dt className="text-neutral-600">{label}</dt>
+      <dd className="break-words text-right font-medium">{value}</dd>
     </div>
-  );
-}
-
-function StatusBadge({ status, inverted = false }: { status: PaymentStatus; inverted?: boolean }) {
-  const tone: Record<PaymentStatus, string> = {
-    Paid: "bg-emerald-100 text-emerald-700",
-    Processing: "bg-blue-100 text-blue-700",
-    "Needs review": "bg-amber-100 text-amber-800",
-    Scheduled: "bg-neutral-100 text-neutral-700",
-  };
-  return (
-    <span
-      className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-        inverted ? "bg-white/15 text-white" : tone[status]
-      }`}
-    >
-      {status === "Processing" && <RefreshCw className="size-3" />}
-      {status}
-    </span>
   );
 }
