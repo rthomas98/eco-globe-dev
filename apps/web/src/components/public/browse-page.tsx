@@ -11,7 +11,11 @@ import { ListingMap, type MapListing } from "./listing-map";
 import { SearchBar } from "./search-bar";
 import { CartButton } from "@/components/cart/cart-panel";
 import { HeaderUserMenu } from "@/components/auth/header-user-menu";
-import { FiltersPanel, defaultFilters, type FilterState } from "./filters-panel";
+import {
+  FiltersPanel,
+  defaultFilters,
+  type FilterState,
+} from "./filters-panel";
 import { hasCoordinates, type Listing } from "./browse-listings";
 import { useDemoUser } from "@/lib/demo-user";
 import { useViewerLocation } from "@/lib/viewer-location";
@@ -36,7 +40,9 @@ function ListingCard({
   return (
     <div
       className={`group flex w-full flex-col rounded-xl p-2 text-left transition-colors ${
-        selected ? "bg-neutral-100 ring-2 ring-neutral-900" : "hover:bg-neutral-50"
+        selected
+          ? "bg-neutral-100 ring-2 ring-neutral-900"
+          : "hover:bg-neutral-50"
       }`}
     >
       <button
@@ -46,11 +52,7 @@ function ListingCard({
       >
         <MaterialImage src={listing.image} title={listing.title} />
       </button>
-      <button
-        type="button"
-        onClick={onSelect}
-        className="text-left"
-      >
+      <button type="button" onClick={onSelect} className="text-left">
         <h3 className="text-base font-medium text-neutral-900">
           {listing.title}
         </h3>
@@ -60,7 +62,9 @@ function ListingCard({
           </p>
         ) : (
           <p className="mt-1 text-sm text-neutral-500">
-            {formatQuantity(listing.qtyNum, listing.quantityUnit) ?? "Quantity not specified"} available
+            {formatQuantity(listing.qtyNum, listing.quantityUnit) ??
+              "Quantity not specified"}{" "}
+            available
           </p>
         )}
       </button>
@@ -85,9 +89,16 @@ function ListingCard({
               <span className="text-lg font-semibold text-neutral-900">
                 {listing.price}
               </span>
-              {listing.priceNum !== null && <span className="text-sm text-neutral-700">{listing.unit}</span>}
+              {listing.priceNum !== null && (
+                <span className="text-sm text-neutral-700">{listing.unit}</span>
+              )}
             </div>
-            <CarbonCalculatorButton listing={listing} portal="buyer" variant="ghost" label="Footprint" />
+            <CarbonCalculatorButton
+              listing={listing}
+              portal="buyer"
+              variant="ghost"
+              label="Footprint"
+            />
           </div>
         </>
       ) : (
@@ -111,11 +122,7 @@ function ListingCard({
 }
 
 function normalizeListingSearch(value: string) {
-  return value
-    .toLowerCase()
-    .replaceAll("₂", "2")
-    .replace(/\s+/g, " ")
-    .trim();
+  return value.toLowerCase().replaceAll("₂", "2").replace(/\s+/g, " ").trim();
 }
 
 export function BrowsePage() {
@@ -137,21 +144,37 @@ export function BrowsePage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Default to a visible search radius so the map opens framed on the customer.
   const parsedRadius = parseFloat(urlDistance);
-  const radiusMiles = Number.isFinite(parsedRadius) && parsedRadius > 0 ? parsedRadius : 0;
+  const radiusMiles =
+    Number.isFinite(parsedRadius) && parsedRadius > 0 ? parsedRadius : 0;
+
+  const published = useListings("public");
+  const allListings = published.listings;
+  const searchedLocation = allListings.find(
+    (item) =>
+      hasCoordinates(item) &&
+      urlLocation.trim() &&
+      item.location.toLowerCase().includes(urlLocation.trim().toLowerCase()),
+  );
 
   // The map centers on the customer's address by default: their detected
   // browser location, falling back to a saved company facility.
   const { location: viewerLocation } = useViewerLocation();
   const mapOrigin = useMemo(
     () =>
-      viewerLocation
+      searchedLocation && hasCoordinates(searchedLocation)
         ? {
-            lng: viewerLocation.lng,
-            lat: viewerLocation.lat,
-            label: viewerLocation.label,
+            lng: searchedLocation.lng,
+            lat: searchedLocation.lat,
+            label: `Search location: ${searchedLocation.location}`,
           }
-        : undefined,
-    [viewerLocation],
+        : viewerLocation
+          ? {
+              lng: viewerLocation.lng,
+              lat: viewerLocation.lat,
+              label: viewerLocation.label,
+            }
+          : undefined,
+    [viewerLocation, searchedLocation],
   );
 
   useEffect(() => {
@@ -203,10 +226,10 @@ export function BrowsePage() {
     }
   };
 
-  const published = useListings("public");
-  const allListings = published.listings;
   const visibleListings = allListings.filter((l) => {
-    const haystack = normalizeListingSearch(`${l.title} ${l.tags.join(" ")} ${l.category}`);
+    const haystack = normalizeListingSearch(
+      `${l.title} ${l.tags.join(" ")} ${l.category}`,
+    );
     if (q && !haystack.includes(q)) return false;
     if (tag) {
       const matchesTag = l.tags.some((listingTag) => {
@@ -218,19 +241,46 @@ export function BrowsePage() {
     if (loc && !normalizeListingSearch(l.location).includes(loc)) return false;
     if (
       loc &&
-      Number.isFinite(radiusMax) && radiusMax > 0 &&
+      Number.isFinite(radiusMax) &&
+      radiusMax > 0 &&
       l.distance !== "—" &&
       parseFloat(l.distance) > radiusMax
     ) {
       return false;
     }
-    if (filters.categories.length > 0 && !filters.categories.some(category => matchesListingCategory(l, category))) return false;
-    if (filters.grades.length > 0 && (l.grade === null || !filters.grades.includes(l.grade))) return false;
-    if (priceMin !== null && (l.priceNum === null || l.priceNum < priceMin)) return false;
-    if (priceMax !== null && (l.priceNum === null || l.priceNum > priceMax)) return false;
-    if (qtyMin !== null && (l.qtyNum === null || l.qtyNum < qtyMin)) return false;
-    if (qtyMax !== null && (l.qtyNum === null || l.qtyNum > qtyMax)) return false;
-    if (filters.carbon.length > 0 && (l.co2Num === null || !matchesCarbonBucket(l.co2Num))) return false;
+    if (
+      filters.categories.length > 0 &&
+      !filters.categories.some((category) =>
+        matchesListingCategory(l, category),
+      )
+    )
+      return false;
+    if (
+      filters.grades.length > 0 &&
+      (l.grade === null || !filters.grades.includes(l.grade))
+    )
+      return false;
+    if (
+      !l.teaser &&
+      priceMin !== null &&
+      (l.priceNum === null || l.priceNum < priceMin)
+    )
+      return false;
+    if (
+      !l.teaser &&
+      priceMax !== null &&
+      (l.priceNum === null || l.priceNum > priceMax)
+    )
+      return false;
+    if (qtyMin !== null && (l.qtyNum === null || l.qtyNum < qtyMin))
+      return false;
+    if (qtyMax !== null && (l.qtyNum === null || l.qtyNum > qtyMax))
+      return false;
+    if (
+      filters.carbon.length > 0 &&
+      (l.co2Num === null || !matchesCarbonBucket(l.co2Num))
+    )
+      return false;
     if (filters.carbonDataOnly && !l.hasCarbonData) return false;
     return true;
   });
@@ -252,6 +302,11 @@ export function BrowsePage() {
     [visibleListings],
   );
 
+  const pricingUnavailable =
+    published.status === "ready" &&
+    published.listings.length > 0 &&
+    published.listings.every((item) => item.teaser);
+
   const activeFilterCount =
     (urlTag ? 1 : 0) +
     filters.categories.length +
@@ -264,9 +319,18 @@ export function BrowsePage() {
   return (
     <div className="flex h-screen flex-col">
       {/* Search header */}
-      <header className="flex h-16 items-center justify-between bg-white px-4 sm:px-6" style={{ borderBottom: "1px solid #E0E0E0" }}>
+      <header
+        className="flex h-16 items-center justify-between bg-white px-4 sm:px-6"
+        style={{ borderBottom: "1px solid #E0E0E0" }}
+      >
         <Link href="/" className="mr-4 shrink-0">
-          <img src="/logo.svg" alt="EcoGlobe" width={100} height={28} className="invert" />
+          <img
+            src="/logo.svg"
+            alt="EcoGlobe"
+            width={100}
+            height={28}
+            className="invert"
+          />
         </Link>
 
         <div className="hidden sm:flex items-center gap-3">
@@ -285,7 +349,10 @@ export function BrowsePage() {
             <SlidersHorizontal className="size-4" />
             Filters
             {activeFilterCount > 0 && (
-              <span className="flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: "#378853" }}>
+              <span
+                className="flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                style={{ backgroundColor: "#378853" }}
+              >
                 {activeFilterCount}
               </span>
             )}
@@ -306,7 +373,8 @@ export function BrowsePage() {
             <p className="text-sm text-neutral-900">
               {urlQuery || urlLocation || urlCategory || urlTag ? (
                 <>
-                  {visibleListings.length} listing{visibleListings.length === 1 ? "" : "s"}{" "}
+                  {visibleListings.length} listing
+                  {visibleListings.length === 1 ? "" : "s"}{" "}
                   {urlCategory && (
                     <>
                       in <span className="font-semibold">{urlCategory}</span>
@@ -318,13 +386,20 @@ export function BrowsePage() {
                     </>
                   )}
                   {(urlQuery || urlLocation) && " for "}
-                  {urlQuery && <span className="font-semibold">&quot;{urlQuery}&quot;</span>}
+                  {urlQuery && (
+                    <span className="font-semibold">
+                      &quot;{urlQuery}&quot;
+                    </span>
+                  )}
                   {urlQuery && urlLocation && " in "}
-                  {urlLocation && <span className="font-semibold">{urlLocation}</span>}
+                  {urlLocation && (
+                    <span className="font-semibold">{urlLocation}</span>
+                  )}
                   {urlLocation && (
                     <>
                       {" "}
-                      within <span className="font-semibold">{urlDistance}</span>
+                      within{" "}
+                      <span className="font-semibold">{urlDistance}</span>
                     </>
                   )}
                 </>
@@ -332,7 +407,11 @@ export function BrowsePage() {
                 <>{visibleListings.length} listings</>
               )}
             </p>
-            {(urlQuery || urlLocation || urlCategory || urlTag || activeFilterCount > 0) && (
+            {(urlQuery ||
+              urlLocation ||
+              urlCategory ||
+              urlTag ||
+              activeFilterCount > 0) && (
               <span className="flex items-center gap-4">
                 {user && (urlQuery || urlTag) && (
                   <button
@@ -360,18 +439,52 @@ export function BrowsePage() {
               </span>
             )}
           </div>
+          {pricingUnavailable && user && (
+            <p
+              role="status"
+              className="mb-4 rounded-xl bg-amber-50 p-4 text-sm"
+            >
+              You are signed in. Complete your company setup to unlock pricing
+              and price filters.{" "}
+              <Link
+                className="font-semibold underline"
+                href={`/${user.role}/onboarding`}
+              >
+                Complete company setup
+              </Link>
+            </p>
+          )}
           {published.status === "loading" ? (
-            <p className="rounded-xl bg-neutral-50 py-16 text-center text-sm text-neutral-600" role="status">Loading listings…</p>
+            <p
+              className="rounded-xl bg-neutral-50 py-16 text-center text-sm text-neutral-600"
+              role="status"
+            >
+              Loading listings…
+            </p>
           ) : published.status === "error" ? (
-            <div className="rounded-xl bg-red-50 p-6 text-sm text-red-700" role="alert">
+            <div
+              className="rounded-xl bg-red-50 p-6 text-sm text-red-700"
+              role="alert"
+            >
               <p>{published.error}</p>
-              <button type="button" onClick={published.reload} className="mt-2 inline-flex items-center gap-1 font-semibold underline"><RefreshCw className="size-3" /> Retry</button>
+              <button
+                type="button"
+                onClick={published.reload}
+                className="mt-2 inline-flex items-center gap-1 font-semibold underline"
+              >
+                <RefreshCw className="size-3" /> Retry
+              </button>
             </div>
           ) : visibleListings.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-xl bg-neutral-50 py-16 text-center">
-              <p className="text-base font-semibold text-neutral-900">{allListings.length === 0 ? "No published listings yet" : "No matches found"}</p>
+              <p className="text-base font-semibold text-neutral-900">
+                {allListings.length === 0
+                  ? "No published listings yet"
+                  : "No matches found"}
+              </p>
               <p className="max-w-[360px] text-sm text-neutral-600">
-                Try a different keyword, loosen the filters, or clear everything to see all listings.
+                Try a different keyword, loosen the filters, or clear everything
+                to see all listings.
               </p>
               <button
                 onClick={() => {
@@ -393,7 +506,9 @@ export function BrowsePage() {
                   selected={selectedId === listing.id}
                   isMember={isMember}
                   onSelect={() =>
-                    setSelectedId((curr) => (curr === listing.id ? null : listing.id))
+                    setSelectedId((curr) =>
+                      curr === listing.id ? null : listing.id,
+                    )
                   }
                 />
               ))}
@@ -403,20 +518,27 @@ export function BrowsePage() {
 
         {/* Map panel */}
         <div className="relative hidden lg:block lg:w-[45%] h-full p-2">
-          {mapOrigin && (
+          {
             <div
               className="absolute right-4 top-4 z-10 flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs shadow"
               style={{ border: "1px solid #E0E0E0" }}
             >
-              <span className="font-semibold text-neutral-700">Search radius</span>
+              <span className="font-semibold text-neutral-700">
+                Search radius
+              </span>
               <select
                 value={radiusMiles}
                 aria-label="Map search radius"
                 onChange={(e) => {
                   const params = new URLSearchParams(searchParams.toString());
-                  params.set("distance", e.target.value === "0" ? "Any" : `${e.target.value} mi`);
+                  params.set(
+                    "distance",
+                    e.target.value === "0" ? "Any" : `${e.target.value} mi`,
+                  );
                   setSelectedId(null);
-                  router.replace(`/browse?${params.toString()}`, { scroll: false });
+                  router.replace(`/browse?${params.toString()}`, {
+                    scroll: false,
+                  });
                 }}
                 className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs outline-none"
               >
@@ -430,8 +552,14 @@ export function BrowsePage() {
                 <option value={250}>250 mi</option>
               </select>
             </div>
-          )}
+          }
           <ListingMap
+            selectionRadius
+            selectionNotice={
+              selectedId && !mapListings.some((item) => item.id === selectedId)
+                ? "This listing has no saved map coordinates. Open its details to see the recorded location."
+                : undefined
+            }
             listings={mapListings}
             selectedId={selectedId}
             onSelect={(id) => setSelectedId(id)}
@@ -451,6 +579,7 @@ export function BrowsePage() {
         filters={filters}
         onChange={setFilters}
         onReset={() => setFilters(defaultFilters)}
+        pricingUnavailable={pricingUnavailable}
         listingCount={visibleListings.length}
       />
     </div>

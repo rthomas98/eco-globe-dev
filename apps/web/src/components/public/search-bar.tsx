@@ -40,6 +40,10 @@ export function SearchBar({
   const [radiusOpen, setRadiusOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => { setQuery(initialQuery); }, [initialQuery]);
+  useEffect(() => { setLocation(initialLocation); }, [initialLocation]);
+  useEffect(() => { setRadius(initialRadius); }, [initialRadius]);
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {

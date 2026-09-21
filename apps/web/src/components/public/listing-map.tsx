@@ -22,7 +22,6 @@ export interface MapListing {
 
 const EMPTY_LISTINGS: MapListing[] = [];
 
-
 function buildPopupContent(
   listing: MapListing,
   onView?: (id: string) => void,
@@ -47,11 +46,7 @@ function buildPopupContent(
     img.src = listing.image;
     img.alt = listing.title;
     const showIllustration = () => {
-      if (
-        !materialImage(listing.title) ||
-        img.dataset.illustrative
-      )
-        return;
+      if (!materialImage(listing.title) || img.dataset.illustrative) return;
       img.dataset.illustrative = "true";
       img.src = materialImage(listing.title)!;
       img.alt = `Illustrative image of ${listing.title}`;
@@ -192,6 +187,9 @@ interface ListingMapProps {
    * listings are spread far away (e.g. the global browse map).
    */
   radiusFitListings?: boolean;
+  /** Browse selection uses the chosen listing as the radius center. */
+  selectionRadius?: boolean;
+  selectionNotice?: string;
 }
 
 /**
@@ -320,11 +318,28 @@ export function ListingMap({
   activeId,
   showOriginPin = true,
   radiusFitListings = true,
+  selectionRadius = false,
+  selectionNotice,
 }: ListingMapProps = {}) {
   const data = listings ?? EMPTY_LISTINGS;
-  const originLng = suppliedOrigin?.lng;
-  const originLat = suppliedOrigin?.lat;
-  const originLabel = suppliedOrigin?.label;
+  const [manualOrigin, setManualOrigin] = useState<{
+    lng: number;
+    lat: number;
+    label: string;
+  }>();
+  const selectedListing = selectionRadius
+    ? data.find((item) => item.id === selectedId)
+    : undefined;
+  const effectiveOrigin = selectedListing
+    ? {
+        lng: selectedListing.lng,
+        lat: selectedListing.lat,
+        label: selectedListing.title,
+      }
+    : (suppliedOrigin ?? manualOrigin);
+  const originLng = effectiveOrigin?.lng;
+  const originLat = effectiveOrigin?.lat;
+  const originLabel = effectiveOrigin?.label;
   const origin = useMemo(
     () =>
       originLng === undefined || originLat === undefined
@@ -360,7 +375,10 @@ export function ListingMap({
 
     // Serve the matching module worker directly; bundling its import URL can
     // leave GeoJSON overlays waiting indefinitely while raster tiles still load.
-    maplibregl.setWorkerUrl(new URL("/vendor/maplibre/maplibre-gl-worker.mjs", window.location.origin).href);
+    maplibregl.setWorkerUrl(
+      new URL("/vendor/maplibre/maplibre-gl-worker.mjs", window.location.origin)
+        .href,
+    );
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
       style: STREET_STYLE,
@@ -443,24 +461,37 @@ export function ListingMap({
 
       markersRef.current.set(listing.id, { marker, popup, el });
     });
-
   }, [data, activeId]);
 
   // Keep camera fitting independent of asynchronous style/overlay loading.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || selectedId) return;
+    if (!map || (selectedId && !selectionRadius)) return;
     const hasRadius = origin && radiusMiles && radiusMiles > 0;
-    const bounds = buildBounds(hasRadius && !radiusFitListings ? [] : data, origin);
-    extendBoundsWithMapData(bounds, [], viewerLocation);
+    const bounds = buildBounds(
+      hasRadius && !radiusFitListings ? [] : data,
+      origin,
+    );
+    if (!hasRadius) extendBoundsWithMapData(bounds, [], viewerLocation);
     if (hasRadius) {
       const dLat = radiusMiles / 69;
-      const dLng = radiusMiles / (69 * Math.max(0.1, Math.cos(origin.lat * Math.PI / 180)));
+      const dLng =
+        radiusMiles /
+        (69 * Math.max(0.1, Math.cos((origin.lat * Math.PI) / 180)));
       bounds.extend([origin.lng - dLng, origin.lat - dLat]);
       bounds.extend([origin.lng + dLng, origin.lat + dLat]);
     }
-    if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 60, maxZoom: 11, duration: 0 });
-  }, [data, origin, radiusMiles, radiusFitListings, viewerLocation, selectedId]);
+    if (!bounds.isEmpty())
+      map.fitBounds(bounds, { padding: 60, maxZoom: 11, duration: 0 });
+  }, [
+    data,
+    origin,
+    radiusMiles,
+    radiusFitListings,
+    viewerLocation,
+    selectedId,
+    selectionRadius,
+  ]);
 
   // Sync origin pin + radius circle (map renderer)
 
@@ -480,14 +511,20 @@ export function ListingMap({
         originMarkerRef.current.remove();
         originMarkerRef.current = null;
       }
-      [FILL_ID, OUTLINE_ID, ROUTE_LINE_ID].forEach((id) => {
+      [ROUTE_LINE_ID].forEach((id) => {
         if (mapInstance.getLayer(id)) mapInstance.removeLayer(id);
       });
-      [SOURCE_ID, ROUTE_SOURCE_ID].forEach((id) => {
+      [ROUTE_SOURCE_ID].forEach((id) => {
         if (mapInstance.getSource(id)) mapInstance.removeSource(id);
       });
 
-      if (!origin) return;
+      if (!origin || !radiusMiles || radiusMiles <= 0) {
+        if (mapInstance.getLayer(FILL_ID))
+          mapInstance.setLayoutProperty(FILL_ID, "visibility", "none");
+        if (mapInstance.getLayer(OUTLINE_ID))
+          mapInstance.setLayoutProperty(OUTLINE_ID, "visibility", "none");
+        if (!origin) return;
+      }
 
       // Origin pin (distinct from listings). Skipped when another marker
       // already represents this spot (e.g. the viewer "you are here" pin).
@@ -537,6 +574,13 @@ export function ListingMap({
       if (!radiusMiles || radiusMiles <= 0) return;
 
       const polygon = circlePolygon(origin.lng, origin.lat, radiusMiles);
+      const source = mapInstance.getSource<maplibregl.GeoJSONSource>(SOURCE_ID);
+      if (source) {
+        source.setData(polygon);
+        mapInstance.setLayoutProperty(FILL_ID, "visibility", "visible");
+        mapInstance.setLayoutProperty(OUTLINE_ID, "visibility", "visible");
+        return;
+      }
       mapInstance.addSource(SOURCE_ID, {
         type: "geojson",
         data: polygon,
@@ -565,7 +609,6 @@ export function ListingMap({
           "line-dasharray": [3, 2],
         },
       });
-
     };
 
     // Style readiness is sufficient for overlays; idle also waits for every
@@ -621,7 +664,7 @@ export function ListingMap({
 
     if (selectedId) {
       const target = data.find((l) => l.id === selectedId);
-      if (target) {
+      if (target && !selectionRadius) {
         mapInstance.flyTo({
           center: [target.lng, target.lat],
           zoom: 13,
@@ -630,10 +673,35 @@ export function ListingMap({
         });
       }
     }
-  }, [selectedId, data, origin, radiusMiles, viewerLocation]);
+  }, [selectedId, data, origin, radiusMiles, viewerLocation, selectionRadius]);
 
   return (
     <div className="relative h-full w-full">
+      {selectionNotice && (
+        <div
+          role="status"
+          className="absolute left-3 top-16 z-10 max-w-sm rounded-lg bg-white p-3 text-sm shadow"
+        >
+          {selectionNotice}
+        </div>
+      )}
+      {!origin && (
+        <button
+          type="button"
+          className="absolute left-3 top-3 z-10 rounded-lg bg-white p-3 text-sm shadow"
+          onClick={() => {
+            const center = mapRef.current?.getCenter();
+            if (center)
+              setManualOrigin({
+                lng: center.lng,
+                lat: center.lat,
+                label: "Selected map center",
+              });
+          }}
+        >
+          Use map center for search radius
+        </button>
+      )}
       {mapError && (
         <div
           role="alert"
@@ -650,7 +718,9 @@ export function ListingMap({
       )}
       <div ref={mapContainer} className="h-full w-full rounded-xl" />
       <div className="absolute bottom-8 left-3 max-w-[280px] rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-neutral-700 shadow-sm backdrop-blur-sm">
-        {getViewerLocationLabel(viewerLocation)}
+        {origin && radiusMiles
+          ? `${radiusMiles} mi radius · ${origin.label ?? "Selected location"}`
+          : getViewerLocationLabel(viewerLocation)}
       </div>
     </div>
   );

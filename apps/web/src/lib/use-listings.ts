@@ -10,12 +10,16 @@ import {
   type ListingScope,
 } from "./listings-api";
 import { toListing } from "./listing-view";
-import { useDemoUser } from "./demo-user";
+import { useDemoUser, readDemoUser, clearDemoUser } from "./demo-user";
+import { refreshBackendSession } from "./backend-auth";
+import { BackendApiError } from "./backend-client";
 
 /** Revalidate server-owned listing visibility after login, logout or company changes. */
 function useListingViewerKey() {
   const user = useDemoUser();
-  return user ? `${user.id ?? user.email}:${user.activeCompanyId ?? ""}:${user.role}` : "guest";
+  return user
+    ? `${user.id ?? user.email}:${user.activeCompanyId ?? ""}:${user.role}`
+    : "guest";
 }
 
 export type LoadStatus = "loading" | "ready" | "error" | "not-found";
@@ -49,19 +53,45 @@ export function useListings(
   const reload = useCallback(() => setVersion((v) => v + 1), []);
 
   useEffect(() => {
+    window.addEventListener("focus", reload);
+    return () => window.removeEventListener("focus", reload);
+  }, [reload]);
+
+  useEffect(() => {
     if (!enabled) {
       setState({ status: "ready", listings: [], records: [], error: null });
       return;
     }
     let cancelled = false;
     setState((prev) => ({ ...prev, status: "loading", error: null }));
-    fetchListings(scope, { search })
+    (async () => {
+      // Public pages must not treat a cached profile as a valid server session.
+      if (readDemoUser()) {
+        try {
+          await refreshBackendSession();
+        } catch (error) {
+          if (error instanceof BackendApiError && error.status === 401)
+            clearDemoUser();
+          else throw error;
+        }
+      }
+      return fetchListings(scope, { search });
+    })()
       .then((records) => {
         if (cancelled) return;
         setState({
           status: "ready",
           records,
-          listings: records.map(toListing),
+          listings: records.map((record) => {
+            const listing = toListing(record);
+            return listing.teaser && readDemoUser()
+              ? {
+                  ...listing,
+                  price: "Complete company setup to see price",
+                  moq: "Company setup required",
+                }
+              : listing;
+          }),
           error: null,
         });
       })
@@ -100,7 +130,9 @@ export function useListing(
 ): ListingDetailState {
   const { enabled = true } = options;
   const viewerKey = useListingViewerKey();
-  const [state, setState] = useState<Omit<ListingDetailState, "reload" | "replace">>({
+  const [state, setState] = useState<
+    Omit<ListingDetailState, "reload" | "replace">
+  >({
     status: "loading",
     listing: null,
     record: null,
@@ -109,13 +141,23 @@ export function useListing(
   const [version, setVersion] = useState(0);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
   const replace = useCallback((record: BackendListing) => {
-    setState({ status: "ready", record, listing: toListing(record), error: null });
+    setState({
+      status: "ready",
+      record,
+      listing: toListing(record),
+      error: null,
+    });
   }, []);
 
   useEffect(() => {
     if (!enabled) return;
     if (!idOrSlug) {
-      setState({ status: "not-found", listing: null, record: null, error: null });
+      setState({
+        status: "not-found",
+        listing: null,
+        record: null,
+        error: null,
+      });
       return;
     }
     let cancelled = false;
@@ -124,10 +166,20 @@ export function useListing(
       .then((record) => {
         if (cancelled) return;
         if (!record) {
-          setState({ status: "not-found", listing: null, record: null, error: null });
+          setState({
+            status: "not-found",
+            listing: null,
+            record: null,
+            error: null,
+          });
           return;
         }
-        setState({ status: "ready", record, listing: toListing(record), error: null });
+        setState({
+          status: "ready",
+          record,
+          listing: toListing(record),
+          error: null,
+        });
       })
       .catch((error) => {
         if (cancelled) return;
@@ -135,7 +187,10 @@ export function useListing(
           status: "error",
           listing: null,
           record: null,
-          error: describeBackendError(error, "The listing could not be loaded."),
+          error: describeBackendError(
+            error,
+            "The listing could not be loaded.",
+          ),
         });
       });
     return () => {
