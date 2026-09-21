@@ -164,6 +164,22 @@ const expandedAdminNavGroups: NavGroup[] = [
   { label: "System", items: settingsAdminNavItems },
 ];
 
+/** Search follows the same destinations and group names as the sidebar. */
+export const adminSearchLinks = expandedAdminNavGroups.flatMap((group) =>
+  group.items.flatMap((item) => [
+    {
+      label: item.label,
+      href: item.href,
+      keywords: `${group.label} ${item.label === "Sales" ? "orders transactions" : ""}`,
+    },
+    ...(item.children ?? []).map((child) => ({
+      label: `${item.label}: ${child.label}`,
+      href: child.href,
+      keywords: `${group.label} ${item.label}`,
+    })),
+  ]),
+);
+
 const notifications = [
   {
     group: "Earlier",

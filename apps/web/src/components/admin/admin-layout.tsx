@@ -18,7 +18,7 @@ import {
   readAdminSession,
   type AdminSession,
 } from "@eco-globe/shared/admin-auth";
-import { AdminSidebar } from "./admin-sidebar";
+import { AdminSidebar, adminSearchLinks } from "./admin-sidebar";
 
 export function AdminLayout({
   children,
@@ -101,35 +101,6 @@ export function AdminLayout({
   );
 }
 
-const ADMIN_SEARCH_LINKS = [
-  {
-    label: "Sales operations",
-    href: "/admin/sales",
-    keywords: "orders transactions",
-  },
-  {
-    label: "Partner network",
-    href: "/admin/partners",
-    keywords: "customers sponsors assurers logistics",
-  },
-  {
-    label: "Listings moderation",
-    href: "/admin/listings",
-    keywords: "products inventory",
-  },
-  {
-    label: "Buyer accounts",
-    href: "/admin/buyers",
-    keywords: "customers verification",
-  },
-  {
-    label: "Seller accounts",
-    href: "/admin/sellers",
-    keywords: "suppliers verification",
-  },
-  { label: "Audit log", href: "/admin/audit", keywords: "security history" },
-];
-
 function AdminTopNavigation({
   pathname,
   onOpenMobile,
@@ -148,10 +119,10 @@ function AdminTopNavigation({
         .replace(/\b\w/g, (letter) => letter.toUpperCase())
     : "Dashboard";
   const detailLabel = segments[1]?.toUpperCase();
-  const results = ADMIN_SEARCH_LINKS.filter((item) =>
+  const results = adminSearchLinks.filter((item) =>
     `${item.label} ${item.keywords}`
       .toLowerCase()
-      .includes(search.toLowerCase()),
+      .includes(search.trim().toLowerCase()),
   );
 
   const chooseResult = (href: string) => {

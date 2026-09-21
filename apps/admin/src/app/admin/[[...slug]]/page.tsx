@@ -1,3 +1,6 @@
+import { LabTestingQueuePage } from "@/components/admin/lab-testing-queue-page";
+import { LabPanelsPage } from "@/components/admin/lab-panels-page";
+import { AdminDocumentReviewPage } from "@/components/admin/document-review-page";
 import { SampleShippingDesk } from "@/components/samples/sample-shipping-desk";
 import { notFound, redirect } from "next/navigation";
 import { AccountPage } from "@/components/admin/account-page";
@@ -128,6 +131,14 @@ export default async function Page({ params }: PageProps) {
   if (section === "buyers") {
     return second ? <AdminBuyerDetailPage id={second} /> : <AdminBuyersPage />;
   }
+
+  if (section === "lab-testing") {
+    if (second === "panels" && !third) return <LabPanelsPage />;
+    if (!second) return <LabTestingQueuePage />;
+    notFound();
+  }
+  if (section === "document-review" && !second)
+    return <AdminDocumentReviewPage />;
 
   if (section === "samples") return <SampleShippingDesk role="admin" />;
   if (section === "pilots") {

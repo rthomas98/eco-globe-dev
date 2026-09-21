@@ -1,164 +1,289 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  Mail,
-  AlertCircle,
-  Truck,
-  CheckCircle,
-  Circle,
-  FileText,
-  Download,
-} from "lucide-react";
 import { Button } from "@eco-globe/ui";
-import { fetchShipments, updateShipment } from "@/lib/api-fulfilment";
-import { LiveOrderCard } from "./live-record-card";
+import {
+  fetchShipments,
+  updateShipment,
+  type ApiShipment,
+} from "@/lib/api-fulfilment";
+import {
+  fetchOrderById,
+  fetchEscrows,
+  fetchPayments,
+  trailingNumericId,
+  type ApiEscrowRecord,
+  type ApiPayment,
+} from "@/lib/api-portal";
 import { AdminDetailPage, DetailCard, KeyValueGrid } from "./admin-detail-page";
 
+interface OrderDetail {
+  order: Awaited<ReturnType<typeof fetchOrderById>>;
+  shipments: ApiShipment[];
+  escrows: ApiEscrowRecord[];
+  payments: ApiPayment[];
+}
+
 export function AdminSaleDetailPage({ id }: { id: string }) {
-  const overrideTracking = async () => {
-    const liveOrderId = /^EG-(\d+)$/.exec(id)?.[1];
-    const trackingNumber = window.prompt("Override tracking number:");
-    if (!trackingNumber?.trim()) return;
-    if (!liveOrderId) {
-      window.alert("Demo order — tracking overrides persist on live orders only.");
+  const [data, setData] = useState<OrderDetail | null>(null);
+  const [error, setError] = useState("");
+  const [revision, setRevision] = useState(0);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setData(null);
+    setError("");
+    const orderId = trailingNumericId(id);
+    if (!orderId) {
+      setError("Invalid order reference.");
       return;
     }
+    Promise.all([
+      fetchOrderById(orderId),
+      fetchShipments(orderId),
+      fetchEscrows(),
+      fetchPayments(),
+    ])
+      .then(([order, shipments, escrows, payments]) => {
+        if (active)
+          setData({
+            order,
+            shipments,
+            escrows: escrows.filter((item) => item.orderId === orderId),
+            payments: payments.filter((item) => item.orderId === orderId),
+          });
+      })
+      .catch((reason: unknown) => {
+        if (active)
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Could not load this order.",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, revision]);
+  const order = data?.order;
+  const value = (key: string) =>
+    order?.[key] == null ? "Not recorded" : String(order[key]);
+  const money = (amount: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: String(order?.currencyCode ?? "USD"),
+    }).format(amount);
+  const date = (input: string) => new Date(input).toLocaleString();
+  const total = Number(order?.totalAmount ?? 0);
+  const credit = Number(order?.sampleShippingCreditCents ?? 0) / 100;
+  const subtotal = total + credit;
+  const checkout = order?.creationSourceCode === "listing_checkout";
+  const quantity = Number(order?.quantity ?? 0);
+  const overrideTracking = async (shipment: ApiShipment) => {
+    const trackingNumber = window.prompt(
+      "Override tracking number:",
+      shipment.trackingNumber ?? "",
+    );
+    if (!trackingNumber?.trim()) return;
+    setSaving(true);
     try {
-      const shipments = await fetchShipments(Number(liveOrderId));
-      if (!shipments[0]) {
-        window.alert("No shipment exists on this order yet.");
-        return;
-      }
-      await updateShipment(shipments[0].id, { trackingNumber: trackingNumber.trim() });
-      window.alert(`Tracking updated to ${trackingNumber.trim()}.`);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Tracking update failed.");
+      await updateShipment(shipment.id, {
+        trackingNumber: trackingNumber.trim(),
+      });
+      setRevision((n) => n + 1);
+    } catch (reason) {
+      window.alert(
+        reason instanceof Error ? reason.message : "Tracking update failed.",
+      );
+    } finally {
+      setSaving(false);
     }
   };
-
   return (
     <AdminDetailPage
       breadcrumbs={[{ label: "Sales", href: "/admin/sales" }, { label: id }]}
       title={`Order ${id}`}
-      subtitle={
-        <span className="inline-flex items-center gap-2">
-          <span className="font-mono">{id}</span>
-          <span>·</span>
-          <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style={{ background: "#EDE9FE", color: "#5B21B6" }}>
-            In transit
-          </span>
-        </span>
-      }
-      actions={
-        <>
-          <Link href="/admin/disputes">
-            <Button variant="secondary" size="md">
-              <Mail className="size-4" />
-              Message parties
-            </Button>
-          </Link>
-          <Link href="/admin/disputes">
-            <Button variant="secondary" size="md">
-              <AlertCircle className="size-4" />
-              Open dispute
-            </Button>
-          </Link>
-          <Button variant="primary" size="md" onClick={() => void overrideTracking()}>
-            <Truck className="size-4" />
-            Override tracking
-          </Button>
-        </>
-      }
+      subtitle={order ? value("orderStatusName") : undefined}
     >
-      <LiveOrderCard uiId={id} />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="flex flex-col gap-6 lg:col-span-2">
-          <DetailCard title="Order">
-            <KeyValueGrid
-              items={[
-                { label: "Buyer", value: <Link href="/admin/buyers/B-00184" className="underline">AgriCorp Solutions</Link> },
-                { label: "Seller", value: <Link href="/admin/sellers/S-00231" className="underline">EcoPack Co.</Link> },
-                { label: "Product", value: <Link href="/admin/listings/EG-PROD-00023" className="underline">Wood Sawdust Industrial High Quality</Link> },
-                { label: "Quantity", value: "32 tons" },
-                { label: "Unit price", value: "$400 / ton" },
-                { label: "Order total", value: <strong>$13,440.00</strong> },
-                { label: "Placed", value: "2026-04-30 09:22 AM" },
-                { label: "Shipping", value: "Delivery · 2026-05-08" },
-              ]}
-            />
-          </DetailCard>
-
-          <DetailCard title="Lifecycle">
-            <div className="flex flex-col">
-              {[
-                { event: "Quote requested", time: "2026-04-28 10:00 AM", complete: true },
-                { event: "Quote sent", time: "2026-04-28 02:14 PM", complete: true },
-                { event: "Order confirmed", time: "2026-04-30 09:22 AM", complete: true },
-                { event: "Funds held in escrow", time: "2026-04-30 09:25 AM", complete: true },
-                { event: "Picked up by carrier", time: "2026-05-02 08:00 AM", complete: true },
-                { event: "In transit", time: "2026-05-03 06:30 AM", complete: true },
-                { event: "Delivered", time: "", complete: false },
-                { event: "Escrow released", time: "", complete: false },
-              ].map((e, i, arr) => (
-                <div key={e.event} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    {e.complete ? (
-                      <CheckCircle className="size-5 shrink-0 text-green-600" />
-                    ) : (
-                      <Circle className="size-5 shrink-0 text-neutral-300" />
-                    )}
-                    {i < arr.length - 1 && (
-                      <div className={`w-0.5 flex-1 ${e.complete && arr[i + 1]?.complete ? "bg-green-500" : "bg-neutral-200"}`} />
-                    )}
-                  </div>
-                  <div className="flex flex-1 items-center justify-between pb-5">
-                    <span className={`text-sm ${e.complete ? "font-medium text-neutral-900" : "text-neutral-400"}`}>{e.event}</span>
-                    {e.time && <span className="text-xs text-neutral-500">{e.time}</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </DetailCard>
-
-          <DetailCard title="Documents">
-            {[
-              { name: `Invoice_${id}.pdf`, size: "212 KB" },
-              { name: `Bill_of_Lading_${id}.pdf`, size: "82 KB" },
-              { name: `SDS_EG-PROD-00023.pdf`, size: "1.2 MB" },
-            ].map((d) => (
-              <div key={d.name} className="flex items-center justify-between rounded-lg px-4 py-3" style={{ border: "1px solid #F4F4F5" }}>
-                <div className="flex items-center gap-3">
-                  <FileText className="size-5 text-neutral-500" />
-                  <div>
-                    <p className="text-sm font-medium text-neutral-900">{d.name}</p>
-                    <p className="text-xs text-neutral-500">{d.size}</p>
-                  </div>
-                </div>
-                <button className="flex items-center gap-2 text-sm font-medium text-neutral-700 hover:text-neutral-900">
-                  <Download className="size-4" />
-                  Download
-                </button>
-              </div>
-            ))}
-          </DetailCard>
+      {error ? (
+        <div role="alert" className="rounded-xl bg-amber-50 p-5">
+          {error}{" "}
+          <Button onClick={() => setRevision((n) => n + 1)}>Retry</Button>
         </div>
-
-        <aside className="flex flex-col gap-6">
-          <DetailCard title="Financial">
-            <KeyValueGrid
-              items={[
-                { label: "Subtotal", value: "$12,800.00" },
-                { label: "Shipping", value: "$640.00" },
-                { label: "Platform fee", value: "$268.80" },
-                { label: "Total", value: <strong>$13,440.00</strong> },
-                { label: "Escrow", value: <Link href="/admin/accounting/escrow/ESC-50021" className="underline">Held — ESC-50021</Link> },
-                { label: "Transaction", value: <Link href="/admin/accounting/transactions/TX-50021" className="underline">TX-50021</Link> },
-              ]}
-            />
-          </DetailCard>
-        </aside>
-      </div>
+      ) : !data ? (
+        <p role="status">Loading saved order…</p>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <DetailCard title="Order">
+              <KeyValueGrid
+                items={[
+                  {
+                    label: "Buyer",
+                    value: (
+                      <Link
+                        className="underline"
+                        href={`/admin/buyers/${value("buyerCompanyId")}`}
+                      >
+                        {value("buyerCompanyName")}
+                      </Link>
+                    ),
+                  },
+                  {
+                    label: "Seller",
+                    value: (
+                      <Link
+                        className="underline"
+                        href={`/admin/sellers/${value("sellerCompanyId")}`}
+                      >
+                        {value("sellerCompanyName")}
+                      </Link>
+                    ),
+                  },
+                  {
+                    label: "Product",
+                    value: order?.listingId ? (
+                      <Link
+                        className="underline"
+                        href={`/admin/listings/${value("listingId")}`}
+                      >
+                        {value("listingTitle")}
+                      </Link>
+                    ) : (
+                      "Not linked"
+                    ),
+                  },
+                  {
+                    label: "Quantity",
+                    value:
+                      order?.quantity == null
+                        ? "Not recorded"
+                        : `${quantity} ${value("quantityUnit")}`,
+                  },
+                  { label: "Placed", value: date(value("createdAt")) },
+                  { label: "Last updated", value: date(value("updatedAt")) },
+                  { label: "Delivery method", value: value("deliveryMethod") },
+                  {
+                    label: "Delivery address",
+                    value: value("deliveryAddress"),
+                  },
+                ]}
+              />
+            </DetailCard>
+            <DetailCard title="Shipments">
+              {data.shipments.length ? (
+                data.shipments.map((shipment) => (
+                  <div
+                    key={shipment.id}
+                    className="space-y-3 border-b py-3 last:border-0"
+                  >
+                    <p>
+                      Shipment {shipment.id} · {shipment.shipmentStatusName}
+                    </p>
+                    <p>
+                      {shipment.carrierName ?? "Carrier not assigned"} ·{" "}
+                      {shipment.trackingNumber ?? "Tracking not recorded"}
+                    </p>
+                    <p>
+                      Carrier cost:{" "}
+                      {shipment.shippingCost == null
+                        ? "Not recorded"
+                        : money(shipment.shippingCost)}
+                    </p>
+                    <Button
+                      disabled={saving}
+                      onClick={() => void overrideTracking(shipment)}
+                    >
+                      Override tracking for shipment {shipment.id}
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p>No shipment has been recorded for this order.</p>
+              )}
+            </DetailCard>
+            <DetailCard title="Documents">
+              <p className="mb-3 text-sm text-neutral-500">
+                Review saved documents in the document center. No invoice or
+                bill of lading is generated by this summary.
+              </p>
+              <Link className="underline" href="/admin/documents">
+                Open documents
+              </Link>
+            </DetailCard>
+          </div>
+          <aside className="space-y-6">
+            <DetailCard title="Financial">
+              <KeyValueGrid
+                items={[
+                  ...(checkout
+                    ? [{ label: "Material subtotal", value: money(subtotal) }]
+                    : []),
+                  {
+                    label: "Shipping in order total",
+                    value: "Not separately recorded",
+                  },
+                  { label: "Platform fee", value: "Not separately recorded" },
+                  ...(credit > 0
+                    ? [
+                        {
+                          label: "Sample shipping credit",
+                          value: `−${money(credit)}`,
+                        },
+                      ]
+                    : []),
+                  {
+                    label: "Saved order total",
+                    value: <strong>{money(total)}</strong>,
+                  },
+                ]}
+              />
+              <p className="mt-4 text-sm text-neutral-500">
+                {checkout && quantity > 0
+                  ? `${quantity} ${value("quantityUnit")} × ${money(subtotal / quantity)} per ${value("quantityUnit")} = ${money(subtotal)} before credits. The unit amount is derived from the saved order, not today's listing price. `
+                  : "This is the total recorded when the order was created. "}
+                Shipping costs shown on shipments are not added again. No
+                separate platform fee is recorded on this order.
+              </p>
+            </DetailCard>
+            <DetailCard title="Escrow">
+              {data.escrows.length ? (
+                data.escrows.map((escrow) => (
+                  <p key={escrow.id}>
+                    <Link
+                      className="underline"
+                      href={`/admin/accounting/escrow/ESC-${escrow.id}`}
+                    >
+                      ESC-{escrow.id} · {escrow.escrowStatusCode} ·{" "}
+                      {money(escrow.amount)}
+                    </Link>
+                  </p>
+                ))
+              ) : (
+                <p>No escrow recorded.</p>
+              )}
+            </DetailCard>
+            <DetailCard title="Payments">
+              {data.payments.length ? (
+                data.payments.map((payment) => (
+                  <p key={payment.id}>
+                    <Link
+                      className="underline"
+                      href={`/admin/accounting/payments/TX-${payment.id}`}
+                    >
+                      TX-{payment.id} · {payment.paymentStatusCode} ·{" "}
+                      {money(payment.amount)}
+                    </Link>
+                  </p>
+                ))
+              ) : (
+                <p>No payments recorded.</p>
+              )}
+            </DetailCard>
+          </aside>
+        </div>
+      )}
     </AdminDetailPage>
   );
 }

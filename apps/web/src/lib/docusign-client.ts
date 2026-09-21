@@ -8,6 +8,7 @@ export type BackendContract = {
   sellerCompanyName: string;
   title: string;
   contractStatusCode: string;
+  renewalTerms?: string | null;
   providerName?: string;
   providerEnvelopeId?: string;
   signedDocumentUrl?: string;
@@ -40,28 +41,46 @@ async function backendJson<T>(path: string, init?: RequestInit) {
     cache: "no-store",
   });
   const payload = (await response.json()) as T & { error?: string };
-  if (!response.ok) throw new Error(payload.error || "EcoGlobe could not complete the DocuSign request.");
+  if (!response.ok)
+    throw new Error(
+      payload.error || "EcoGlobe could not complete the DocuSign request.",
+    );
   return payload;
 }
 
 export async function loadSignatureWorkspace() {
   const [contractResult, signatureResult] = await Promise.all([
     backendJson<{ ok: true; contracts: BackendContract[] }>("/api/contracts"),
-    backendJson<{ ok: true; signatures: BackendSignature[] }>("/api/signatures"),
+    backendJson<{ ok: true; signatures: BackendSignature[] }>(
+      "/api/signatures",
+    ),
   ]);
-  return { contracts: contractResult.contracts, signatures: signatureResult.signatures };
+  return {
+    contracts: contractResult.contracts,
+    signatures: signatureResult.signatures,
+  };
 }
 
 export async function sendContractForDocusign(contractId: number) {
-  return backendJson<{ ok: true; envelope: { envelopeId: string; status: string } }>(
-    `/api/contracts/${contractId}/docusign-envelope`,
-    { method: "POST", body: "{}" },
-  );
+  return backendJson<{
+    ok: true;
+    envelope: { envelopeId: string; status: string };
+  }>(`/api/contracts/${contractId}/docusign-envelope`, {
+    method: "POST",
+    body: "{}",
+  });
 }
 
-export async function createDocusignSigningView(signatureId: number, returnUrl: string) {
-  return backendJson<{ ok: true; signingUrl: string; expiresInSeconds: number }>(
-    `/api/signatures/${signatureId}/docusign-view`,
-    { method: "POST", body: JSON.stringify({ returnUrl }) },
-  );
+export async function createDocusignSigningView(
+  signatureId: number,
+  returnUrl: string,
+) {
+  return backendJson<{
+    ok: true;
+    signingUrl: string;
+    expiresInSeconds: number;
+  }>(`/api/signatures/${signatureId}/docusign-view`, {
+    method: "POST",
+    body: JSON.stringify({ returnUrl }),
+  });
 }
