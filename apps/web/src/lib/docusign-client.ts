@@ -49,13 +49,15 @@ async function backendJson<T>(path: string, init?: RequestInit) {
 }
 
 export async function loadSignatureWorkspace() {
-  const [contractResult, signatureResult] = await Promise.all([
+  const [contractResult, signatureResult, readiness] = await Promise.all([
     backendJson<{ ok: true; contracts: BackendContract[] }>("/api/contracts"),
     backendJson<{ ok: true; signatures: BackendSignature[] }>(
       "/api/signatures",
     ),
+    backendJson<{ready:boolean}>("/api/docusign/readiness"),
   ]);
   return {
+    ready: readiness.ready,
     contracts: contractResult.contracts,
     signatures: signatureResult.signatures,
   };
@@ -82,5 +84,12 @@ export async function createDocusignSigningView(
   }>(`/api/signatures/${signatureId}/docusign-view`, {
     method: "POST",
     body: JSON.stringify({ returnUrl }),
+  });
+}
+
+export async function assignSelfAsSigner(contractId: number) {
+  return backendJson(`/api/contracts/${contractId}/assign-self-signer`, {
+    method: "POST",
+    body: "{}",
   });
 }

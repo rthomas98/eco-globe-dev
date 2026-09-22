@@ -69,7 +69,7 @@ type NavItem = {
   children?: NavChild[];
 };
 
-const navItems: NavItem[] = [
+export const sellerNavItems: NavItem[] = [
   { label: "Home", href: "/", icon: Home },
   { label: "Listings", href: "/seller/listings", icon: LayoutGrid },
   { label: "Sales", href: "/seller/sales", icon: TrendingUp },
@@ -80,10 +80,22 @@ const navItems: NavItem[] = [
   { label: "Contracts", href: "/seller/contracts", icon: FileSignature },
   { label: "E-signatures", href: "/seller/e-signatures", icon: PenLine },
   { label: "Verification", href: "/seller/verification", icon: ShieldCheck },
-  { label: "Delivery Tracking", href: "/seller/delivery-tracking", icon: Route },
+  {
+    label: "Delivery Tracking",
+    href: "/seller/delivery-tracking",
+    icon: Route,
+  },
   { label: "Partner Network", href: "/seller/partners", icon: Network },
-  { label: "Asset Verification", href: "/seller/asset-verification", icon: ShieldCheck },
-  { label: "Blockchain", href: "/seller/blockchain-traceability", icon: Blocks },
+  {
+    label: "Asset Verification",
+    href: "/seller/asset-verification",
+    icon: ShieldCheck,
+  },
+  {
+    label: "Blockchain",
+    href: "/seller/blockchain-traceability",
+    icon: Blocks,
+  },
   { label: "Smart Contracts", href: "/seller/smart-contracts", icon: Workflow },
   {
     label: "Carbon Calculator",
@@ -114,10 +126,22 @@ const navItems: NavItem[] = [
   { label: "Disputes", href: "/seller/disputes", icon: AlertTriangle },
   { label: "Documents", href: "/seller/documents", icon: FileText },
   { label: "Analytics", href: "/seller/analytics", icon: BarChart3 },
-  { label: "Recommendations", href: "/seller/recommendations", icon: Lightbulb },
+  {
+    label: "Recommendations",
+    href: "/seller/recommendations",
+    icon: Lightbulb,
+  },
   { label: "Language", href: "/seller/language", icon: Languages },
-  { label: "National Expansion", href: "/seller/national-expansion", icon: Rocket },
-  { label: "Mobile Access", href: "/seller/mobile-access", icon: MonitorSmartphone },
+  {
+    label: "National Expansion",
+    href: "/seller/national-expansion",
+    icon: Rocket,
+  },
+  {
+    label: "Mobile Access",
+    href: "/seller/mobile-access",
+    icon: MonitorSmartphone,
+  },
   { label: "Video demos", href: "/seller/video-demos", icon: Video },
 ];
 
@@ -143,14 +167,19 @@ function UserMenu({
       />
       <div
         className="absolute bottom-16 left-3 z-50 w-[280px] rounded-2xl bg-white p-5"
-        style={{ border: "1px solid #F0F0F0", boxShadow: "0 12px 40px rgba(0,0,0,0.12)" }}
+        style={{
+          border: "1px solid #F0F0F0",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
+        }}
       >
         <div className="mb-4 flex flex-col gap-3">
           <div className="flex size-14 items-center justify-center rounded-full bg-amber-200 text-lg font-semibold text-amber-700">
             {userInitials(displayName)}
           </div>
           <div>
-            <p className="text-base font-bold text-neutral-900">{displayName}</p>
+            <p className="text-base font-bold text-neutral-900">
+              {displayName}
+            </p>
             <p className="text-sm text-neutral-500">{displayEmail}</p>
           </div>
         </div>
@@ -202,14 +231,20 @@ function UserMenu({
   );
 }
 
-export function SellerSidebar({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
+export function SellerSidebar({
+  className,
+  onNavigate,
+}: {
+  className?: string;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const sessionUser = useDemoUser();
   const sidebarName = sessionUser?.name ?? "EcoGlobe Seller";
 
   const [openSection, setOpenSection] = useState<string | null>(() => {
-    const match = navItems.find(
+    const match = sellerNavItems.find(
       (i) => i.children && pathname.startsWith(i.href),
     );
     return match?.label ?? null;
@@ -259,8 +294,11 @@ export function SellerSidebar({ className, onNavigate }: { className?: string; o
 
       {/* Nav items */}
       <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pt-4">
-        {navItems.map((item) => {
-          const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
+        {sellerNavItems.map((item) => {
+          const isActive =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const isOpen = openSection === item.label;
 
           if (item.children) {
@@ -338,7 +376,9 @@ export function SellerSidebar({ className, onNavigate }: { className?: string; o
           }`}
         >
           <div className="relative">
-            <Bell className={`size-5 ${notifsOpen ? "fill-neutral-900" : ""}`} />
+            <Bell
+              className={`size-5 ${notifsOpen ? "fill-neutral-900" : ""}`}
+            />
             <span className="absolute -right-1.5 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
               8
             </span>
@@ -371,7 +411,9 @@ export function SellerSidebar({ className, onNavigate }: { className?: string; o
           onSwitchToBuyer={handleSwitchToBuyer}
         />
       )}
-      {notifsOpen && <NotificationsPanel onClose={() => setNotifsOpen(false)} />}
+      {notifsOpen && (
+        <NotificationsPanel onClose={() => setNotifsOpen(false)} />
+      )}
     </aside>
   );
 }

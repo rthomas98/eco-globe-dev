@@ -22,6 +22,7 @@ type ListingBody = {
   carbonIntensityKgCo2e?: number;
   description?: string;
 };
+import { handlePartnerRoute } from "./partner-routes.js";
 import { handleTrackerRoute } from './tracker-routes.js';
 import { handleLabRoute } from './lab-routes.js';
 import { handlePilotRoute } from './pilot-routes.js';
@@ -6825,6 +6826,7 @@ export async function handleApiRoute(
 ) {
   // The modular handlers own listing/sample CRUD. Legacy core implementations below
   // remain for reference; only explicitly forwarded marketplace/moderation paths reach them.
+  if (await handlePartnerRoute(request,response,requestUrl)) return true;
   if (await handleTrackerRoute(request,response,requestUrl)) return true;
   if (await handleDemoOrderRoute(request,response,requestUrl)) return true;
   if (await handlePilotRoute(request,response,requestUrl)) return true;

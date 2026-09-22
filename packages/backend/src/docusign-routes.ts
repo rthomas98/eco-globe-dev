@@ -376,6 +376,38 @@ export async function handleDocusignRoute(
     sendJson(response, 200, { ok: true, docusign: getDocusignConfigurationStatus() });
     return true;
   }
+  if (requestUrl.pathname === "/api/docusign/readiness") {
+    if (request.method !== "GET") throw new ApiError(405, "Method not allowed.");
+    await requireSessionAuth(request);
+    const status = getDocusignConfigurationStatus();
+    sendJson(response,200,{ok:true,ready:status.configured && status.templateConfigured && status.immutableStorageConfigured});
+    return true;
+  }
+  const assignMatch = matchPath(requestUrl.pathname, "/api/contracts/:id/assign-self-signer");
+  if (assignMatch.matched) {
+    if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
+    const auth = await requireSessionAuth(request);
+    const contract = await loadContract(parseId(assignMatch.params.id, "Contract ID"));
+    if (!auth.companyId || ![contract.buyerCompanyId, contract.sellerCompanyId].includes(auth.companyId))
+      throw new ApiError(403, "Only a member of a contracting company can register as its signer.");
+    if (contract.providerEnvelopeId || !["draft", "signature_pending"].includes(contract.contractStatusCode))
+      throw new ApiError(409, "Signer setup is available only before the envelope is sent.");
+    const rows = await queryRowsWithParams(`
+      SET XACT_ABORT ON;
+      BEGIN TRANSACTION;
+      IF EXISTS (SELECT 1 FROM dbo.Contracts WITH (UPDLOCK,HOLDLOCK) WHERE Id=@contractId AND ProviderEnvelopeId IS NULL
+        AND ContractStatusId IN (SELECT Id FROM dbo.ContractStatuses WHERE Code IN ('draft','signature_pending')))
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM dbo.Signatures WITH (UPDLOCK,HOLDLOCK) WHERE ContractId=@contractId AND SignerCompanyId=@companyId)
+          INSERT dbo.Signatures (ContractId,SignerUserId,SignerCompanyId,SignatureStatusId,CreatedByUserId,UpdatedByUserId)
+          SELECT @contractId,@userId,@companyId,Id,@userId,@userId FROM dbo.SignatureStatuses WHERE Code='not_sent';
+        SELECT Id AS id,SignerUserId AS signerUserId FROM dbo.Signatures WHERE ContractId=@contractId AND SignerCompanyId=@companyId;
+      END;
+      COMMIT TRANSACTION;`,[intParam("contractId",contract.id),intParam("companyId",auth.companyId),intParam("userId",auth.userId)]);
+    if (!rows?.[0] || rows[0].signerUserId !== auth.userId) throw new ApiError(409,"Another signer is assigned or this contract has already been sent.");
+    sendJson(response,200,{ok:true,signature:rows[0]});
+    return true;
+  }
   const envelopeMatch = matchPath(requestUrl.pathname, "/api/contracts/:id/docusign-envelope");
   if (envelopeMatch.matched) {
     if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");

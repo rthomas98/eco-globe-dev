@@ -1,7 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FileText, Image as ImageIcon, Plus, Trash2, Download, AlertTriangle } from "lucide-react";
+import {
+  FileText,
+  Image as ImageIcon,
+  Plus,
+  Trash2,
+  Download,
+  AlertTriangle,
+} from "lucide-react";
 import { describeBackendError } from "@/lib/backend-client";
 import {
   DOCUMENT_ACCEPT,
@@ -53,11 +60,19 @@ export function DocumentRow({
       <div className="flex min-w-0 items-center gap-3">
         <Icon className="size-5 shrink-0 text-neutral-500" />
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-neutral-900">{document.fileName}</p>
+          <p className="truncate text-sm font-medium text-neutral-900">
+            {document.fileName}
+          </p>
           <p className="text-xs text-neutral-500">
-            {TYPE_LABEL[normalizeDocumentTypeCode(document.documentTypeCode) as ListingDocumentTypeCode] ?? document.documentTypeCode}
+            {TYPE_LABEL[
+              normalizeDocumentTypeCode(
+                document.documentTypeCode,
+              ) as ListingDocumentTypeCode
+            ] ?? document.documentTypeCode}
             {size ? ` · ${size}` : ""}
-            {document.verificationStatusCode ? ` · ${document.verificationStatusCode.replace(/_/g, " ")}` : ""}
+            {document.verificationStatusCode
+              ? ` · ${document.verificationStatusCode.replace(/_/g, " ")}`
+              : ""}
           </p>
         </div>
       </div>
@@ -93,6 +108,7 @@ export function DocumentRow({
  */
 export function ListingDocumentUploader({
   listingId,
+  ensureListing,
   typeCode,
   documents,
   onChange,
@@ -102,9 +118,10 @@ export function ListingDocumentUploader({
   required,
 }: {
   listingId: number | null;
+  ensureListing?: () => Promise<number>;
   typeCode: ListingDocumentTypeCode;
   documents: ListingDocument[];
-  onChange: (next: ListingDocument[]) => void;
+  onChange: React.Dispatch<React.SetStateAction<ListingDocument[]>>;
   multiple?: boolean;
   title?: string;
   hint?: string;
@@ -113,25 +130,35 @@ export function ListingDocumentUploader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const mine = documents.filter((doc) => normalizeDocumentTypeCode(doc.documentTypeCode) === typeCode);
+  const mine = documents.filter(
+    (doc) => normalizeDocumentTypeCode(doc.documentTypeCode) === typeCode,
+  );
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    if (listingId === null) {
-      setError("Save the listing draft first, then upload documents.");
-      return;
-    }
+    const selectedFiles = Array.from(files);
     setBusy(true);
     setError("");
     const uploaded: ListingDocument[] = [];
     try {
-      for (const file of Array.from(files)) {
-        uploaded.push(await uploadListingDocument({ listingId, documentTypeCode: typeCode, file }));
+      const savedId = listingId ?? (await ensureListing?.());
+      if (!savedId)
+        throw new Error("Save the listing draft first, then upload documents.");
+      for (const file of selectedFiles) {
+        uploaded.push(
+          await uploadListingDocument({
+            listingId: savedId,
+            documentTypeCode: typeCode,
+            file,
+          }),
+        );
       }
-      onChange([...documents, ...uploaded]);
+      onChange((current) => [...current, ...uploaded]);
     } catch (err) {
-      if (uploaded.length > 0) onChange([...documents, ...uploaded]);
-      setError(describeBackendError(err, "The upload failed. Please try again."));
+      if (uploaded.length > 0) onChange((current) => [...current, ...uploaded]);
+      setError(
+        describeBackendError(err, "The upload failed. Please try again."),
+      );
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -143,7 +170,7 @@ export function ListingDocumentUploader({
     setError("");
     try {
       await deleteListingDocument(doc.id);
-      onChange(documents.filter((d) => d.id !== doc.id));
+      onChange((current) => current.filter((d) => d.id !== doc.id));
     } catch (err) {
       setError(describeBackendError(err, "The document could not be removed."));
     } finally {
@@ -165,14 +192,19 @@ export function ListingDocumentUploader({
       {mine.length > 0 && (
         <div className="flex flex-col gap-2">
           {mine.map((doc) => (
-            <DocumentRow key={doc.id} document={doc} busy={busy} onDelete={() => void handleDelete(doc)} />
+            <DocumentRow
+              key={doc.id}
+              document={doc}
+              busy={busy}
+              onDelete={() => void handleDelete(doc)}
+            />
           ))}
         </div>
       )}
       {canAdd && (
         <label
           className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-white py-3 text-sm font-medium text-neutral-900 ${
-            listingId === null ? "opacity-60" : ""
+            listingId === null && !ensureListing ? "opacity-60" : ""
           }`}
           style={{ border: "1px dashed #D0D0D0" }}
         >
@@ -194,7 +226,9 @@ export function ListingDocumentUploader({
           (typeCode === "photo"
             ? "Accepts PNG, JPEG or WebP up to 5 MB each."
             : "Accepts PDF up to 5 MB.")}
-        {listingId === null ? " Documents are stored with the saved listing." : ""}
+        {listingId === null
+          ? " Documents are stored with the saved listing."
+          : ""}
       </p>
       {error && (
         <p className="flex items-start gap-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">

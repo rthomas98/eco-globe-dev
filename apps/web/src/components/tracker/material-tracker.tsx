@@ -27,11 +27,13 @@ export function MaterialTracker({ role }: { role: "buyer" | "seller" }) {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [open, setOpen] = useState<number | null>(null);
+  const [refreshedAt, setRefreshedAt] = useState<string | null>(null);
   const load = useCallback(async () => {
     setBusy(true);
     try {
       const next = await getTracker(role);
       setData(next);
+      setRefreshedAt(new Date().toLocaleTimeString());
       setError("");
       setOpen((id) => id ?? next.listings[0]?.id ?? null);
     } catch (e) {
@@ -74,10 +76,17 @@ export function MaterialTracker({ role }: { role: "buyer" | "seller" }) {
               onClick={() => void load()}
               disabled={busy}
             >
-              Refresh
+              {busy ? "Refreshing…" : "Refresh"}
             </button>
           </p>
         </div>
+        <p role="status" className="mb-3 text-xs text-neutral-500">
+          {busy
+            ? "Checking for updates…"
+            : refreshedAt
+              ? `Up to date · Last checked ${refreshedAt}`
+              : ""}
+        </p>
         {error && (
           <p role="alert" className="mb-4 rounded-xl bg-amber-50 p-4">
             {error}
@@ -216,14 +225,29 @@ function MaterialCard({
   const statusLabel = (index: number) => {
     const name = stages[index];
     if (!evidence[index]) return `${name} — No activity`;
-    const source = name === "Sample" ? records.samples
-      : name === "Testing" ? records.labs
-      : name === "Pilot" ? records.pilots
-      : ["Order", "Shipping", "In transit", "Delivered", "Paid"].includes(name ?? "") ? records.orders : [];
-    const statuses = [...new Set(source.map((record) => nice(
-      ["Shipping", "In transit", "Delivered"].includes(name ?? "")
-        ? record.shippingStatus ?? record.status : record.status
-    )))];
+    const source =
+      name === "Sample"
+        ? records.samples
+        : name === "Testing"
+          ? records.labs
+          : name === "Pilot"
+            ? records.pilots
+            : ["Order", "Shipping", "In transit", "Delivered", "Paid"].includes(
+                  name ?? "",
+                )
+              ? records.orders
+              : [];
+    const statuses = [
+      ...new Set(
+        source.map((record) =>
+          nice(
+            ["Shipping", "In transit", "Delivered"].includes(name ?? "")
+              ? (record.shippingStatus ?? record.status)
+              : record.status,
+          ),
+        ),
+      ),
+    ];
     return `${name} — ${statuses.join(", ") || "Recorded"}${index === current ? " (current stage)" : ""}`;
   };
   const files = [
@@ -320,14 +344,23 @@ function MaterialCard({
           </p>
         </div>
         {!expanded && (
-          <span
-            className="hidden min-w-[180px] flex-1 items-center px-4 xl:flex"
-          >
+          <span className="hidden min-w-[180px] flex-1 items-center px-4 xl:flex">
             {evidence.map((recorded, i) => (
               <span key={stages[i]} className="flex flex-1 items-center">
-                <span className="group relative flex size-6 shrink-0 items-center justify-center" title={statusLabel(i)} aria-label={statusLabel(i)}>
-                  <span className={`size-3 rounded-full border-2 ${i === current ? "border-emerald-700 bg-emerald-700" : recorded ? "border-neutral-950 bg-neutral-950" : "border-neutral-200 bg-white"}`} />
-                  <span role="tooltip" className="pointer-events-none absolute left-1/2 top-full z-20 hidden w-max max-w-64 -translate-x-1/2 rounded-md bg-neutral-950 px-3 py-2 text-xs font-medium text-white shadow-lg group-hover:block">{statusLabel(i)}</span>
+                <span
+                  className="group relative flex size-6 shrink-0 items-center justify-center"
+                  title={statusLabel(i)}
+                  aria-label={statusLabel(i)}
+                >
+                  <span
+                    className={`size-3 rounded-full border-2 ${i === current ? "border-emerald-700 bg-emerald-700" : recorded ? "border-neutral-950 bg-neutral-950" : "border-neutral-200 bg-white"}`}
+                  />
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute left-1/2 top-full z-20 hidden w-max max-w-64 -translate-x-1/2 rounded-md bg-neutral-950 px-3 py-2 text-xs font-medium text-white shadow-lg group-hover:block"
+                  >
+                    {statusLabel(i)}
+                  </span>
                 </span>
                 {i < evidence.length - 1 && (
                   <span className="h-0.5 flex-1 bg-neutral-200" />
@@ -368,7 +401,12 @@ function MaterialCard({
                   {i < stages.length - 1 && (
                     <span className="absolute left-1/2 right-[-50%] top-7 h-0.5 bg-neutral-200" />
                   )}
-                  <span role="tooltip" className="pointer-events-none absolute left-1/2 top-12 z-20 hidden w-max max-w-64 -translate-x-1/2 rounded-md bg-neutral-950 px-3 py-2 text-xs font-medium text-white shadow-lg group-hover:block group-focus-visible:block">{statusLabel(i)}</span>
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute left-1/2 top-12 z-20 hidden w-max max-w-64 -translate-x-1/2 rounded-md bg-neutral-950 px-3 py-2 text-xs font-medium text-white shadow-lg group-hover:block group-focus-visible:block"
+                  >
+                    {statusLabel(i)}
+                  </span>
                   <strong
                     className={
                       stage === name ? "text-emerald-700" : "text-neutral-600"
