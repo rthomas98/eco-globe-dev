@@ -29,4 +29,20 @@ Checks: web, admin and backend TypeScript checks; ESLint (only existing raw-imag
 
 ## Release verification
 
-Pending deployment and live Chrome checks. Real DocuSign signing remains dependent on provider configuration, template, and signed-document storage.
+App changes committed and pushed as `4b8791c`; live-data currency correction as `7f06b8b`.
+
+Backend revision `ecoglobe-backend-dev--0000022` is active and Healthy, image digest `sha256:e4e54a1dd3438b161cf67c9284af9820de543b44582d4e23f2e60495ea899211`. Ten live API authorization, partner and signer checks passed. The additive CompanyPartners migration is present.
+
+Chrome on the live seller site, signed in as Sasha:
+
+- Header search opened and filtered to Sales / Reports · Sales.
+- Sales shows seven saved orders; Pickup + Apply returned only EG-10 and EG-8. Completed + Apply returned only EG-6 and EG-3. Reset was exercised. EG-4 retains Quote sent / awaiting approval.
+- SHP-7 retained Delivered and its confirmation timestamp after a full reload.
+- Marsh Materials BV was returned to review, approved again, and remained approved after reload.
+- Listing 28 displayed its saved photo with natural width 1400px. Upload creation was tested locally against the configured database; live rendering was verified separately.
+- CT-4 retained Sasha's Not sent assignment and explicitly reported that DocuSign is not connected. No contract was signed or sent.
+- Live tracker testing exposed blank currency data from the incomplete draft listing. Formatting now tolerates missing currency without inventing a currency. Local and final live Chrome refresh both completed successfully; live showed Checking for updates followed by Up to date / Last checked 9:13:48 AM, with the incomplete listing rendered rather than crashing.
+
+Final web deployment `dpl_CkpvoRh1MBfqMUBnuKbhYwgmhyY4` was built from `7f06b8b` and promoted to https://eco-globe-dev-web.vercel.app. Build, type validation and static generation passed. Deployment URL: https://eco-globe-dev-1ppux2azk-rob-thomas-projects.vercel.app.
+
+Real DocuSign signing remains dependent on provider configuration, template, and signed-document storage. No real payment, physical shipment, carrier booking, or escrow settlement was performed.
