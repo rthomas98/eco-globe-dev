@@ -336,10 +336,12 @@ function MaterialCard({
           </h2>
           <p className="mt-1 text-sm text-neutral-500">
             {l.city}, {l.region} ·{" "}
-            {new Intl.NumberFormat("en-US", {
-              style: "currency",
-              currency: l.currency,
-            }).format(l.price)}
+            {/^[A-Z]{3}$/i.test(l.currency?.trim() ?? "")
+              ? new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: l.currency.trim().toUpperCase(),
+                }).format(l.price)
+              : `${new Intl.NumberFormat("en-US").format(l.price)} (currency not recorded)`}
             /{l.unit}
           </p>
         </div>
