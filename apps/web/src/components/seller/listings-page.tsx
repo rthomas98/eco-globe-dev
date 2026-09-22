@@ -227,7 +227,7 @@ export function ListingsPage() {
         </div>
       ) : view === "list" ? (
         <div className="overflow-x-auto rounded-xl bg-white">
-          <table className="w-full min-w-[800px]">
+          <table className="w-full min-w-[800px] [&_th]:px-6 [&_th]:pt-4 [&_td]:px-6">
             <thead>
               <tr className="text-left" style={{ borderBottom: "1px solid #F0F0F0" }}>
                 <th className="pb-3 text-sm font-medium text-neutral-500">Listing Name</th>
