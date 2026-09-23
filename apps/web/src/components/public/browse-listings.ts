@@ -60,6 +60,8 @@ export interface Listing {
   title: string;
   /** "City, Region" derived from the persisted location; empty when unknown. */
   location: string;
+  /** Public city reference for approximate map positioning; never facility coordinates. */
+  cityLocation?: { city: string; region: string; country: string };
   /** Distance is resolved against the viewer at render time; "—" when unknown. */
   distance: string;
   /** Formatted MOQ with explicit unit, or "—" when not recorded. */

@@ -148,6 +148,9 @@ importers:
       '@eco-globe/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      cities.json:
+        specifier: 1.1.61
+        version: 1.1.61
       lucide-react:
         specifier: ^0.475.0
         version: 0.475.0(react@19.2.4)
@@ -2343,6 +2346,9 @@ packages:
   ci-info@3.9.0:
     resolution: {integrity: sha512-NIxF55hv4nSqQswkAeiOi1r83xy8JldOFDTWiug55KBu9Jnblncd2U6ViHmYgHf01TPZS77NJBhBMKdWj9HQMQ==}
     engines: {node: '>=8'}
+
+  cities.json@1.1.61:
+    resolution: {integrity: sha512-vrgTqcQ8O/ZBA3YIaGjSmAhFJgUEgkMeQkJ6fVDV/292IjSEiifFZPrjyFQEe6218MxHupM90oqy5qyruzxflA==}
 
   class-variance-authority@0.7.1:
     resolution: {integrity: sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg==}
@@ -7814,6 +7820,8 @@ snapshots:
   ci-info@2.0.0: {}
 
   ci-info@3.9.0: {}
+
+  cities.json@1.1.61: {}
 
   class-variance-authority@0.7.1:
     dependencies:

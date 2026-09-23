@@ -535,7 +535,6 @@ export function BrowsePage() {
                     "distance",
                     e.target.value === "0" ? "Any" : `${e.target.value} mi`,
                   );
-                  setSelectedId(null);
                   router.replace(`/browse?${params.toString()}`, {
                     scroll: false,
                   });
@@ -555,11 +554,9 @@ export function BrowsePage() {
           }
           <ListingMap
             selectionRadius
-            selectionNotice={
-              selectedId && !mapListings.some((item) => item.id === selectedId)
-                ? "This listing has no saved map coordinates. Open its details to see the recorded location."
-                : undefined
-            }
+            unlocatedSelection={visibleListings.find(
+              (item) => item.id === selectedId && !hasCoordinates(item),
+            )}
             listings={mapListings}
             selectedId={selectedId}
             onSelect={(id) => setSelectedId(id)}

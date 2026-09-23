@@ -13,6 +13,7 @@
   "dependencies": {
     "@eco-globe/shared": "workspace:*",
     "@eco-globe/ui": "workspace:*",
+    "cities.json": "1.1.61",
     "lucide-react": "^0.475.0",
     "mapbox-gl": "^3.20.0",
     "maplibre-gl": "^6.9.0",

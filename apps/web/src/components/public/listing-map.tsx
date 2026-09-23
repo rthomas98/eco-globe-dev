@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { materialImage, isMaterialIllustration } from "@/lib/material-images";
+import type { Listing } from "./browse-listings";
+import { useCityLocation } from "@/lib/use-city-location";
 import { STREET_STYLE } from "@/lib/street-map-style";
 import { type ViewerLocation, useViewerLocation } from "@/lib/viewer-location";
 
@@ -18,6 +20,7 @@ export interface MapListing {
   lng: number;
   lat: number;
   image?: string;
+  approximate?: boolean;
 }
 
 const EMPTY_LISTINGS: MapListing[] = [];
@@ -86,7 +89,9 @@ function buildPopupContent(
   body.appendChild(title);
 
   const loc = document.createElement("p");
-  loc.textContent = listing.location;
+  loc.textContent = listing.approximate
+    ? `Approximate city: ${listing.location}`
+    : listing.location;
   Object.assign(loc.style, {
     fontSize: "12px",
     color: "#616161",
@@ -189,7 +194,7 @@ interface ListingMapProps {
   radiusFitListings?: boolean;
   /** Browse selection uses the chosen listing as the radius center. */
   selectionRadius?: boolean;
-  selectionNotice?: string;
+  unlocatedSelection?: Listing;
 }
 
 /**
@@ -319,9 +324,37 @@ export function ListingMap({
   showOriginPin = true,
   radiusFitListings = true,
   selectionRadius = false,
-  selectionNotice,
+  unlocatedSelection,
 }: ListingMapProps = {}) {
-  const data = listings ?? EMPTY_LISTINGS;
+  const city = useCityLocation(unlocatedSelection?.cityLocation);
+  const data = useMemo(() => {
+    const exact = listings ?? EMPTY_LISTINGS;
+    if (!unlocatedSelection || !city.location) return exact;
+    return [
+      ...exact,
+      {
+        id: unlocatedSelection.id,
+        title: unlocatedSelection.title,
+        location: city.location.label,
+        price: unlocatedSelection.price,
+        unit:
+          unlocatedSelection.priceNum !== null ? unlocatedSelection.unit : "",
+        moq: unlocatedSelection.moq,
+        co2: unlocatedSelection.co2,
+        image: unlocatedSelection.image ?? undefined,
+        lat: city.location.lat,
+        lng: city.location.lng,
+        approximate: true,
+      },
+    ];
+  }, [listings, unlocatedSelection, city.location]);
+  const selectionNotice = !unlocatedSelection
+    ? undefined
+    : city.location
+      ? `Approximate city location: ${city.location.label}. The seller has not saved an exact facility pin.`
+      : city.loading
+        ? "Finding approximate city location…"
+        : "No unique city location found. The seller needs to save a facility pin.";
   const [manualOrigin, setManualOrigin] = useState<{
     lng: number;
     lat: number;
@@ -334,7 +367,9 @@ export function ListingMap({
     ? {
         lng: selectedListing.lng,
         lat: selectedListing.lat,
-        label: selectedListing.title,
+        label: selectedListing.approximate
+          ? `Approximate city: ${selectedListing.location}`
+          : selectedListing.title,
       }
     : (suppliedOrigin ?? manualOrigin);
   const originLng = effectiveOrigin?.lng;
@@ -469,10 +504,15 @@ export function ListingMap({
     if (!map || (selectedId && !selectionRadius)) return;
     const hasRadius = origin && radiusMiles && radiusMiles > 0;
     const bounds = buildBounds(
-      hasRadius && !radiusFitListings ? [] : data,
+      hasRadius && !radiusFitListings
+        ? []
+        : selectedListing
+          ? [selectedListing]
+          : data,
       origin,
     );
-    if (!hasRadius) extendBoundsWithMapData(bounds, [], viewerLocation);
+    if (!hasRadius && !selectedListing)
+      extendBoundsWithMapData(bounds, [], viewerLocation);
     if (hasRadius) {
       const dLat = radiusMiles / 69;
       const dLng =
@@ -491,6 +531,7 @@ export function ListingMap({
     viewerLocation,
     selectedId,
     selectionRadius,
+    selectedListing,
   ]);
 
   // Sync origin pin + radius circle (map renderer)
@@ -683,6 +724,16 @@ export function ListingMap({
           className="absolute left-3 top-16 z-10 max-w-sm rounded-lg bg-white p-3 text-sm shadow"
         >
           {selectionNotice}
+          {city.location && unlocatedSelection && (
+            <a
+              className="mt-1 block text-xs underline"
+              href="https://github.com/lutangar/cities.json"
+              target="_blank"
+              rel="noreferrer"
+            >
+              City data: GeoNames / cities.json (CC BY 4.0)
+            </a>
+          )}
         </div>
       )}
       {!origin && (

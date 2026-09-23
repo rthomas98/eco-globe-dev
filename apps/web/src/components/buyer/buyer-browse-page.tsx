@@ -225,7 +225,6 @@ export function BuyerBrowsePage() {
               aria-label="Search radius"
               value={radius}
               onChange={(e) => {
-                setSelectedId(null);
                 setRadius(e.target.value);
               }}
               className="rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none"
@@ -334,12 +333,9 @@ export function BuyerBrowsePage() {
           >
             <ListingMap
               selectionRadius
-              selectionNotice={
-                selectedId &&
-                !mapListings.some((item) => item.id === selectedId)
-                  ? "This listing has no saved map coordinates. Open its details to see the recorded location."
-                  : undefined
-              }
+              unlocatedSelection={visibleListings.find(
+                (item) => item.id === selectedId && !hasCoordinates(item),
+              )}
               listings={mapListings}
               onView={(id) => router.push(`/buyer/browse/${id}`)}
               selectedId={selectedId}

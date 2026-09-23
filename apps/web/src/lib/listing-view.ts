@@ -152,6 +152,11 @@ export function toListing(record: BackendListing): Listing {
     teaser,
     title: record.title,
     location: formatLocation(location),
+    cityLocation: location.city ? {
+      city: location.city,
+      region: location.stateProvince ?? "",
+      country: location.countryCode ?? "",
+    } : undefined,
     distance: "—",
     moq: teaser ? TEASER_MOQ_LABEL : (moq ?? "—"),
     moqNum: record.minimumOrderQuantity,
