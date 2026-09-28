@@ -5,7 +5,7 @@ import { Download, Receipt, ShieldCheck, X } from "lucide-react";
 import { fetchPayments, portalDate, portalMoney } from "@/lib/api-portal";
 import { fetchOrders } from "@/lib/api-orders";
 import { useDemoUser } from "@/lib/demo-user";
-import { startBackendStripeOnboarding } from "@/lib/backend-auth";
+import { startBackendStripeOnboarding, syncBackendStripeSetup } from "@/lib/backend-auth";
 import {
   paymentReceiptHtml,
   paymentsCsv,
@@ -139,14 +139,19 @@ export function PaymentsCenter({ role }: { role: Role }) {
   }, [companyId, userId, role, reload]);
 
   useEffect(() => {
-    const result = new URLSearchParams(window.location.search).get("stripe");
-    if (result === "success")
-      setNotice(
-        "Provider setup returned. Verification and payout readiness depend on the provider; returning here does not confirm approval.",
-      );
-    if (result === "cancelled")
-      setNotice("Payment setup was cancelled. You can try again.");
-  }, []);
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("stripe");
+    if (role === "admin") return;
+    let active = true;
+    if (result === "success") {
+      setNotice("Checking payment setup with Stripe…");
+      void syncBackendStripeSetup(role,params.get("session_id") ?? undefined)
+        .then(status => { if(active) setNotice(status.message); })
+        .catch(error => { if(active) setNotice(error instanceof Error ? error.message : "Unable to verify payment setup."); });
+    }
+    if(result === "cancelled") setNotice("Payment setup was cancelled. You can try again.");
+    return () => { active=false; };
+  }, [role]);
 
   async function startSetup() {
     if (role === "admin") return;
@@ -164,9 +169,7 @@ export function PaymentsCenter({ role }: { role: Role }) {
         window.location.assign(result.redirectUrl);
         return;
       }
-      setSetupMessage(
-        "Demo setup recorded by the backend. No bank account or card was connected, and no money can be transferred through this demo setup.",
-      );
+      throw new Error("Stripe setup is unavailable. No payment method was connected.");
     } catch (err) {
       setSetupError(
         err instanceof Error
@@ -323,8 +326,8 @@ export function PaymentsCenter({ role }: { role: Role }) {
           <p className="mb-4 text-sm leading-6">
             Continue to secure provider setup to add{" "}
             {role === "seller" ? "a payout account" : "a payment method"}. Bank
-            and card details are entered with the provider. If this environment
-            uses demo mode, only a demo setup is recorded.
+            and card details are entered with Stripe. Setup is confirmed only after
+            Stripe verifies completion.
           </p>
           {setupError && (
             <p role="alert" className="mb-4 text-red-700">

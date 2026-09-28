@@ -149,16 +149,20 @@ const selectListing = `SELECT l.Id AS id,l.SellerCompanyId AS sellerCompanyId,c.
  FROM dbo.Listings l JOIN dbo.Companies c ON c.Id=l.SellerCompanyId JOIN dbo.AccountStatuses vs ON vs.Id=c.VerificationStatusId
  JOIN dbo.Locations loc ON loc.Id=l.LocationId JOIN dbo.MaterialTypes mt ON mt.Id=l.MaterialTypeId JOIN dbo.ListingStatuses ls ON ls.Id=l.ListingStatusId`;
 async function documents(listingId: unknown) {
+  return documentsForListings([listingId]);
+}
+async function documentsForListings(listingIds: unknown[]) {
+  if (!listingIds.length) return [];
   return query(
     `SELECT d.Id AS id,d.ListingId AS listingId,dt.Code AS documentTypeCode,d.FileName AS fileName,
     d.ContentType AS contentType,d.ByteLength AS byteLength,d.Sha256 AS sha256,
     CASE WHEN d.Content IS NOT NULL THEN CONCAT('/api/listing-documents/',d.Id,'/download') ELSE d.FileUrl END AS fileUrl,vs.Code AS verificationStatusCode
     FROM dbo.ListingDocuments d JOIN dbo.DocumentTypes dt ON dt.Id=d.DocumentTypeId JOIN dbo.AccountStatuses vs ON vs.Id=d.VerificationStatusId
-    WHERE d.ListingId=@listingId AND d.DeletedAt IS NULL AND (d.Content IS NOT NULL OR d.FileUrl IS NOT NULL) ORDER BY CASE WHEN dt.Code='sds' THEN 0 ELSE 1 END,d.Id`,
-    [int("listingId", listingId)],
+    WHERE d.ListingId IN (SELECT value FROM OPENJSON(@listingIds)) AND d.DeletedAt IS NULL AND (d.Content IS NOT NULL OR d.FileUrl IS NOT NULL) ORDER BY CASE WHEN dt.Code='sds' THEN 0 ELSE 1 END,d.Id`,
+    [str("listingIds", JSON.stringify(listingIds))],
   );
 }
-async function project(row: Record<string, unknown>) {
+async function project(row: Record<string, unknown>, listingDocuments?: Record<string, unknown>[]) {
   const {
     specificationsJson,
     locationName,
@@ -194,7 +198,7 @@ async function project(row: Record<string, unknown>) {
       latitude,
       longitude,
     },
-    documents: await documents(row.id),
+    documents: listingDocuments ?? await documents(row.id),
   };
 }
 export function listingForViewer<T extends Record<string, unknown>>(listing: T, viewer?: AuthContext) {
@@ -571,9 +575,20 @@ export async function handleListingRoute(
           str("search", search),
         ],
       );
+      // One metadata read for the catalogue, rather than one SQL request per
+      // listing. Anonymous teasers never expose documents, so skip that read.
+      const catalogueDocuments = viewer && (viewer.companyId || viewer.isAdmin)
+        ? await documentsForListings(rows.map((row) => row.id))
+        : [];
+      const documentsByListing = new Map<unknown, Record<string, unknown>[]>();
+      for (const document of catalogueDocuments) {
+        const group = documentsByListing.get(document.listingId) ?? [];
+        group.push(document);
+        documentsByListing.set(document.listingId, group);
+      }
       sendJson(response, 200, {
         ok: true,
-        listings: await Promise.all(rows.map(async row => listingForViewer(await project(row), viewer))),
+        listings: await Promise.all(rows.map(async row => listingForViewer(await project(row, documentsByListing.get(row.id) ?? []), viewer))),
       });
       return true;
     }

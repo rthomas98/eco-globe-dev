@@ -10,6 +10,7 @@ import {
   resendVerificationEmail,
   resetPassword,
   revokeSession,
+  switchSessionRole,
   seedDemoAuthAccounts,
   shouldSkipEmailVerification,
   verifyEmailToken,
@@ -296,6 +297,14 @@ export async function handleAuthRoute(
     });
 
     sendJson(response, 200, { ok: true, ...session });
+    return true;
+  }
+
+  if (requestUrl.pathname === "/auth/switch-role") {
+    requireMethod(request.method, "POST");
+    const body = await readJsonBody<{ role: string }>(request);
+    const user = await switchSessionRole(getBearerToken(request), getRequiredString(body, "role", 40));
+    sendJson(response, 200, { ok: true, user });
     return true;
   }
 

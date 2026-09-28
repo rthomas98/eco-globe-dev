@@ -294,7 +294,16 @@ export async function logoutBackendUser(token: string | undefined) {
   }
 }
 
-export async function refreshBackendSession(token?: string) {
+export async function switchBackendRole(role: "buyer" | "seller") {
+  await apiFetch<SessionResponse>("/auth/switch-role", {
+    method: "POST",
+    token: COOKIE_SESSION_TOKEN,
+    body: JSON.stringify({ role }),
+  });
+  return refreshBackendSession(undefined, role);
+}
+
+export async function refreshBackendSession(token?: string, preferredRole?: UserRole) {
   const existingUser = readDemoUser();
   const response = await apiFetch<SessionResponse>("/auth/session", {
     method: "GET",
@@ -308,10 +317,10 @@ export async function refreshBackendSession(token?: string) {
     response.user.activeRoleCode,
     authorizedRoles[0] ?? "buyer",
   );
-  const selectedRole =
+  const selectedRole = preferredRole ?? (
     existingUser && roles.includes(existingUser.role)
       ? existingUser.role
-      : activeRole;
+      : activeRole);
   const user = buildDemoUser(selectedRole, {
     ...existingUser,
     id: response.user.id,
@@ -469,5 +478,11 @@ export async function startBackendStripeOnboarding({
       returnUrl,
       refreshUrl,
     }),
+  });
+}
+
+export async function syncBackendStripeSetup(role: "buyer" | "seller", sessionId?: string) {
+  return apiFetch<{ok:true;ready:boolean;mode:"test"|"live";message:string}>("/api/stripe/setup-status", {
+    method:"POST", token:COOKIE_SESSION_TOKEN, body:JSON.stringify({role,sessionId}),
   });
 }

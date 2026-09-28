@@ -1076,6 +1076,22 @@ export async function getOptionalSessionAuth(
   };
 }
 
+export async function switchSessionRole(token: string | undefined, role: string) {
+  const user = await getSessionFromToken(token);
+  if (!user || !token) throw new ApiError(401, "Missing or invalid bearer session token.");
+  if ((role !== "buyer" && role !== "seller") || !getAuthorizedRoles(user, user.companies).has(role)) {
+    throw new ApiError(403, "This account does not have the requested marketplace role.");
+  }
+  const company = user.companies.find((item) => item.companyTypeCode === role || item.companyTypeCode === "both");
+  if (!company) throw new ApiError(403, "No active company is available for this role.");
+  await queryRowsWithParams(`
+    UPDATE dbo.UserSessions
+    SET ActiveCompanyId = @companyId, ActiveRoleCode = @role, UpdatedAt = SYSUTCDATETIME()
+    WHERE TokenHash = @tokenHash AND RevokedAt IS NULL AND ExpiresAt > SYSUTCDATETIME();
+  `, [intParam("companyId", company.id), varcharParam("role", role, 40), varBinaryParam("tokenHash", hashSessionToken(token), 32)]);
+  return getSessionFromToken(token);
+}
+
 export async function revokeSession(token: string | undefined) {
   if (!token) {
     throw new ApiError(401, "Missing bearer session token.");

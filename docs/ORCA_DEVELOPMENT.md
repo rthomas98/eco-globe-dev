@@ -6,7 +6,7 @@ Codex owns backend/API/SQL and tooling; Claude owns web/admin/mobile. Use `.agen
 
 Continuing work uses `codex/deploy-ecoglobe-backend`, which includes the committed Orca setup. The earlier `origin/main` baseline predates that setup. Preserve primary uncommitted documents and maintenance work. Recheck the base before every new feature.
 
-Codex defaults to `gpt-6-astra`, medium reasoning, Standard service (`service_tier = "default"`). Claude defaults to `claude-fable-5-1`, medium. Keep permission handling Manual; do not add bypass flags. Shared installed Orca CLI, orchestration, and computer-use skills serve both agents.
+Codex defaults to `gpt-6-astra`, medium reasoning, Standard service (`service_tier = "default"`). Claude defaults to `claude-opus-5-5`, medium. Keep permission handling Manual; do not add bypass flags. Shared installed Orca CLI, orchestration, and computer-use skills serve both agents.
 
 ## Isolated local runtime
 

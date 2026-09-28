@@ -46,9 +46,8 @@ import { NotificationsPanel } from "../seller/notifications-panel";
 import {
   useDemoUser,
   readDemoUser,
-  writeDemoUser,
 } from "@/lib/demo-user";
-import { logoutBackendUser } from "@/lib/backend-auth";
+import { logoutBackendUser, switchBackendRole } from "@/lib/backend-auth";
 
 interface NavIcon {
   href: string;
@@ -271,6 +270,8 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState(false);
+  const [roleError, setRoleError] = useState("");
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
@@ -325,16 +326,24 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
     router.refresh();
   };
 
-  const handleSwitchToSeller = () => {
-    const current = readDemoUser();
-    if (!current) return;
-    writeDemoUser({ ...current, role: "seller" });
-    setUserMenuOpen(false);
-    router.push("/seller/listings");
+  const handleSwitchToSeller = async () => {
+    if (switchingRole) return;
+    setSwitchingRole(true);
+    setRoleError("");
+    try {
+      await switchBackendRole("seller");
+      setUserMenuOpen(false);
+      router.push("/seller/listings");
+    } catch (error) {
+      setRoleError(error instanceof Error ? error.message : "Unable to switch company.");
+    } finally {
+      setSwitchingRole(false);
+    }
   };
 
   return (
     <div className="flex h-dvh overflow-hidden bg-white">
+      {roleError && <p role="alert" className="fixed bottom-4 left-4 z-50 rounded-lg bg-white p-4 text-red-700 shadow-lg">{roleError}</p>}
       {sidebarOpen && (
         <button
           type="button"

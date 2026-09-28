@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "projectId": "eco-globe",
+  "displayName": "EcoGlobe",
+  "model": "typesafe-ai/jev",
+  "mode": "shadow",
+  "advisoryOnly": true,
+  "credentialProfile": "eco-globe"
+}

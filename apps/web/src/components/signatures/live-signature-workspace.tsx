@@ -13,6 +13,7 @@ import { Button } from "@eco-globe/ui";
 import { useDemoUser } from "@/lib/demo-user";
 import {
   assignSelfAsSigner,
+  recoverDocusignContract,
   createDocusignSigningView,
   loadSignatureWorkspace,
   sendContractForDocusign,
@@ -49,7 +50,11 @@ export function LiveSignatureWorkspace({ role }: { role: WorkspaceRole }) {
       setProviderReady(result.ready);
       setContracts(result.contracts);
       setSignatures(result.signatures);
-      setSelectedContractId((current) => current ?? result.contracts[0]?.id);
+      setSelectedContractId((current) =>
+        result.contracts.some((contract) => contract.id === current)
+          ? current
+          : result.contracts[0]?.id,
+      );
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -101,7 +106,9 @@ export function LiveSignatureWorkspace({ role }: { role: WorkspaceRole }) {
     [selectedContractId, signatures],
   );
   const mySignature = selectedSignatures.find(
-    (signature) => signature.signerUserId === user?.id,
+    (signature) =>
+      signature.signerUserId === user?.id &&
+      signature.signerCompanyId === user?.activeCompanyId,
   );
   const buyerSigners = selectedContract
     ? selectedSignatures.filter(
@@ -125,6 +132,7 @@ export function LiveSignatureWorkspace({ role }: { role: WorkspaceRole }) {
     providerReady &&
     Boolean(selectedContract) &&
     !selectedContract?.providerEnvelopeId &&
+    !selectedContract?.providerSendAttemptId &&
     ["draft", "signature_pending"].includes(
       selectedContract?.contractStatusCode ?? "",
     ) &&
@@ -132,8 +140,14 @@ export function LiveSignatureWorkspace({ role }: { role: WorkspaceRole }) {
   const signedCount = signatures.filter(
     (signature) => signature.signatureStatusCode === "signed",
   ).length;
-  const waitingCount = signatures.filter((signature) =>
-    ["sent", "viewed"].includes(signature.signatureStatusCode),
+  const waitingCount = signatures.filter(
+    (signature) =>
+      ["sent", "viewed"].includes(signature.signatureStatusCode) &&
+      contracts.some(
+        (contract) =>
+          contract.id === signature.contractId &&
+          contract.contractStatusCode === "signature_pending",
+      ),
   ).length;
 
   async function assignSigner() {
@@ -162,14 +176,34 @@ export function LiveSignatureWorkspace({ role }: { role: WorkspaceRole }) {
     try {
       await sendContractForDocusign(selectedContract.id);
       setNotice(
-        "DocuSign emailed the buyer and seller. Their signing buttons are now available.",
+        "Envelope sent. DocuSign will notify each signer when their turn is ready.",
       );
+      await refresh();
+    } catch (cause) {
+      await refresh();
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to confirm the DocuSign send. Reconcile its status before retrying.",
+      );
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
+  async function reconcileSigning() {
+    if (!selectedContract) return;
+    setBusy("sync");
+    setError(undefined);
+    try {
+      await recoverDocusignContract(selectedContract.id);
+      setNotice("DocuSign status reconciled. No new envelope was sent.");
       await refresh();
     } catch (cause) {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Unable to send the DocuSign envelope.",
+          : "Unable to reconcile DocuSign status.",
       );
     } finally {
       setBusy(undefined);
@@ -312,9 +346,7 @@ export function LiveSignatureWorkspace({ role }: { role: WorkspaceRole }) {
                   </h2>
                 </div>
                 <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold capitalize text-neutral-700">
-                  {selectedContract.providerEnvelopeId
-                    ? "DocuSign sent"
-                    : selectedContract.contractStatusCode.replaceAll("_", " ")}
+                  {selectedContract.contractStatusCode.replaceAll("_", " ")}
                 </span>
               </div>
 
@@ -367,6 +399,7 @@ export function LiveSignatureWorkspace({ role }: { role: WorkspaceRole }) {
               )}
 
               {!selectedContract.providerEnvelopeId &&
+                !selectedContract.providerSendAttemptId &&
                 ["draft", "signature_pending"].includes(
                   selectedContract.contractStatusCode,
                 ) &&
@@ -403,7 +436,7 @@ export function LiveSignatureWorkspace({ role }: { role: WorkspaceRole }) {
                   type="button"
                   variant="primary"
                   size="md"
-                  disabled={!contractCanSend || busy === "send"}
+                  disabled={!contractCanSend || Boolean(busy)}
                   onClick={() => void sendEnvelope()}
                 >
                   <Send className="mr-2 size-4" />
@@ -420,6 +453,9 @@ export function LiveSignatureWorkspace({ role }: { role: WorkspaceRole }) {
                   variant="secondary"
                   size="md"
                   disabled={
+                    selectedContract.contractStatusCode !==
+                      "signature_pending" ||
+                    !providerReady ||
                     !mySignature?.providerEnvelopeId ||
                     !["sent", "viewed", "delivered"].includes(
                       mySignature.signatureStatusCode,
@@ -436,6 +472,26 @@ export function LiveSignatureWorkspace({ role }: { role: WorkspaceRole }) {
                       : "Sign with DocuSign"}
                 </Button>
               </div>
+
+              {(selectedContract.providerEnvelopeId ||
+                selectedContract.providerSendAttemptId) && (
+                <div className="mt-4 rounded-xl border p-4">
+                  {!selectedContract.providerEnvelopeId && (
+                    <p className="mb-3 text-sm">
+                      A send has started but its result has not been confirmed.
+                      Recover its status before taking further action.
+                    </p>
+                  )}
+                  <Button
+                    disabled={!providerReady || Boolean(busy)}
+                    onClick={() => void reconcileSigning()}
+                  >
+                    {busy === "sync"
+                      ? "Checking DocuSign…"
+                      : "Reconcile DocuSign status"}
+                  </Button>
+                </div>
+              )}
 
               {selectedContract.signedDocumentUrl &&
                 selectedContract.providerName === "docusign" && (

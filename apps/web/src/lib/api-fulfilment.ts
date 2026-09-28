@@ -35,6 +35,12 @@ async function proxy<T>(
 
 export interface ApiShipment {
   id: number;
+  originName?: string | null;
+  originLatitude?: number | null;
+  originLongitude?: number | null;
+  destinationName?: string | null;
+  destinationLatitude?: number | null;
+  destinationLongitude?: number | null;
   /** Null for pilot shipments, which hang off a pilot request instead. */
   orderId: number | null;
   /** Set when the shipment came from a buyer-agreed pilot handoff. */

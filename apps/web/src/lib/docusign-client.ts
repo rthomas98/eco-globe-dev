@@ -9,6 +9,7 @@ export type BackendContract = {
   title: string;
   contractStatusCode: string;
   renewalTerms?: string | null;
+  providerSendAttemptId?: string;
   providerName?: string;
   providerEnvelopeId?: string;
   signedDocumentUrl?: string;
@@ -54,7 +55,7 @@ export async function loadSignatureWorkspace() {
     backendJson<{ ok: true; signatures: BackendSignature[] }>(
       "/api/signatures",
     ),
-    backendJson<{ready:boolean}>("/api/docusign/readiness"),
+    backendJson<{ ready: boolean }>("/api/docusign/readiness"),
   ]);
   return {
     ready: readiness.ready,
@@ -89,6 +90,13 @@ export async function createDocusignSigningView(
 
 export async function assignSelfAsSigner(contractId: number) {
   return backendJson(`/api/contracts/${contractId}/assign-self-signer`, {
+    method: "POST",
+    body: "{}",
+  });
+}
+
+export async function recoverDocusignContract(contractId: number) {
+  return backendJson(`/api/contracts/${contractId}/docusign-recover`, {
     method: "POST",
     body: "{}",
   });

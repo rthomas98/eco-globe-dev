@@ -1,11 +1,8 @@
-import { createHash } from "node:crypto";
+import { requireAssignedSigner } from "./docusign-policy.js";
+import { createHash, randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { requireSessionAuth } from "./auth.js";
-import {
-  queryRowsWithParams,
-  sql,
-  type QueryParameter,
-} from "./database.js";
+import { queryRowsWithParams, sql, type QueryParameter } from "./database.js";
 import {
   archiveCompletedEnvelope,
   createDocusignEnvelope,
@@ -13,6 +10,7 @@ import {
   getDocusignConfig,
   getDocusignConfigurationStatus,
   getDocusignEnvelope,
+  findDocusignEnvelopeByTransaction,
   getDocusignRecipients,
   readArchivedDocusignDocument,
   verifyDocusignHmac,
@@ -35,6 +33,7 @@ type ContractRow = {
   buyerCompanyId: number;
   sellerCompanyId: number;
   providerEnvelopeId?: string;
+  providerSendAttemptId?: string;
   contractStatusCode: string;
 };
 
@@ -50,17 +49,26 @@ type SignatureRow = {
   buyerCompanyId: number;
   sellerCompanyId: number;
   signatureStatusCode: string;
+  contractStatusCode?: string;
 };
 
 function intParam(name: string, value: number | undefined): QueryParameter {
   return { name, type: sql.Int, value };
 }
 
-function varcharParam(name: string, value: string | undefined, length = 200): QueryParameter {
+function varcharParam(
+  name: string,
+  value: string | undefined,
+  length = 200,
+): QueryParameter {
   return { name, type: sql.VarChar(length), value };
 }
 
-function nvarcharParam(name: string, value: string | undefined, length = 1000): QueryParameter {
+function nvarcharParam(
+  name: string,
+  value: string | undefined,
+  length = 1000,
+): QueryParameter {
   return { name, type: sql.NVarChar(length), value };
 }
 
@@ -78,7 +86,7 @@ async function loadContract(id: number) {
   const contract = (
     await queryRowsWithParams<ContractRow>(
       `SELECT c.Id AS id, c.Title AS title, c.BuyerCompanyId AS buyerCompanyId,
-        c.SellerCompanyId AS sellerCompanyId, c.ProviderEnvelopeId AS providerEnvelopeId,
+        c.SellerCompanyId AS sellerCompanyId, c.ProviderEnvelopeId AS providerEnvelopeId, c.ProviderSendAttemptId AS providerSendAttemptId,
         cs.Code AS contractStatusCode
        FROM dbo.Contracts c
        INNER JOIN dbo.ContractStatuses cs ON cs.Id = c.ContractStatusId
@@ -106,6 +114,18 @@ async function loadContractSigners(contract: ContractRow) {
      ORDER BY s.Id;`,
     [intParam("contractId", contract.id)],
   );
+  if (
+    rows.some(
+      (row) =>
+        ![contract.buyerCompanyId, contract.sellerCompanyId].includes(
+          row.signerCompanyId,
+        ),
+    )
+  )
+    throw new ApiError(
+      409,
+      "Every signer must belong to a contracting company.",
+    );
   return rows.map<DocusignSigner & { signatureStatusCode: string }>((row) => ({
     signatureId: row.id,
     role: row.signerCompanyId === contract.buyerCompanyId ? "buyer" : "seller",
@@ -128,9 +148,12 @@ async function sendEnvelope(
     throw new ApiError(409, "This contract already has a DocuSign envelope.");
   }
   if (!["draft", "signature_pending"].includes(contract.contractStatusCode)) {
-    throw new ApiError(409, "Only a draft or signature-pending contract can be sent to DocuSign.");
+    throw new ApiError(
+      409,
+      "Only a draft or signature-pending contract can be sent to DocuSign.",
+    );
   }
-  const body = await readJsonBody<{ templateId?: string }>(request);
+  await readJsonBody(request);
   const signers = await loadContractSigners(contract);
   const buyerSigners = signers.filter((signer) => signer.role === "buyer");
   const sellerSigners = signers.filter((signer) => signer.role === "seller");
@@ -140,18 +163,56 @@ async function sendEnvelope(
       "The configured DocuSign template requires exactly one buyer and one seller signer.",
     );
   }
-  const nonReadySigner = signers.find((signer) => signer.signatureStatusCode !== "not_sent");
+  const nonReadySigner = signers.find(
+    (signer) => signer.signatureStatusCode !== "not_sent",
+  );
   if (nonReadySigner) {
-    throw new ApiError(409, "All signers must be in the not-sent state before creating an envelope.");
+    throw new ApiError(
+      409,
+      "All signers must be in the not-sent state before creating an envelope.",
+    );
   }
+  // Reserve durably before calling the provider. Never clear an ambiguous attempt:
+  // a timeout may mean DocuSign accepted the envelope even without a response.
+  getDocusignConfig();
+  if (!getDocusignConfigurationStatus().ready)
+    throw new ApiError(503, "DocuSign is not fully configured.");
+  const attemptId = randomUUID();
+  const claimed = await queryRowsWithParams<{ id: number }>(
+    `UPDATE dbo.Contracts SET ProviderSendAttemptId=@attemptId
+     OUTPUT INSERTED.Id AS id
+     WHERE Id=@contractId AND ProviderEnvelopeId IS NULL AND ProviderSendAttemptId IS NULL
+       AND ContractStatusId IN (SELECT Id FROM dbo.ContractStatuses WHERE Code IN ('draft','signature_pending'));`,
+    [
+      intParam("contractId", contractId),
+      varcharParam("attemptId", attemptId, 36),
+    ],
+  );
+  if (!claimed[0])
+    throw new ApiError(
+      409,
+      "Sending has already started. Refresh or recover the existing send; do not resend.",
+    );
+  const lockedSigners = await loadContractSigners(contract);
+  if (
+    lockedSigners.length !== signers.length ||
+    lockedSigners.some(
+      (signer, index) => signer.signatureId !== signers[index]?.signatureId,
+    )
+  )
+    throw new ApiError(
+      409,
+      "Signer assignments changed. The reserved send requires administrator review.",
+    );
   const envelope = await createDocusignEnvelope({
+    transactionId: attemptId,
     contractId,
-    title: contract.title,
-    signers,
-    templateId: getOptionalString(body, "templateId", 200),
+    title: (await loadContract(contractId)).title,
+    signers: lockedSigners,
   });
   await queryRowsWithParams(
-    `UPDATE dbo.Contracts
+    `SET XACT_ABORT ON; BEGIN TRANSACTION;
+     UPDATE dbo.Contracts
        SET ProviderName = 'docusign', ProviderEnvelopeId = @envelopeId,
            ContractStatusId = (SELECT Id FROM dbo.ContractStatuses WHERE Code = 'signature_pending'),
            UpdatedByUserId = @userId, UpdatedAt = SYSUTCDATETIME()
@@ -161,13 +222,15 @@ async function sendEnvelope(
            ProviderClientUserId = CONCAT('ecoglobe-signature-', Id),
            SignatureStatusId = (SELECT Id FROM dbo.SignatureStatuses WHERE Code = 'sent'),
            SentAt = SYSUTCDATETIME(), UpdatedByUserId = @userId, UpdatedAt = SYSUTCDATETIME()
-       WHERE ContractId = @contractId;`,
+       WHERE ContractId = @contractId;
+     COMMIT TRANSACTION;`,
     [
       intParam("contractId", contractId),
       intParam("userId", auth.userId),
       varcharParam("envelopeId", envelope.envelopeId),
     ],
   );
+  await reconcileEnvelope(envelope.envelopeId);
   sendJson(response, 201, { ok: true, envelope });
 }
 
@@ -184,59 +247,93 @@ async function createSigningView(
         s.ProviderClientUserId AS providerClientUserId,
         c.ProviderEnvelopeId AS providerEnvelopeId,
         c.BuyerCompanyId AS buyerCompanyId, c.SellerCompanyId AS sellerCompanyId,
-        ss.Code AS signatureStatusCode
+        ss.Code AS signatureStatusCode, cs.Code AS contractStatusCode
        FROM dbo.Signatures s
        INNER JOIN dbo.Users u ON u.Id = s.SignerUserId
        INNER JOIN dbo.Contracts c ON c.Id = s.ContractId
        INNER JOIN dbo.SignatureStatuses ss ON ss.Id = s.SignatureStatusId
+       INNER JOIN dbo.ContractStatuses cs ON cs.Id = c.ContractStatusId
        WHERE s.Id = @id;`,
       [intParam("id", signatureId)],
     )
   )[0];
   if (!signature) throw new ApiError(404, "Signature not found.");
-  if (!auth.isAdmin && auth.userId !== signature.signerUserId) {
-    throw new ApiError(403, "Only the assigned signer can open this signing session.");
-  }
+  requireAssignedSigner(auth, signature.signerUserId);
+  if (signature.contractStatusCode !== "signature_pending")
+    throw new ApiError(409, "This contract is no longer awaiting signatures.");
   if (!signature.providerEnvelopeId) {
     throw new ApiError(409, "The DocuSign envelope has not been sent.");
   }
   if (!["sent", "viewed"].includes(signature.signatureStatusCode)) {
-    throw new ApiError(409, "This signature is not currently awaiting the signer.");
+    throw new ApiError(
+      409,
+      "This signature is not currently awaiting the signer.",
+    );
   }
   const body = await readJsonBody<{ returnUrl?: string }>(request);
   const result = await createDocusignRecipientView({
     envelopeId: signature.providerEnvelopeId,
     signer: {
       signatureId: signature.id,
-      role: signature.signerCompanyId === signature.buyerCompanyId ? "buyer" : "seller",
+      role:
+        signature.signerCompanyId === signature.buyerCompanyId
+          ? "buyer"
+          : "seller",
       name: signature.name,
       email: signature.email,
-      clientUserId: signature.providerClientUserId || `ecoglobe-signature-${signature.id}`,
+      clientUserId:
+        signature.providerClientUserId || `ecoglobe-signature-${signature.id}`,
     },
     returnUrl: getOptionalString(body, "returnUrl", 1000),
   });
-  sendJson(response, 200, { ok: true, signingUrl: result.url, expiresInSeconds: 300 });
+  sendJson(response, 200, {
+    ok: true,
+    signingUrl: result.url,
+    expiresInSeconds: 300,
+  });
 }
 
 function normalizeSignatureStatus(value: unknown) {
   switch (String(value || "").toLowerCase()) {
-    case "sent": return "sent";
-    case "delivered": return "viewed";
-    case "completed": return "signed";
-    case "declined": return "declined";
-    default: return undefined;
+    case "created":
+      return "not_sent";
+    case "sent":
+      return "sent";
+    case "delivered":
+      return "viewed";
+    case "completed":
+      return "signed";
+    case "declined":
+      return "declined";
+    default:
+      return undefined;
   }
 }
 
 async function reconcileEnvelope(envelopeId: string) {
+  const known = await queryRowsWithParams<{ id: number }>(
+    "SELECT Id AS id FROM dbo.Contracts WHERE ProviderEnvelopeId=@envelopeId;",
+    [varcharParam("envelopeId", envelopeId)],
+  );
+  if (!known[0])
+    throw new ApiError(
+      404,
+      "DocuSign envelope is not linked to an EcoGlobe contract.",
+    );
   const [envelope, recipients] = await Promise.all([
     getDocusignEnvelope(envelopeId),
     getDocusignRecipients(envelopeId),
   ]);
   for (const recipient of recipients.signers ?? []) {
     const statusCode = normalizeSignatureStatus(recipient.status);
-    const clientUserId = typeof recipient.clientUserId === "string" ? recipient.clientUserId : undefined;
-    const recipientId = typeof recipient.recipientId === "string" ? recipient.recipientId : undefined;
+    const clientUserId =
+      typeof recipient.clientUserId === "string"
+        ? recipient.clientUserId
+        : undefined;
+    const recipientId =
+      typeof recipient.recipientId === "string"
+        ? recipient.recipientId
+        : undefined;
     if (!statusCode || (!clientUserId && !recipientId)) continue;
     await queryRowsWithParams(
       `UPDATE dbo.Signatures SET
@@ -247,6 +344,8 @@ async function reconcileEnvelope(envelopeId: string) {
          DeclinedAt = CASE WHEN @statusCode = 'declined' THEN COALESCE(DeclinedAt, SYSUTCDATETIME()) ELSE DeclinedAt END,
          UpdatedAt = SYSUTCDATETIME()
        WHERE ProviderEnvelopeId = @envelopeId
+         AND SignatureStatusId NOT IN (SELECT Id FROM dbo.SignatureStatuses WHERE Code IN ('signed','declined'))
+         AND NOT (@statusCode='sent' AND SignatureStatusId=(SELECT Id FROM dbo.SignatureStatuses WHERE Code='viewed'))
          AND ((@clientUserId IS NOT NULL AND ProviderClientUserId = @clientUserId)
            OR (@recipientId IS NOT NULL AND ProviderRecipientId = @recipientId));`,
       [
@@ -258,8 +357,11 @@ async function reconcileEnvelope(envelopeId: string) {
     );
   }
   const envelopeStatus = String(envelope.status || "").toLowerCase();
-  let archive: { signedDocumentUrl: string; certificateUrl: string } | undefined;
-  if (envelopeStatus === "completed") archive = await archiveCompletedEnvelope(envelopeId);
+  let archive:
+    | { signedDocumentUrl: string; certificateUrl: string }
+    | undefined;
+  if (envelopeStatus === "completed")
+    archive = await archiveCompletedEnvelope(envelopeId);
   await queryRowsWithParams(
     `UPDATE dbo.Contracts SET
        ContractStatusId = CASE
@@ -271,7 +373,7 @@ async function reconcileEnvelope(envelopeId: string) {
        CompletionCertificateUrl = COALESCE(@certificateUrl, CompletionCertificateUrl),
        CompletedAt = CASE WHEN @envelopeStatus = 'completed' THEN COALESCE(CompletedAt, SYSUTCDATETIME()) ELSE CompletedAt END,
        UpdatedAt = SYSUTCDATETIME()
-     WHERE ProviderEnvelopeId = @envelopeId;`,
+     WHERE ProviderEnvelopeId = @envelopeId AND CompletedAt IS NULL;`,
     [
       varcharParam("envelopeId", envelopeId),
       varcharParam("envelopeStatus", envelopeStatus, 80),
@@ -284,37 +386,61 @@ async function reconcileEnvelope(envelopeId: string) {
 
 async function readRawBody(request: IncomingMessage) {
   const chunks: Buffer[] = [];
-  for await (const chunk of request) chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  let size = 0;
+  for await (const chunk of request) {
+    const bytes = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+    size += bytes.length;
+    if (size > 1024 * 1024)
+      throw new ApiError(413, "DocuSign webhook exceeds 1 MiB.");
+    chunks.push(bytes);
+  }
   return Buffer.concat(chunks);
 }
 
-async function handleWebhook(request: IncomingMessage, response: ServerResponse) {
+async function handleWebhook(
+  request: IncomingMessage,
+  response: ServerResponse,
+) {
   const rawBody = await readRawBody(request);
   const secret = getDocusignConfig().webhookHmacSecret;
   const signatureHeader = request.headers["x-docusign-signature-1"];
-  const signature = Array.isArray(signatureHeader) ? signatureHeader[0] : signatureHeader;
+  const signature = Array.isArray(signatureHeader)
+    ? signatureHeader[0]
+    : signatureHeader;
   if (!verifyDocusignHmac(rawBody, signature, secret)) {
     throw new ApiError(401, "Invalid DocuSign webhook signature.");
   }
   let payload: Record<string, unknown>;
   try {
-    payload = JSON.parse(rawBody.toString("utf8")) as Record<string, unknown>;
+    const parsed: unknown = JSON.parse(rawBody.toString("utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      throw new Error("Invalid object");
+    payload = parsed as Record<string, unknown>;
   } catch {
     throw new ApiError(400, "DocuSign webhook body must be valid JSON.");
   }
-  const data = payload.data && typeof payload.data === "object" ? payload.data as Record<string, unknown> : {};
-  const envelopeId = typeof data.envelopeId === "string" ? data.envelopeId : undefined;
-  if (!envelopeId) throw new ApiError(400, "DocuSign webhook did not include an envelope ID.");
-  const eventType = typeof payload.event === "string" ? payload.event : "unknown";
+  const data =
+    payload.data && typeof payload.data === "object"
+      ? (payload.data as Record<string, unknown>)
+      : {};
+  const envelopeId =
+    typeof data.envelopeId === "string" ? data.envelopeId : undefined;
+  if (!envelopeId)
+    throw new ApiError(400, "DocuSign webhook did not include an envelope ID.");
+  const eventType =
+    typeof payload.event === "string" ? payload.event : "unknown";
   const eventId = createHash("sha256").update(rawBody).digest("hex");
   const inserted = await queryRowsWithParams<{ id: number }>(
-    `IF NOT EXISTS (SELECT 1 FROM dbo.SignatureWebhookEvents WHERE ProviderEventId = @eventId)
+    `SET XACT_ABORT ON; BEGIN TRANSACTION;
+     IF NOT EXISTS (SELECT 1 FROM dbo.SignatureWebhookEvents WITH (UPDLOCK,HOLDLOCK) WHERE ProviderEventId = @eventId)
      BEGIN
        INSERT INTO dbo.SignatureWebhookEvents
          (ProviderName, ProviderEventId, ProviderEnvelopeId, EventType, PayloadHash, ProcessingStatus)
        OUTPUT INSERTED.Id AS id
        VALUES ('docusign', @eventId, @envelopeId, @eventType, @eventId, 'received');
-     END;`,
+     END
+     ELSE SELECT CAST(NULL AS int) AS id WHERE 1 = 0;
+     COMMIT TRANSACTION;`,
     [
       varcharParam("eventId", eventId, 64),
       varcharParam("envelopeId", envelopeId),
@@ -351,7 +477,11 @@ async function handleWebhook(request: IncomingMessage, response: ServerResponse)
        WHERE Id = @id;`,
       [
         intParam("id", eventRow.id),
-        nvarcharParam("error", error instanceof Error ? error.message : "Unknown webhook error", 2000),
+        nvarcharParam(
+          "error",
+          error instanceof Error ? error.message : "Unknown webhook error",
+          2000,
+        ),
       ],
     );
     throw error;
@@ -365,37 +495,66 @@ export async function handleDocusignRoute(
   requestUrl: URL,
 ) {
   if (requestUrl.pathname === "/api/docusign/webhook") {
-    if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
+    if (request.method !== "POST")
+      throw new ApiError(405, "Method not allowed.");
     await handleWebhook(request, response);
     return true;
   }
   if (requestUrl.pathname === "/api/docusign/status") {
-    if (request.method !== "GET") throw new ApiError(405, "Method not allowed.");
+    if (request.method !== "GET")
+      throw new ApiError(405, "Method not allowed.");
     const auth = await requireSessionAuth(request);
-    if (!auth.isAdmin) throw new ApiError(403, "Administrator access is required.");
-    sendJson(response, 200, { ok: true, docusign: getDocusignConfigurationStatus() });
+    if (!auth.isAdmin)
+      throw new ApiError(403, "Administrator access is required.");
+    sendJson(response, 200, {
+      ok: true,
+      docusign: getDocusignConfigurationStatus(),
+    });
     return true;
   }
   if (requestUrl.pathname === "/api/docusign/readiness") {
-    if (request.method !== "GET") throw new ApiError(405, "Method not allowed.");
+    if (request.method !== "GET")
+      throw new ApiError(405, "Method not allowed.");
     await requireSessionAuth(request);
     const status = getDocusignConfigurationStatus();
-    sendJson(response,200,{ok:true,ready:status.configured && status.templateConfigured && status.immutableStorageConfigured});
+    sendJson(response, 200, { ok: true, ready: status.ready });
     return true;
   }
-  const assignMatch = matchPath(requestUrl.pathname, "/api/contracts/:id/assign-self-signer");
+  const assignMatch = matchPath(
+    requestUrl.pathname,
+    "/api/contracts/:id/assign-self-signer",
+  );
   if (assignMatch.matched) {
-    if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
+    if (request.method !== "POST")
+      throw new ApiError(405, "Method not allowed.");
     const auth = await requireSessionAuth(request);
-    const contract = await loadContract(parseId(assignMatch.params.id, "Contract ID"));
-    if (!auth.companyId || ![contract.buyerCompanyId, contract.sellerCompanyId].includes(auth.companyId))
-      throw new ApiError(403, "Only a member of a contracting company can register as its signer.");
-    if (contract.providerEnvelopeId || !["draft", "signature_pending"].includes(contract.contractStatusCode))
-      throw new ApiError(409, "Signer setup is available only before the envelope is sent.");
-    const rows = await queryRowsWithParams(`
+    const contract = await loadContract(
+      parseId(assignMatch.params.id, "Contract ID"),
+    );
+    if (
+      !auth.companyId ||
+      ![contract.buyerCompanyId, contract.sellerCompanyId].includes(
+        auth.companyId,
+      )
+    )
+      throw new ApiError(
+        403,
+        "Only a member of a contracting company can register as its signer.",
+      );
+    if (
+      contract.providerEnvelopeId ||
+      contract.providerSendAttemptId ||
+      !["draft", "signature_pending"].includes(contract.contractStatusCode)
+    )
+      throw new ApiError(
+        409,
+        "Signer setup is available only before the envelope is sent.",
+      );
+    const rows = await queryRowsWithParams(
+      `
       SET XACT_ABORT ON;
       BEGIN TRANSACTION;
-      IF EXISTS (SELECT 1 FROM dbo.Contracts WITH (UPDLOCK,HOLDLOCK) WHERE Id=@contractId AND ProviderEnvelopeId IS NULL
+      IF EXISTS (SELECT 1 FROM dbo.Contracts WITH (UPDLOCK,HOLDLOCK) WHERE Id=@contractId AND ProviderEnvelopeId IS NULL AND ProviderSendAttemptId IS NULL
         AND ContractStatusId IN (SELECT Id FROM dbo.ContractStatuses WHERE Code IN ('draft','signature_pending')))
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM dbo.Signatures WITH (UPDLOCK,HOLDLOCK) WHERE ContractId=@contractId AND SignerCompanyId=@companyId)
@@ -403,26 +562,107 @@ export async function handleDocusignRoute(
           SELECT @contractId,@userId,@companyId,Id,@userId,@userId FROM dbo.SignatureStatuses WHERE Code='not_sent';
         SELECT Id AS id,SignerUserId AS signerUserId FROM dbo.Signatures WHERE ContractId=@contractId AND SignerCompanyId=@companyId;
       END;
-      COMMIT TRANSACTION;`,[intParam("contractId",contract.id),intParam("companyId",auth.companyId),intParam("userId",auth.userId)]);
-    if (!rows?.[0] || rows[0].signerUserId !== auth.userId) throw new ApiError(409,"Another signer is assigned or this contract has already been sent.");
-    sendJson(response,200,{ok:true,signature:rows[0]});
+      COMMIT TRANSACTION;`,
+      [
+        intParam("contractId", contract.id),
+        intParam("companyId", auth.companyId),
+        intParam("userId", auth.userId),
+      ],
+    );
+    if (!rows?.[0] || rows[0].signerUserId !== auth.userId)
+      throw new ApiError(
+        409,
+        "Another signer is assigned or this contract has already been sent.",
+      );
+    sendJson(response, 200, { ok: true, signature: rows[0] });
     return true;
   }
-  const envelopeMatch = matchPath(requestUrl.pathname, "/api/contracts/:id/docusign-envelope");
+  const envelopeMatch = matchPath(
+    requestUrl.pathname,
+    "/api/contracts/:id/docusign-envelope",
+  );
   if (envelopeMatch.matched) {
-    if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
-    await sendEnvelope(request, response, parseId(envelopeMatch.params.id, "Contract ID"));
+    if (request.method !== "POST")
+      throw new ApiError(405, "Method not allowed.");
+    await sendEnvelope(
+      request,
+      response,
+      parseId(envelopeMatch.params.id, "Contract ID"),
+    );
     return true;
   }
-  const signingViewMatch = matchPath(requestUrl.pathname, "/api/signatures/:id/docusign-view");
+  const recoveryMatch = matchPath(
+    requestUrl.pathname,
+    "/api/contracts/:id/docusign-recover",
+  );
+  if (recoveryMatch.matched) {
+    if (request.method !== "POST")
+      throw new ApiError(405, "Method not allowed.");
+    const auth = await requireSessionAuth(request);
+    const contract = await loadContract(
+      parseId(recoveryMatch.params.id, "Contract ID"),
+    );
+    requireContractAccess(auth, contract);
+    if (contract.providerEnvelopeId) {
+      sendJson(response, 200, {
+        ok: true,
+        result: await reconcileEnvelope(contract.providerEnvelopeId),
+      });
+      return true;
+    }
+    if (!contract.providerSendAttemptId)
+      throw new ApiError(409, "No reserved send exists.");
+    const envelope = await findDocusignEnvelopeByTransaction(
+      contract.providerSendAttemptId,
+    );
+    if (!envelope)
+      throw new ApiError(
+        409,
+        "No envelope found yet. Do not resend: ask an administrator to reconcile the DocuSign send history.",
+      );
+    await queryRowsWithParams(
+      `SET XACT_ABORT ON; BEGIN TRANSACTION;
+      UPDATE dbo.Contracts SET ProviderName='docusign',ProviderEnvelopeId=@envelopeId,
+        ContractStatusId=(SELECT Id FROM dbo.ContractStatuses WHERE Code='signature_pending')
+      WHERE Id=@id AND ProviderSendAttemptId=@attemptId AND ProviderEnvelopeId IS NULL;
+      UPDATE dbo.Signatures SET ProviderName='docusign',ProviderEnvelopeId=@envelopeId,
+        ProviderClientUserId=CONCAT('ecoglobe-signature-',Id),
+        SignatureStatusId=(SELECT Id FROM dbo.SignatureStatuses WHERE Code='sent'),SentAt=SYSUTCDATETIME()
+      WHERE ContractId=@id AND ProviderEnvelopeId IS NULL;
+      COMMIT TRANSACTION;`,
+      [
+        intParam("id", contract.id),
+        varcharParam("attemptId", contract.providerSendAttemptId, 36),
+        varcharParam("envelopeId", envelope.envelopeId),
+      ],
+    );
+    sendJson(response, 200, {
+      ok: true,
+      result: await reconcileEnvelope(envelope.envelopeId),
+    });
+    return true;
+  }
+  const signingViewMatch = matchPath(
+    requestUrl.pathname,
+    "/api/signatures/:id/docusign-view",
+  );
   if (signingViewMatch.matched) {
-    if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
-    await createSigningView(request, response, parseId(signingViewMatch.params.id, "Signature ID"));
+    if (request.method !== "POST")
+      throw new ApiError(405, "Method not allowed.");
+    await createSigningView(
+      request,
+      response,
+      parseId(signingViewMatch.params.id, "Signature ID"),
+    );
     return true;
   }
-  const syncMatch = matchPath(requestUrl.pathname, "/api/docusign/envelopes/:id/sync");
+  const syncMatch = matchPath(
+    requestUrl.pathname,
+    "/api/docusign/envelopes/:id/sync",
+  );
   if (syncMatch.matched) {
-    if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
+    if (request.method !== "POST")
+      throw new ApiError(405, "Method not allowed.");
     const auth = await requireSessionAuth(request);
     const contract = (
       await queryRowsWithParams<ContractRow>(
@@ -446,7 +686,8 @@ export async function handleDocusignRoute(
     "/api/contracts/:id/docusign-documents/:kind",
   );
   if (documentMatch.matched) {
-    if (request.method !== "GET") throw new ApiError(405, "Method not allowed.");
+    if (request.method !== "GET")
+      throw new ApiError(405, "Method not allowed.");
     const auth = await requireSessionAuth(request);
     const contractId = parseId(documentMatch.params.id, "Contract ID");
     const contract = await loadContract(contractId);
@@ -462,7 +703,8 @@ export async function handleDocusignRoute(
         [intParam("id", contractId)],
       )
     )[0];
-    if (!row?.documentUrl) throw new ApiError(404, "Archived document not found.");
+    if (!row?.documentUrl)
+      throw new ApiError(404, "Archived document not found.");
     const document = await readArchivedDocusignDocument(row.documentUrl);
     response.writeHead(200, {
       ...corsHeaders(),

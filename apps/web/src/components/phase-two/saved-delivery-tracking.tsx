@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { fetchOrders, type ApiOrder } from "@/lib/api-orders";
+import { SavedShipmentMap } from "@/components/logistics/saved-shipment-map";
 import {
   fetchShipments,
   updateShipment,
@@ -86,6 +87,7 @@ export function SavedDeliveryTracking({
           {notice}
         </p>
       )}
+      {shipment && <SavedShipmentMap shipment={shipment} />}
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-3">
           {shipments.map((s) => (

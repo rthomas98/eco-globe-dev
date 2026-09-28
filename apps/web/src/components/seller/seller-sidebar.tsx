@@ -39,10 +39,8 @@ import {
 } from "lucide-react";
 import { NotificationsPanel } from "./notifications-panel";
 import {
-  buildDemoUser,
   readDemoUser,
   useDemoUser,
-  writeDemoUser,
 } from "@/lib/demo-user";
 
 function userInitials(name: string) {
@@ -59,7 +57,7 @@ function shortDisplayName(name: string) {
   if (parts.length < 2) return name;
   return `${parts[0]} ${parts[1][0]?.toUpperCase() ?? ""}`.trim();
 }
-import { logoutBackendUser } from "@/lib/backend-auth";
+import { logoutBackendUser, switchBackendRole } from "@/lib/backend-auth";
 
 type NavChild = { label: string; href: string };
 type NavItem = {
@@ -250,6 +248,8 @@ export function SellerSidebar({
     return match?.label ?? null;
   });
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState(false);
+  const [roleError, setRoleError] = useState("");
   const [notifsOpen, setNotifsOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -259,18 +259,19 @@ export function SellerSidebar({
     router.refresh();
   };
 
-  const handleSwitchToBuyer = () => {
-    const current = readDemoUser();
-    writeDemoUser(
-      buildDemoUser("buyer", {
-        ...current,
-        role: "buyer",
-        name: current?.name || "EcoGlobe Buyer",
-        email: current?.email || "",
-      }),
-    );
-    setUserMenuOpen(false);
-    router.push("/buyer/browse");
+  const handleSwitchToBuyer = async () => {
+    if (switchingRole) return;
+    setSwitchingRole(true);
+    setRoleError("");
+    try {
+      await switchBackendRole("buyer");
+      setUserMenuOpen(false);
+      router.push("/buyer/browse");
+    } catch (error) {
+      setRoleError(error instanceof Error ? error.message : "Unable to switch company.");
+    } finally {
+      setSwitchingRole(false);
+    }
   };
 
   return (
@@ -278,6 +279,7 @@ export function SellerSidebar({
       className={`relative flex h-dvh w-[240px] shrink-0 flex-col bg-white ${className ?? ""}`}
       style={{ borderRight: "1px solid #E0E0E0" }}
     >
+      {roleError && <p role="alert" className="fixed bottom-4 left-4 z-50 rounded-lg bg-white p-4 text-red-700 shadow-lg">{roleError}</p>}
       {/* Logo */}
       <div className="flex h-16 items-center px-6">
         <Link href="/">

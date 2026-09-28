@@ -1,3 +1,5 @@
+import { rejectContractEvidence, rejectSignatureEvidence } from "./docusign-policy.js";
+import { startStripeSetup, syncStripeSetup, reconcileStripeSetupEvent } from "./stripe-setup.js";
 import { handleDemoOrderRoute } from "./demo-order-routes.js";
 import { applySampleShippingCredit } from './sample-shipping-credit.js';
 type ListingDocumentBody = {
@@ -31,7 +33,7 @@ import { handleSampleRoute } from './sample-routes.js';
 import { validateOnboardingPreferences, getOnboardingPreferences } from './onboarding-preferences.js';
 import { handleListingRoute, requirePurchasableListing } from './listing-routes.js';
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { verifyStripeWebhook, StripeWebhookError } from "./stripe-webhook.js";
 import {
   changeUserPassword,
   getBearerToken,
@@ -395,59 +397,6 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 140);
-}
-
-function getFrontendBaseUrl() {
-  return (
-    process.env.ECOGLOBE_WEB_URL?.replace(/\/$/, "") ?? "http://localhost:4040"
-  );
-}
-
-function normalizeRedirectUrl(value: string | undefined, fallbackPath: string) {
-  const fallback = `${getFrontendBaseUrl()}${fallbackPath}`;
-  if (!value) return fallback;
-
-  try {
-    const parsed = new URL(value);
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-      return parsed.toString();
-    }
-  } catch {
-    return fallback;
-  }
-
-  return fallback;
-}
-
-async function stripePost<T>(
-  path: string,
-  params: URLSearchParams,
-): Promise<T> {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) {
-    throw new ApiError(500, "Stripe is not configured for this environment.");
-  }
-
-  const stripeResponse = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${secretKey}`,
-      "content-type": "application/x-www-form-urlencoded",
-    },
-    body: params,
-  });
-
-  const payload = (await stripeResponse.json()) as {
-    error?: { message?: string };
-  };
-  if (!stripeResponse.ok) {
-    throw new ApiError(
-      502,
-      payload.error?.message ?? "Stripe rejected the onboarding request.",
-    );
-  }
-
-  return payload as T;
 }
 
 function getBodyInt(body: Partial<Record<string, unknown>>, key: string) {
@@ -1459,197 +1408,11 @@ async function completeOnboarding(
   });
 }
 
-async function startStripeOnboarding(
-  request: IncomingMessage,
-  response: ServerResponse,
-  auth: AuthContext,
-) {
+async function startStripeOnboarding(request: IncomingMessage, response: ServerResponse, auth: AuthContext) {
   const body = await readJsonBody<StripeOnboardingBody>(request);
-  const role = getRequiredString(body, "role", 20);
-  if (role !== "buyer" && role !== "seller") {
-    throw new ApiError(400, "role must be buyer or seller.");
-  }
-
-  const returnUrl = normalizeRedirectUrl(
-    getOptionalString(body, "returnUrl", 1000),
-    `/${role}/onboarding`,
-  );
-  const refreshUrl = normalizeRedirectUrl(
-    getOptionalString(body, "refreshUrl", 1000),
-    `/${role}/onboarding`,
-  );
-  const readyStatusId = await lookupId("AccountStatuses", "active");
-  const pendingStatusId = await lookupId(
-    "AccountStatuses",
-    "pending_verification",
-  );
-  const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY);
-
-  const rows = await queryRowsWithParams<{
-    userId: number;
-    email: string;
-    name: string;
-    companyId: number;
-    legalName: string;
-    companyTypeCode: string;
-    buyerProfileId?: number;
-    sellerProfileId?: number;
-  }>(
-    `
-      SELECT TOP (1)
-        u.Id AS userId,
-        u.Email AS email,
-        u.Name AS name,
-        c.Id AS companyId,
-        c.LegalName AS legalName,
-        ct.Code AS companyTypeCode,
-        bp.Id AS buyerProfileId,
-        sp.Id AS sellerProfileId
-      FROM dbo.CompanyMembers cm
-      INNER JOIN dbo.Users u ON u.Id = cm.UserId
-      INNER JOIN dbo.Companies c ON c.Id = cm.CompanyId
-      INNER JOIN dbo.CompanyTypes ct ON ct.Id = c.CompanyTypeId
-      LEFT JOIN dbo.BuyerProfiles bp ON bp.CompanyId = c.Id
-      LEFT JOIN dbo.SellerProfiles sp ON sp.CompanyId = c.Id
-      WHERE cm.UserId = @userId
-        AND c.Id = COALESCE(@companyId, c.Id)
-        AND (ct.Code = @role OR ct.Code = 'both')
-      ORDER BY c.Id ASC;
-    `,
-    [
-      intParam("userId", auth.userId),
-      intParam("companyId", auth.companyId),
-      varcharParam("role", role, 20),
-    ],
-  );
-
-  const account = rows[0];
-  if (!account) {
-    throw new ApiError(
-      400,
-      "Complete company onboarding before starting Stripe setup.",
-    );
-  }
-
-  if (role === "buyer" && !account.buyerProfileId) {
-    throw new ApiError(
-      400,
-      "Buyer profile is not ready for Stripe billing setup.",
-    );
-  }
-
-  if (role === "seller" && !account.sellerProfileId) {
-    throw new ApiError(
-      400,
-      "Seller profile is not ready for Stripe payout setup.",
-    );
-  }
-
-  let redirectUrl = returnUrl;
-  let providerReference = `stripe_demo_${role}_${account.companyId}`;
-  let statusId = readyStatusId;
-  let statusCode = "active";
-  let mode: "demo" | "stripe" = "demo";
-
-  if (stripeConfigured && role === "buyer") {
-    type StripeCustomer = { id: string };
-    type StripeCheckoutSession = { id: string; url: string };
-    const customer = await stripePost<StripeCustomer>(
-      "customers",
-      new URLSearchParams({
-        email: account.email,
-        name: account.name,
-        "metadata[ecoglobe_company_id]": String(account.companyId),
-        "metadata[ecoglobe_company_name]": account.legalName,
-      }),
-    );
-    const session = await stripePost<StripeCheckoutSession>(
-      "checkout/sessions",
-      new URLSearchParams({
-        mode: "setup",
-        currency: "usd",
-        customer: customer.id,
-        success_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}stripe=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}stripe=cancelled`,
-      }),
-    );
-
-    redirectUrl = session.url;
-    providerReference = session.id;
-    statusId = pendingStatusId;
-    statusCode = "pending_verification";
-    mode = "stripe";
-  }
-
-  if (stripeConfigured && role === "seller") {
-    type StripeAccount = { id: string };
-    type StripeAccountLink = { url: string };
-    const stripeAccount = await stripePost<StripeAccount>(
-      "accounts",
-      new URLSearchParams({
-        type: "express",
-        country: "US",
-        email: account.email,
-        business_type: "company",
-        "capabilities[transfers][requested]": "true",
-        "metadata[ecoglobe_company_id]": String(account.companyId),
-        "metadata[ecoglobe_company_name]": account.legalName,
-      }),
-    );
-    const accountLink = await stripePost<StripeAccountLink>(
-      "account_links",
-      new URLSearchParams({
-        account: stripeAccount.id,
-        refresh_url: refreshUrl,
-        return_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}stripe=success`,
-        type: "account_onboarding",
-      }),
-    );
-
-    redirectUrl = accountLink.url;
-    providerReference = stripeAccount.id;
-    statusId = pendingStatusId;
-    statusCode = "pending_verification";
-    mode = "stripe";
-  }
-
-  await queryRowsWithParams(
-    role === "buyer"
-      ? `
-          UPDATE dbo.BuyerProfiles
-          SET BillingStatusId = @statusId,
-              UpdatedByUserId = @updatedByUserId,
-              UpdatedAt = SYSUTCDATETIME()
-          WHERE CompanyId = @companyId;
-        `
-      : `
-          UPDATE dbo.SellerProfiles
-          SET PayoutStatusId = @statusId,
-              UpdatedByUserId = @updatedByUserId,
-              UpdatedAt = SYSUTCDATETIME()
-          WHERE CompanyId = @companyId;
-        `,
-    [
-      intParam("companyId", account.companyId),
-      intParam("statusId", statusId),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-
-  sendJson(response, 200, {
-    ok: true,
-    provider: "stripe",
-    mode,
-    role,
-    companyId: account.companyId,
-    redirectUrl,
-    providerReference,
-    statusCode,
-    message:
-      mode === "demo"
-        ? "Stripe demo setup recorded. Add STRIPE_SECRET_KEY to create live Stripe onboarding redirects."
-        : "Stripe onboarding redirect created.",
-  });
+  const role = getRequiredString(body,"role",20);
+  if(role!=="buyer" && role!=="seller") throw new ApiError(400,"Invalid payment role.");
+  sendJson(response,200,await startStripeSetup(auth,role,body.returnUrl,body.refreshUrl));
 }
 
 async function listLookups(response: ServerResponse) {
@@ -4916,6 +4679,8 @@ async function listShipments(response: ServerResponse, url: URL, auth: AuthConte
         s.Id AS id, s.PilotRequestId AS pilotRequestId, s.OrderId AS orderId, s.CarrierId AS carrierId, c.Code AS carrierCode,
         c.Name AS carrierName, s.TrackingNumber AS trackingNumber,
         s.OriginLocationId AS originLocationId, s.DestinationLocationId AS destinationLocationId,
+        origin.Name AS originName, origin.Latitude AS originLatitude, origin.Longitude AS originLongitude,
+        destination.Name AS destinationName, destination.Latitude AS destinationLatitude, destination.Longitude AS destinationLongitude,
         ss.Code AS shipmentStatusCode, ss.Name AS shipmentStatusName,
         CASE WHEN s.PilotRequestId IS NULL OR @isAdmin=1 THEN s.ShippingCost ELSE NULL END AS shippingCost, s.CarbonImpactKgCo2e AS carbonImpactKgCo2e,
         s.PickupScheduledAt AS pickupScheduledAt, s.DeliveryConfirmedAt AS deliveryConfirmedAt,
@@ -4923,6 +4688,11 @@ async function listShipments(response: ServerResponse, url: URL, auth: AuthConte
       FROM dbo.Shipments s
       LEFT JOIN dbo.Orders o ON o.Id = s.OrderId
       LEFT JOIN dbo.PilotRequests p ON p.Id=s.PilotRequestId
+      LEFT JOIN dbo.Listings listing ON listing.Id=o.ListingId
+      LEFT JOIN dbo.Locations origin ON origin.Id=COALESCE(s.OriginLocationId,listing.LocationId)
+        AND origin.CompanyId=COALESCE(o.SellerCompanyId,p.SellerCompanyId)
+      LEFT JOIN dbo.Locations destination ON destination.Id=s.DestinationLocationId
+        AND destination.CompanyId=COALESCE(o.BuyerCompanyId,p.BuyerCompanyId)
       LEFT JOIN dbo.Carriers c ON c.Id = s.CarrierId
       INNER JOIN dbo.ShipmentStatuses ss ON ss.Id = s.ShipmentStatusId
       WHERE (@orderId IS NULL OR s.OrderId = @orderId)
@@ -5643,6 +5413,7 @@ async function listContracts(response: ServerResponse, url: URL, auth: AuthConte
         c.ListingId AS listingId, src.Code AS contractSourceCode, st.Code AS contractStatusCode,
         c.Title AS title, c.RenewalTerms AS renewalTerms, c.RenewalDate AS renewalDate,
         c.ProviderName AS providerName, c.ProviderEnvelopeId AS providerEnvelopeId,
+        c.ProviderSendAttemptId AS providerSendAttemptId,
         c.ProviderTemplateId AS providerTemplateId, c.SignedDocumentUrl AS signedDocumentUrl,
         c.CompletionCertificateUrl AS completionCertificateUrl, c.CompletedAt AS completedAt,
         c.CreatedAt AS createdAt, c.UpdatedAt AS updatedAt
@@ -5662,6 +5433,7 @@ async function listContracts(response: ServerResponse, url: URL, auth: AuthConte
 
 async function createContract(request: IncomingMessage, response: ServerResponse, auth: AuthContext) {
   const body = await readJsonBody<ContractBody>(request);
+  rejectContractEvidence(body);
   const buyerCompanyId = getBodyInt(body, "buyerCompanyId");
   const sellerCompanyId = getBodyInt(body, "sellerCompanyId");
   if (!auth.isAdmin && auth.companyId !== buyerCompanyId && auth.companyId !== sellerCompanyId) {
@@ -5707,6 +5479,7 @@ async function updateContract(request: IncomingMessage, response: ServerResponse
     throw new ApiError(403, "You cannot update another company's contract.");
   }
   const body = await readJsonBody<ContractBody>(request);
+  rejectContractEvidence(body);
   const statusCode = getOptionalString(body, "contractStatusCode", 80);
   const rows = await queryRowsWithParams(
     `
@@ -5720,7 +5493,7 @@ async function updateContract(request: IncomingMessage, response: ServerResponse
         UpdatedByUserId = @updatedByUserId,
         UpdatedAt = SYSUTCDATETIME()
       OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.ContractStatusId AS contractStatusId
-      WHERE Id = @id;
+      WHERE Id = @id AND ProviderEnvelopeId IS NULL AND ProviderSendAttemptId IS NULL;
     `,
     [
       intParam("id", id),
@@ -5732,7 +5505,7 @@ async function updateContract(request: IncomingMessage, response: ServerResponse
       intParam("updatedByUserId", auth.userId),
     ],
   );
-  if (!rows[0]) throw new ApiError(404, "Contract not found.");
+  if (!rows[0]) throw new ApiError(409, "A contract cannot be edited after signing has started.");
   await writeAuditLog({ auth, request, actionTypeCode: statusCode ? "status_changed" : "updated", recordTypeCode: "contract", recordId: id, newValue: rows[0], reason: "Contract updated." });
   sendJson(response, 200, { ok: true, contract: rows[0] });
 }
@@ -5769,6 +5542,7 @@ async function listSignatures(response: ServerResponse, url: URL, auth: AuthCont
 
 async function createSignature(request: IncomingMessage, response: ServerResponse, auth: AuthContext) {
   const body = await readJsonBody<SignatureBody>(request);
+  rejectSignatureEvidence(body);
   const signerUserId = getBodyInt(body, "signerUserId");
   const signerCompanyId = getBodyInt(body, "signerCompanyId");
   if (!auth.isAdmin) {
@@ -5777,6 +5551,19 @@ async function createSignature(request: IncomingMessage, response: ServerRespons
   }
   const rows = await queryRowsWithParams(
     `
+      SET XACT_ABORT ON;
+      BEGIN TRANSACTION;
+      IF NOT EXISTS (SELECT 1 FROM dbo.Contracts WITH (UPDLOCK,HOLDLOCK)
+        WHERE Id=@contractId AND @signerCompanyId IN (BuyerCompanyId,SellerCompanyId)
+          AND ProviderEnvelopeId IS NULL AND ProviderSendAttemptId IS NULL
+          AND ContractStatusId IN (SELECT Id FROM dbo.ContractStatuses WHERE Code IN ('draft','signature_pending')))
+        THROW 50001, 'Contract is unavailable for signer assignment.', 1;
+      IF NOT EXISTS (SELECT 1 FROM dbo.CompanyMembers cm
+        JOIN dbo.AccountStatuses ms ON ms.Id=cm.MemberStatusId
+        WHERE cm.UserId=@signerUserId AND cm.CompanyId=@signerCompanyId AND ms.Code='active')
+        THROW 50001, 'Signer must be an active member of the contracting company.', 1;
+      IF EXISTS (SELECT 1 FROM dbo.Signatures WHERE ContractId=@contractId AND SignerCompanyId=@signerCompanyId)
+        THROW 50001, 'A signer is already assigned for this company.', 1;
       INSERT INTO dbo.Signatures (
         ContractId, SignerUserId, SignerCompanyId, ProviderSignatureId, SignatureStatusId,
         SignedDocumentUrl, SignedAt, CreatedByUserId, UpdatedByUserId
@@ -5786,6 +5573,7 @@ async function createSignature(request: IncomingMessage, response: ServerRespons
         @contractId, @signerUserId, @signerCompanyId, @providerSignatureId, @signatureStatusId,
         @signedDocumentUrl, @signedAt, @createdByUserId, @updatedByUserId
       );
+      COMMIT TRANSACTION;
     `,
     [
       intParam("contractId", getBodyInt(body, "contractId")),
@@ -5803,42 +5591,8 @@ async function createSignature(request: IncomingMessage, response: ServerRespons
   sendJson(response, 201, { ok: true, signature: rows[0] });
 }
 
-async function updateSignature(request: IncomingMessage, response: ServerResponse, id: number, auth: AuthContext) {
-  const signature = (await queryRowsWithParams<{ signerUserId: number; signerCompanyId: number }>(
-    "SELECT SignerUserId AS signerUserId, SignerCompanyId AS signerCompanyId FROM dbo.Signatures WHERE Id = @id;",
-    [intParam("id", id)],
-  ))[0];
-  if (!signature) throw new ApiError(404, "Signature not found.");
-  if (!auth.isAdmin && auth.userId !== signature.signerUserId && auth.companyId !== signature.signerCompanyId) {
-    throw new ApiError(403, "You cannot update another company's signature.");
-  }
-  const body = await readJsonBody<SignatureBody>(request);
-  const statusCode = getOptionalString(body, "signatureStatusCode", 80);
-  const rows = await queryRowsWithParams(
-    `
-      UPDATE dbo.Signatures
-      SET
-        ProviderSignatureId = COALESCE(@providerSignatureId, ProviderSignatureId),
-        SignatureStatusId = COALESCE(@signatureStatusId, SignatureStatusId),
-        SignedDocumentUrl = COALESCE(@signedDocumentUrl, SignedDocumentUrl),
-        SignedAt = COALESCE(@signedAt, SignedAt),
-        UpdatedByUserId = @updatedByUserId,
-        UpdatedAt = SYSUTCDATETIME()
-      OUTPUT INSERTED.Id AS id, INSERTED.ContractId AS contractId, INSERTED.SignatureStatusId AS signatureStatusId, INSERTED.SignedAt AS signedAt
-      WHERE Id = @id;
-    `,
-    [
-      intParam("id", id),
-      varcharParam("providerSignatureId", getOptionalString(body, "providerSignatureId", 200), 200),
-      intParam("signatureStatusId", statusCode ? await lookupId("SignatureStatuses", statusCode) : undefined),
-      nvarcharParam("signedDocumentUrl", getOptionalString(body, "signedDocumentUrl", 1000), 1000),
-      dateTimeParam("signedAt", getOptionalDate(body, "signedAt")),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-  if (!rows[0]) throw new ApiError(404, "Signature not found.");
-  await writeAuditLog({ auth, request, actionTypeCode: statusCode ? "status_changed" : "updated", recordTypeCode: "contract", recordId: rows[0].contractId as number, newValue: rows[0], reason: "Signature updated." });
-  sendJson(response, 200, { ok: true, signature: rows[0] });
+async function updateSignature(_request: IncomingMessage, _response: ServerResponse, _id: number, _auth: AuthContext) {
+  throw new ApiError(405, "Signature records are managed by DocuSign; use signer assignment before sending.");
 }
 
 /* ── Platform settings ── */
@@ -6264,14 +6018,18 @@ async function getReportSummary(
 
 async function readRawBody(request: IncomingMessage) {
   const chunks: Buffer[] = [];
+  let size = 0;
   for await (const chunk of request) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+    const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+    size += buffer.length;
+    if (size > 1024 * 1024) throw new ApiError(413, "Webhook payload is too large.");
+    chunks.push(buffer);
   }
   return Buffer.concat(chunks).toString("utf8");
 }
 
 /**
- * Stripe webhook: verifies the signature when STRIPE_WEBHOOK_SECRET is set
+ * Stripe webhook: requires a configured secret and a fresh authenticated signature
  * and reconciles payment and payout-readiness state.
  */
 async function handleStripeWebhook(
@@ -6279,43 +6037,19 @@ async function handleStripeWebhook(
   response: ServerResponse,
 ) {
   const payload = await readRawBody(request);
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  if (secret) {
-    const signatureHeader = request.headers["stripe-signature"];
-    const header = Array.isArray(signatureHeader)
-      ? signatureHeader[0]
-      : signatureHeader;
-    if (!header) throw new ApiError(400, "Missing Stripe-Signature header.");
-    const parts = Object.fromEntries(
-      header.split(",").map((part) => part.split("=") as [string, string]),
-    );
-    const timestamp = parts.t;
-    const signature = parts.v1;
-    if (!timestamp || !signature) {
-      throw new ApiError(400, "Malformed Stripe-Signature header.");
-    }
-    const expected = createHmac("sha256", secret)
-      .update(`${timestamp}.${payload}`)
-      .digest("hex");
-    const expectedBuffer = Buffer.from(expected, "hex");
-    const actualBuffer = Buffer.from(signature, "hex");
-    if (
-      expectedBuffer.length !== actualBuffer.length ||
-      !timingSafeEqual(expectedBuffer, actualBuffer)
-    ) {
-      throw new ApiError(400, "Stripe webhook signature verification failed.");
-    }
-  }
-
-  let event: { type?: string; data?: { object?: Record<string, unknown> } };
+  const signature = request.headers["stripe-signature"];
+  let event;
   try {
-    event = JSON.parse(payload);
-  } catch {
-    throw new ApiError(400, "Webhook payload must be valid JSON.");
+    event = verifyStripeWebhook(payload, Array.isArray(signature) ? signature[0] : signature, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (error) {
+    if (error instanceof StripeWebhookError) throw new ApiError(error.status, error.message);
+    throw error;
   }
 
-  const object = event.data?.object ?? {};
+  if (event.livemode !== (process.env.STRIPE_MODE === "live")) {
+    throw new ApiError(400, "Stripe event mode does not match this environment.");
+  }
+  const object = event.data.object as unknown as Record<string, unknown>;
 
   if (event.type === "payment_intent.succeeded" && typeof object.id === "string") {
     const capturedId = await lookupId("PaymentStatuses", "captured");
@@ -6347,29 +6081,7 @@ async function handleStripeWebhook(
     );
   }
 
-  if (
-    event.type === "account.updated" &&
-    typeof object.metadata === "object" &&
-    object.metadata !== null
-  ) {
-    const metadata = object.metadata as Record<string, unknown>;
-    const companyId = Number(metadata.ecoglobeCompanyId);
-    if (Number.isInteger(companyId) && companyId > 0) {
-      const payoutsEnabled = object.payouts_enabled === true;
-      const statusId = await lookupId(
-        "PayoutStatuses",
-        payoutsEnabled ? "scheduled" : "pending",
-      );
-      await queryRowsWithParams(
-        `
-          UPDATE dbo.SellerProfiles
-          SET PayoutStatusId = @statusId, UpdatedAt = SYSUTCDATETIME()
-          WHERE CompanyId = @companyId;
-        `,
-        [intParam("statusId", statusId), intParam("companyId", companyId)],
-      );
-    }
-  }
+  await reconcileStripeSetupEvent(event);
 
   sendJson(response, 200, { ok: true, received: event.type ?? "unknown" });
 }
@@ -6855,6 +6567,15 @@ export async function handleApiRoute(
       );
       return true;
     }
+  }
+
+  if (requestUrl.pathname === "/api/stripe/setup-status" && method === "POST") {
+    const auth = await requireSessionAuth(request);
+    const body = await readJsonBody<{ role: string; sessionId?: string }>(request);
+    const role = getRequiredString(body,"role",20);
+    if(role!=="buyer" && role!=="seller") throw new ApiError(400,"Invalid payment role.");
+    sendJson(response,200,await syncStripeSetup(auth,role,getOptionalString(body,"sessionId",200)));
+    return true;
   }
 
   if (requestUrl.pathname === "/api/stripe/onboarding") {

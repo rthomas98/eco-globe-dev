@@ -58,3 +58,6 @@ playwright-report/
 # Python setup tooling
 __pycache__/
 .vercel
+
+# Local provider credentials
+.local/

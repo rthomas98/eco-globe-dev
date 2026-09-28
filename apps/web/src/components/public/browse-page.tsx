@@ -371,13 +371,13 @@ export function BrowsePage() {
         <div className="w-full lg:w-[55%] overflow-y-auto p-6">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-neutral-900">
-              {urlQuery || urlLocation || urlCategory || urlTag ? (
+              {urlQuery || urlLocation || filters.categories.length || urlTag ? (
                 <>
                   {visibleListings.length} listing
                   {visibleListings.length === 1 ? "" : "s"}{" "}
-                  {urlCategory && (
+                  {filters.categories.length > 0 && (
                     <>
-                      in <span className="font-semibold">{urlCategory}</span>
+                      in <span className="font-semibold">{filters.categories.join(", ")}</span>
                     </>
                   )}
                   {urlTag && (

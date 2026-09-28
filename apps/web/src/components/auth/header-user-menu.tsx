@@ -19,7 +19,7 @@ import {
   writeDemoUser,
   type UserRole,
 } from "@/lib/demo-user";
-import { logoutBackendUser } from "@/lib/backend-auth";
+import { logoutBackendUser, switchBackendRole } from "@/lib/backend-auth";
 
 const PORTAL_HREF: Record<UserRole, string> = {
   buyer: "/buyer/browse",
@@ -51,6 +51,8 @@ export function HeaderUserMenu({
 }) {
   const user = useDemoUser();
   const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState("");
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -75,7 +77,7 @@ export function HeaderUserMenu({
   // dashboard switch. When it doesn't, the role is added to the account
   // ("Add access") and we send the user through the dashboard chooser so the
   // landing is consistent with joining as both at registration.
-  const handleRoleActivate = (targetRole: UserRole, isNewRole: boolean) => {
+  const handleRoleActivate = async (targetRole: UserRole, isNewRole: boolean) => {
     if (!user) return;
     const nextRoles = Array.from(new Set([...getUserRoles(user), targetRole]));
     if (isNewRole) {
@@ -91,15 +93,18 @@ export function HeaderUserMenu({
       router.push("/choose-dashboard");
       return;
     }
-    writeDemoUser(
-      buildDemoUser(targetRole, {
-        name: user.name,
-        email: user.email,
-        roles: nextRoles,
-      }),
-    );
-    setOpen(false);
-    router.push(PORTAL_HREF[targetRole]);
+    if (targetRole === "admin" || switching) return;
+    setSwitching(true);
+    setSwitchError("");
+    try {
+      await switchBackendRole(targetRole);
+      setOpen(false);
+      router.push(PORTAL_HREF[targetRole]);
+    } catch (error) {
+      setSwitchError(error instanceof Error ? error.message : "Unable to switch company. Please try again.");
+    } finally {
+      setSwitching(false);
+    }
   };
 
   if (!user) {
@@ -177,11 +182,13 @@ export function HeaderUserMenu({
             </p>
           </div>
           <div className="my-2" style={{ borderTop: "1px solid #F0F0F0" }} />
+          {switchError && <p role="alert" className="px-3 py-2 text-sm text-red-600">{switchError}</p>}
           {switchTarget && (
             <>
               <button
                 type="button"
-                onClick={() => handleRoleActivate(switchTarget, !hasSwitchTarget)}
+                disabled={switching}
+                onClick={() => void handleRoleActivate(switchTarget, !hasSwitchTarget)}
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50"
                 role="menuitem"
               >

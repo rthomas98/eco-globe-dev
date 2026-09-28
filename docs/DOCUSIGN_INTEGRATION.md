@@ -21,7 +21,7 @@ Build and test in a free [DocuSign developer account](https://developers.docusig
 3. Create an EcoGlobe contract template with recipient roles named `Buyer` and `Seller`. Place all required tabs for both roles.
 4. Create a DocuSign Connect 2.0 configuration that sends JSON events to `https://<backend-host>/api/docusign/webhook` for envelope sent, delivered, completed, declined, and voided events.
 5. Enable HMAC signing on that Connect configuration and store the secret only in Azure Key Vault/backend configuration.
-6. Create a private Azure Blob container for completed agreements and certificates. Give the backend a write-only SAS or managed-identity equivalent; do not expose the container SAS to web/mobile clients.
+6. Create a private Azure Blob container for completed agreements and certificates. Use the backend’s existing `AZURE_STORAGE_CONNECTION_STRING` (stored in Key Vault) with `AZURE_SIGNED_DOCUMENTS_CONTAINER_NAME=signed-agreements`, or give it a server-only SAS with Read, Create, and Write permissions; do not expose the container SAS to web/mobile clients.
 
 ## Backend configuration
 
@@ -36,7 +36,9 @@ Copy the DocuSign section from `packages/backend/.env.local.example`. Secrets be
 - `DOCUSIGN_TEMPLATE_ID`: approved contract template GUID.
 - `DOCUSIGN_RETURN_URL`: EcoGlobe page shown after the signing ceremony.
 - `DOCUSIGN_WEBHOOK_HMAC_SECRET`: Connect HMAC secret.
-- `AZURE_SIGNED_DOCUMENTS_CONTAINER_SAS_URL`: private container SAS with Create and Write permissions.
+- `AZURE_STORAGE_CONNECTION_STRING`: existing server-only Azure storage credential; preferred for the deployed backend.
+- `AZURE_SIGNED_DOCUMENTS_CONTAINER_NAME`: defaults to `signed-agreements`; create this private container before enabling signing.
+- `AZURE_SIGNED_DOCUMENTS_CONTAINER_SAS_URL`: alternative for local verification, with Read, Create, and Write permissions and a future expiry.
 
 Never use `NEXT_PUBLIC_*` for any DocuSign key, RSA material, HMAC secret, or Azure SAS.
 
@@ -58,3 +60,28 @@ Never use `NEXT_PUBLIC_*` for any DocuSign key, RSA material, HMAC secret, or Az
 6. Confirm the contract becomes active only after DocuSign reports envelope completion.
 7. Open the archived agreement and certificate from EcoGlobe-authorized download endpoints.
 8. Complete DocuSign Go-Live, replace demo identifiers and base URI with production values, and repeat the smoke test using production-safe test parties.
+
+## Send safety and recovery
+
+Apply `20260928_docusign_send_guard.sql` after the original DocuSign migration.
+When the same person represents both companies, the template roles use distinct buyer/seller signing turns to prevent DocuSign merging their recipients.
+
+Each send reserves a UUID on the contract before contacting DocuSign and supplies
+it as the provider transaction ID. Signer assignment and contract edits are frozen
+once reserved. An ambiguous timeout never clears this reservation or automatically
+resends. Use **Reconcile DocuSign status** (POST `/api/contracts/:id/docusign-recover`)
+to find and link the original envelope, then reconcile verified provider state.
+DocuSign retains transaction-ID lookups for seven days. An unresolved attempt,
+including one older than that window, requires an administrator to inspect provider
+history; never clear reservations blindly.
+
+Generic signature PATCH is disabled. Contract/signature creation cannot supply
+signed evidence. Only the exact assigned user can open an embedded signing view,
+including administrators. Return URLs must use the configured origin and a buyer
+or seller signature workspace path.
+
+Readiness checks validate configuration presence and unexpired archive SAS Read,
+Create and Write permissions. They do not prove provider consent, template tabs,
+webhook delivery, or an Azure immutable retention policy. Verify these with a real
+sandbox signing flow. Archive writes use create-only conditional PUTs so repeat
+completion events do not overwrite existing PDFs.
