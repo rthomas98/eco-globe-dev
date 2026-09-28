@@ -1,6 +1,6 @@
 # Logistics MVP verification — 2026-09-28
 
-Status: local frontend/backend acceptance passed against development Azure SQL. Development deployment verification follows below.
+Status: staff-managed logistics MVP implemented, committed and deployed to development. Local end-to-end browser acceptance and deployed persistence, authorization and download checks passed.
 
 ## Scope
 
@@ -49,7 +49,20 @@ Existing approved QA user42 and buyer/seller companies42/43. Orders15(delivery),
 5. For pickup, buyer confirms collection using the pickup receipt form. No carrier quote or BOL is required.
 6. Admin can monitor both parties' saved workflow. Disputed orders are locked. Missing map coordinates are displayed as unavailable.
 
+## Development release
+
+- Application commit: `b48fdbf`, pushed to `codex/deploy-ecoglobe-backend`.
+- Frontend: https://eco-globe-dev-web.vercel.app; Vercel deployment `dpl_6GwkzeiGTUWbom9d75v58F29arBR`, Ready. Remote production build passed for the existing development project.
+- Backend: `ecoglobe-backend-dev--0000026`, Healthy, 100% traffic. ACR build `cas`; image `ecoglobe-backend:logistics-b48fdbf`, digest `sha256:71771405c93384fe265174e5de0c96077eaa11c66e81e5c4f53f0383522f6e01`.
+- Thirteen deployed API assertions passed: authenticated role workspaces; saved completed delivery/pickup receipts; anonymous denial; cross-company BOL denial; admin buyer-action denial; direct completion bypass denial; downloaded PDF integrity.
+- Browser on the deployed URL showed the new staff-managed logistics UI, both saved receipts, carrier reference, receiver/collector and notes. Authenticated BOL download matched the recorded SHA-256 exactly.
+- The complete mutation stories were exercised locally against development SQL before deployment. Deployment acceptance reused those persisted orders; a fresh complete mutation story was not repeated on the public development URL.
+- Vercel emitted an existing build environment declaration warning for `ECOGLOBE_API_BASE_URL`; authenticated deployed proxy requests and downloads passed. Broad repository lint/React Doctor limitations are recorded above.
+- Rollback references: Azure revision `0000025` / previous image `docusign-20260928`; Vercel deployment `dpl_2ssAJ7RMdRa74hVxSb5nZnZPKzfF`. The additive SQL migration may remain for rollback; no reset is needed.
+
 ## Evidence
+
+![Deployed receipt and private BOL](2026-09-28-logistics-deployed.png)
 
 ![Buyer delivery receipt](2026-09-28-logistics-buyer.png)
 ![Admin saved workflow](2026-09-28-logistics-admin.png)
