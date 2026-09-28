@@ -12,14 +12,18 @@ import {
 import { fetchEscrows, type ApiEscrowRecord } from "@/lib/api-portal";
 import { useDemoUser } from "@/lib/demo-user";
 import { fetchOrders, formatOrderMoney, type ApiOrder } from "@/lib/api-orders";
+import { uploadBillOfLading } from "@/lib/api-fulfilment";
 import {
-  fetchShipments,
-  fetchCarriers,
-  sendShippingQuote,
-  uploadBillOfLading,
-  type ApiShipment,
-  type ApiCarrier,
-} from "@/lib/api-fulfilment";
+  fetchLogisticsWorkspace,
+  MAX_BOL_BYTES,
+  type LogisticsCarrier,
+  type LogisticsOrder,
+} from "@/lib/api-logistics";
+import { LogisticsQuoteForm } from "@/components/logistics/logistics-quote-form";
+import {
+  logisticsStage,
+  stageLabel,
+} from "@/components/logistics/logistics-stage";
 const button =
   "rounded-full border border-neutral-300 px-5 py-2 text-sm disabled:opacity-50";
 const nice = (value: string) => value.replaceAll("_", " ");
@@ -42,10 +46,10 @@ const emptyFilters: Filters = {
 export function SellerSalesPage() {
   const user = useDemoUser();
   const [orders, setOrders] = useState<ApiOrder[]>([]);
-  const [shipments, setShipments] = useState<ApiShipment[]>([]);
+  const [logistics, setLogistics] = useState<LogisticsOrder[]>([]);
   const [listings, setListings] = useState<BackendListing[]>([]);
   const [escrows, setEscrows] = useState<ApiEscrowRecord[]>([]);
-  const [carriers, setCarriers] = useState<ApiCarrier[]>([]);
+  const [carriers, setCarriers] = useState<LogisticsCarrier[]>([]);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
@@ -56,24 +60,20 @@ export function SellerSalesPage() {
     [filterOpen, setFilterOpen] = useState(false);
   const [selected, setSelected] = useState<ApiOrder | null>(null),
     [quote, setQuote] = useState<ApiOrder | null>(null);
-  const [cost, setCost] = useState(""),
-    [carrier, setCarrier] = useState(""),
-    [pickup, setPickup] = useState("");
   const load = useCallback(async () => {
     if (!user?.activeCompanyId) return;
     setBusy(true);
     setError("");
     try {
-      const [next, shipping, options, materials, funds] = await Promise.all([
+      const [next, workspace, materials, funds] = await Promise.all([
         fetchOrders({ sellerCompanyId: user.activeCompanyId }),
-        fetchShipments(),
-        fetchCarriers(),
+        fetchLogisticsWorkspace(),
         fetchListings("owned"),
         fetchEscrows(),
       ]);
       setOrders(next);
-      setShipments(shipping);
-      setCarriers(options);
+      setLogistics(workspace.orders);
+      setCarriers(workspace.carriers);
       setListings(materials);
       setEscrows(funds);
     } catch (e) {
@@ -85,14 +85,18 @@ export function SellerSalesPage() {
   useEffect(() => {
     void load();
   }, [load]);
-  const shipmentFor = (id: number) =>
-    shipments.filter((s) => s.orderId === id).sort((a, b) => b.id - a.id)[0];
-  const needsQuote = (o: ApiOrder) =>
-    !shipmentFor(o.id) &&
-    ["approval_required", "escrow_required", "in_progress"].includes(
-      o.orderStatusCode,
-    ) &&
-    o.deliveryMethod !== "pickup";
+  const logisticsFor = (id: number) => logistics.find((l) => l.id === id);
+  // Pickup orders never need a quote; the stage already accounts for that.
+  const needsQuote = (o: ApiOrder) => {
+    const record = logisticsFor(o.id);
+    return record ? logisticsStage(record).kind === "needs_quote" : false;
+  };
+  const canUploadBol = (o: ApiOrder) => {
+    const record = logisticsFor(o.id);
+    const kind = record ? logisticsStage(record).kind : null;
+    return kind === "bol_needed" || kind === "ready_to_dispatch";
+  };
+  const quoteRecord = quote ? logisticsFor(quote.id) : undefined;
   const filtered = orders.filter((o) => {
     const text =
       `EG-${o.id} ${o.buyerCompanyName} ${o.listingTitle}`.toLowerCase();
@@ -121,39 +125,9 @@ export function SellerSalesPage() {
             : o.orderStatusCode === "in_progress"))
     );
   });
-  async function submitQuote(e: React.FormEvent) {
-    e.preventDefault();
-    if (!quote || busy) return;
-    const amount = Number(cost);
-    if (!cost.trim() || !Number.isFinite(amount) || amount < 0 || !carrier) {
-      setError("Choose a carrier and enter a valid shipping cost.");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    try {
-      await sendShippingQuote({
-        orderId: quote.id,
-        carrierCode: carrier,
-        shippingCost: amount,
-        ...(pickup
-          ? { pickupScheduledAt: new Date(pickup).toISOString() }
-          : {}),
-      });
-      setNotice(
-        `Shipping quote saved for EG-${quote.id}. Awaiting buyer approval.`,
-      );
-      setQuote(null);
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Quote could not be saved.");
-    } finally {
-      setBusy(false);
-    }
-  }
   async function uploadBol(file: File | undefined) {
     if (!selected || !file || busy) return;
-    if (file.type !== "application/pdf" || file.size > 5 * 1024 * 1024) {
+    if (file.type !== "application/pdf" || file.size > MAX_BOL_BYTES) {
       setError("Choose a PDF up to 5 MB.");
       return;
     }
@@ -163,11 +137,10 @@ export function SellerSalesPage() {
       await uploadBillOfLading({
         orderId: selected.id,
         fileName: file.name,
-        contentType: file.type,
         dataBase64: await readFileAsBase64(file),
       });
       setNotice(
-        `Bill of lading uploaded for EG-${selected.id}. Shipment is in transit.`,
+        `Bill of lading attached to EG-${selected.id}. Record dispatch in Logistics when the carrier collects the load.`,
       );
       await load();
     } catch (e) {
@@ -254,7 +227,7 @@ export function SellerSalesPage() {
           </thead>
           <tbody>
             {filtered.map((o) => {
-              const shipment = shipmentFor(o.id);
+              const record = logisticsFor(o.id);
               return (
                 <tr key={o.id} className="border-t">
                   <td className="p-4">
@@ -278,11 +251,9 @@ export function SellerSalesPage() {
                   </td>
                   <td className="p-4">
                     {nice(o.orderStatusCode)}
-                    {shipment && (
+                    {record && (record.shipment || record.quote) && (
                       <p className="mt-1 font-medium text-emerald-700">
-                        {shipment.shipmentStatusCode === "quote_pending"
-                          ? "Quote sent · awaiting approval"
-                          : nice(shipment.shipmentStatusCode)}
+                        {stageLabel(logisticsStage(record)).label}
                       </p>
                     )}
                   </td>
@@ -291,10 +262,8 @@ export function SellerSalesPage() {
                       <button
                         className={button}
                         onClick={() => {
+                          setError("");
                           setQuote(o);
-                          setCost("");
-                          setCarrier("");
-                          setPickup("");
                         }}
                       >
                         Send quote
@@ -429,75 +398,31 @@ export function SellerSalesPage() {
           </form>
         </div>
       )}
-      {quote && (
+      {quote && quoteRecord && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Shipping quote"
+          aria-labelledby="sales-quote-heading"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-5"
         >
-          <form
-            onSubmit={submitQuote}
-            className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6"
-          >
-            <h2 className="text-xl font-bold">
+          <div className="max-h-full w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl bg-white p-6">
+            <h2 id="sales-quote-heading" className="text-xl font-bold">
               Shipping quote · EG-{quote.id}
             </h2>
             <p>{quote.deliveryAddress || "Delivery address not recorded"}</p>
-            <label className="block">
-              Carrier
-              <select
-                required
-                value={carrier}
-                onChange={(e) => setCarrier(e.target.value)}
-                className="block w-full rounded border p-2"
-              >
-                <option value="">Choose carrier</option>
-                {carriers.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              Shipping cost ({quote.currencyCode})
-              <input
-                required
-                type="number"
-                min="0"
-                step="0.01"
-                value={cost}
-                onChange={(e) => setCost(e.target.value)}
-                className="block w-full rounded border p-2"
-              />
-            </label>
-            <label className="block">
-              Pickup date and time (optional)
-              <input
-                type="datetime-local"
-                value={pickup}
-                onChange={(e) => setPickup(e.target.value)}
-                className="block w-full rounded border p-2"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={busy}
-              className={`${button} bg-black text-white`}
-            >
-              {busy ? "Saving…" : "Send quote"}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              className={button}
-              onClick={() => setQuote(null)}
-            >
-              Cancel
-            </button>
-            {error && <p role="alert">{error}</p>}
-          </form>
+            <LogisticsQuoteForm
+              order={quoteRecord}
+              carriers={carriers}
+              onCancel={() => setQuote(null)}
+              onSaved={async () => {
+                setNotice(
+                  `Shipping quote recorded for EG-${quote.id}. Awaiting buyer acceptance.`,
+                );
+                setQuote(null);
+                await load();
+              }}
+            />
+          </div>
         </div>
       )}
       {selected && (
@@ -529,8 +454,7 @@ export function SellerSalesPage() {
                 Destination: {selected.deliveryAddress || "Not recorded"}
               </div>
             </dl>
-            {selected.orderStatusCode === "in_progress" &&
-              shipmentFor(selected.id)?.shipmentStatusCode !== "delivered" && (
+            {canUploadBol(selected) && (
                 <label className="mt-5 block">
                   Upload Bill of Lading (BOL)
                   <input
@@ -542,8 +466,11 @@ export function SellerSalesPage() {
                   />
                 </label>
               )}
+            <Link className="mt-5 block underline" href="/seller/logistics">
+              Manage quotes, BOL and dispatch in Logistics
+            </Link>
             <Link
-              className="mt-5 block underline"
+              className="mt-3 block underline"
               href="/seller/delivery-tracking"
             >
               View saved shipments and delivery status

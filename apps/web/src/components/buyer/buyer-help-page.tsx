@@ -36,19 +36,19 @@ const FAQS: FaqItem[] = [
     topic: "Orders",
     question: "Can I cancel an order after I've placed it?",
     answer:
-      "Yes — open the kebab menu on any active order and choose Cancel order. The seller is notified, and any funded escrow is refunded. Completed orders cannot be cancelled.",
+      "Yes — open the kebab menu on any active order and choose Cancel order. The seller is notified, and EcoGlobe staff handle any refund of funded escrow. Completed orders cannot be cancelled.",
   },
   {
     topic: "Orders",
     question: "How do I confirm delivery?",
     answer:
-      "When an order reaches Buyer verification, click Mark as Delivered. Confirm what arrived matches the order, or open Report an Issue to file a dispute.",
+      "When the material arrives, open the order or Logistics & Shipping, inspect it and record receipt with the name of the person who received it. If something is wrong, open Report an Issue to file a dispute instead.",
   },
   {
     topic: "Payments",
     question: "How does escrow work on EcoGlobe?",
     answer:
-      "Once you approve a quote, you fund escrow with a saved payment method. Funds are held until you confirm delivery — at that point escrow is released to the seller. If you report an issue, escrow stays on hold while EcoGlobe reviews.",
+      "Once you approve a quote, you fund escrow with a saved payment method. Funds stay held while the order is fulfilled. When the material arrives, or when you collect a pickup order, you record who received it; that completes the order but does not release funds automatically — EcoGlobe staff handle settlement with the seller. If you report an issue, escrow stays on hold while EcoGlobe reviews.",
   },
   {
     topic: "Payments",
@@ -66,7 +66,7 @@ const FAQS: FaqItem[] = [
     topic: "Shipping",
     question: "What's the difference between Pickup and Delivery?",
     answer:
-      "Delivery means the seller arranges shipping for an additional cost (you'll see the quote before you commit). Pickup means you arrange transport yourself — the order moves to Ready for pickup with a code you bring to the seller's facility.",
+      "Delivery means the seller or EcoGlobe staff record a shipping quote for an additional cost; you accept it before staff coordinate the carrier. Pickup means you arrange transport yourself — the order moves to Ready for pickup with a code you bring to the seller's facility.",
   },
   {
     topic: "Shipping",

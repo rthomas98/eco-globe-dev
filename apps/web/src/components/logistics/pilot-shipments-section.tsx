@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Handshake, RefreshCw } from "lucide-react";
 import { fetchShipments, type ApiShipment } from "@/lib/api-fulfilment";
-import { PILOT_AWAITING_COORDINATION_LABEL } from "./logistics-demo-data";
 import { describeBackendError } from "@/lib/backend-client";
+
+/** Pilot shipments waiting on staff are never shown as awaiting a quote. */
+export const PILOT_AWAITING_COORDINATION_LABEL = "Awaiting coordination";
 
 type State = { status: "loading" } | { status: "ready"; shipments: ApiShipment[] } | { status: "error"; message: string };
 

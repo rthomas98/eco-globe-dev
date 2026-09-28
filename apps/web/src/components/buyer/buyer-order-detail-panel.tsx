@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { DisputeThread } from "@/components/disputes/dispute-thread";
+import { ReceiptConfirmationForm } from "@/components/logistics/receipt-confirmation-form";
+import type { ReceiptDetails } from "@/lib/api-logistics";
 import {
   confirmOrderDelivery,
   fetchDisputes,
@@ -201,25 +203,20 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
   // local flow so the walkthrough still works offline.
   const liveOrderId = order ? numericOrderId(order.orderId) : null;
 
-  const runConfirmDelivery = async (
+  // Receipt details are required for every confirmation. Errors are thrown
+  // back to the receipt form, which shows them next to the fields. Unsaved
+  // demo orders cannot record receipt, so they never show a success screen.
+  const runConfirmReceipt = async (
     successModal: "delivery-verified" | "pickup-success",
+    receipt: ReceiptDetails,
   ) => {
-    if (actionBusy) return;
-    setActionError("");
     if (!liveOrderId) {
-      setActiveModal(successModal);
-      return;
-    }
-    setActionBusy(true);
-    try {
-      await confirmOrderDelivery(liveOrderId);
-      setActiveModal(successModal);
-    } catch (error) {
-      setActionError(
-        error instanceof Error ? error.message : "Unable to confirm delivery.",
+      throw new Error(
+        "This is a demo order that is not saved to EcoGlobe, so receipt cannot be recorded.",
       );
     }
-    setActionBusy(false);
+    await confirmOrderDelivery(liveOrderId, receipt);
+    setActiveModal(successModal);
   };
 
   const runFileDispute = async () => {
@@ -939,27 +936,15 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
               Confirm pickup completion?
             </h2>
             <p className="mt-3 max-w-[360px] text-sm text-neutral-500">
-              Once confirmed, this action cannot be undone. Escrow funds will
-              move to the verification stage.
+              Once recorded, this cannot be undone and the order is marked
+              complete.
             </p>
-            <div className="mt-8 flex items-center justify-center gap-3">
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => setActiveModal(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => void runConfirmDelivery("pickup-success")}
-                disabled={actionBusy}
-              >
-                {actionBusy ? "Confirming..." : "Yes, confirm"}
-              </Button>
-            </div>
           </div>
+          <ReceiptConfirmationForm
+            kind="pickup"
+            onCancel={() => setActiveModal(null)}
+            onSubmit={(receipt) => runConfirmReceipt("pickup-success", receipt)}
+          />
         </Modal>
       )}
 
@@ -975,27 +960,24 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
               Confirm delivery
             </h2>
             <p className="mt-3 max-w-[400px] text-sm text-neutral-500">
-              Confirm you received the shipment and verify the material before
-              escrow is released.
-            </p>
-            <div className="mt-8 flex items-center justify-center gap-3">
-              <Button
-                variant="secondary"
-                size="md"
+              Confirm you received the shipment and inspected the material.
+              Something wrong?{" "}
+              <button
+                type="button"
+                className="font-semibold text-neutral-900 underline"
                 onClick={() => setActiveModal("report-issue")}
               >
-                Report an Issue
-              </Button>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => void runConfirmDelivery("delivery-verified")}
-                disabled={actionBusy}
-              >
-                {actionBusy ? "Confirming..." : "Confirm Delivery"}
-              </Button>
-            </div>
+                Report an issue
+              </button>{" "}
+              instead.
+            </p>
           </div>
+          <ReceiptConfirmationForm
+            kind="delivery"
+            onSubmit={(receipt) =>
+              runConfirmReceipt("delivery-verified", receipt)
+            }
+          />
         </Modal>
       )}
 
@@ -1154,9 +1136,9 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
               Your delivery has been verified
             </h1>
             <p className="mt-3 max-w-[520px] text-base text-neutral-500">
-              We&apos;ve recorded your delivery confirmation. Escrow release is
-              now in progress, and the seller will be paid after final
-              processing.
+              We&apos;ve recorded your receipt and the order is complete.
+              Payment settlement with the seller is handled separately by
+              EcoGlobe staff.
             </p>
             <Button
               variant="secondary"
@@ -1259,7 +1241,9 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
               Pickup confirmed
             </h1>
             <p className="mt-3 text-base text-neutral-500">
-              Thank you! Your order has been marked as complete.
+              Thank you! Your pickup receipt is recorded and the order is
+              complete. Payment settlement is handled separately by EcoGlobe
+              staff.
             </p>
             <Button
               variant="secondary"

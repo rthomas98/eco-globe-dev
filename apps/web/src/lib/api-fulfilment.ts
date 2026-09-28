@@ -2,9 +2,16 @@
 
 /**
  * Fulfilment-side client: shipments, carriers, disputes, and the composed
- * buyer/seller actions that close the order loop (confirm delivery, cancel,
- * shipping quotes, BOL upload, dispute filing).
+ * buyer/seller actions that close the order loop (receipt confirmation,
+ * cancel, BOL upload, dispute filing). Quotes, BOL and dispatch for order
+ * shipments live in the staff-managed logistics client (`api-logistics`).
  */
+
+import {
+  confirmLogisticsReceipt,
+  uploadLogisticsBol,
+  type ReceiptDetails,
+} from "./api-logistics";
 
 async function proxy<T>(
   path: string,
@@ -80,36 +87,6 @@ export async function fetchCarriers() {
   return Array.isArray(body.carriers) ? body.carriers : [];
 }
 
-export async function createShipment(input: {
-  orderId: number;
-  carrierCode?: string;
-  shipmentStatusCode?: string;
-  trackingNumber?: string;
-  shippingCost?: number;
-  pickupScheduledAt?: string;
-  note?: string;
-}) {
-  const body = await proxy<{ ok: boolean; shipment: { id: number } }>(
-    "/api/shipments",
-    { method: "POST", json: input },
-  );
-  return body.shipment;
-}
-
-export async function updateShipment(
-  id: number,
-  patch: {
-    shipmentStatusCode?: string;
-    trackingNumber?: string;
-    shippingCost?: number;
-    deliveryConfirmedAt?: string;
-    carrierCode?: string;
-    pickupScheduledAt?: string;
-  },
-) {
-  return proxy(`/api/shipments/${id}`, { method: "PATCH", json: patch });
-}
-
 /* ── Disputes ── */
 
 export interface ApiDispute {
@@ -179,48 +156,17 @@ export async function updateDispute(
 /* ── Composed order actions ── */
 
 /**
- * Buyer confirms delivery: mark the shipment delivered (creating one for
- * pickup orders that never had a shipment record), release the escrow when
- * one is funded, and complete the order.
+ * Buyer acknowledges receipt of a delivery or pickup with the receiver's
+ * name and inspection confirmation. The backend atomically records the
+ * receipt, marks the shipment delivered and completes the order. It does not
+ * release escrow or move funds; settlement stays with EcoGlobe staff.
  */
-export async function confirmOrderDelivery(orderId: number) {
-  const shipments = await fetchShipments(orderId);
-  const openShipment = shipments.find(
-    (s) => s.shipmentStatusCode !== "delivered",
-  );
-  if (openShipment) {
-    await updateShipment(openShipment.id, {
-      shipmentStatusCode: "delivered",
-      deliveryConfirmedAt: new Date().toISOString(),
-    });
-  } else if (shipments.length === 0) {
-    await createShipment({
-      orderId,
-      carrierCode: "ecofreight",
-      shipmentStatusCode: "delivered",
-    });
-  }
-
-  const escrows = await proxy<{
-    ok: boolean;
-    escrows: Array<{ id: number; escrowStatusCode: string }>;
-  }>(`/api/escrows?orderId=${orderId}`);
-  const releasable = (escrows.escrows ?? []).find((e) =>
-    ["funded", "release_pending"].includes(e.escrowStatusCode),
-  );
-  if (releasable) {
-    await proxy(`/api/escrows/${releasable.id}`, {
-      method: "PATCH",
-      json: { escrowStatusCode: "released" },
-    });
-  }
-
-  await proxy(`/api/orders/${orderId}`, {
-    method: "PATCH",
-    json: { orderStatusCode: "completed" },
-  });
-
-  return { escrowReleased: Boolean(releasable) };
+export async function confirmOrderDelivery(
+  orderId: number,
+  receipt: ReceiptDetails,
+): Promise<{ escrowReleased: false }> {
+  await confirmLogisticsReceipt({ orderId, ...receipt });
+  return { escrowReleased: false };
 }
 
 export async function cancelOrder(orderId: number) {
@@ -230,60 +176,17 @@ export async function cancelOrder(orderId: number) {
   });
 }
 
-/** Seller sends a shipping quote: a scheduled shipment carrying the cost. */
-export async function sendShippingQuote(input: {
-  orderId: number;
-  carrierCode: string;
-  shippingCost: number;
-  pickupScheduledAt?: string;
-  note?: string;
-}) {
-  return createShipment({
-    ...input,
-    shipmentStatusCode: "quote_pending",
-  });
-}
-
 /**
- * Seller uploads a Bill of Lading: the file goes to blob storage and the
- * order's shipment moves to in_transit with the tracking reference.
+ * Seller/admin attaches a Bill of Lading PDF to the scheduled shipment. The
+ * file is stored privately by the backend. Uploading does not dispatch the
+ * shipment or create a tracking reference; dispatch is a separate action.
  */
 export async function uploadBillOfLading(input: {
   orderId: number;
   fileName: string;
-  contentType: string;
   dataBase64: string;
-  trackingNumber?: string;
 }) {
-  const uploaded = await proxy<{ ok: boolean; file: { url: string } }>(
-    "/api/files",
-    {
-      method: "POST",
-      json: {
-        fileName: input.fileName,
-        contentType: input.contentType,
-        dataBase64: input.dataBase64,
-      },
-    },
-  );
-
-  const shipments = await fetchShipments(input.orderId);
-  const target = shipments.find((s) => s.shipmentStatusCode !== "delivered");
-  if (target) {
-    await updateShipment(target.id, {
-      shipmentStatusCode: "in_transit",
-      trackingNumber: input.trackingNumber ?? uploaded.file.url.slice(-24),
-    });
-  } else {
-    await createShipment({
-      orderId: input.orderId,
-      carrierCode: "ecofreight",
-      shipmentStatusCode: "in_transit",
-      trackingNumber: input.trackingNumber,
-    });
-  }
-
-  return uploaded.file;
+  await uploadLogisticsBol(input);
 }
 
 /** Extract the numeric backend order id from a UI order id like "EG-5". */

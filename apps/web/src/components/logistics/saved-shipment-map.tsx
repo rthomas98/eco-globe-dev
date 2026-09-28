@@ -6,7 +6,19 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { ApiShipment } from "@/lib/api-fulfilment";
 import { STREET_STYLE } from "@/lib/street-map-style";
 
-export function SavedShipmentMap({ shipment }: { shipment: ApiShipment }) {
+/** Only saved endpoints are needed, so order shipments from the logistics workspace fit too. */
+export type SavedShipmentLocation = Pick<
+  ApiShipment,
+  | "id"
+  | "originName"
+  | "originLatitude"
+  | "originLongitude"
+  | "destinationName"
+  | "destinationLatitude"
+  | "destinationLongitude"
+>;
+
+export function SavedShipmentMap({ shipment }: { shipment: SavedShipmentLocation }) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
   const {

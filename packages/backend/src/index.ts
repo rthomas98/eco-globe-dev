@@ -2,6 +2,7 @@ import { processSampleShipping } from './sample-shipping-routes.js';
 import { createServer } from "node:http";
 import { handleApiRoute } from "./api.js";
 import { handleAuthRoute } from "./auth-routes.js";
+import { handleLogisticsRoute } from "./logistics-routes.js";
 import { handleDocusignRoute } from "./docusign-routes.js";
 import { getDatabaseHealth, getSchemaTables } from "./database.js";
 import { ApiError, corsHeaders, sendHtml, sendJson } from "./http.js";
@@ -993,6 +994,8 @@ const server = createServer(async (request, response) => {
     if (authHandled) {
       return;
     }
+
+    if (await handleLogisticsRoute(request, response, requestUrl)) return;
 
     const docusignHandled = await handleDocusignRoute(request, response, requestUrl);
 

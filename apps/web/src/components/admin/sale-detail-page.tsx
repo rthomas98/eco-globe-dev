@@ -3,11 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@eco-globe/ui";
-import {
-  fetchShipments,
-  updateShipment,
-  type ApiShipment,
-} from "@/lib/api-fulfilment";
+import { LogisticsWorkspace } from "@/components/logistics/logistics-workspace";
 import {
   fetchOrderById,
   fetchEscrows,
@@ -20,7 +16,6 @@ import { AdminDetailPage, DetailCard, KeyValueGrid } from "./admin-detail-page";
 
 interface OrderDetail {
   order: Awaited<ReturnType<typeof fetchOrderById>>;
-  shipments: ApiShipment[];
   escrows: ApiEscrowRecord[];
   payments: ApiPayment[];
 }
@@ -29,7 +24,6 @@ export function AdminSaleDetailPage({ id }: { id: string }) {
   const [data, setData] = useState<OrderDetail | null>(null);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  const [saving, setSaving] = useState(false);
   useEffect(() => {
     let active = true;
     setData(null);
@@ -39,17 +33,11 @@ export function AdminSaleDetailPage({ id }: { id: string }) {
       setError("Invalid order reference.");
       return;
     }
-    Promise.all([
-      fetchOrderById(orderId),
-      fetchShipments(orderId),
-      fetchEscrows(),
-      fetchPayments(),
-    ])
-      .then(([order, shipments, escrows, payments]) => {
+    Promise.all([fetchOrderById(orderId), fetchEscrows(), fetchPayments()])
+      .then(([order, escrows, payments]) => {
         if (active)
           setData({
             order,
-            shipments,
             escrows: escrows.filter((item) => item.orderId === orderId),
             payments: payments.filter((item) => item.orderId === orderId),
           });
@@ -67,6 +55,7 @@ export function AdminSaleDetailPage({ id }: { id: string }) {
     };
   }, [id, revision]);
   const order = data?.order;
+  const routeOrderId = trailingNumericId(id);
   const value = (key: string) =>
     order?.[key] == null ? "Not recorded" : String(order[key]);
   const money = (amount: number) =>
@@ -80,26 +69,6 @@ export function AdminSaleDetailPage({ id }: { id: string }) {
   const subtotal = total + credit;
   const checkout = order?.creationSourceCode === "listing_checkout";
   const quantity = Number(order?.quantity ?? 0);
-  const overrideTracking = async (shipment: ApiShipment) => {
-    const trackingNumber = window.prompt(
-      "Override tracking number:",
-      shipment.trackingNumber ?? "",
-    );
-    if (!trackingNumber?.trim()) return;
-    setSaving(true);
-    try {
-      await updateShipment(shipment.id, {
-        trackingNumber: trackingNumber.trim(),
-      });
-      setRevision((n) => n + 1);
-    } catch (reason) {
-      window.alert(
-        reason instanceof Error ? reason.message : "Tracking update failed.",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
   return (
     <AdminDetailPage
       breadcrumbs={[{ label: "Sales", href: "/admin/sales" }, { label: id }]}
@@ -171,36 +140,9 @@ export function AdminSaleDetailPage({ id }: { id: string }) {
                 ]}
               />
             </DetailCard>
-            <DetailCard title="Shipments">
-              {data.shipments.length ? (
-                data.shipments.map((shipment) => (
-                  <div
-                    key={shipment.id}
-                    className="space-y-3 border-b py-3 last:border-0"
-                  >
-                    <p>
-                      Shipment {shipment.id} · {shipment.shipmentStatusName}
-                    </p>
-                    <p>
-                      {shipment.carrierName ?? "Carrier not assigned"} ·{" "}
-                      {shipment.trackingNumber ?? "Tracking not recorded"}
-                    </p>
-                    <p>
-                      Carrier cost:{" "}
-                      {shipment.shippingCost == null
-                        ? "Not recorded"
-                        : money(shipment.shippingCost)}
-                    </p>
-                    <Button
-                      disabled={saving}
-                      onClick={() => void overrideTracking(shipment)}
-                    >
-                      Override tracking for shipment {shipment.id}
-                    </Button>
-                  </div>
-                ))
-              ) : (
-                <p>No shipment has been recorded for this order.</p>
+            <DetailCard title="Logistics">
+              {routeOrderId && (
+                <LogisticsWorkspace portal="admin" orderId={routeOrderId} />
               )}
             </DetailCard>
             <DetailCard title="Documents">

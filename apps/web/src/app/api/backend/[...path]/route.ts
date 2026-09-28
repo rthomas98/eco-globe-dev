@@ -41,6 +41,10 @@ function upstreamDeadline(pathname: string, method: string) {
   if (/^\/api\/admin\/lab\/requests\/[^/]+\/reports$/.test(pathname) && method === "POST") {
     return UPLOAD_UPSTREAM_DEADLINE_MS;
   }
+  // Bill of Lading PDFs (up to 5 MiB) are uploaded as JSON base64.
+  if (/^\/api\/logistics\/orders\/\d+\/bol$/.test(pathname) && method === "POST") {
+    return UPLOAD_UPSTREAM_DEADLINE_MS;
+  }
   return DEFAULT_UPSTREAM_DEADLINE_MS;
 }
 

@@ -3786,6 +3786,7 @@ async function updateOrder(
   const orderStatusCode = getOptionalString(body, "orderStatusCode", 80);
   if (orderStatusCode) {
     const toCode = normalizeCode(orderStatusCode);
+    if (toCode === "completed") throw new ApiError(409, "Confirm receipt through the logistics workflow to complete the order.");
     assertStatusTransition(
       ORDER_TRANSITIONS,
       order.orderStatusCode,
@@ -4724,76 +4725,12 @@ const SHIPMENT_TRANSITIONS: Record<string, string[]> = {
 
 async function createShipment(
   request: IncomingMessage,
-  response: ServerResponse,
+  _response: ServerResponse,
   auth: AuthContext,
 ) {
   const body = await readJsonBody<ShipmentBody>(request);
-  const carrierCode = getOptionalString(body, "carrierCode", 80);
-  const orderId = getBodyInt(body, "orderId");
-  await requireOrderAccess(auth, orderId);
-  const carrierId = getOptionalInt(body, "carrierId") ?? (carrierCode ? await lookupId("Carriers", carrierCode) : undefined);
-  const shipmentStatusId = await lookupId(
-    "ShipmentStatuses",
-    getOptionalString(body, "shipmentStatusCode", 80) ?? "scheduled",
-  );
-
-  const rows = await queryRowsWithParams(
-    `
-      INSERT INTO dbo.Shipments (
-        OrderId, CarrierId, TrackingNumber, OriginLocationId, DestinationLocationId,
-        ShipmentStatusId, ShippingCost, CarbonImpactKgCo2e, PickupScheduledAt,
-        DeliveryConfirmedAt, CreatedByUserId, UpdatedByUserId
-      )
-      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.CarrierId AS carrierId, INSERTED.ShipmentStatusId AS shipmentStatusId
-      VALUES (
-        @orderId, @carrierId, @trackingNumber, @originLocationId, @destinationLocationId,
-        @shipmentStatusId, @shippingCost, @carbonImpactKgCo2e, @pickupScheduledAt,
-        @deliveryConfirmedAt, @createdByUserId, @updatedByUserId
-      );
-    `,
-    [
-      intParam("orderId", orderId),
-      intParam("carrierId", carrierId),
-      varcharParam("trackingNumber", getOptionalString(body, "trackingNumber", 160), 160),
-      intParam("originLocationId", getOptionalInt(body, "originLocationId")),
-      intParam("destinationLocationId", getOptionalInt(body, "destinationLocationId")),
-      intParam("shipmentStatusId", shipmentStatusId),
-      moneyParam("shippingCost", getOptionalNumber(body, "shippingCost")),
-      decimalParam("carbonImpactKgCo2e", getOptionalNumber(body, "carbonImpactKgCo2e")),
-      dateTimeParam("pickupScheduledAt", getOptionalDate(body, "pickupScheduledAt")),
-      dateTimeParam("deliveryConfirmedAt", getOptionalDate(body, "deliveryConfirmedAt")),
-      intParam("createdByUserId", auth.userId),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-
-  await writeAuditLog({
-    auth,
-    request,
-    actionTypeCode: "created",
-    recordTypeCode: "shipment",
-    recordId: rows[0].id as number,
-    newValue: rows[0],
-    reason: "Shipment created.",
-  });
-
-  const shipmentOrderParties = await requireOrderAccess(auth, orderId);
-  await notifyCompanies({
-    actorUserId: auth.userId,
-    companyIds: [
-      shipmentOrderParties.buyerCompanyId,
-      shipmentOrderParties.sellerCompanyId,
-    ],
-    categoryCode: "logistics",
-    subject: `Shipment created for order #${orderId}`,
-    body:
-      getOptionalString(body, "note", 500) ??
-      `A shipment was scheduled for order #${orderId}.`,
-    recordTypeCode: "shipment",
-    recordId: rows[0].id as number,
-  });
-
-  sendJson(response, 201, { ok: true, shipment: rows[0] });
+  await requireOrderAccess(auth, getBodyInt(body, "orderId"));
+  throw new ApiError(409, "Use the logistics quote and buyer approval workflow to schedule shipping.");
 }
 
 async function updateShipment(
@@ -4811,6 +4748,7 @@ async function updateShipment(
     if (!auth.isAdmin) throw new ApiError(403, 'Pilot shipments are managed by EcoGlobe.');
   } else if (shipmentOrder.orderId) {
     await requireOrderAccess(auth, shipmentOrder.orderId);
+    throw new ApiError(409, "Use the logistics workflow to update order shipments.");
   } else {
     throw new ApiError(409, 'Shipment has no fulfilment source.');
   }
@@ -4881,19 +4819,6 @@ async function updateShipment(
     newValue: rows[0],
     reason: "Shipment updated.",
   });
-
-  if (statusCode && shipmentOrder.orderId) {
-    const parties = await requireOrderAccess(auth, shipmentOrder.orderId);
-    await notifyCompanies({
-      actorUserId: auth.userId,
-      companyIds: [parties.buyerCompanyId, parties.sellerCompanyId],
-      categoryCode: "logistics",
-      subject: `Shipment for order #${shipmentOrder.orderId} is now ${normalizeCode(statusCode)}`,
-      body: `The shipment on order #${shipmentOrder.orderId} moved to ${normalizeCode(statusCode)}.`,
-      recordTypeCode: "shipment",
-      recordId: id,
-    });
-  }
 
   sendJson(response, 200, { ok: true, shipment: rows[0] });
 }
