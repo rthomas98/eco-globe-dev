@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useDemoUser } from "@/lib/demo-user";
+import { describeBackendError } from "@/lib/backend-client";
+import { fetchCompany } from "@/lib/api-portal";
+import {
+  fetchCompanyVerification,
+  isVerificationApiUnavailable,
+  uploadVerificationEvidence,
+  type VerificationEvidence,
+} from "@/lib/api-verification";
+import { LoadingState, useBackendData } from "@/components/shared/data-state";
 import {
   AlertTriangle,
   Building2,
@@ -18,13 +28,7 @@ interface VerificationStep {
   id: string;
   label: string;
   detail: string;
-  status: VerificationStatus;
   requirements: string[];
-}
-
-interface SubmittedFile {
-  name: string;
-  size: number;
 }
 
 interface Notice {
@@ -32,23 +36,15 @@ interface Notice {
   message: string;
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const ACCEPTED_FILE_TYPES = ".pdf,.png,.jpg,.jpeg,.doc,.docx";
-const ACCEPTED_EXTENSIONS = new Set([
-  "pdf",
-  "png",
-  "jpg",
-  "jpeg",
-  "doc",
-  "docx",
-]);
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ACCEPTED_FILE_TYPES = ".pdf,.png,.jpg,.jpeg";
+const ACCEPTED_EXTENSIONS = new Set(["pdf", "png", "jpg", "jpeg"]);
 
 const baseSteps: VerificationStep[] = [
   {
     id: "business",
     label: "Business verification",
     detail: "Company registration, tax ID, and authorized representative.",
-    status: "Complete",
     requirements: [
       "A current company registration or formation document",
       "A valid tax identification document",
@@ -60,7 +56,6 @@ const baseSteps: VerificationStep[] = [
     label: "Sustainability documents",
     detail:
       "Certifications, COAs, SDS sheets, or ESG evidence tied to feedstocks.",
-    status: "In review",
     requirements: [
       "Current sustainability certification or independent audit report",
       "A certificate of analysis or safety data sheet, where applicable",
@@ -72,7 +67,6 @@ const baseSteps: VerificationStep[] = [
     label: "Financial verification",
     detail:
       "Payment method, bank details, escrow eligibility, and payout readiness.",
-    status: "Needed",
     requirements: [
       "Settlement account or payment-method verification",
       "A bank letter or statement confirming account ownership",
@@ -83,7 +77,6 @@ const baseSteps: VerificationStep[] = [
     id: "compliance",
     label: "Ongoing compliance",
     detail: "Expiration monitoring, renewal reminders, and admin spot checks.",
-    status: "Needed",
     requirements: [
       "Documents showing visible issue and expiration dates",
       "A designated compliance contact for renewal reminders",
@@ -92,9 +85,18 @@ const baseSteps: VerificationStep[] = [
   },
 ];
 
-function formatFileSize(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+/** Status of one section, derived only from evidence saved on the backend. */
+function sectionStatus(evidence: VerificationEvidence[]): VerificationStatus {
+  if (evidence.some((e) => e.status === "approved")) return "Complete";
+  if (evidence.some((e) => e.status === "pending_review")) return "In review";
+  return "Needed";
+}
+
+function companyStatusLabel(code: string | undefined) {
+  if (code === "verified") return "Verified";
+  if (code === "suspended") return "Suspended";
+  if (code === "pending_verification") return "Pending verification";
+  return code ? code.replace(/_/g, " ") : "Unknown";
 }
 
 function isAcceptedFile(file: File) {
@@ -103,10 +105,22 @@ function isAcceptedFile(file: File) {
 }
 
 export function VerificationCenter({ role }: { role: Role }) {
-  const [steps, setSteps] = useState(baseSteps);
-  const [submittedFiles, setSubmittedFiles] = useState<
-    Record<string, SubmittedFile>
-  >({});
+  const user = useDemoUser();
+  const companyId = user?.activeCompanyId;
+  const company = useBackendData(
+    () => (companyId ? fetchCompany(companyId) : Promise.resolve(null)),
+    [companyId],
+    "Your company record could not be loaded.",
+  );
+  const verification = useBackendData(
+    () => (companyId ? fetchCompanyVerification(companyId) : Promise.resolve(null)),
+    [companyId],
+    "Submitted verification documents could not be loaded.",
+  );
+  const evidenceUnavailable =
+    verification.status === "error" && isVerificationApiUnavailable(verification.rawError);
+  const evidence = verification.data?.evidence ?? [];
+  const [uploadingStep, setUploadingStep] = useState<string | null>(null);
   const [requirementsStep, setRequirementsStep] =
     useState<VerificationStep | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -117,8 +131,8 @@ export function VerificationCenter({ role }: { role: Role }) {
   const title = role === "buyer" ? "Buyer verification" : "Seller verification";
   const body =
     role === "buyer"
-      ? "Complete buyer verification so orders, escrow funding, and delivery addresses can be approved."
-      : "Complete seller verification so listings can be published and buyers can trust your documents.";
+      ? "Submit company documents so EcoGlobe staff can verify your buyer account."
+      : "Submit company documents so EcoGlobe staff can verify your seller account.";
 
   const openFilePicker = (stepId: string) => {
     uploadStepIdRef.current = stepId;
@@ -126,21 +140,21 @@ export function VerificationCenter({ role }: { role: Role }) {
     fileInputRef.current?.click();
   };
 
-  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
 
-    if (!file || !uploadStepIdRef.current) return;
+    if (!file || !uploadStepIdRef.current || !companyId) return;
 
     const stepId = uploadStepIdRef.current;
-    const step = steps.find((item) => item.id === stepId);
+    const step = baseSteps.find((item) => item.id === stepId);
     uploadStepIdRef.current = null;
 
     if (!isAcceptedFile(file)) {
       setNotice({
         tone: "error",
         message:
-          "Choose a PDF, PNG, JPG, DOC, or DOCX file to submit for verification.",
+          "Choose a PDF, PNG, or JPEG file to submit for verification.",
       });
       return;
     }
@@ -148,24 +162,28 @@ export function VerificationCenter({ role }: { role: Role }) {
     if (file.size > MAX_FILE_SIZE) {
       setNotice({
         tone: "error",
-        message: "Choose a file smaller than 10 MB.",
+        message: "Choose a file smaller than 5 MB.",
       });
       return;
     }
 
-    setSubmittedFiles((current) => ({
-      ...current,
-      [stepId]: { name: file.name, size: file.size },
-    }));
-    setSteps((current) =>
-      current.map((item) =>
-        item.id === stepId ? { ...item, status: "In review" } : item,
-      ),
-    );
-    setNotice({
-      tone: "success",
-      message: `${file.name} is ready for admin review${step ? ` under ${step.label}` : ""}.`,
-    });
+    // The section changes only after the backend stores the file.
+    setUploadingStep(stepId);
+    try {
+      await uploadVerificationEvidence(companyId, stepId, file);
+      setNotice({
+        tone: "success",
+        message: `${file.name} was submitted for review${step ? ` under ${step.label}` : ""}.`,
+      });
+      verification.reload();
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        message: describeBackendError(error, `${file.name} was not submitted. Please try again.`),
+      });
+    } finally {
+      setUploadingStep(null);
+    }
   };
 
   const openRequirements = (
@@ -181,8 +199,9 @@ export function VerificationCenter({ role }: { role: Role }) {
     window.setTimeout(() => requirementsTriggerRef.current?.focus(), 0);
   };
 
-  const completeCount = steps.filter(
-    (step) => step.status === "Complete",
+  const evidenceFor = (stepId: string) => evidence.filter((e) => e.evidenceType === stepId);
+  const completeCount = baseSteps.filter(
+    (step) => sectionStatus(evidenceFor(step.id)) === "Complete",
   ).length;
 
   return (
@@ -193,7 +212,7 @@ export function VerificationCenter({ role }: { role: Role }) {
         accept={ACCEPTED_FILE_TYPES}
         aria-label="Verification document upload"
         className="sr-only"
-        onChange={handleFileSelected}
+        onChange={(event) => void handleFileSelected(event)}
       />
 
       <div className="px-4 py-6 sm:px-8 sm:py-8">
@@ -203,16 +222,54 @@ export function VerificationCenter({ role }: { role: Role }) {
           </p>
           <h1 className="text-3xl font-bold">{title}</h1>
           <p className="mt-2 max-w-2xl text-sm text-neutral-300">{body}</p>
-          <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/15">
-            <div
-              className="h-full rounded-full bg-emerald-400 transition-[width]"
-              style={{ width: `${(completeCount / steps.length) * 100}%` }}
-            />
-          </div>
-          <p className="mt-2 text-xs text-neutral-300">
-            {completeCount} of {steps.length} sections complete
+          <p className="mt-5 text-sm">
+            Company status:{" "}
+            <span className="font-semibold">
+              {company.status === "loading"
+                ? "Loading…"
+                : company.status === "error"
+                  ? "Unavailable"
+                  : companyStatusLabel(company.data?.verificationStatusCode)}
+            </span>
           </p>
+          {verification.status === "ready" && (
+            <>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15">
+                <div
+                  className="h-full rounded-full bg-emerald-400 transition-[width]"
+                  style={{ width: `${(completeCount / baseSteps.length) * 100}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-neutral-300">
+                {completeCount} of {baseSteps.length} sections approved
+              </p>
+            </>
+          )}
         </div>
+
+        {!companyId && user && (
+          <p className="mb-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-100">
+            Select or create a company before submitting verification documents.
+          </p>
+        )}
+        {company.status === "error" && (
+          <p role="alert" className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-100">
+            {company.error}
+          </p>
+        )}
+        {evidenceUnavailable && (
+          <p className="mb-5 rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
+            Online submission of verification documents is not available in this environment yet.
+            Your company status above is the current record; contact EcoGlobe to complete
+            verification.
+          </p>
+        )}
+        {verification.status === "error" && !evidenceUnavailable && (
+          <p role="alert" className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-100">
+            {verification.error}
+          </p>
+        )}
+        {verification.status === "loading" && companyId && <LoadingState label="Loading verification…" />}
 
         {notice && (
           <div
@@ -229,8 +286,11 @@ export function VerificationCenter({ role }: { role: Role }) {
         )}
 
         <div className="grid gap-4 lg:grid-cols-2">
-          {steps.map((step) => {
-            const submittedFile = submittedFiles[step.id];
+          {baseSteps.map((step) => {
+            const stepEvidence = evidenceFor(step.id);
+            const latest = stepEvidence[0];
+            const status = sectionStatus(stepEvidence);
+            const canUpload = verification.status === "ready" && !!companyId;
 
             return (
               <section
@@ -257,19 +317,22 @@ export function VerificationCenter({ role }: { role: Role }) {
                       </p>
                     </div>
                   </div>
-                  <VerificationBadge status={step.status} />
+                  {verification.status === "ready" && <VerificationBadge status={status} />}
                 </div>
 
-                {submittedFile && (
-                  <div className="mt-4 flex items-center gap-3 rounded-xl bg-blue-50 p-3 text-blue-900 ring-1 ring-blue-100">
+                {latest && (
+                  <div className="mt-4 flex items-center gap-3 rounded-xl bg-neutral-50 p-3 text-neutral-900 ring-1 ring-neutral-200">
                     <FileText className="size-5 shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">
-                        {submittedFile.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-blue-700">
-                        {formatFileSize(submittedFile.size)} · Ready for admin
-                        review
+                      <p className="truncate text-sm font-semibold">{latest.fileName}</p>
+                      <p className="mt-0.5 text-xs text-neutral-600">
+                        Submitted {new Date(latest.createdAt).toLocaleDateString("en-US")} ·{" "}
+                        {latest.status === "pending_review"
+                          ? "Awaiting review"
+                          : latest.status === "approved"
+                            ? "Approved"
+                            : "Rejected"}
+                        {latest.reviewNote ? ` — ${latest.reviewNote}` : ""}
                       </p>
                     </div>
                   </div>
@@ -278,12 +341,17 @@ export function VerificationCenter({ role }: { role: Role }) {
                 <div className="mt-5 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    aria-label={`${submittedFile ? "Replace document" : "Submit document"} for ${step.label}`}
+                    disabled={!canUpload || uploadingStep !== null}
+                    aria-label={`${latest ? "Submit another document" : "Submit document"} for ${step.label}`}
                     onClick={() => openFilePicker(step.id)}
-                    className="inline-flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/30 focus-visible:ring-offset-2"
+                    className="inline-flex disabled:opacity-40 items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/30 focus-visible:ring-offset-2"
                   >
                     <Upload className="size-4" aria-hidden="true" />
-                    {submittedFile ? "Replace document" : "Submit document"}
+                    {uploadingStep === step.id
+                      ? "Uploading…"
+                      : latest
+                        ? "Submit another document"
+                        : "Submit document"}
                   </button>
                   <button
                     type="button"
@@ -389,10 +457,7 @@ function RequirementsDialog({
 
         <div className="mt-6 rounded-2xl bg-neutral-50 p-4 text-sm text-neutral-700">
           <p className="font-semibold text-neutral-950">Accepted files</p>
-          <p className="mt-1">PDF, PNG, JPG, DOC, or DOCX · Maximum 10 MB</p>
-          <p className="mt-2 text-neutral-500">
-            Admin review usually takes 1–2 business days after submission.
-          </p>
+          <p className="mt-1">PDF, PNG, or JPEG · Maximum 5 MB</p>
         </div>
 
         <button

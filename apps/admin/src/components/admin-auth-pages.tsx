@@ -10,18 +10,14 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  KeyRound,
   Mail,
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import {
-  ADMIN_DEMO_EMAIL,
-  ADMIN_DEMO_PASSWORD,
   authenticateAdmin,
-  createAdminRecoveryRequest,
-  readAdminRecoveryRequest,
   readAdminSession,
+  requestAdminPasswordReset,
   resetAdminPassword,
 } from "@eco-globe/shared/admin-auth";
 
@@ -167,7 +163,7 @@ export function AdminLoginPage() {
   const router = useRouter();
   const params = useSearchParams();
   const destination = safeAdminDestination(params.get("next"));
-  const [email, setEmail] = useState(params.get("email") ?? ADMIN_DEMO_EMAIL);
+  const [email, setEmail] = useState(params.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -182,12 +178,10 @@ export function AdminLoginPage() {
     event.preventDefault();
     setError("");
     setSubmitting(true);
-    const session = await authenticateAdmin({ email, password, remember });
+    const result = await authenticateAdmin({ email, password, remember });
     setSubmitting(false);
-    if (!session) {
-      setError(
-        "The email or password is incorrect. Check the preview credentials and try again.",
-      );
+    if (!result.ok) {
+      setError(result.message);
       return;
     }
     router.replace(destination);
@@ -282,42 +276,37 @@ export function AdminLoginPage() {
         </Button>
       </form>
 
-      <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-neutral-500">
-          <KeyRound className="size-4" aria-hidden="true" /> Preview credentials
-        </div>
-        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-[92px_1fr]">
-          <dt className="text-neutral-500">Email</dt>
-          <dd className="font-medium text-neutral-900">{ADMIN_DEMO_EMAIL}</dd>
-          <dt className="text-neutral-500">Password</dt>
-          <dd className="font-medium text-neutral-900">
-            {ADMIN_DEMO_PASSWORD}
-          </dd>
-        </dl>
-      </div>
     </AdminAuthFrame>
   );
 }
 
 export function AdminForgotPasswordPage() {
-  const [email, setEmail] = useState(ADMIN_DEMO_EMAIL);
+  const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
-  const [demoCode, setDemoCode] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const request = createAdminRecoveryRequest(email);
-    setDemoCode(request?.code ?? null);
-    setSent(true);
+    setSending(true);
+    setError("");
+    try {
+      await requestAdminPasswordReset(email);
+      setSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The request could not be sent.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
     <AdminAuthFrame
       eyebrow="Account recovery"
-      title={sent ? "Check your recovery details" : "Reset your password"}
+      title={sent ? "Check your email" : "Reset your password"}
       description={
         sent
-          ? "For account safety, the confirmation below is the same whether or not an account exists."
+          ? "For account safety, this confirmation is the same whether or not an account exists."
           : "Enter the administrator email associated with the workspace."
       }
     >
@@ -334,68 +323,30 @@ export function AdminForgotPasswordPage() {
             onChange={setEmail}
             autoComplete="email"
           />
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            className="w-full"
-            disabled={!email.trim()}
-          >
-            Send recovery instructions
+          {error && (
+            <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">
+              {error}
+            </p>
+          )}
+          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={!email.trim() || sending}>
+            {sending ? "Sending…" : "Send reset link"}
           </Button>
           <p className="text-center text-sm text-neutral-600">
             Remembered your password?{" "}
-            <Link
-              href="/login"
-              className="font-semibold text-neutral-950 underline underline-offset-4"
-            >
+            <Link href="/login" className="font-semibold text-neutral-950 underline underline-offset-4">
               Back to sign in
             </Link>
           </p>
         </form>
       ) : (
         <div className="space-y-5">
-          <div
-            role="status"
-            className="rounded-2xl bg-emerald-50 p-5 text-sm leading-6 text-emerald-950"
-          >
-            If an administrator account exists for <strong>{email}</strong>,
-            recovery instructions are ready.
+          <div role="status" className="rounded-2xl bg-emerald-50 p-5 text-sm leading-6 text-emerald-950">
+            If an administrator account exists for <strong>{email}</strong>, a password-reset link has
+            been emailed. The link expires; request a new one if needed.
           </div>
-          {demoCode && (
-            <div className="rounded-2xl border border-dashed border-emerald-300 bg-emerald-50/60 p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-800">
-                Local preview recovery code
-              </p>
-              <p className="mt-2 font-mono text-3xl font-bold tracking-[0.3em] text-neutral-950">
-                {demoCode}
-              </p>
-              <p className="mt-2 text-xs leading-5 text-neutral-600">
-                In production this code is replaced by a private, expiring email
-                link. It expires here in 10 minutes.
-              </p>
-            </div>
-          )}
-          <Link
-            href={`/reset-password?email=${encodeURIComponent(email)}`}
-            className="block"
-          >
-            <Button
-              type="button"
-              variant="primary"
-              size="lg"
-              className="w-full"
-              disabled={!demoCode}
-            >
-              Continue to password reset
-            </Button>
-          </Link>
           <button
             type="button"
-            onClick={() => {
-              setSent(false);
-              setDemoCode(null);
-            }}
+            onClick={() => setSent(false)}
             className="w-full text-sm font-semibold text-neutral-700 underline underline-offset-4"
           >
             Try another email
@@ -409,19 +360,12 @@ export function AdminForgotPasswordPage() {
 export function AdminResetPasswordPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const email = params.get("email") ?? "";
-  const [requestReady, setRequestReady] = useState<boolean | null>(null);
-  const [code, setCode] = useState("");
+  const token = params.get("token") ?? "";
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [complete, setComplete] = useState(false);
-
-  useEffect(() => {
-    const request = readAdminRecoveryRequest();
-    setRequestReady(Boolean(request && request.email === email.toLowerCase()));
-  }, [email]);
 
   const rules = useMemo(
     () => ({
@@ -439,38 +383,24 @@ export function AdminResetPasswordPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
-    const updated = await resetAdminPassword({ email, code, password });
-    if (!updated) {
-      setError(
-        "That recovery code is invalid or has expired. Request a new code and try again.",
-      );
-      return;
+    try {
+      await resetAdminPassword({ token, password });
+      setComplete(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The reset link is invalid or has expired.");
     }
-    setComplete(true);
   };
 
-  if (requestReady === null) {
+  if (!token) {
     return (
       <AdminAuthFrame
         eyebrow="Account recovery"
-        title="Validating reset request"
-        description="Checking that this recovery request is still active."
-      >
-        <p className="text-sm text-neutral-500">Please wait…</p>
-      </AdminAuthFrame>
-    );
-  }
-
-  if (!requestReady) {
-    return (
-      <AdminAuthFrame
-        eyebrow="Account recovery"
-        title="Reset link expired"
-        description="This request is missing, invalid, or more than 10 minutes old."
+        title="Reset link missing"
+        description="Open the password-reset link from your email, or request a new one."
       >
         <Link href="/forgot-password" className="block">
           <Button variant="primary" size="lg" className="w-full">
-            Request a new recovery code
+            Request a reset link
           </Button>
         </Link>
       </AdminAuthFrame>
@@ -494,7 +424,7 @@ export function AdminResetPasswordPage() {
             size="lg"
             className="w-full"
             onClick={() =>
-              router.replace(`/login?email=${encodeURIComponent(email)}`)
+              router.replace("/login")
             }
           >
             Continue to sign in
@@ -508,17 +438,9 @@ export function AdminResetPasswordPage() {
     <AdminAuthFrame
       eyebrow="Account recovery"
       title="Create a new password"
-      description={`Confirm the recovery code for ${email}, then choose a strong replacement password.`}
+      description="Choose a strong replacement password."
     >
       <form onSubmit={handleSubmit} className="space-y-5">
-        <Field
-          id="recovery-code"
-          label="6-digit recovery code"
-          value={code}
-          onChange={(value) => setCode(value.replace(/\D/g, "").slice(0, 6))}
-          autoComplete="one-time-code"
-          placeholder="000000"
-        />
         <Field
           id="new-password"
           label="New password"
@@ -570,7 +492,7 @@ export function AdminResetPasswordPage() {
           variant="primary"
           size="lg"
           className="w-full"
-          disabled={code.length !== 6 || !validPassword}
+          disabled={!validPassword}
         >
           Update admin password
         </Button>
@@ -578,7 +500,7 @@ export function AdminResetPasswordPage() {
           href="/forgot-password"
           className="block text-center text-sm font-semibold text-neutral-700 underline underline-offset-4"
         >
-          Request another code
+          Request a new link
         </Link>
       </form>
     </AdminAuthFrame>

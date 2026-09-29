@@ -1,0 +1,10 @@
+IF COL_LENGTH('dbo.CheckoutAttempts','LeaseToken') IS NULL
+ ALTER TABLE dbo.CheckoutAttempts ADD LeaseToken UNIQUEIDENTIFIER NULL,LeaseUntil DATETIME2 NULL;
+GO
+IF OBJECT_ID('dbo.CheckoutAnomalies','U') IS NULL
+ CREATE TABLE dbo.CheckoutAnomalies (
+  Id INT IDENTITY PRIMARY KEY,OrderId INT NOT NULL REFERENCES dbo.Orders(Id),
+  ProviderSessionId VARCHAR(200) NOT NULL UNIQUE,Reason NVARCHAR(400) NOT NULL,
+  CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),ResolvedAt DATETIME2 NULL
+ );
+GO

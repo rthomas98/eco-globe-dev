@@ -19,6 +19,8 @@ import {
   type AdminSession,
 } from "@eco-globe/shared/admin-auth";
 import { AdminSidebar, adminSearchLinks } from "./admin-sidebar";
+import { logoutBackendUser } from "@/lib/backend-auth";
+import { COOKIE_SESSION_TOKEN } from "@/lib/demo-user";
 
 export function AdminLayout({
   children,
@@ -41,10 +43,15 @@ export function AdminLayout({
     return () => window.removeEventListener(ADMIN_AUTH_EVENT, syncSession);
   }, []);
 
+  // Signing out also revokes the backend session and clears the shared
+  // session profile, so no admin identity (notifications, pending state)
+  // outlives the sign-out.
   const handleSignOut = () => {
     clearAdminSession();
     setSidebarOpen(false);
-    window.location.replace("/login?reason=signed-out");
+    void logoutBackendUser(COOKIE_SESSION_TOKEN).finally(() =>
+      window.location.replace("/login?reason=signed-out"),
+    );
   };
 
   // Settings pages have their own layout with icon rail + settings nav

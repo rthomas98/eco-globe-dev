@@ -4,24 +4,31 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCart } from "@/components/cart/cart-context";
+import { useCart, type CartItem } from "@/components/cart/cart-context";
 import { formatMoney, formatQuantityWithUnitName } from "@/lib/listing-format";
-import { placeCheckoutOrder } from "@/lib/api-orders";
+import { checkoutAttemptKey, clearCheckoutAttemptKey, clearCheckoutAttemptKeyValue, startCheckout } from "@/lib/api-orders";
+import {
+  clearPendingCheckout,
+  readPendingCheckout,
+  savePendingCheckout,
+  type PendingCheckout,
+  type PendingCheckoutRequest,
+} from "@/lib/checkout-pending";
+import { pendingScopeKey } from "@/lib/checkout-pending-core";
+import { describeBackendError, isBackendApiError } from "@/lib/backend-client";
 import { sampleApi } from "@/lib/api-sample-shipping";
 import { takeSampleConversion, updateSampleRequest } from "@/lib/api-samples";
-import { readDemoUser } from "@/lib/demo-user";
+import { readDemoUser, useDemoUser } from "@/lib/demo-user";
+import { useCompanyLocations } from "@/lib/use-company-locations";
 import {
   Shield,
   Package,
   Truck,
   MapPin,
   Calendar,
-  User,
-  FileText,
   DollarSign,
   X,
   Plus,
-  Building2,
   Check,
   MoreHorizontal,
   ChevronDown,
@@ -35,28 +42,8 @@ type ShippingType = "pickup" | "delivery" | null;
 
 interface PickupData {
   date: string;
+  /** Preferred start time, "HH:MM" local. */
   timeRange: string;
-  fullName: string;
-  phone: string;
-  email: string;
-  vehicleType: string;
-  plateNumber: string;
-  notes: string;
-}
-
-interface DeliveryData {
-  type: string;
-  date: string;
-  notes: string;
-}
-
-interface PaymentMethod {
-  id: string;
-  ownership: string;
-  holder: string;
-  bank: string;
-  routing: string;
-  account: string;
 }
 
 interface BillingAddress {
@@ -233,33 +220,39 @@ function FormSelect({
 }
 
 /* ─── Pickup form ─── */
-function PickupForm({ data, onChange }: { data: PickupData; onChange: (d: PickupData) => void }) {
+function PickupForm({
+  data,
+  onChange,
+  location,
+}: {
+  data: PickupData;
+  onChange: (d: PickupData) => void;
+  location: string;
+}) {
   const update = (k: keyof PickupData, v: string) => onChange({ ...data, [k]: v });
 
   return (
     <div className="flex flex-col gap-3 px-5 pb-5 pt-3">
-      {/* Pickup Location (display only) */}
+      {/* Pickup location comes from the listing record */}
       <SubCard icon={MapPin} label="Pickup Location">
-        <div className="grid grid-cols-2 gap-y-3 text-sm">
-          <span className="text-neutral-700">Facility name</span>
-          <span className="text-neutral-900">Facility name</span>
-          <span className="text-neutral-700">Full address</span>
-          <span className="text-neutral-900">
-            1165 Bayou Paul Ln, St Gabriel, Baton rouge, 93264 LA
-          </span>
-          <span className="text-neutral-700">Operating hours</span>
-          <span className="text-neutral-900">09:00 AM - 09-00 PM</span>
-        </div>
+        <p className="text-sm text-neutral-900">{location}</p>
+        <p className="mt-1 text-xs text-neutral-500">
+          The seller confirms the exact facility and hours after payment.
+        </p>
       </SubCard>
 
-      {/* Pickup date */}
-      <SubCard icon={Calendar} label="Pickup date">
+      {/* Requested pickup date (sent with the order) */}
+      <SubCard icon={Calendar} label="Requested pickup date">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-neutral-900">Select date</label>
+            <label htmlFor="pu-date" className="text-sm font-medium text-neutral-900">
+              Select date <span className="text-neutral-400">(Optional)</span>
+            </label>
             <input
+              id="pu-date"
               type="date"
               value={data.date}
+              min={new Date().toISOString().slice(0, 10)}
               onChange={(e) => update("date", e.target.value)}
               className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-neutral-900/20"
               style={{ border: "1px solid #E0E0E0" }}
@@ -267,80 +260,14 @@ function PickupForm({ data, onChange }: { data: PickupData; onChange: (d: Pickup
           </div>
           <FormSelect
             id="pu-time-range"
-            label="Pickup time range"
+            label="Preferred start time"
             value={data.timeRange}
             onChange={(v) => update("timeRange", v)}
             options={[
-              { value: "09:00 AM - 12:00 PM", label: "09:00 AM - 12:00 PM" },
-              { value: "12:00 PM - 03:00 PM", label: "12:00 PM - 03:00 PM" },
-              { value: "03:00 PM - 06:00 PM", label: "03:00 PM - 06:00 PM" },
+              { value: "09:00", label: "Morning (from 9:00 AM)" },
+              { value: "12:00", label: "Midday (from 12:00 PM)" },
+              { value: "15:00", label: "Afternoon (from 3:00 PM)" },
             ]}
-          />
-        </div>
-      </SubCard>
-
-      {/* Pickup contact */}
-      <SubCard icon={User} label="Pickup contact person">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormInput
-            id="pu-fullName"
-            label="Full name"
-            value={data.fullName}
-            onChange={(v) => update("fullName", v)}
-          />
-          <FormInput
-            id="pu-phone"
-            label="Phone number"
-            value={data.phone}
-            onChange={(v) => update("phone", v)}
-          />
-          <div className="sm:col-span-2">
-            <FormInput
-              id="pu-email"
-              label="Email address"
-              type="email"
-              value={data.email}
-              onChange={(v) => update("email", v)}
-            />
-          </div>
-        </div>
-      </SubCard>
-
-      {/* Vehicle */}
-      <SubCard icon={Truck} label="Vehicle details">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormSelect
-            id="pu-vehicle"
-            label="Vehicle type"
-            value={data.vehicleType}
-            onChange={(v) => update("vehicleType", v)}
-            options={[
-              { value: "flatbed", label: "Flatbed truck" },
-              { value: "box-truck", label: "Box truck" },
-              { value: "tanker", label: "Tanker" },
-              { value: "container", label: "Container truck" },
-            ]}
-          />
-          <FormInput
-            id="pu-plate"
-            label="Plate number"
-            value={data.plateNumber}
-            onChange={(v) => update("plateNumber", v)}
-          />
-        </div>
-      </SubCard>
-
-      {/* Notes */}
-      <SubCard icon={FileText} label="Notes to seller">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-neutral-900">Notes</label>
-          <textarea
-            rows={4}
-            placeholder="Enter your message..."
-            value={data.notes}
-            onChange={(e) => update("notes", e.target.value)}
-            className="w-full resize-none rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400 focus:ring-2 focus:ring-neutral-900/20"
-            style={{ border: "1px solid #E0E0E0" }}
           />
         </div>
       </SubCard>
@@ -350,20 +277,14 @@ function PickupForm({ data, onChange }: { data: PickupData; onChange: (d: Pickup
 
 /* ─── Delivery form ─── */
 function DeliveryForm({
-  data,
-  onChange,
   address,
   onChangeAddress,
   onAddAddress,
 }: {
-  data: DeliveryData;
-  onChange: (d: DeliveryData) => void;
   address: BillingAddress | null;
   onChangeAddress: () => void;
   onAddAddress: () => void;
 }) {
-  const update = (k: keyof DeliveryData, v: string) => onChange({ ...data, [k]: v });
-
   return (
     <div className="flex flex-col gap-3 px-5 pb-5 pt-3">
       <SubCard icon={MapPin} label="Delivery location">
@@ -397,137 +318,11 @@ function DeliveryForm({
             Add delivery address
           </button>
         )}
-      </SubCard>
-
-      <SubCard icon={Truck} label="Delivery requirements">
-        <div className="flex flex-col gap-4">
-          <FormSelect
-            id="dl-type"
-            label="Delivery type"
-            value={data.type}
-            onChange={(v) => update("type", v)}
-            options={[
-              { value: "flatbed", label: "Flatbed truck" },
-              { value: "box-truck", label: "Box truck" },
-              { value: "tanker", label: "Tanker" },
-              { value: "container", label: "Container truck" },
-            ]}
-          />
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-neutral-900">
-              Select date <span className="text-neutral-400">(Optional)</span>
-            </label>
-            <input
-              type="date"
-              value={data.date}
-              onChange={(e) => update("date", e.target.value)}
-              className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-neutral-900/20"
-              style={{ border: "1px solid #E0E0E0" }}
-            />
-          </div>
-        </div>
-      </SubCard>
-
-      <SubCard icon={FileText} label="Notes to seller">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-neutral-900">Notes</label>
-          <textarea
-            rows={4}
-            placeholder="Enter your message..."
-            value={data.notes}
-            onChange={(e) => update("notes", e.target.value)}
-            className="w-full resize-none rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400 focus:ring-2 focus:ring-neutral-900/20"
-            style={{ border: "1px solid #E0E0E0" }}
-          />
-        </div>
+        <p className="mt-2 text-xs text-neutral-500">
+          Freight is arranged separately after payment; delivery dates are agreed then.
+        </p>
       </SubCard>
     </div>
-  );
-}
-
-/* ─── Add Payment Modal ─── */
-function AddPaymentModal({
-  initial,
-  onSave,
-  onClose,
-}: {
-  initial: PaymentMethod | null;
-  onSave: (p: PaymentMethod) => void;
-  onClose: () => void;
-}) {
-  const [data, setData] = useState<PaymentMethod>(
-    initial ?? { id: "", ownership: "", holder: "", bank: "", routing: "", account: "" },
-  );
-  const update = (k: keyof PaymentMethod, v: string) => setData({ ...data, [k]: v });
-  const valid =
-    data.ownership && data.holder.trim() && data.bank.trim() && data.routing.trim() && data.account.trim();
-
-  return (
-    <Modal
-      title="Add payment method"
-      wide
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="secondary" size="md" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            size="md"
-            disabled={!valid}
-            style={!valid ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
-            onClick={() => onSave(data)}
-          >
-            Add Payment
-          </Button>
-        </>
-      }
-    >
-      <h3 className="mb-4 text-base font-bold text-neutral-900">Account holder</h3>
-      <div className="flex flex-col gap-4">
-        <FormSelect
-          id="pay-own"
-          label="Account ownership type"
-          value={data.ownership}
-          onChange={(v) => update("ownership", v)}
-          options={[
-            { value: "individual", label: "Individual" },
-            { value: "business", label: "Business" },
-          ]}
-        />
-        <FormInput
-          id="pay-holder"
-          label="Account holder name"
-          hint="Name as it appears on your bank account."
-          value={data.holder}
-          onChange={(v) => update("holder", v)}
-        />
-      </div>
-
-      <div className="my-6" style={{ borderTop: "1px solid #F0F0F0" }} />
-
-      <h3 className="mb-4 text-base font-bold text-neutral-900">Bank Details</h3>
-      <div className="flex flex-col gap-4">
-        <FormInput id="pay-bank" label="Bank name" value={data.bank} onChange={(v) => update("bank", v)} />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormInput
-            id="pay-routing"
-            label="Routing number (ABA)"
-            hint="9-digit routing number for US banks."
-            value={data.routing}
-            onChange={(v) => update("routing", v)}
-          />
-          <FormInput
-            id="pay-account"
-            label="Account number"
-            hint="We'll never share your account number."
-            value={data.account}
-            onChange={(v) => update("account", v)}
-          />
-        </div>
-      </div>
-    </Modal>
   );
 }
 
@@ -549,7 +344,7 @@ function AddBillingModal({
       initial.country,
     );
   const [data, setData] = useState<BillingAddress>(
-    initial ?? { id: "", name: "Acme Company", street: "", city: "", state: "", zip: "", country: "" },
+    initial ?? { id: "", name: "", street: "", city: "", state: "", zip: "", country: "" },
   );
   const [stateMode, setStateMode] = useState(initialUsesCustomState ? "other" : initial?.state ?? "");
   const [customState, setCustomState] = useState(initialUsesCustomState ? initial.state : "");
@@ -564,7 +359,7 @@ function AddBillingModal({
 
   return (
     <Modal
-      title="Add Billing Address"
+      title="Add delivery address"
       onClose={onClose}
       footer={
         <>
@@ -578,7 +373,7 @@ function AddBillingModal({
             style={!valid ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
             onClick={() => onSave(data)}
           >
-            Add Billing Address
+            Add delivery address
           </Button>
         </>
       }
@@ -772,7 +567,7 @@ function BillingPickerModal({
 }) {
   return (
     <Modal
-      title="Billing address"
+      title="Delivery address"
       onClose={onClose}
     >
       <div className="flex flex-col gap-3">
@@ -793,81 +588,104 @@ function BillingPickerModal({
           className="flex items-center gap-2 px-1 py-2 text-left text-sm font-bold text-neutral-900"
         >
           <Plus className="size-4" />
-          Add billing address
+          Add delivery address
         </button>
       </div>
     </Modal>
   );
 }
 
-function PaymentPickerModal({
-  items,
-  selectedId,
-  onSelect,
-  onAdd,
-  onEdit,
-  onDelete,
-  onClose,
-}: {
-  items: PaymentMethod[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onAdd: () => void;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-  onClose: () => void;
-}) {
+/** Every cart item, each checked out and paid as its own order. */
+function CartCheckoutOverview({ items, currentId }: { items: CartItem[]; currentId?: string }) {
+  const user = useDemoUser();
+  const scope = pendingScopeKey(user?.id, user?.activeCompanyId);
+  const [pendingIds, setPendingIds] = useState<{ scope: string | null; ids: Record<string, number> }>({ scope: null, ids: {} });
+  useEffect(() => {
+    setPendingIds({
+      scope,
+      ids: scope
+        ? Object.fromEntries(items.map((i) => [i.id, readPendingCheckout(i.id)?.orderId ?? 0]).filter(([, id]) => id))
+        : {},
+    });
+  }, [items, scope]);
+  const pendingFor = pendingIds.scope === scope ? pendingIds.ids : {};
+  if (items.length < 2) return null;
   return (
-    <Modal
-      title="Payment methods"
-      onClose={onClose}
-    >
-      <div className="flex flex-col gap-3">
-        <p className="text-sm text-neutral-500">
-          Choose a saved payment method or add a new one.
-        </p>
-        {items.map((p) => (
-          <PickerRow
-            key={p.id}
-            icon={Building2}
-            title={`${p.bank || "US Bank Account"} ****${p.account.slice(-4)}`}
-            subtitle={`Expires 10/26 · ${p.holder}`}
-            selected={p.id === selectedId}
-            onChoose={() => { onSelect(p.id); onClose(); }}
-            onEdit={() => onEdit(p.id)}
-            onDelete={() => onDelete(p.id)}
-          />
-        ))}
-        <button
-          onClick={onAdd}
-          className="flex items-center gap-2 px-1 py-2 text-left text-sm font-bold text-neutral-900"
-        >
-          <Plus className="size-4" />
-          Add payment method
-        </button>
-      </div>
-    </Modal>
+    <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }} aria-label="Cart items">
+      <p className="text-sm font-bold text-neutral-900">Your cart has {items.length} items</p>
+      <p className="mt-1 text-xs text-neutral-500">
+        Each item is a separate order with its own payment. Items stay in your cart until Stripe confirms payment.
+      </p>
+      <ul className="mt-3 flex flex-col gap-2">
+        {items.map((item) => {
+          const current = item.id === currentId;
+          const pendingOrder = pendingFor[item.id];
+          return (
+            <li key={item.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm ${current ? "bg-neutral-100" : "bg-neutral-50"}`}>
+              <span className="min-w-0">
+                <span className="font-semibold text-neutral-900">{item.title}</span>{" "}
+                <span className="text-neutral-500">
+                  · {formatQuantityWithUnitName(item.quantity, item.quantityUnit) ?? item.quantity}
+                  {pendingOrder ? ` · unpaid order EG-${pendingOrder}` : ""}
+                </span>
+              </span>
+              {current ? (
+                <span className="text-xs font-semibold text-neutral-700">Checking out now</span>
+              ) : (
+                <Link href={`/buyer/checkout?listing=${encodeURIComponent(item.id)}`} className="text-xs font-semibold text-neutral-900 underline">
+                  {pendingOrder ? "Continue payment" : "Check out this item"}
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
 export function BuyerCheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { items, clearCart } = useCart();
+  const { items, removeItem } = useCart();
   // Checkout is bounded to one persisted listing: the one handed over from the
   // detail page when present, otherwise the first cart item. No invented product.
   const requestedId = searchParams.get("listing");
   // An explicitly requested listing that is not in the cart must never be
   // substituted with a different item; only an unqualified visit uses the first item.
-  const cartItem = requestedId ? items.find((i) => i.id === requestedId) : items[0];
-  const requestedMissing = !!requestedId && !cartItem;
+  // After payment the item leaves the cart; this snapshot keeps the success
+  // view rendering for the order that was just paid.
+  const [paidItem, setPaidItem] = useState<CartItem | null>(null);
+  const cartItem = paidItem ?? (requestedId ? items.find((i) => i.id === requestedId) : items[0]);
+  const requestedMissing = !paidItem && !!requestedId && !cartItem;
+  // An unpaid order already started for this cart item is resumed with its
+  // saved request and key, never duplicated by a new attempt.
+  // Pending state is tagged with the user/company it was read for; after a
+  // company switch it is ignored in the same render, before effects re-read.
+  const sessionUser = useDemoUser();
+  const pendingScope = pendingScopeKey(sessionUser?.id, sessionUser?.activeCompanyId);
+  const [pendingState, setPendingState] = useState<{ scope: string | null; entry: PendingCheckout | null }>({
+    scope: null,
+    entry: null,
+  });
+  const pending = pendingState.scope !== null && pendingState.scope === pendingScope ? pendingState.entry : null;
+  const setPending = (entry: PendingCheckout | null) => setPendingState({ scope: pendingScope, entry });
+  const cartItemId = cartItem?.id;
+  useEffect(() => {
+    if (paidItem) return;
+    setPendingState({
+      scope: pendingScope,
+      entry: cartItemId && pendingScope ? readPendingCheckout(cartItemId) : null,
+    });
+  }, [cartItemId, paidItem, pendingScope]);
   const product = cartItem
     ? {
         id: cartItem.id,
         title: cartItem.title,
         seller: cartItem.sellerName ?? "Seller name unavailable",
         location: cartItem.location,
-        qty: cartItem.quantity,
+        // A saved unpaid order keeps its own quantity, whatever the cart now says.
+        qty: pending?.request.quantity ?? cartItem.quantity,
         unitPrice: cartItem.price,
         currencyCode: cartItem.currencyCode,
         unit: cartItem.unit,
@@ -881,62 +699,41 @@ export function BuyerCheckoutPage() {
   const pickupAddress = product?.location || "Seller facility (address on file with the listing)";
   const [step, setStep] = useState<Step>("shipping");
   const [shippingType, setShippingType] = useState<ShippingType>(null);
-  const [pickup, setPickup] = useState<PickupData>({
-    date: "",
-    timeRange: "",
-    fullName: "",
-    phone: "",
-    email: "",
-    vehicleType: "",
-    plateNumber: "",
-    notes: "",
-  });
-  const [delivery, setDelivery] = useState<DeliveryData>({
-    type: "",
-    date: "",
-    notes: "",
-  });
+  const [pickup, setPickup] = useState<PickupData>({ date: "", timeRange: "" });
   const [deliveryAddressId, setDeliveryAddressId] = useState<string | null>(null);
   const [showDeliveryPicker, setShowDeliveryPicker] = useState(false);
 
-  const [billings, setBillings] = useState<BillingAddress[]>([
-    {
-      id: "addr-2",
-      name: "Acme Company",
-      street: "400 Concourse Blvd NE",
-      city: "Atlanta",
-      state: "GA",
-      zip: "30308",
-      country: "US",
-    },
-  ]);
-  const [payments, setPayments] = useState<PaymentMethod[]>([
-    {
-      id: "pay-saved-1",
-      ownership: "business",
-      holder: "AgriCorp Solutions",
-      bank: "Chase",
-      routing: "021000021",
-      account: "12344345",
-    },
-  ]);
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>("pay-saved-1");
-  const [selectedBillingId, setSelectedBillingId] = useState<string | null>("addr-2");
+  // Delivery addresses start from the buyer company's persisted facilities;
+  // any address added here is only sent with this order, never stored locally.
+  const [buyerCompanyIdForLocations, setBuyerCompanyIdForLocations] = useState<number>();
+  useEffect(() => setBuyerCompanyIdForLocations(readDemoUser()?.activeCompanyId), []);
+  const companyLocations = useCompanyLocations(buyerCompanyIdForLocations);
+  const [billings, setBillings] = useState<BillingAddress[]>([]);
+  useEffect(() => {
+    if (companyLocations.status !== "ready") return;
+    setBillings((prev) => {
+      const persisted = companyLocations.locations.map((location) => ({
+        id: `loc-${location.id}`,
+        name: location.name,
+        street: location.addressLine1 ?? "",
+        city: location.city ?? "",
+        state: location.stateProvince ?? "",
+        zip: location.postalCode ?? "",
+        country: location.countryCode ?? "",
+      }));
+      const entered = prev.filter((b) => !b.id.startsWith("loc-"));
+      return [...persisted, ...entered];
+    });
+  }, [companyLocations.status, companyLocations.locations]);
 
   const [orderId, setOrderId] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
 
-  const [showAddPayment, setShowAddPayment] = useState(false);
   const [showAddBilling, setShowAddBilling] = useState(false);
-  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editingBillingId, setEditingBillingId] = useState<string | null>(null);
-  const [showPaymentPicker, setShowPaymentPicker] = useState(false);
-  const [showBillingPicker, setShowBillingPicker] = useState(false);
 
-  const payment = payments.find((p) => p.id === selectedPaymentId) ?? null;
-  const billing = billings.find((b) => b.id === selectedBillingId) ?? null;
 
   const deliveryAddress = billings.find((b) => b.id === deliveryAddressId) ?? null;
 
@@ -944,7 +741,9 @@ export function BuyerCheckoutPage() {
   const sampleListingId = cartItem?.id;
   useEffect(() => { let active = true; setSampleCreditCents(0); if (sampleListingId) sampleApi<{cents:number}>(`/credits?listingId=${sampleListingId}`).then(r => {if(active)setSampleCreditCents(r.cents);}).catch(() => {}); return () => {active=false;}; }, [sampleListingId]);
   const itemSubtotal = product ? product.qty * product.unitPrice : 0;
-  const sampleCredit = product?.currencyCode === "USD" ? Math.min(itemSubtotal, sampleCreditCents / 100) : 0;
+  // Estimate only: checkout applies the credit transactionally and leaves the
+  // provider minimum (USD 0.50) to be charged online.
+  const sampleCredit = product?.currencyCode === "USD" ? Math.min(sampleCreditCents / 100, Math.max(0, itemSubtotal - 0.5)) : 0;
   const subtotal = itemSubtotal - sampleCredit;
   const money = (n: number) => (product ? (formatMoney(n, product.currencyCode) ?? "—") : "—");
   const quantityLabel = product ? (formatQuantityWithUnitName(product.qty, product.quantityUnit) ?? String(product.qty)) : "";
@@ -952,28 +751,48 @@ export function BuyerCheckoutPage() {
   const canContinueShipping =
     (shippingType === "pickup") ||
     (shippingType === "delivery" && deliveryAddress !== null);
-  const canConfirmOrder = payment !== null && billing !== null;
+  // No payment details are collected here, so confirming only needs a product.
+  const canConfirmOrder = true;
 
-  const primaryButtonLabel =
-    step === "shipping"
-      ? shippingType === "delivery"
-        ? "Product Confirmed"
-        : "Payment"
-      : "Confirm Order";
+  const primaryButtonLabel = pending
+    ? "Continue payment"
+    : step === "shipping"
+      ? "Continue to payment"
+      : "Confirm and pay";
 
-  // Places the real order against the backend: order -> escrow funding ->
-  // payment -> in_progress. Cart items are always persisted listings (their
-  // id is the backend listing id), so no local reference is ever invented.
+  // One idempotency key per unchanged checkout attempt, so a retry after a
+  // network failure resumes the same order instead of creating another.
+  const pickupRequestedAt =
+    shippingType === "pickup" && pickup.date
+      ? new Date(`${pickup.date}T${pickup.timeRange || "09:00"}:00`).toISOString()
+      : undefined;
+  const attemptSignature = JSON.stringify([
+    cartItem?.id,
+    cartItem?.quantity,
+    shippingType,
+    deliveryAddressId,
+    pickupRequestedAt,
+  ]);
+
+  // Starts provider-confirmed checkout. The order is only paid when Stripe
+  // confirms it; this page never records a payment or funds escrow.
   const finalizeOrder = async () => {
-    if (placing || !cartItem) return;
+    if (placing || !cartItem || (!pending && !shippingType)) return;
     const listingId = Number(cartItem.id);
-    const buyerCompanyId = readDemoUser()?.activeCompanyId;
     if (!Number.isInteger(listingId) || listingId <= 0) {
       setPlaceError("This cart item is not a saved listing. Open the listing and use Buy Now again.");
       return;
     }
-    if (!buyerCompanyId) {
+    if (!readDemoUser()?.activeCompanyId) {
       setPlaceError("Sign in with your buyer company to place this order. Your cart is kept.");
+      return;
+    }
+    // Re-read the saved order for the current session right before submitting,
+    // so an entry read for a previous user/company can never be sent.
+    const livePending = readPendingCheckout(cartItem.id);
+    if (pending && (!livePending || livePending.orderId !== pending.orderId)) {
+      setPending(livePending);
+      setPlaceError("Your account or company changed. Review this checkout again before paying.");
       return;
     }
     setPlacing(true);
@@ -984,38 +803,72 @@ export function BuyerCheckoutPage() {
             .filter(Boolean)
             .join(", ")
         : undefined;
-      const result = await placeCheckoutOrder({
+      const request: PendingCheckoutRequest = livePending?.request ?? {
         listingId,
         quantity: cartItem.quantity,
-        // Units and currency are the listing's recorded values carried on the cart item.
-        quantityUnit: cartItem.quantityUnit,
-        currencyCode: cartItem.currencyCode,
-        buyerCompanyId,
-        deliveryMethod: shippingType ?? undefined,
+        idempotencyKey: checkoutAttemptKey(attemptSignature),
+        deliveryMethod: shippingType ?? "pickup",
         deliveryAddress: shippingType === "delivery" ? address : undefined,
-        pickupRequestedAt:
-          shippingType === "pickup" && pickup.date
-            ? new Date(pickup.date).toISOString()
-            : undefined,
-      });
-      setOrderId(`EG-${result.order.id}`);
+        pickupRequestedAt,
+      };
+      const result = await startCheckout(request);
       // If this purchase started from a received sample ("Order in bulk"),
       // link the order back so both sides see the conversion.
       const conversion = takeSampleConversion(listingId);
       if (conversion) {
         await updateSampleRequest(conversion.sampleId, {
-          convertedOrderId: result.order.id,
+          convertedOrderId: result.orderId,
         }).catch(() => {
           // The order exists either way; the link is best-effort.
         });
       }
-      clearCart();
-      setStep("success");
+      setOrderId(`EG-${result.orderId}`);
+      if (result.payment?.checkoutUrl) {
+        // The item stays in the cart until Stripe confirms payment; the saved
+        // request lets a refresh or return resume this same order. Other cart
+        // items are untouched.
+        savePendingCheckout({ cartItemId: cartItem.id, orderId: result.orderId, request, createdAt: Date.now() });
+        window.location.assign(result.payment.checkoutUrl);
+        return;
+      }
+      if (result.status === "paid") {
+        clearCheckoutAttemptKey(attemptSignature);
+        clearPendingCheckout(cartItem.id);
+        if (livePending) {
+          // The success summary shows the saved order's details.
+          setShippingType(livePending.request.deliveryMethod);
+          if (livePending.request.pickupRequestedAt) {
+            const at = new Date(livePending.request.pickupRequestedAt);
+            setPickup({
+              date: `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`,
+              timeRange: `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`,
+            });
+          }
+          setPending(null);
+        }
+        setPaidItem({ ...cartItem, quantity: request.quantity });
+        removeItem(cartItem.id);
+        setStep("success");
+        return;
+      }
+      setPlaceError(
+        result.status === "expired"
+          ? "This checkout expired before payment. Start checkout again."
+          : "The payment page could not be opened. Please try again.",
+      );
+      if (result.status === "expired") {
+        // Clear both the saved order and the key it used, so the next attempt
+        // really starts a new checkout.
+        clearCheckoutAttemptKey(attemptSignature);
+        clearCheckoutAttemptKeyValue(request.idempotencyKey);
+        clearPendingCheckout(cartItem.id);
+        setPending(null);
+      }
     } catch (error) {
       setPlaceError(
-        error instanceof Error
-          ? error.message
-          : "Unable to place this order. Please try again.",
+        isBackendApiError(error) && error.status === 503
+          ? `${error.message} Your cart is kept and nothing was charged.`
+          : describeBackendError(error, "Unable to start checkout. Nothing was charged; please try again."),
       );
     } finally {
       setPlacing(false);
@@ -1023,16 +876,12 @@ export function BuyerCheckoutPage() {
   };
 
   const handlePrimary = () => {
-    if (step === "shipping" && canContinueShipping) {
-      if (shippingType === "delivery") {
-        void finalizeOrder();
-      } else {
-        setStep("payment");
-      }
-    } else if (step === "payment" && canConfirmOrder) {
-      void finalizeOrder();
-    } else if (step === "success") router.push("/buyer/orders");
+    if (pending && step !== "success") void finalizeOrder();
+    else if (step === "shipping" && canContinueShipping) setStep("payment");
+    else if (step === "payment" && canConfirmOrder) void finalizeOrder();
+    else if (step === "success") router.push("/buyer/orders");
   };
+
 
   if (!product) {
     return (
@@ -1063,9 +912,10 @@ export function BuyerCheckoutPage() {
           { label: "Item subtotal", value: money(itemSubtotal) },
           { label: "Shipping method", value: "Pickup" },
           { label: "Pickup location", value: pickupAddress },
-          { label: "Pickup date", value: pickup.date || "Requested" },
-          { label: "Pickup time range", value: pickup.timeRange || "Requested" },
-          { label: "Status", value: "Awaiting seller confirmation" },
+          { label: "Requested pickup date", value: pickup.date || "Not specified" },
+          { label: "Preferred start time", value: pickup.timeRange || "Not specified" },
+          { label: "Status", value: "Paid — awaiting seller confirmation" },
+          { label: "Payment", value: "Confirmed by Stripe" },
         ]
       : [
           { label: "Order reference", value: orderId ?? "" },
@@ -1074,14 +924,15 @@ export function BuyerCheckoutPage() {
           { label: "Quantity", value: quantityLabel },
           { label: "Unit price", value: `${money(product.unitPrice)}${product.unit}` },
           { label: "Item subtotal", value: money(itemSubtotal) },
-          { label: "Shipping method", value: "Delivery (Quote required)" },
-          { label: "Shipping cost", value: "Pending seller quote" },
-          { label: "Status", value: "Awaiting shipping quote" },
+          { label: "Shipping method", value: "Delivery" },
+          { label: "Delivery cost", value: "Arranged separately" },
+          { label: "Status", value: "Paid — awaiting delivery arrangement" },
+          { label: "Payment", value: "Confirmed by Stripe" },
         ];
 
     const heroDescription = isPickup
-      ? "The seller will confirm your order and pickup details. Once confirmed, you can prepare your pickup."
-      : "The seller will send a delivery quote for your approval. Once you approve the shipping cost, you'll be able to fund escrow and start processing.";
+      ? "Stripe confirmed your payment. The seller will confirm pickup details next."
+      : "Stripe confirmed your payment for the product. The seller will arrange delivery next.";
 
     const footerText = isPickup
       ? "You'll receive a notification when the seller confirms pickup availability."
@@ -1113,7 +964,7 @@ export function BuyerCheckoutPage() {
           <div className="flex w-full max-w-[560px] flex-col items-center text-center">
             <span className="mb-6 text-6xl">📦</span>
             <h1 className="mb-3 text-3xl font-bold text-neutral-900 sm:text-4xl">
-              Your order is submitted
+              Your order is paid
             </h1>
             <p className="mb-8 max-w-[440px] whitespace-pre-line text-base text-neutral-500">
               {heroDescription}
@@ -1156,6 +1007,11 @@ export function BuyerCheckoutPage() {
             <p className="mb-6 text-sm text-neutral-500">{footerText}</p>
 
             <div className="flex flex-col gap-3 sm:flex-row">
+              {items.length > 0 && (
+                <Link href={`/buyer/checkout?listing=${encodeURIComponent(items[0].id)}`} className="mb-3 block text-sm font-semibold text-neutral-900 underline">
+                  Continue with {items.length} remaining cart item{items.length === 1 ? "" : "s"}
+                </Link>
+              )}
               <Link href="/buyer/orders">
                 <Button variant="secondary" size="md">
                   View Detail
@@ -1204,6 +1060,26 @@ export function BuyerCheckoutPage() {
         {/* Left — checkout sections */}
         <div className="flex flex-1 flex-col gap-5">
           <>
+              <CartCheckoutOverview items={items} currentId={cartItem?.id} />
+              {pending && (
+                <div role="status" className="rounded-2xl bg-amber-50 px-5 py-4 text-sm text-amber-900" style={{ border: "1px solid #FDE68A" }}>
+                  <p className="font-semibold">Order EG-{pending.orderId} for this item is saved and awaiting payment.</p>
+                  <p className="mt-1">
+                    Continuing reopens payment for that same order with its saved details; no second order is
+                    created. To change them, cancel the unpaid order from My Orders first.
+                  </p>
+                  <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
+                    <div><dt className="inline text-amber-800">Quantity: </dt><dd className="inline font-semibold">{formatQuantityWithUnitName(pending.request.quantity, cartItem?.quantityUnit) ?? pending.request.quantity}</dd></div>
+                    <div><dt className="inline text-amber-800">Fulfilment: </dt><dd className="inline font-semibold">{pending.request.deliveryMethod === "pickup" ? "Pickup" : "Delivery"}</dd></div>
+                    {pending.request.deliveryAddress && (
+                      <div className="sm:col-span-2"><dt className="inline text-amber-800">Delivery address: </dt><dd className="inline font-semibold">{pending.request.deliveryAddress}</dd></div>
+                    )}
+                    {pending.request.pickupRequestedAt && (
+                      <div className="sm:col-span-2"><dt className="inline text-amber-800">Requested pickup: </dt><dd className="inline font-semibold">{new Date(pending.request.pickupRequestedAt).toLocaleString("en-US")}</dd></div>
+                    )}
+                  </dl>
+                </div>
+              )}
               {/* Product */}
               <SectionCard icon={Package} label="Product">
                 <div className="flex items-center gap-4">
@@ -1222,7 +1098,7 @@ export function BuyerCheckoutPage() {
                 </div>
               </SectionCard>
 
-              {step === "shipping" && (
+              {!pending && step === "shipping" && (
                 <div
                   className="overflow-hidden rounded-2xl bg-white"
                   style={{ border: "1px solid #F0F0F0" }}
@@ -1296,12 +1172,10 @@ export function BuyerCheckoutPage() {
                     </div>
                   </div>
                   {shippingType === "pickup" && (
-                    <PickupForm data={pickup} onChange={setPickup} />
+                    <PickupForm data={pickup} onChange={setPickup} location={pickupAddress} />
                   )}
                   {shippingType === "delivery" && (
                     <DeliveryForm
-                      data={delivery}
-                      onChange={setDelivery}
                       address={deliveryAddress}
                       onChangeAddress={() => setShowDeliveryPicker(true)}
                       onAddAddress={() => setShowDeliveryPicker(true)}
@@ -1310,82 +1184,27 @@ export function BuyerCheckoutPage() {
                 </div>
               )}
 
-              {step === "payment" && (
-                <>
-                  <SectionCard icon={DollarSign} label="Payment">
-                    {payment ? (
-                      <div
-                        className="flex items-center gap-4 rounded-xl px-4 py-3"
-                        style={{ border: "1px solid #F0F0F0" }}
-                      >
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-neutral-100">
-                          <Building2 className="size-4 text-neutral-700" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-bold text-neutral-900">
-                            {payment.bank || "US Bank Account"} ****{payment.account.slice(-4)}
-                          </p>
-                          <p className="truncate text-xs text-neutral-500">Expires 10/26</p>
-                        </div>
-                        <button
-                          onClick={() => setShowPaymentPicker(true)}
-                          className="text-sm font-bold text-neutral-900 underline"
-                        >
-                          Change
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setEditingPaymentId(null);
-                          setShowAddPayment(true);
-                        }}
-                        className="flex items-center gap-2 text-sm font-bold text-neutral-900"
-                      >
-                        <Plus className="size-5" />
-                        Add Payment
-                      </button>
-                    )}
-                  </SectionCard>
-
-                  <SectionCard icon={MapPin} label="Billing Address">
-                    {billing ? (
-                      <div
-                        className="flex items-center gap-4 rounded-xl px-4 py-3"
-                        style={{ border: "1px solid #F0F0F0" }}
-                      >
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-neutral-100">
-                          <MapPin className="size-4 text-neutral-700" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-bold text-neutral-900">
-                            {billing.name}
-                          </p>
-                          <p className="truncate text-xs text-neutral-500">
-                            {billing.street}, {billing.city}, {billing.state} {billing.zip}, {billing.country}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => setShowBillingPicker(true)}
-                          className="text-sm font-bold text-neutral-900 underline"
-                        >
-                          Change
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setEditingBillingId(null);
-                          setShowAddBilling(true);
-                        }}
-                        className="flex items-center gap-2 text-sm font-bold text-neutral-900"
-                      >
-                        <Plus className="size-5" />
-                        Add Billing Address
-                      </button>
-                    )}
-                  </SectionCard>
-                </>
+              {!pending && step === "payment" && (
+                <SectionCard icon={DollarSign} label="Payment">
+                  <div
+                    className="flex gap-4 rounded-xl px-4 py-3"
+                    style={{ border: "1px solid #F0F0F0" }}
+                  >
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-neutral-100">
+                      <Shield className="size-4 text-neutral-700" />
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
+                      <p className="font-bold text-neutral-900">
+                        Secure payment through Stripe
+                      </p>
+                      <p className="text-neutral-500">
+                        Confirming reserves your order and opens Stripe Checkout to pay for the material by card.
+                        EcoGlobe records the payment only after Stripe confirms it. If online
+                        payment is unavailable, nothing is charged and your cart is kept.
+                      </p>
+                    </div>
+                  </div>
+                </SectionCard>
               )}
             </>
         </div>
@@ -1416,17 +1235,21 @@ export function BuyerCheckoutPage() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-neutral-700">Shipping</span>
                   <span className="font-medium text-neutral-900">
-                    {shippingType === "delivery" ? "To be negotiated" : "0"}
+                    {shippingType === "delivery" ? "Arranged separately" : "None (pickup)"}
                   </span>
                 </div>
               )}
             </div>
 
-            {sampleCredit > 0 && <p className="mt-3 text-sm text-emerald-800">Sample shipping credit: −{money(sampleCredit)} (confirmed when the order is saved)</p>}
+            {sampleCredit > 0 && <p className="mt-3 text-sm text-emerald-800">Estimated sample shipping credit: −{money(sampleCredit)} (final credit confirmed at checkout)</p>}
             <div className="my-4 flex items-center justify-between text-base font-bold">
-              <span className="text-neutral-900">Subtotal</span>
-              <span className="text-neutral-900">{money(subtotal)} <span className="text-xs font-normal text-neutral-500">excl. shipping</span></span>
+              <span className="text-neutral-900">Material charge</span>
+              <span className="text-neutral-900">{money(subtotal)}</span>
             </div>
+            <p className="-mt-2 mb-4 text-xs text-neutral-500">
+              Charged online for the material only. Freight and any fees are not included and are
+              arranged separately.
+            </p>
 
             <Button
               variant="primary"
@@ -1434,20 +1257,20 @@ export function BuyerCheckoutPage() {
               className="w-full"
               disabled={
                 placing ||
-                (step === "shipping" && !canContinueShipping) ||
+                (!pending && step === "shipping" && !canContinueShipping) ||
                 (step === "payment" && !canConfirmOrder)
               }
               style={
                 placing
                   ? { opacity: 0.6, cursor: "wait" }
-                  : (step === "shipping" && !canContinueShipping) ||
+                  : (!pending && step === "shipping" && !canContinueShipping) ||
                       (step === "payment" && !canConfirmOrder)
                     ? { opacity: 0.4, cursor: "not-allowed" }
                     : undefined
               }
               onClick={handlePrimary}
             >
-              {placing ? "Placing order..." : primaryButtonLabel}
+              {placing ? "Opening secure payment…" : primaryButtonLabel}
             </Button>
           </div>
 
@@ -1465,14 +1288,11 @@ export function BuyerCheckoutPage() {
               <Info className="mt-0.5 size-5 shrink-0 text-neutral-700" />
               <div className="flex flex-col gap-3 text-sm">
                 <p className="font-bold text-neutral-900">
-                  Delivery requires a shipping quote
+                  Delivery cost is not included
                 </p>
                 <p className="text-neutral-500">
-                  The seller will create a shipping quote when your order will be placed
-                </p>
-                <p className="text-neutral-500">
-                  Escrow funding will be available only after both parties approve the shipping
-                  cost.
+                  Checkout covers the product price. EcoGlobe staff coordinate delivery and its
+                  cost with you and the seller after payment.
                 </p>
               </div>
             </div>
@@ -1480,23 +1300,6 @@ export function BuyerCheckoutPage() {
         </aside>
       </div>
 
-      {showAddPayment && (
-        <AddPaymentModal
-          initial={editingPaymentId ? payments.find((p) => p.id === editingPaymentId) ?? null : null}
-          onClose={() => setShowAddPayment(false)}
-          onSave={(p) => {
-            if (editingPaymentId) {
-              setPayments((prev) => prev.map((x) => (x.id === editingPaymentId ? { ...p, id: editingPaymentId } : x)));
-            } else {
-              const id = `pay-${Date.now()}`;
-              setPayments((prev) => [...prev, { ...p, id }]);
-              if (!selectedPaymentId) setSelectedPaymentId(id);
-            }
-            setShowAddPayment(false);
-            setEditingPaymentId(null);
-          }}
-        />
-      )}
       {showAddBilling && (
         <AddBillingModal
           initial={editingBillingId ? billings.find((b) => b.id === editingBillingId) ?? null : null}
@@ -1507,33 +1310,11 @@ export function BuyerCheckoutPage() {
             } else {
               const id = `addr-${Date.now()}`;
               setBillings((prev) => [...prev, { ...b, id }]);
-              if (!selectedBillingId) setSelectedBillingId(id);
+              setDeliveryAddressId(id);
             }
             setShowAddBilling(false);
             setEditingBillingId(null);
           }}
-        />
-      )}
-      {showPaymentPicker && (
-        <PaymentPickerModal
-          items={payments}
-          selectedId={selectedPaymentId}
-          onSelect={setSelectedPaymentId}
-          onAdd={() => {
-            setShowPaymentPicker(false);
-            setEditingPaymentId(null);
-            setShowAddPayment(true);
-          }}
-          onEdit={(id) => {
-            setShowPaymentPicker(false);
-            setEditingPaymentId(id);
-            setShowAddPayment(true);
-          }}
-          onDelete={(id) => {
-            setPayments((prev) => prev.filter((p) => p.id !== id));
-            if (selectedPaymentId === id) setSelectedPaymentId(null);
-          }}
-          onClose={() => setShowPaymentPicker(false)}
         />
       )}
       {showDeliveryPicker && (
@@ -1556,28 +1337,6 @@ export function BuyerCheckoutPage() {
             if (deliveryAddressId === id) setDeliveryAddressId(null);
           }}
           onClose={() => setShowDeliveryPicker(false)}
-        />
-      )}
-      {showBillingPicker && (
-        <BillingPickerModal
-          items={billings}
-          selectedId={selectedBillingId}
-          onSelect={setSelectedBillingId}
-          onAdd={() => {
-            setShowBillingPicker(false);
-            setEditingBillingId(null);
-            setShowAddBilling(true);
-          }}
-          onEdit={(id) => {
-            setShowBillingPicker(false);
-            setEditingBillingId(id);
-            setShowAddBilling(true);
-          }}
-          onDelete={(id) => {
-            setBillings((prev) => prev.filter((b) => b.id !== id));
-            if (selectedBillingId === id) setSelectedBillingId(null);
-          }}
-          onClose={() => setShowBillingPicker(false)}
         />
       )}
     </div>

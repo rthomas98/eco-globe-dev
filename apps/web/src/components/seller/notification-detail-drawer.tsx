@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { CheckCircle2, Clock3, ExternalLink, Mail, MessageSquareText, MonitorDot, X } from "lucide-react";
 import type { SellerNotification } from "./notifications-data";
-import type { NotificationChannel } from "@/components/notifications/notifications-demo-data";
+import type { NotificationChannel } from "@/components/notifications/notification-model";
 
 export type NotificationPortal = "buyer" | "seller";
 

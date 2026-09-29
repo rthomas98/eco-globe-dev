@@ -18,6 +18,7 @@ import { useDemoUser } from "@/lib/demo-user";
 import { ListingAnalysis } from "@/components/lab-testing/listing-analysis";
 import { RequestSampleModal } from "@/components/samples/request-sample-modal";
 import {sampleApi,type SampleConfig} from "@/lib/api-sample-shipping";
+import { describeBackendError } from "@/lib/backend-client";
 import { recordListingInterest } from "@/lib/api-listings";
 import { documentTypeLabel } from "@/components/seller/listing-documents";
 
@@ -36,9 +37,11 @@ export function BuyerProductDetailPage() {
   const user = useDemoUser();
   const backendId = listing?.backendId;
   const [sampleConfig,setSampleConfig]=useState<SampleConfig|null>(null);
-  const [sampleConfigError,setSampleConfigError]=useState(false);
+  const [sampleConfigError,setSampleConfigError]=useState<string|null>(null);
   const [sampleConfigVersion,setSampleConfigVersion]=useState(0);
-  useEffect(()=>{let active=true;setSampleConfig(null);setSampleConfigError(false);if(backendId)sampleApi<SampleConfig>(`/config?listingId=${backendId}`).then(c=>{if(active)setSampleConfig(c);}).catch(()=>{if(active)setSampleConfigError(true);});return()=>{active=false;};},[backendId,sampleConfigVersion]);
+  // Sample availability comes from the listing's saved sample policy; a failure
+  // shows the backend's reason instead of silently hiding the sample option.
+  useEffect(()=>{let active=true;setSampleConfig(null);setSampleConfigError(null);if(backendId)sampleApi<SampleConfig>(`/config?listingId=${backendId}`).then(c=>{if(active)setSampleConfig(c);}).catch((e:unknown)=>{if(active)setSampleConfigError(describeBackendError(e,"Sample availability could not load."));});return()=>{active=false;};},[backendId,sampleConfigVersion]);
 
   // Aggregate interest signal for the seller — never identifies the viewer.
   useEffect(() => {
@@ -259,8 +262,8 @@ export function BuyerProductDetailPage() {
           <div className="mb-5 mt-3 flex items-center justify-between text-base font-bold"><span className="text-neutral-900">Subtotal (excl. shipping)</span><span className="text-neutral-900">{money(itemSubtotal)}</span></div>
 
           <Button variant="primary" size="lg" className="w-full" onClick={handleBuyNow} disabled={buyDisabled} style={buyDisabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}>Buy Now</Button>
-          {canRequest && sampleConfigError && <p className="mt-3 text-sm text-amber-800">Sample availability could not load. <button className="underline" onClick={()=>setSampleConfigVersion(v=>v+1)}>Retry</button></p>}
-          {canRequest && sampleConfig?.eligibility.code !== "disabled" && (
+          {canRequest && sampleConfigError && <p className="mt-3 text-sm text-amber-800">{sampleConfigError} <button className="underline" onClick={()=>setSampleConfigVersion(v=>v+1)}>Retry</button> · <Link href="/contact" className="underline">Ask EcoGlobe about a sample</Link></p>}
+          {canRequest && !sampleConfigError && sampleConfig?.eligibility.code !== "disabled" && (
             <button type="button" disabled={!sampleConfig} onClick={() => setSampleOpen(true)} className="mt-3 w-full rounded-full bg-white py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-900/40" style={{ border: "1px solid #E0E0E0" }}>
               {!sampleConfig ? "Checking sample availability…" : sampleConfig.eligibility.eligible ? "Request a sample" : "Ask EcoGlobe about a sample"}
             </button>

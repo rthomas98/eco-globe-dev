@@ -1,5 +1,8 @@
 "use client";
 
+import { describeBackendError } from "@/lib/backend-client";
+import { ErrorState, LoadingState } from "@/components/shared/data-state";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, MessageSquare, ChevronRight, Filter } from "lucide-react";
@@ -26,13 +29,6 @@ interface Dispute {
   escrowNote: string;
 }
 
-const disputes: Dispute[] = [
-  { id: "DSP-2041", orderId: "EG-50021", escrowId: "ESC-50021", buyer: "AgriCorp Solutions", reason: "Quantity mismatch on delivery", amount: "$13,440.00", opened: "2026-05-01", status: "Open", unread: 2, escrowNote: "Funds remain held until you upload delivery weight proof." },
-  { id: "DSP-2038", orderId: "EG-50018", escrowId: "ESC-50018", buyer: "GreenHarvest Co.", reason: "Quality below specification", amount: "$8,210.00", opened: "2026-04-28", status: "Under review", unread: 0, escrowNote: "Automated release is paused while EcoGlobe reviews quality evidence." },
-  { id: "DSP-2031", orderId: "EG-50012", escrowId: "ESC-50012", buyer: "NutriFeed Industries", reason: "Damaged in transit", amount: "$4,990.00", opened: "2026-04-22", status: "Awaiting buyer", unread: 1, escrowNote: "Payout completed; this dispute is retained for account history." },
-  { id: "DSP-2027", orderId: "EG-50009", escrowId: "ESC-50009", buyer: "BioGreen Innovations", reason: "Wrong product shipped", amount: "$2,180.00", opened: "2026-04-15", status: "Resolved", unread: 0, escrowNote: "Release resumed after buyer accepted corrected delivery." },
-  { id: "DSP-2018", orderId: "EG-50002", escrowId: "ESC-50002", buyer: "PurePastures Ltd.", reason: "Carbon certification missing", amount: "$5,640.00", opened: "2026-04-08", status: "Resolved", unread: 0, escrowNote: "Closed with documentation credit and adjusted payout." },
-];
 
 const STATUS_FILTERS: Array<DisputeStatus | "All"> = ["All", "Open", "Awaiting buyer", "Under review", "Resolved"];
 
@@ -40,15 +36,21 @@ export function SellerDisputesPage() {
   const [filter, setFilter] = useState<DisputeStatus | "All">("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const [rows, setRows] = useState<Dispute[]>(disputes);
+  const [rows, setRows] = useState<Dispute[]>([]);
+  const [loadState, setLoadState] = useState<{ status: "loading" | "ready" | "error"; error?: string }>({ status: "loading" });
+  const [reloadKey, setReloadKey] = useState(0);
 
-  // Live disputes render ahead of the demo rows.
+  // Disputes come only from the backend.
   useEffect(() => {
-    if (!readDemoUser()) return;
+    if (!readDemoUser()) {
+      setLoadState({ status: "error", error: "Sign in to see disputes." });
+      return;
+    }
     let cancelled = false;
+    setLoadState({ status: "loading" });
     Promise.all([fetchDisputes(), fetchOrders()])
       .then(([apiDisputes, orders]) => {
-        if (cancelled || apiDisputes.length === 0) return;
+        if (cancelled) return;
         const orderById = new Map(orders.map((o) => [o.id, o]));
         const live: Dispute[] = apiDisputes.map((d) => {
           const order = d.orderId ? orderById.get(d.orderId) : undefined;
@@ -71,13 +73,16 @@ export function SellerDisputesPage() {
             escrowNote: d.escrowId ? "Escrow is locked until this dispute resolves." : "No escrow is attached to this order.",
           };
         });
-        setRows([...live, ...disputes]);
+        setRows(live);
+        setLoadState({ status: "ready" });
       })
-      .catch(() => {});
+      .catch((error) => {
+        if (!cancelled) setLoadState({ status: "error", error: describeBackendError(error, "Disputes could not be loaded.") });
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
 
   const filtered = rows.filter((d) => filter === "All" || d.status === filter);
   const selected = rows.find((d) => d.id === selectedId) ?? filtered[0] ?? null;
@@ -85,7 +90,7 @@ export function SellerDisputesPage() {
 
   return (
     <SellerLayout title="Disputes">
-      <div className="px-8 py-8">
+      <div className="px-4 py-6 sm:px-8 sm:py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900">Disputes</h1>
@@ -118,11 +123,17 @@ export function SellerDisputesPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
           {/* List */}
           <div className="rounded-xl bg-white lg:col-span-2" style={{ border: "1px solid #F0F0F0" }}>
-            {filtered.length === 0 ? (
+            {loadState.status === "loading" ? (
+              <LoadingState label="Loading disputes…" />
+            ) : loadState.status === "error" ? (
+              <ErrorState message={loadState.error ?? "Disputes could not be loaded."} onRetry={() => setReloadKey((k) => k + 1)} />
+            ) : filtered.length === 0 ? (
               <div className="px-6 py-12 text-center">
-                <p className="text-sm font-medium text-neutral-700">No disputes match.</p>
+                <p className="text-sm font-medium text-neutral-700">
+                  {rows.length === 0 ? "No disputes." : "No disputes match."}
+                </p>
                 <p className="mt-1 text-xs text-neutral-500">
-                  Try a different filter.
+                  {rows.length === 0 ? "Disputes opened on your orders appear here." : "Try a different filter."}
                 </p>
               </div>
             ) : (

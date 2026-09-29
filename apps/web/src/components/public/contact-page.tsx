@@ -3,15 +3,19 @@
 import { useState } from "react";
 import { Mail, MapPin, PhoneCall, CheckCircle } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { describeBackendError, isBackendApiError } from "@/lib/backend-client";
+import { submitContactInquiry } from "@/lib/api-contact";
 import { Header } from "./header";
 import { CTABannerSection } from "./cta-banner-section";
 import { Footer } from "./footer";
+
+const CONTACT_EMAIL_DISPLAY = "info@ecoglobeworld.com";
 
 const contactInfo = [
   {
     icon: Mail,
     title: "Email Address",
-    value: "info@ecoglobeworld.com",
+    value: CONTACT_EMAIL_DISPLAY,
     color: "#96794A",
   },
   {
@@ -28,12 +32,41 @@ const contactInfo = [
   },
 ];
 
+const CONTACT_EMAIL = CONTACT_EMAIL_DISPLAY;
+
 export function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // "Message sent" is shown only after the backend stores the inquiry.
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSubmitted(true);
+    if (sending) return;
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const field = (name: string) => String(data.get(name) ?? "").trim();
+    setSending(true);
+    setError(null);
+    try {
+      await submitContactInquiry({
+        name: field("name"),
+        email: field("email"),
+        company: field("company") || undefined,
+        topic: field("topic") || undefined,
+        message: field("message"),
+      });
+      form.reset();
+      setSubmitted(true);
+    } catch (err) {
+      setError(
+        isBackendApiError(err) && (err.kind === "not-found" || err.kind === "network")
+          ? `Online messages are not available right now. Please email ${CONTACT_EMAIL} instead.`
+          : describeBackendError(err, `Your message was not sent. Please try again or email ${CONTACT_EMAIL}.`),
+      );
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -70,7 +103,7 @@ export function ContactPage() {
           {/* Right - Contact form */}
           <div className="flex-1">
             <div
-              className="rounded-2xl bg-white p-10"
+              className="rounded-2xl bg-white p-6 sm:p-10"
               style={{ boxShadow: "0 8px 32px -4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)" }}
             >
               {submitted ? (
@@ -78,9 +111,10 @@ export function ContactPage() {
                   <div className="flex size-14 items-center justify-center rounded-full bg-green-100">
                     <CheckCircle className="size-7 text-green-600" />
                   </div>
-                  <h2 className="text-2xl font-bold text-neutral-900">Message sent</h2>
+                  <h2 className="text-2xl font-bold text-neutral-900">Message received</h2>
                   <p className="max-w-[420px] text-sm text-neutral-700">
-                    Thanks — we&rsquo;ll be in touch shortly at info@ecoglobeworld.com.
+                    Thanks — your message was saved and the EcoGlobe team will reply to the email
+                    address you provided.
                   </p>
                   <button
                     type="button"
@@ -94,12 +128,14 @@ export function ContactPage() {
                 <>
                   <h2 className="mb-8 text-2xl font-bold text-neutral-900">Send us a message</h2>
 
-                  <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+                  <form className="flex flex-col gap-6" onSubmit={(e) => void handleSubmit(e)}>
                     {/* Row 1: Name + Email */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-neutral-900">Name</label>
+                        <label htmlFor="contact-name" className="text-sm font-medium text-neutral-900">Name</label>
                         <input
+                          id="contact-name"
+                          name="name"
                           type="text"
                           required
                           className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
@@ -107,8 +143,10 @@ export function ContactPage() {
                         />
                       </div>
                       <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-neutral-900">Email address</label>
+                        <label htmlFor="contact-email" className="text-sm font-medium text-neutral-900">Email address</label>
                         <input
+                          id="contact-email"
+                          name="email"
                           type="email"
                           required
                           className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
@@ -117,19 +155,13 @@ export function ContactPage() {
                       </div>
                     </div>
 
-                    {/* Row 2: Company + Job title */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* Row 2: Company */}
+                    <div className="grid grid-cols-1 gap-6">
                       <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-neutral-900">Company</label>
+                        <label htmlFor="contact-company" className="text-sm font-medium text-neutral-900">Company</label>
                         <input
-                          type="text"
-                          className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
-                          style={{ border: "1px solid #E0E0E0" }}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-neutral-900">Job title</label>
-                        <input
+                          id="contact-company"
+                          name="company"
                           type="text"
                           className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
                           style={{ border: "1px solid #E0E0E0" }}
@@ -139,8 +171,10 @@ export function ContactPage() {
 
                     {/* Subject */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-neutral-900">Subject</label>
+                      <label htmlFor="contact-topic" className="text-sm font-medium text-neutral-900">Topic</label>
                       <input
+                        id="contact-topic"
+                        name="topic"
                         type="text"
                         className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
                         style={{ border: "1px solid #E0E0E0" }}
@@ -149,8 +183,10 @@ export function ContactPage() {
 
                     {/* Message */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-neutral-900">Message</label>
+                      <label htmlFor="contact-message" className="text-sm font-medium text-neutral-900">Message</label>
                       <textarea
+                        id="contact-message"
+                        name="message"
                         required
                         rows={5}
                         className="w-full resize-y rounded-lg bg-white px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
@@ -158,8 +194,13 @@ export function ContactPage() {
                       />
                     </div>
 
-                    <Button variant="primary" size="lg" className="w-full">
-                      Submit
+                    {error && (
+                      <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {error}
+                      </p>
+                    )}
+                    <Button variant="primary" size="lg" className="w-full" type="submit" disabled={sending}>
+                      {sending ? "Sending…" : "Submit"}
                     </Button>
                   </form>
                 </>

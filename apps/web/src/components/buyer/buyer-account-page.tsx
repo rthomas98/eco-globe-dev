@@ -3,7 +3,6 @@ import { useCompanyLocations, locationsToFacilities } from "@/lib/use-company-lo
 
 import { useEffect, useState } from "react";
 import {
-  Bell,
   Building2,
   CheckCircle2,
   Lock,
@@ -17,12 +16,11 @@ import {
   useDemoUser,
   writeDemoUser,
 } from "@/lib/demo-user";
-import { notificationPreferenceCategories } from "@/components/notifications/notifications-demo-data";
+import { NotificationPreferencesPanel } from "@/components/notifications/notification-preferences-panel";
+import { PasswordChangeForm } from "@/components/account/password-change-form";
 import { BuyerLayout } from "./buyer-layout";
 import { TeamTab } from "@/components/account/team-tab";
 import {
-  fetchNotificationPreferences,
-  setNotificationPreference,
   updateUserName,
 } from "@/lib/api-account";
 
@@ -43,35 +41,6 @@ const defaultProfile: ProfileForm = {
   jobTitle: "",
   department: "",
 };
-
-type PreferenceChannel = "email" | "sms" | "inApp";
-
-interface BuyerPreferenceItem {
-  id: string;
-  label: string;
-  description: string;
-  channels: Record<PreferenceChannel, boolean>;
-}
-
-interface BuyerPreferenceCategory {
-  id: string;
-  title: string;
-  description: string;
-  items: BuyerPreferenceItem[];
-}
-
-const buyerPreferenceCategories: BuyerPreferenceCategory[] =
-  notificationPreferenceCategories.map((category) => ({
-    id: category.id,
-    title: category.title,
-    description: category.description,
-    items: category.items.map((item) => ({
-      id: item.id,
-      label: item.label,
-      description: item.description,
-      channels: { ...item.defaultChannels },
-    })),
-  }));
 
 function FieldRow({
   label,
@@ -233,193 +202,11 @@ function SecurityTab() {
         <Lock className="size-5 text-neutral-700" />
         <h2 className="text-lg font-bold text-neutral-900">Login & security</h2>
       </div>
-      <FieldRow label="Password" value="Last updated 12 days ago" />
-      <FieldRow label="Two-factor authentication" value="Not enabled" />
-      <FieldRow label="Current session" value="MacOS · Chrome · Baton Rouge" />
-      <FieldRow label="Last sign in" value="May 18, 2026 08:45 AM" />
-      <div className="mt-5">
-        <Button variant="secondary" size="md">
-          Review Security Settings
-        </Button>
-      </div>
+      <PasswordChangeForm />
     </section>
   );
 }
 
-const CHANNEL_CODES: Record<PreferenceChannel, string> = {
-  email: "email",
-  sms: "sms",
-  inApp: "in_app",
-};
-
-/** FE category card ids map to backend NotificationCategories codes. */
-function categoryCode(catId: string): string {
-  const code = catId.toLowerCase();
-  return ["orders", "payments", "logistics", "compliance", "sustainability"].includes(code)
-    ? code
-    : "sustainability";
-}
-
-function PreferencesTab() {
-  const [categories, setCategories] = useState<BuyerPreferenceCategory[]>(
-    buyerPreferenceCategories,
-  );
-  const [paused, setPaused] = useState(false);
-  const user = useDemoUser();
-
-  // Load persisted preferences: a disabled (category, channel) row turns that
-  // channel off for every item in the category.
-  useEffect(() => {
-    if (!user?.id) return;
-    let cancelled = false;
-    fetchNotificationPreferences()
-      .then((prefs) => {
-        if (cancelled) return;
-        setCategories((prev) =>
-          prev.map((c) => {
-            const disabledChannels = (
-              Object.keys(CHANNEL_CODES) as PreferenceChannel[]
-            ).filter((channel) =>
-              prefs.some(
-                (p) =>
-                  p.userId === user.id &&
-                  p.notificationCategoryCode === categoryCode(c.id) &&
-                  p.notificationChannelCode === CHANNEL_CODES[channel] &&
-                  !p.enabled,
-              ),
-            );
-            if (disabledChannels.length === 0) return c;
-            return {
-              ...c,
-              items: c.items.map((item) => ({
-                ...item,
-                channels: {
-                  ...item.channels,
-                  ...Object.fromEntries(disabledChannels.map((ch) => [ch, false])),
-                },
-              })),
-            };
-          }),
-        );
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  const toggleChannel = (
-    categoryId: string,
-    itemId: string,
-    channel: PreferenceChannel,
-  ) => {
-    setCategories((current) => {
-      const next = current.map((category) =>
-        category.id !== categoryId
-          ? category
-          : {
-              ...category,
-              items: category.items.map((item) =>
-                item.id !== itemId
-                  ? item
-                  : {
-                      ...item,
-                      channels: {
-                        ...item.channels,
-                        [channel]: !item.channels[channel],
-                      },
-                    },
-              ),
-            },
-      );
-      // Persist the category-level signal: enabled while any item still is.
-      const category = next.find((c) => c.id === categoryId);
-      if (user?.id && category) {
-        const enabled = category.items.some((item) => item.channels[channel]);
-        void setNotificationPreference(
-          user.id,
-          categoryCode(categoryId),
-          CHANNEL_CODES[channel],
-          enabled,
-        ).catch(() => {});
-      }
-      return next;
-    });
-  };
-
-  return (
-    <section
-      className="rounded-2xl bg-white p-5"
-      style={{ border: "1px solid #F0F0F0" }}
-    >
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-2">
-          <Bell className="mt-0.5 size-5 text-neutral-700" />
-          <div>
-            <h2 className="text-lg font-bold text-neutral-900">Notification preferences</h2>
-            <p className="mt-1 text-sm text-neutral-600">
-              Control order, escrow, sustainability, and compliance alerts across
-              email, SMS, and in-app notifications.
-            </p>
-          </div>
-        </div>
-        <Button
-          variant={paused ? "primary" : "secondary"}
-          size="sm"
-          onClick={() => setPaused((value) => !value)}
-        >
-          {paused ? "Resume Alerts" : "Pause Non-critical Alerts"}
-        </Button>
-      </div>
-      <div className="flex flex-col gap-4">
-        {categories.map((category) => (
-          <div
-            key={category.id}
-            className="rounded-xl bg-neutral-50 p-4"
-            style={{ border: "1px solid #F0F0F0" }}
-          >
-            <div className="mb-3">
-              <h3 className="text-sm font-bold text-neutral-900">{category.title}</h3>
-              <p className="mt-1 text-xs text-neutral-500">{category.description}</p>
-            </div>
-            <div className="flex flex-col">
-              {category.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="grid gap-3 py-3 text-sm sm:grid-cols-[1fr_72px_72px_72px] sm:items-center"
-                  style={{ borderTop: "1px solid #F0F0F0" }}
-                >
-                  <div>
-                    <p className="font-semibold text-neutral-900">{item.label}</p>
-                    <p className="mt-1 text-xs text-neutral-500">{item.description}</p>
-                  </div>
-                  {(["email", "sms", "inApp"] as const).map((channel) => (
-                    <label
-                      key={channel}
-                      className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-neutral-700 sm:justify-center"
-                      style={{ border: "1px solid #E7E7E7" }}
-                    >
-                      <span className="sm:hidden">
-                        {channel === "inApp" ? "In-app" : channel.toUpperCase()}
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={item.channels[channel]}
-                        onChange={() => toggleChannel(category.id, item.id, channel)}
-                        className="size-4 accent-neutral-900"
-                        aria-label={`${item.label} ${channel}`}
-                      />
-                    </label>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 export function BuyerAccountPage() {
   const demoUser = useDemoUser();
@@ -514,7 +301,11 @@ export function BuyerAccountPage() {
                 />
               )}
               {tab === "security" && <SecurityTab />}
-              {tab === "preferences" && <PreferencesTab />}
+              {tab === "preferences" && (
+                <div className="px-4 py-6 sm:px-6">
+                  <NotificationPreferencesPanel />
+                </div>
+              )}
             </div>
           </div>
         </div>

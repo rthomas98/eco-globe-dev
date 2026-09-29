@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   DollarSign,
   Leaf,
@@ -14,12 +14,19 @@ import {
   relativeTime,
   type ApiNotification,
 } from "@/lib/api-portal";
-import { readDemoUser } from "@/lib/demo-user";
+import { useDemoUser } from "@/lib/demo-user";
+import {
+  applyReadIds,
+  broadcastNotificationsRead,
+  notificationScopeKey,
+  subscribeNotificationsRead,
+} from "@/lib/notification-read-events";
+import { describeBackendError } from "@/lib/backend-client";
 import type {
   NotificationCategory,
   NotificationGroup,
   PortalNotification,
-} from "./notifications-demo-data";
+} from "./notification-model";
 
 const CATEGORY_BY_CODE: Record<string, NotificationCategory> = {
   orders: "Orders",
@@ -82,41 +89,95 @@ export function mapApiNotification(api: ApiNotification): PortalNotification {
   };
 }
 
+export interface LiveNotificationsState {
+  status: "loading" | "ready" | "error" | "signed-out";
+  items: PortalNotification[];
+  error: string | null;
+  reload: () => void;
+}
+
 /**
- * Live in-app notifications for the signed-in user's active company, mapped
- * into the portal notification shape. Returns [] until loaded or when the
- * session has no active company.
+ * Live in-app notifications for the signed-in user and their active company.
+ * Nothing is shown until the backend answers; failures surface as an error.
+ * Results are tagged with the user/company they belong to: after logout or a
+ * company switch the previous scope's items are never returned, even before
+ * the reload finishes. Reads confirmed anywhere in the app are applied at once.
  */
-export function useLiveNotifications(): PortalNotification[] {
-  const [items, setItems] = useState<PortalNotification[]>([]);
+export function useLiveNotifications(): LiveNotificationsState {
+  const user = useDemoUser();
+  const scope = notificationScopeKey(user?.id, user?.activeCompanyId);
+  const [state, setState] = useState<Omit<LiveNotificationsState, "reload"> & { scope: string | null }>({
+    status: "loading",
+    items: [],
+    error: null,
+    scope: null,
+  });
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    const user = readDemoUser();
-    if (!user) return;
+    if (!scope) {
+      setState({ status: "signed-out", items: [], error: null, scope: null });
+      return;
+    }
     let cancelled = false;
+    setState((prev) =>
+      prev.scope === scope
+        ? { ...prev, status: "loading", error: null }
+        : { status: "loading", items: [], error: null, scope },
+    );
     // No filters: RBAC returns this user's personal alerts (saved-search
     // matches) plus their company's transaction notifications.
     fetchNotifications()
       .then((notifications) => {
-        if (!cancelled) setItems(notifications.map(mapApiNotification));
+        if (!cancelled)
+          setState({ status: "ready", items: notifications.map(mapApiNotification), error: null, scope });
       })
-      .catch(() => {
-        // Demo rows remain when the backend is unreachable.
+      .catch((error: unknown) => {
+        if (!cancelled)
+          setState({
+            status: "error",
+            items: [],
+            error: describeBackendError(error, "Notifications could not be loaded."),
+            scope,
+          });
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [scope, version]);
 
-  return items;
+  // Apply reads the backend confirmed in any other view (panel, page, badge).
+  useEffect(
+    () =>
+      subscribeNotificationsRead((ids) =>
+        setState((prev) => {
+          const items = applyReadIds(prev.items, ids);
+          return items === prev.items ? prev : { ...prev, items };
+        }),
+      ),
+    [],
+  );
+
+  const reload = useCallback(() => setVersion((v) => v + 1), []);
+  if (!user && state.status !== "signed-out") return { status: "loading", items: [], error: null, reload };
+  if (scope && state.scope !== scope) return { status: "loading", items: [], error: null, reload };
+  const { scope: _scope, ...current } = state;
+  return { ...current, reload };
 }
 
-/** Marks a live notification read on the backend (no-op for demo rows). */
-export function markLiveNotificationRead(id: string) {
-  if (!id.startsWith("api-")) return;
+/**
+ * Persists read state on the backend. Resolves true only when the backend
+ * saved it, and then broadcasts the id so every notification view updates.
+ */
+export async function markLiveNotificationRead(id: string): Promise<boolean> {
+  if (!id.startsWith("api-")) return false;
   const numericId = Number(id.slice(4));
-  if (!Number.isInteger(numericId)) return;
-  void markNotificationRead(numericId).catch(() => {
-    // Read-state persistence is best-effort.
-  });
+  if (!Number.isInteger(numericId)) return false;
+  try {
+    await markNotificationRead(numericId);
+    broadcastNotificationsRead([id], typeof window === "undefined" ? undefined : window);
+    return true;
+  } catch {
+    return false;
+  }
 }

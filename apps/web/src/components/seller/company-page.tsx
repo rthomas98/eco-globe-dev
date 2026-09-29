@@ -1,729 +1,232 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MoreHorizontal, X } from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
 import { Button, Input } from "@eco-globe/ui";
-import { buildDemoUser, readDemoUser, type Facility } from "@/lib/demo-user";
-import {
-  fetchCompany,
-  fetchCompanyLocations,
-  fetchCompanyMembers,
-} from "@/lib/api-portal";
+import { useDemoUser } from "@/lib/demo-user";
+import { fetchCompany, fetchCompanyMembers, portalDate } from "@/lib/api-portal";
+import { createCompanyLocation, fetchCompanyLocations } from "@/lib/listings-api";
+import { describeBackendError } from "@/lib/backend-client";
+import { formatCompanyLocation } from "@/lib/use-company-locations";
+import { DataBoundary, LoadingState, useBackendData } from "@/components/shared/data-state";
 import { SellerLayout } from "./seller-layout";
 
-type Row = { label: string; value: React.ReactNode; action?: React.ReactNode };
-
-type SellerCompanyState = {
-  logoText: string;
-  companyName: string;
-  registrationNumber: string;
-  industrySector: string;
-  country: string;
-  businessAddress: string;
-  representativeName: string;
-  representativeTitle: string;
-  representativePhone: string;
-  representativeEmail: string;
-  certificationDocument: string;
-  complianceStatus: string;
-};
-
-type EditableField = keyof SellerCompanyState;
-
-type FacilityForm = {
-  label: string;
-  address: string;
-};
-
-const COMPANY_KEY = "ecoglobe.sellerCompanyProfile";
-const FACILITIES_KEY = "ecoglobe.sellerCompanyFacilities";
-
-const defaultSeller = buildDemoUser("seller");
-
-const defaultCompany: SellerCompanyState = {
-  logoText: "alo",
-  companyName: "Alo World",
-  registrationNumber: "1234567890",
-  industrySector: defaultSeller.industry ?? "Chemicals",
-  country: "Louisiana",
-  businessAddress: "1165 Bayou Paul Ln, St Gabriel, Baton rouge, 93264 LA",
-  representativeName: "William Stanley",
-  representativeTitle: "Finance Manager",
-  representativePhone: "1234567890",
-  representativeEmail: "example@aloworld.com",
-  certificationDocument: "example document here.pdf",
-  complianceStatus: "Verified certification on file",
-};
-
-const defaultFacilities = defaultSeller.facilities ?? [];
-
-function readStored<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeStored<T>(key: string, value: T) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
-function InfoRow({ label, value, action }: Row) {
-  return (
-    <div
-      className="flex items-center justify-between gap-6 px-6 py-5"
-      style={{ borderBottom: "1px solid #F0F0F0" }}
-    >
-      <span className="w-[260px] shrink-0 text-sm text-neutral-700">{label}</span>
-      <div className="flex-1 text-sm text-neutral-900">{value}</div>
-      {action}
-    </div>
-  );
-}
-
-function ActionLink({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700"
-    >
-      {children}
-    </button>
-  );
-}
-
-function SectionCard({ title, children }: { title?: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
-      {title && (
-        <div className="px-6 pb-2 pt-6">
-          <h2 className="text-base font-semibold text-neutral-900">{title}</h2>
-        </div>
-      )}
-      <div>{children}</div>
-    </div>
-  );
-}
-
-function FieldModal({
-  title,
-  label,
-  value,
-  error,
-  onChange,
-  onClose,
-  onSave,
-}: {
-  title: string;
-  label: string;
-  value: string;
-  error: string | null;
-  onChange: (value: string) => void;
-  onClose: () => void;
-  onSave: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
-      <button
-        type="button"
-        aria-label={`Close ${title}`}
-        className="absolute inset-0 bg-black/30"
-        onClick={onClose}
-      />
-      <section
-        className="relative z-10 w-full max-w-[520px] rounded-3xl bg-white p-6 shadow-2xl"
-        aria-label={title}
-      >
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">
-              Company profile
-            </p>
-            <h2 className="mt-1 text-2xl font-bold text-neutral-900">{title}</h2>
-          </div>
-          <button
-            type="button"
-            aria-label="Close form"
-            onClick={onClose}
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-        <Input
-          id="seller-company-field"
-          label={label}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        {error && (
-          <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </p>
-        )}
-        <div className="mt-6 flex justify-end gap-3">
-          <Button type="button" variant="secondary" size="md" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="button" variant="primary" size="md" onClick={onSave}>
-            Save Changes
-          </Button>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function FacilityModal({
-  mode,
-  form,
-  error,
-  onChange,
-  onClose,
-  onDelete,
-  onSave,
-}: {
-  mode: "add" | "edit";
-  form: FacilityForm;
-  error: string | null;
-  onChange: (next: FacilityForm) => void;
-  onClose: () => void;
-  onDelete?: () => void;
-  onSave: () => void;
-}) {
-  const update = (key: keyof FacilityForm, value: string) =>
-    onChange({ ...form, [key]: value });
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
-      <button
-        type="button"
-        aria-label="Close facility form"
-        className="absolute inset-0 bg-black/30"
-        onClick={onClose}
-      />
-      <section
-        className="relative z-10 w-full max-w-[560px] rounded-3xl bg-white p-6 shadow-2xl"
-        aria-label={mode === "add" ? "Add facility form" : "Edit facility form"}
-      >
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">
-              Seller location
-            </p>
-            <h2 className="mt-1 text-2xl font-bold text-neutral-900">
-              {mode === "add" ? "Add Location" : "Edit Location"}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-neutral-600">
-              Store each plant by a recognizable facility name, then use that
-              origin on listings.
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-label="Close form"
-            onClick={onClose}
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-
-        <div className="grid gap-4">
-          <Input
-            id="seller-location-name"
-            label="Facility name"
-            placeholder="Example: Norco Plant"
-            value={form.label}
-            onChange={(event) => update("label", event.target.value)}
-          />
-          <Input
-            id="seller-location-address"
-            label="Facility address"
-            placeholder="Example: 15536 River Rd, Norco, LA 70079"
-            value={form.address}
-            onChange={(event) => update("address", event.target.value)}
-          />
-        </div>
-
-        {error && (
-          <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </p>
-        )}
-
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            {onDelete && (
-              <button
-                type="button"
-                onClick={onDelete}
-                className="text-sm font-semibold text-red-700 underline underline-offset-2 hover:text-red-800"
-              >
-                Delete location
-              </button>
-            )}
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="secondary" size="md" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="button" variant="primary" size="md" onClick={onSave}>
-              {mode === "add" ? "Save Location" : "Save Changes"}
-            </Button>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
+/** The active seller company as recorded by the backend. */
 export function SellerCompanyPage() {
-  const [company, setCompany] = useState<SellerCompanyState>(defaultCompany);
-  const [facilities, setFacilities] = useState<Facility[]>(defaultFacilities);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [fieldEdit, setFieldEdit] = useState<{
-    key: EditableField;
-    label: string;
-    value: string;
-  } | null>(null);
-  const [facilityMode, setFacilityMode] = useState<"add" | "edit" | null>(null);
-  const [editingFacilityId, setEditingFacilityId] = useState<string | null>(null);
-  const [facilityForm, setFacilityForm] = useState<FacilityForm>({
-    label: "",
-    address: "",
-  });
-  const [error, setError] = useState<string | null>(null);
-  const [documentMenuOpen, setDocumentMenuOpen] = useState(false);
-
-  useEffect(() => {
-    setCompany(readStored(COMPANY_KEY, defaultCompany));
-    setFacilities(readStored(FACILITIES_KEY, defaultFacilities));
-
-    // Overlay the live company record from the backend.
-    const user = readDemoUser();
-    if (!user?.activeCompanyId) return;
-    const companyId = user.activeCompanyId;
-    let cancelled = false;
-    Promise.all([
-      fetchCompany(companyId),
-      fetchCompanyLocations(companyId),
-      fetchCompanyMembers(companyId),
-    ])
-      .then(([liveCompany, locations, members]) => {
-        if (cancelled) return;
-        const owner = members.find((m) => m.memberRoleCode === "owner");
-        const defaultLocation =
-          locations.find((l) => l.isDefault) ?? locations[0];
-        setCompany((prev) => ({
-          ...prev,
-          companyName: liveCompany.legalName,
-          logoText: liveCompany.legalName.slice(0, 3).toLowerCase(),
-          country: defaultLocation?.countryCode ?? prev.country,
-          businessAddress: defaultLocation
-            ? [
-                defaultLocation.addressLine1,
-                defaultLocation.city,
-                defaultLocation.stateProvince,
-                defaultLocation.postalCode,
-              ]
-                .filter(Boolean)
-                .join(", ")
-            : prev.businessAddress,
-          representativeName: owner?.userName ?? prev.representativeName,
-          representativeEmail: owner?.userEmail ?? prev.representativeEmail,
-          complianceStatus:
-            liveCompany.verificationStatusCode === "verified"
-              ? "Verified certification on file"
-              : `Verification ${liveCompany.verificationStatusCode.replace(/_/g, " ")}`,
-        }));
-        if (locations.length > 0) {
-          setFacilities(
-            locations.map((location) => ({
-              id: `loc-${location.id}`,
-              label: location.name,
-              address: [
-                location.addressLine1,
-                location.city,
-                location.stateProvince,
-                location.countryCode,
-              ]
-                .filter(Boolean)
-                .join(", "),
-              lat: undefined,
-              lng: undefined,
-            })),
-          );
-        }
-      })
-      .catch(() => {
-        // Stored/demo values remain when the backend is unreachable.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const persistCompany = (next: SellerCompanyState) => {
-    setCompany(next);
-    writeStored(COMPANY_KEY, next);
-  };
-
-  const persistFacilities = (next: Facility[]) => {
-    setFacilities(next);
-    writeStored(FACILITIES_KEY, next);
-  };
-
-  const openFieldEdit = (key: EditableField, label: string) => {
-    setFieldEdit({ key, label, value: company[key] });
-    setError(null);
-  };
-
-  const saveField = () => {
-    if (!fieldEdit) return;
-    const value = fieldEdit.value.trim();
-    if (!value) {
-      setError(`Enter a value for ${fieldEdit.label}.`);
-      return;
-    }
-    persistCompany({ ...company, [fieldEdit.key]: value });
-    setNotice(`${fieldEdit.label} updated.`);
-    setFieldEdit(null);
-    setError(null);
-  };
-
-  const deleteLogo = () => {
-    persistCompany({ ...company, logoText: "" });
-    setNotice("Logo deleted.");
-  };
-
-  const openAddFacility = () => {
-    setFacilityMode("add");
-    setEditingFacilityId(null);
-    setFacilityForm({ label: "", address: "" });
-    setError(null);
-  };
-
-  const openEditFacility = (facility: Facility) => {
-    setFacilityMode("edit");
-    setEditingFacilityId(facility.id);
-    setFacilityForm({ label: facility.label, address: facility.address });
-    setError(null);
-  };
-
-  const closeFacilityModal = () => {
-    setFacilityMode(null);
-    setEditingFacilityId(null);
-    setFacilityForm({ label: "", address: "" });
-    setError(null);
-  };
-
-  const saveFacility = () => {
-    const label = facilityForm.label.trim();
-    const address = facilityForm.address.trim();
-    if (!label || !address) {
-      setError("Enter both a facility name and address.");
-      return;
-    }
-
-    const nextFacility: Facility = {
-      id: editingFacilityId ?? `seller-location-${Date.now().toString(36)}`,
-      label,
-      address,
-    };
-    const next =
-      facilityMode === "edit" && editingFacilityId
-        ? facilities.map((facility) =>
-            facility.id === editingFacilityId ? nextFacility : facility,
-          )
-        : [...facilities, nextFacility];
-    persistFacilities(next);
-    setNotice(`${label} saved.`);
-    closeFacilityModal();
-  };
-
-  const deleteFacility = () => {
-    if (!editingFacilityId) return;
-    const deleted = facilities.find((facility) => facility.id === editingFacilityId);
-    persistFacilities(facilities.filter((facility) => facility.id !== editingFacilityId));
-    setNotice(`${deleted?.label ?? "Location"} deleted.`);
-    closeFacilityModal();
-  };
-
-  const deleteDocument = () => {
-    persistCompany({
-      ...company,
-      certificationDocument: "No certification uploaded",
-      complianceStatus: "Certification missing",
-    });
-    setDocumentMenuOpen(false);
-    setNotice("Certification document deleted.");
-  };
-
-  const downloadDocument = () => {
-    setDocumentMenuOpen(false);
-    setNotice(`${company.certificationDocument} is ready to download.`);
-  };
-
+  const user = useDemoUser();
+  const companyId = user?.activeCompanyId;
   return (
     <SellerLayout title="Company">
-      <div className="mx-auto flex max-w-[1100px] flex-col gap-6">
-        <h1 className="px-1 text-2xl font-bold text-neutral-900">Company</h1>
-
-        {notice && (
-          <div
-            className="flex items-center justify-between gap-4 rounded-2xl bg-green-50 px-5 py-4 text-sm font-semibold text-green-800"
-            style={{ border: "1px solid #BBF7D0" }}
-          >
-            <span>{notice}</span>
-            <button
-              type="button"
-              onClick={() => setNotice(null)}
-              className="text-green-900 underline underline-offset-2"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        <SectionCard>
-          <div
-            className="flex items-center justify-between gap-6 px-6 py-5"
-            style={{ borderBottom: "1px solid #F0F0F0" }}
-          >
-            <span className="w-[260px] shrink-0 text-sm text-neutral-700">Logo</span>
-            <div className="flex-1">
-              {company.logoText ? (
-                <div className="flex size-14 items-center justify-center rounded-xl bg-neutral-900 text-xs font-bold text-white">
-                  <span className="flex flex-col items-center leading-none">
-                    <span className="text-base">◆</span>
-                    <span className="mt-0.5 text-[10px] tracking-wider">
-                      {company.logoText.slice(0, 8)}
-                    </span>
-                  </span>
-                </div>
-              ) : (
-                <div className="flex size-14 items-center justify-center rounded-xl bg-neutral-100 text-[10px] font-bold uppercase text-neutral-400">
-                  No logo
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-5">
-              <ActionLink onClick={deleteLogo}>Delete</ActionLink>
-              <ActionLink onClick={() => openFieldEdit("logoText", "Logo text")}>
-                Update
-              </ActionLink>
-            </div>
-          </div>
-          <InfoRow
-            label="Company Name"
-            value={company.companyName}
-            action={
-              <ActionLink onClick={() => openFieldEdit("companyName", "Company Name")}>
-                Edit
-              </ActionLink>
-            }
-          />
-          <InfoRow
-            label="Company Registration Number"
-            value={company.registrationNumber}
-            action={
-              <ActionLink
-                onClick={() =>
-                  openFieldEdit("registrationNumber", "Company Registration Number")
-                }
-              >
-                Edit
-              </ActionLink>
-            }
-          />
-          <InfoRow
-            label="Industry Sector"
-            value={company.industrySector}
-            action={
-              <ActionLink onClick={() => openFieldEdit("industrySector", "Industry Sector")}>
-                Edit
-              </ActionLink>
-            }
-          />
-          <InfoRow
-            label="Country"
-            value={company.country}
-            action={
-              <ActionLink onClick={() => openFieldEdit("country", "Country")}>
-                Edit
-              </ActionLink>
-            }
-          />
-          <InfoRow
-            label="Business Address"
-            value={company.businessAddress}
-            action={
-              <ActionLink onClick={() => openFieldEdit("businessAddress", "Business Address")}>
-                Edit
-              </ActionLink>
-            }
-          />
-        </SectionCard>
-
-        <SectionCard title="Locations">
-          {facilities.map((facility) => (
-            <InfoRow
-              key={facility.id}
-              label="Plant / facility"
-              value={
-                <div className="flex flex-col gap-1">
-                  <span className="font-medium">{facility.label}</span>
-                  <span className="text-neutral-500">{facility.address}</span>
-                </div>
-              }
-              action={
-                <ActionLink onClick={() => openEditFacility(facility)}>Edit</ActionLink>
-              }
-            />
-          ))}
-          <div className="flex items-center justify-between gap-6 px-6 py-5">
-            <span className="w-[260px] shrink-0 text-sm text-neutral-700">Add location</span>
-            <div className="flex-1 text-sm text-neutral-500">
-              Store each plant by a recognizable facility name, then use that origin on listings.
-            </div>
-            <ActionLink onClick={openAddFacility}>Add</ActionLink>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Authorized Representative">
-          <InfoRow
-            label="Full name"
-            value={company.representativeName}
-            action={
-              <ActionLink onClick={() => openFieldEdit("representativeName", "Full name")}>
-                Edit
-              </ActionLink>
-            }
-          />
-          <InfoRow
-            label="Job Title"
-            value={company.representativeTitle}
-            action={
-              <ActionLink onClick={() => openFieldEdit("representativeTitle", "Job Title")}>
-                Edit
-              </ActionLink>
-            }
-          />
-          <InfoRow
-            label="Work Phone"
-            value={company.representativePhone}
-            action={
-              <ActionLink onClick={() => openFieldEdit("representativePhone", "Work Phone")}>
-                Edit
-              </ActionLink>
-            }
-          />
-          <InfoRow
-            label="Work Email"
-            value={company.representativeEmail}
-            action={
-              <ActionLink onClick={() => openFieldEdit("representativeEmail", "Work Email")}>
-                Edit
-              </ActionLink>
-            }
-          />
-        </SectionCard>
-
-        <SectionCard title="Document">
-          <InfoRow
-            label="Uploaded Certifications"
-            value={company.certificationDocument}
-            action={
-              <div className="relative flex items-center gap-3">
-                <ActionLink
-                  onClick={() =>
-                    openFieldEdit("certificationDocument", "Certification document")
-                  }
-                >
-                  Update
-                </ActionLink>
-                <button
-                  type="button"
-                  aria-label="Document actions"
-                  onClick={() => setDocumentMenuOpen((open) => !open)}
-                  className="flex size-8 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-                >
-                  <MoreHorizontal className="size-4" />
-                </button>
-                {documentMenuOpen && (
-                  <div
-                    className="absolute right-0 top-9 z-20 w-[200px] rounded-xl bg-white py-1 shadow-xl"
-                    style={{ border: "1px solid #F0F0F0" }}
-                  >
-                    <button
-                      type="button"
-                      onClick={downloadDocument}
-                      className="w-full px-4 py-2.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
-                    >
-                      Download
-                    </button>
-                    <button
-                      type="button"
-                      onClick={deleteDocument}
-                      className="w-full px-4 py-2.5 text-left text-sm text-red-700 hover:bg-red-50"
-                    >
-                      Delete document
-                    </button>
-                  </div>
-                )}
-              </div>
-            }
-          />
-          <InfoRow
-            label="Compliance Status"
-            value={company.complianceStatus}
-            action={
-              <ActionLink onClick={() => openFieldEdit("complianceStatus", "Compliance Status")}>
-                Edit
-              </ActionLink>
-            }
-          />
-        </SectionCard>
-      </div>
-
-      {fieldEdit && (
-        <FieldModal
-          title={`Edit ${fieldEdit.label}`}
-          label={fieldEdit.label}
-          value={fieldEdit.value}
-          error={error}
-          onChange={(value) => setFieldEdit({ ...fieldEdit, value })}
-          onClose={() => {
-            setFieldEdit(null);
-            setError(null);
-          }}
-          onSave={saveField}
-        />
-      )}
-
-      {facilityMode && (
-        <FacilityModal
-          mode={facilityMode}
-          form={facilityForm}
-          error={error}
-          onChange={setFacilityForm}
-          onClose={closeFacilityModal}
-          onDelete={facilityMode === "edit" ? deleteFacility : undefined}
-          onSave={saveFacility}
-        />
+      {companyId ? (
+        <CompanyDetails companyId={companyId} portal="seller" />
+      ) : user ? (
+        <p className="px-6 py-12 text-center text-sm text-neutral-500">Select a company to see its details.</p>
+      ) : (
+        <LoadingState />
       )}
     </SellerLayout>
+  );
+}
+
+function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-bold text-neutral-900">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function CompanyDetails({ companyId, portal }: { companyId: number; portal: "buyer" | "seller" }) {
+  const company = useBackendData(() => fetchCompany(companyId), [companyId], "Company details could not be loaded.");
+  const locations = useBackendData(() => fetchCompanyLocations(companyId), [companyId], "Locations could not be loaded.");
+  const members = useBackendData(() => fetchCompanyMembers(companyId), [companyId], "Team members could not be loaded.");
+  const [adding, setAdding] = useState(false);
+
+  return (
+    <div className="mx-auto flex max-w-[1100px] flex-col gap-5">
+      <h1 className="px-1 text-2xl font-bold text-neutral-900">Company</h1>
+
+      <Section title="Company record">
+        <DataBoundary state={company} empty={{ title: "" }}>
+          {(c) => (
+            <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
+              <div>
+                <dt className="text-neutral-500">Legal name</dt>
+                <dd className="mt-1 font-semibold text-neutral-900">{c.legalName}</dd>
+              </div>
+              <div>
+                <dt className="text-neutral-500">Company type</dt>
+                <dd className="mt-1 font-semibold capitalize text-neutral-900">{c.companyTypeCode}</dd>
+              </div>
+              <div>
+                <dt className="text-neutral-500">Verification</dt>
+                <dd className="mt-1 font-semibold text-neutral-900">
+                  {c.verificationStatusCode.replace(/_/g, " ")}{" "}
+                  <Link href={`/${portal}/verification`} className="ml-1 text-xs font-medium underline">
+                    Manage
+                  </Link>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-neutral-500">Registered</dt>
+                <dd className="mt-1 text-neutral-900">{portalDate(c.createdAt)}</dd>
+              </div>
+            </dl>
+          )}
+        </DataBoundary>
+      </Section>
+
+      <Section
+        title="Facilities and locations"
+        action={
+          !adding && (
+            <Button variant="secondary" size="md" onClick={() => setAdding(true)}>
+              Add location
+            </Button>
+          )
+        }
+      >
+        {adding && (
+          <AddLocationForm
+            companyId={companyId}
+            locationTypeCode={portal === "seller" ? "pickup" : "delivery"}
+            onDone={(saved) => {
+              setAdding(false);
+              if (saved) locations.reload();
+            }}
+          />
+        )}
+        <DataBoundary
+          state={locations}
+          loadingLabel="Loading locations…"
+          isEmpty={(rows) => rows.length === 0}
+          empty={{ title: "No locations recorded", description: portal === "seller" ? "Add the facilities buyers pick up from." : "Add the sites you receive deliveries at." }}
+        >
+          {(rows) => (
+            <ul className="flex flex-col gap-2">
+              {rows.map((l) => (
+                <li key={l.id} className="rounded-lg bg-neutral-50 px-4 py-3 text-sm">
+                  <p className="font-semibold text-neutral-900">
+                    {l.name}
+                    {l.isDefault && <span className="ml-2 text-xs font-normal text-neutral-500">Default</span>}
+                  </p>
+                  <p className="text-neutral-600">{formatCompanyLocation(l)}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DataBoundary>
+      </Section>
+
+      <Section
+        title="Team"
+        action={
+          <Link href={`/${portal}/account`} className="text-sm font-semibold text-neutral-900 underline">
+            Manage team
+          </Link>
+        }
+      >
+        <DataBoundary
+          state={members}
+          loadingLabel="Loading team…"
+          isEmpty={(rows) => rows.length === 0}
+          empty={{ title: "No team members recorded" }}
+        >
+          {(rows) => (
+            <ul className="flex flex-col gap-2">
+              {rows.map((m) => (
+                <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-neutral-50 px-4 py-3 text-sm">
+                  <span>
+                    <span className="font-semibold text-neutral-900">{m.userName}</span>{" "}
+                    <span className="text-neutral-500">{m.userEmail}</span>
+                  </span>
+                  <span className="text-xs capitalize text-neutral-600">
+                    {m.memberRoleCode.replace(/_/g, " ")} · {m.memberStatusCode}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DataBoundary>
+      </Section>
+
+      <Section title="Documents">
+        <p className="text-sm text-neutral-600">
+          Certificates and compliance files are kept in{" "}
+          <Link href={`/${portal}/documents`} className="font-semibold underline">
+            Documents
+          </Link>{" "}
+          and{" "}
+          <Link href={`/${portal}/verification`} className="font-semibold underline">
+            Verification
+          </Link>
+          .
+        </p>
+      </Section>
+    </div>
+  );
+}
+
+function AddLocationForm({
+  companyId,
+  locationTypeCode,
+  onDone,
+}: {
+  companyId: number;
+  locationTypeCode: "pickup" | "delivery";
+  onDone: (saved: boolean) => void;
+}) {
+  const [form, setForm] = useState({ name: "", addressLine1: "", city: "", stateProvince: "", postalCode: "", countryCode: "US" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const update = (key: keyof typeof form, value: string) => setForm((f) => ({ ...f, [key]: value }));
+
+  const save = async () => {
+    if (!form.name.trim() || !form.addressLine1.trim() || !form.city.trim() || !/^[A-Za-z]{2}$/.test(form.countryCode.trim())) {
+      setError("Enter a name, street address, city and two-letter country code.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await createCompanyLocation(companyId, {
+        name: form.name.trim(),
+        addressLine1: form.addressLine1.trim(),
+        city: form.city.trim(),
+        stateProvince: form.stateProvince.trim() || undefined,
+        postalCode: form.postalCode.trim() || undefined,
+        countryCode: form.countryCode.trim().toUpperCase(),
+        locationTypeCode,
+      });
+      onDone(true);
+    } catch (err) {
+      setError(describeBackendError(err, "The location was not saved."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl bg-neutral-50 p-4 sm:grid-cols-2">
+      <Input label="Facility name" id="loc-name" value={form.name} onChange={(e) => update("name", e.target.value)} />
+      <Input label="Street address" id="loc-line1" value={form.addressLine1} onChange={(e) => update("addressLine1", e.target.value)} />
+      <Input label="City" id="loc-city" value={form.city} onChange={(e) => update("city", e.target.value)} />
+      <Input label="State / province" id="loc-state" value={form.stateProvince} onChange={(e) => update("stateProvince", e.target.value)} />
+      <Input label="Postal code" id="loc-zip" value={form.postalCode} onChange={(e) => update("postalCode", e.target.value)} />
+      <Input label="Country code" id="loc-country" value={form.countryCode} onChange={(e) => update("countryCode", e.target.value)} />
+      {error && <p role="alert" className="text-sm text-red-700 sm:col-span-2">{error}</p>}
+      <div className="flex gap-2 sm:col-span-2">
+        <Button variant="secondary" size="md" onClick={() => onDone(false)}>
+          Cancel
+        </Button>
+        <Button variant="primary" size="md" disabled={busy} onClick={() => void save()}>
+          {busy ? "Saving…" : "Save location"}
+        </Button>
+      </div>
+    </div>
   );
 }

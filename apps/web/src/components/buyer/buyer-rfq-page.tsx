@@ -1,87 +1,75 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { fetchWantedListings } from "@/lib/api-portal";
-import { readDemoUser } from "@/lib/demo-user";
+import { useDemoUser } from "@/lib/demo-user";
+
+import { useState } from "react";
+import { fetchWantedListings, type ApiWantedListing } from "@/lib/api-portal";
+import { ErrorState, LoadingState, useBackendData } from "@/components/shared/data-state";
 import Link from "next/link";
-import { Plus, MessageSquare, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { BuyerLayout } from "./buyer-layout";
+import { RfqResponses } from "./rfq-responses";
 
-type RFQStatus = "Open" | "Quoted" | "Accepted" | "Declined" | "Expired";
+type RFQStatus = "Open" | "Closed";
 
 interface RFQ {
   id: string;
+  wantedId: number;
+  responses: number | null;
   product: string;
   category: string;
   quantity: string;
-  needBy: string;
-  responses: number;
   status: RFQStatus;
   created: string;
   notes?: string | null;
   location?: string;
   targetPrice?: string;
-  live?: boolean;
 }
 
-const rfqs: RFQ[] = [
-  { id: "RFQ-30021", product: "Recycled Polypropylene Pellets, food-grade", category: "Plastics", quantity: "50 tons", needBy: "2026-06-01", responses: 4, status: "Open", created: "2026-05-02" },
-  { id: "RFQ-30018", product: "Used Cooking Oil (UCO) refined", category: "Oils", quantity: "20 tons", needBy: "2026-05-25", responses: 7, status: "Quoted", created: "2026-04-28" },
-  { id: "RFQ-30011", product: "Wood pellet biomass, Grade A", category: "Biomass", quantity: "100 tons", needBy: "2026-05-15", responses: 3, status: "Accepted", created: "2026-04-20" },
-  { id: "RFQ-30002", product: "Tire crumb rubber, mesh 30-40", category: "Rubber", quantity: "12 tons", needBy: "2026-05-05", responses: 2, status: "Declined", created: "2026-04-12" },
-  { id: "RFQ-29988", product: "Pyrolysis pitch (CB feedstock)", category: "Refinery", quantity: "200 tons", needBy: "2026-04-15", responses: 1, status: "Expired", created: "2026-03-25" },
-];
+const FILTERS: Array<RFQStatus | "All"> = ["All", "Open", "Closed"];
 
-const FILTERS: Array<RFQStatus | "All"> = ["All", "Open", "Quoted", "Accepted", "Declined", "Expired"];
+function toRfq(w: ApiWantedListing): RFQ {
+  return {
+    id: `RFQ-${w.id}`,
+    wantedId: w.id,
+    responses: w.responseCount ?? null,
+    notes: w.notes,
+    location: [w.stateProvince, w.countryCode].filter(Boolean).join(", "),
+    targetPrice:
+      w.targetPricePerUnit === null
+        ? "Not specified"
+        : `${w.currencyCode} ${w.targetPricePerUnit} / ${w.quantityUnit}`,
+    product: w.title,
+    category: w.materialTypeName,
+    quantity: `${w.quantity} ${w.quantityUnit}`,
+    status: w.isOpen ? "Open" : "Closed",
+    created: new Date(w.createdAt).toISOString().slice(0, 10),
+  };
+}
 
 export function BuyerRfqPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState<RFQStatus | "All">("All");
-  const [rows, setRows] = useState<RFQ[]>(rfqs);
-
-  // The buyer's live wanted listings render ahead of the demo rows.
-  useEffect(() => {
-    if (!readDemoUser()) return;
-    let cancelled = false;
-    fetchWantedListings(true)
-      .then((wanted) => {
-        if (cancelled || wanted.length === 0) return;
-        const live: RFQ[] = wanted.map((w) => ({
-          id: `RFQ-${w.id}`,
-          live: true,
-          notes: w.notes,
-          location: [w.stateProvince, w.countryCode].filter(Boolean).join(", "),
-          targetPrice: w.targetPricePerUnit === null ? "Not specified" : `${w.currencyCode} ${w.targetPricePerUnit} / ${w.quantityUnit}`,
-          product: w.title,
-          category: w.materialTypeName,
-          quantity: `${w.quantity} ${w.quantityUnit}`,
-          needBy: "\u2014",
-          responses: 0,
-          status: w.isOpen ? "Open" : "Expired",
-          created: new Date(w.createdAt).toISOString().slice(0, 10),
-        }));
-        setRows([...live, ...rfqs]);
-      })
-      .catch(() => {
-        // Demo rows remain when the backend is unreachable.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const companyId = useDemoUser()?.activeCompanyId;
+  const wanted = useBackendData(
+    () => fetchWantedListings(true),
+    [companyId],
+    "Your requests for quote could not be loaded.",
+  );
+  const rows = (wanted.data ?? []).map(toRfq);
 
   const visible = rows.filter((r) => filter === "All" || r.status === filter);
 
   return (
     <BuyerLayout>
-      <div className="px-8 py-8">
+      <div className="px-4 py-6 sm:px-8 sm:py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900">Requests for quote</h1>
             <p className="mt-1 text-sm text-neutral-500">
-              Submit a spec when you can&apos;t find a listing that fits — verified
-              sellers respond with quotes you can compare side by side.
+              Submit a spec when you can&apos;t find a listing that fits. Your open
+              requests are visible to sellers on EcoGlobe.
             </p>
           </div>
           <Link href="/buyer/rfq/new">
@@ -110,10 +98,16 @@ export function BuyerRfqPage() {
         </div>
 
         <div className="rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
-          {visible.length === 0 ? (
+          {wanted.status === "loading" && !wanted.data ? (
+            <LoadingState label="Loading requests…" />
+          ) : wanted.status === "error" ? (
+            <ErrorState message={wanted.error ?? "Your requests could not be loaded."} onRetry={wanted.reload} />
+          ) : visible.length === 0 ? (
             <div className="px-6 py-12 text-center">
-              <p className="text-sm font-medium text-neutral-700">No requests for quote match.</p>
-              <p className="mt-1 text-xs text-neutral-500">Submit a new request to start gathering quotes.</p>
+              <p className="text-sm font-medium text-neutral-700">
+                {rows.length === 0 ? "You have no requests for quote yet." : "No requests for quote match."}
+              </p>
+              <p className="mt-1 text-xs text-neutral-500">Submit a new request to reach sellers.</p>
             </div>
           ) : (
             visible.map((r, i) => (
@@ -135,28 +129,28 @@ export function BuyerRfqPage() {
                   </div>
                   <p className="mt-1 text-sm font-semibold text-neutral-900">{r.product}</p>
                   <p className="mt-0.5 text-xs text-neutral-500">
-                    {r.quantity} · need by {r.needBy} · submitted {r.created}
+                    {r.quantity} · submitted {r.created}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-neutral-700">
-                  <MessageSquare className="size-4 text-neutral-400" />
-                  <span>{r.responses} quote{r.responses === 1 ? "" : "s"}</span>
-                </div>
+                {r.responses !== null && (
+                  <span className="text-sm text-neutral-700">
+                    {r.responses} response{r.responses === 1 ? "" : "s"}
+                  </span>
+                )}
                 <ChevronRight className={`mt-2 size-4 text-neutral-500 transition-transform ${selected === r.id ? "rotate-90" : ""}`} />
               </button>
               {selected === r.id && (
                 <section id={`details-${r.id}`} aria-label={`${r.id} details`} className="border-t border-neutral-100 bg-neutral-50 px-5 py-6">
                   <h2 className="text-lg font-semibold">Request details</h2>
-                  {!r.live && <p className="mt-2 text-sm text-amber-800">Demo request — example summary data. Seller quote details are not available for this example.</p>}
                   <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                    {[['Material', r.product], ['Category', r.category], ['Quantity', r.quantity], ['Needed by', r.needBy === '—' ? 'Not specified' : r.needBy], ['Submitted', r.created], ['Status', r.status], ['Delivery region', r.location ?? 'Not specified'], ['Target unit price', r.targetPrice ?? 'Not specified']].map(([label, value]) => (
+                    {[['Material', r.product], ['Category', r.category], ['Quantity', r.quantity], ['Submitted', r.created], ['Status', r.status], ['Delivery region', r.location ?? 'Not specified'], ['Target unit price', r.targetPrice ?? 'Not specified']].map(([label, value]) => (
                       <div key={label}><dt className="text-neutral-500">{label}</dt><dd className="mt-1 font-medium">{value}</dd></div>
                     ))}
                   </dl>
                   <h3 className="mt-6 font-semibold">Requirements and notes</h3>
                   <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{r.notes || 'No additional requirements provided.'}</p>
-                  <h3 className="mt-6 font-semibold">Seller quotes</h3>
-                  <p className="mt-2 text-sm text-neutral-700">{r.live ? 'No seller quotes are available for this request yet.' : `${r.responses} quotes shown in the demo summary; no individual quote records are attached.`}</p>
+                  <h3 className="mt-6 font-semibold">Seller responses</h3>
+                  <RfqResponses wantedListingId={r.wantedId} />
                 </section>
               )}
               </div>
@@ -171,10 +165,7 @@ export function BuyerRfqPage() {
 function StatusBadge({ status }: { status: RFQStatus }) {
   const tone: Record<RFQStatus, { bg: string; fg: string }> = {
     Open: { bg: "#DBEAFE", fg: "#1E40AF" },
-    Quoted: { bg: "#EDE9FE", fg: "#5B21B6" },
-    Accepted: { bg: "#DCFCE7", fg: "#166534" },
-    Declined: { bg: "#FEE2E2", fg: "#991B1B" },
-    Expired: { bg: "#F1F5F9", fg: "#475569" },
+    Closed: { bg: "#F1F5F9", fg: "#475569" },
   };
   const t = tone[status];
   return (

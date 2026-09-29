@@ -1,5 +1,9 @@
 "use client";
 
+import { describeBackendError } from "@/lib/backend-client";
+
+import Link from "next/link";
+
 import { useEffect, useState } from "react";
 import { Button } from "@eco-globe/ui";
 import {
@@ -17,6 +21,56 @@ import {
   setCompanyVerification,
   trailingNumericId,
 } from "@/lib/api-portal";
+
+
+/** Loads one backend record by id; failures and bad ids are reported, not hidden. */
+function useRecord<T>(id: number | null, load: (id: number) => Promise<T>) {
+  const [record, setRecord] = useState<T | null>(null);
+  const [error, setError] = useState<{ id: number | null; message: string } | null>(null);
+  const [version, setVersion] = useState(0);
+  // The id each loaded record belongs to; a record for a different id is never
+  // returned, even in the render before the effect for the new id runs.
+  const [recordId, setRecordId] = useState<number | null>(null);
+  useEffect(() => {
+    if (!id) {
+      setError({ id, message: "This record reference is not valid." });
+      return;
+    }
+    let cancelled = false;
+    setError(null);
+    load(id)
+      .then((next) => {
+        if (!cancelled) {
+          setRecord(next);
+          setRecordId(id);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError({ id, message: describeBackendError(err, "This record could not be loaded.") });
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, version]);
+  return {
+    record: recordId === id ? record : null,
+    error: error && error.id === id ? error.message : null,
+    reload: () => setVersion((v) => v + 1),
+  };
+}
+
+function CardFallback({ error }: { error: string | null }) {
+  return error ? (
+    <p role="alert" className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+  ) : (
+    <p className="mb-6 px-1 py-8 text-center text-sm text-neutral-500">Loading record…</p>
+  );
+}
+
+function ActionError({ message }: { message: string | null }) {
+  return message ? <p role="alert" className="basis-full text-sm text-red-700">{message}</p> : null;
+}
 
 function CardShell({
   title,
@@ -41,7 +95,7 @@ function CardShell({
           </p>
           <h2 className="text-lg font-bold text-neutral-900">{title}</h2>
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
       <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3">
         {rows.map(([label, value]) => (
@@ -62,23 +116,9 @@ function CardShell({
 
 /** Live order facts for /admin/sales/[id]. */
 export function LiveOrderCard({ uiId }: { uiId: string }) {
-  const [order, setOrder] = useState<Record<string, unknown> | null>(null);
-  const id = trailingNumericId(uiId);
+  const { record: order, error } = useRecord(trailingNumericId(uiId), fetchOrderById);
 
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-    fetchOrderById(id)
-      .then((next) => {
-        if (!cancelled) setOrder(next);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  if (!order) return null;
+  if (!order) return <CardFallback error={error} />;
   return (
     <CardShell
       title={`Order EG-${order.id} — ${String(order.listingTitle ?? "Marketplace order")}`}
@@ -96,29 +136,22 @@ export function LiveOrderCard({ uiId }: { uiId: string }) {
 
 /** Live escrow facts + admin release/unlock for /admin/accounting/escrow/[id]. */
 export function LiveEscrowCard({ uiId }: { uiId: string }) {
-  const [escrow, setEscrow] = useState<Awaited<ReturnType<typeof fetchEscrowById>> | null>(null);
-  const [busy, setBusy] = useState(false);
   const id = trailingNumericId(uiId);
+  const { record: escrow, error, reload } = useRecord(id, fetchEscrowById);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const reload = () => {
-    if (!id) return;
-    fetchEscrowById(id)
-      .then(setEscrow)
-      .catch(() => {});
-  };
-
-  useEffect(reload, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (!escrow) return null;
+  if (!escrow) return <CardFallback error={error} />;
 
   const act = async (patch: Parameters<typeof adminUpdateEscrow>[1]) => {
     if (!id || busy) return;
     setBusy(true);
     try {
+      setActionError(null);
       await adminUpdateEscrow(id, patch);
       reload();
-    } catch {
-      // Card keeps showing the current state if the backend refuses.
+    } catch (err) {
+      setActionError(describeBackendError(err, "The escrow change was not saved."));
     }
     setBusy(false);
   };
@@ -157,6 +190,7 @@ export function LiveEscrowCard({ uiId }: { uiId: string }) {
                 {busy ? "Releasing..." : "Release funds"}
               </Button>
             )}
+          <ActionError message={actionError} />
         </>
       }
     />
@@ -165,23 +199,9 @@ export function LiveEscrowCard({ uiId }: { uiId: string }) {
 
 /** Live payment facts for /admin/accounting/transactions/[id]. */
 export function LivePaymentCard({ uiId }: { uiId: string }) {
-  const [payment, setPayment] = useState<Awaited<ReturnType<typeof fetchPaymentById>> | null>(null);
-  const id = trailingNumericId(uiId);
+  const { record: payment, error } = useRecord(trailingNumericId(uiId), fetchPaymentById);
 
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-    fetchPaymentById(id)
-      .then((next) => {
-        if (!cancelled) setPayment(next);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  if (!payment) return null;
+  if (!payment) return <CardFallback error={error} />;
   return (
     <CardShell
       title={`Payment TX-${payment.id} on order EG-${payment.orderId}`}
@@ -199,30 +219,23 @@ export function LivePaymentCard({ uiId }: { uiId: string }) {
 
 /** Live listing facts + moderation for /admin/listings/[id]. */
 export function LiveListingCard({ uiId }: { uiId: string }) {
-  const [listing, setListing] = useState<Record<string, unknown> | null>(null);
-  const [busy, setBusy] = useState(false);
   const id = trailingNumericId(uiId);
+  const { record: listing, error, reload } = useRecord(id, fetchListingById);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const reload = () => {
-    if (!id) return;
-    fetchListingById(id)
-      .then(setListing)
-      .catch(() => {});
-  };
-
-  useEffect(reload, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (!listing) return null;
+  if (!listing) return <CardFallback error={error} />;
   const status = String(listing.listingStatusCode);
 
   const moderate = async (decision: "approve" | "reject") => {
     if (!id || busy) return;
     setBusy(true);
     try {
+      setActionError(null);
       await moderateListing(id, decision);
       reload();
-    } catch {
-      // Card keeps showing the current state if the backend refuses.
+    } catch (err) {
+      setActionError(describeBackendError(err, "The moderation decision was not saved."));
     }
     setBusy(false);
   };
@@ -262,6 +275,7 @@ export function LiveListingCard({ uiId }: { uiId: string }) {
             >
               {busy ? "Working..." : "Approve & publish"}
             </Button>
+            <ActionError message={actionError} />
           </>
         ) : undefined
       }
@@ -277,16 +291,21 @@ export function LiveCompanyCard({
   uiId: string;
   kind: "seller" | "buyer";
 }) {
-  const [company, setCompany] = useState<Awaited<ReturnType<typeof fetchCompany>> | null>(null);
+  const [loadedCompany, setCompany] = useState<Awaited<ReturnType<typeof fetchCompany>> | null>(null);
   const [profileStatus, setProfileStatus] = useState<string>("—");
   const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const id = trailingNumericId(uiId);
 
   const reload = () => {
     if (!id) return;
     fetchCompany(id)
-      .then(setCompany)
-      .catch(() => {});
+      .then((next) => {
+        setCompany(next);
+        setLoadError(null);
+      })
+      .catch((error) => setLoadError(describeBackendError(error, "The company record could not be loaded.")));
     (kind === "seller" ? fetchSellerProfiles() : fetchBuyerProfiles())
       .then((profiles) => {
         const match = profiles.find((p) => p.companyId === id);
@@ -297,18 +316,22 @@ export function LiveCompanyCard({
 
   useEffect(reload, [id, kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (loadError) return <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>;
+  // Only the company for the current id is ever rendered.
+  const company = loadedCompany && loadedCompany.id === id ? loadedCompany : null;
   if (!company) return null;
 
-  const act = async (
-    status: "verified" | "suspended" | "pending_verification",
-  ) => {
+  // Verification approval goes through the evidence-guarded KYC review;
+  // only suspension/reinstatement is changed from this card.
+  const act = async (status: "suspended" | "pending_verification") => {
     if (!id || busy) return;
     setBusy(true);
+    setActionError(null);
     try {
       await setCompanyVerification(id, status);
       reload();
-    } catch {
-      // Card keeps showing the current state if the backend refuses.
+    } catch (error) {
+      setActionError(describeBackendError(error, "The change was not saved."));
     }
     setBusy(false);
   };
@@ -345,18 +368,14 @@ export function LiveCompanyCard({
             </Button>
           )}
           {company.verificationStatusCode !== "verified" && (
-            <Button
-              variant="primary"
-              size="md"
-              disabled={busy}
-              onClick={() => void act("verified")}
-            >
-              {busy ? "Working..." : "Verify"}
-            </Button>
+            <Link href="/admin/kyc" className="text-sm font-semibold text-neutral-900 underline">
+              Review verification evidence
+            </Link>
           )}
+          {actionError && <p role="alert" className="basis-full text-sm text-red-700">{actionError}</p>}
         </>
       }
-      notice="Actions apply immediately to the live marketplace record."
+      notice="Suspension changes are saved to the live marketplace record before they show."
     />
   );
 }

@@ -110,7 +110,9 @@ async function listing(id: number, exec: Exec = query) {
     [int("id", id)],
   );
   if (!rows[0]) throw new ApiError(404, "Available listing not found.");
-  if (String(rows[0].countryCode).trim() !== "US")
+  if (!String(rows[0].countryCode ?? "").trim())
+    throw new ApiError(400, "The seller must add a country to the listing pickup location before a pilot can be requested.");
+  if (String(rows[0].countryCode).trim().toUpperCase() !== "US")
     throw new ApiError(
       400,
       "Pilots currently support domestic US deliveries only.",
@@ -150,7 +152,7 @@ async function create(value: unknown, auth: AuthContext) {
         400,
         "Choose a delivery site belonging to your company.",
       );
-    if (String(loc.CountryCode).trim() !== "US")
+    if (String(loc.CountryCode ?? "").trim().toUpperCase() !== "US")
       throw new ApiError(
         400,
         "Pilots currently support domestic US deliveries only.",
@@ -219,7 +221,7 @@ export async function handlePilotRoute(
       positiveId(Number(url.searchParams.get("listingId"))),
     );
     const locations = await query(
-      "SELECT Id AS id,Name AS name,AddressLine1 AS addressLine1,City AS city,StateProvince AS stateProvince,PostalCode AS postalCode,CountryCode AS countryCode FROM dbo.Locations WHERE CompanyId=@company AND CountryCode='US' ORDER BY IsDefault DESC,Id",
+      "SELECT Id AS id,Name AS name,AddressLine1 AS addressLine1,City AS city,StateProvince AS stateProvince,PostalCode AS postalCode,CountryCode AS countryCode FROM dbo.Locations WHERE CompanyId=@company AND UPPER(LTRIM(RTRIM(CountryCode)))='US' ORDER BY IsDefault DESC,Id",
       [int("company", auth.companyId)],
     );
     sendJson(res, 200, {

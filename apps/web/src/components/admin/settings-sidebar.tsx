@@ -33,11 +33,6 @@ const settingsNav: SettingsNavItem[] = [
     { label: "Roles", href: "/admin/settings/system/roles" },
   ]},
   { label: "Categories", href: "/admin/settings/categories", children: [] },
-  { label: "Seller Settings", href: "/admin/settings/seller" },
-  { label: "Buyer Settings", href: "/admin/settings/buyer" },
-  { label: "Escrow", href: "/admin/settings/escrow" },
-  { label: "Payments", href: "/admin/settings/payments" },
-  { label: "Transactions Rule", href: "/admin/settings/transactions-rule" },
   { label: "Notifications", href: "/admin/settings/notifications" },
 ];
 

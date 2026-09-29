@@ -6,7 +6,11 @@ type Exec = (
   p?: QueryParameter[],
 ) => Promise<Record<string, unknown>[]>;
 /** Must run inside the same SQL transaction that creates the order, before any charge. */
-export async function applySampleShippingCredit(exec: Exec, orderId: number) {
+export async function applySampleShippingCredit(
+  exec: Exec,
+  orderId: number,
+  minimumChargeCents = 0,
+) {
   if (shippingMode() === "unavailable") return 0;
   const order = (
     await exec(
@@ -27,7 +31,10 @@ export async function applySampleShippingCredit(exec: Exec, orderId: number) {
       text("mode", shippingMode()),
     ],
   );
-  let available = Math.round(Number(order.total) * 100),
+  let available = Math.max(
+      0,
+      Math.round(Number(order.total) * 100) - minimumChargeCents,
+    ),
     applied = 0;
   for (const c of credits) {
     const amount = Math.min(available, Number(c.remaining));

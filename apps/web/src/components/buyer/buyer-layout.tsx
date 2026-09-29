@@ -1,5 +1,7 @@
 "use client";
 
+import { useLiveNotifications } from "@/components/notifications/use-live-notifications";
+
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -25,17 +27,8 @@ import {
   PenLine,
   FileText,
   ShieldCheck,
-  Video,
   Route,
   Network,
-  MapPin,
-  BarChart3,
-  Lightbulb,
-  Blocks,
-  Workflow,
-  Languages,
-  Rocket,
-  MonitorSmartphone,
   Menu,
   X,
   ListChecks,
@@ -90,16 +83,6 @@ const buyerNavGroups: NavGroup[] = [
         icon: Route,
         label: "Delivery Tracking",
       },
-      {
-        href: "/buyer/map-intelligence",
-        icon: MapPin,
-        label: "Map Intelligence",
-      },
-      {
-        href: "/buyer/mobile-access",
-        icon: MonitorSmartphone,
-        label: "Mobile Access",
-      },
     ],
   },
   {
@@ -109,39 +92,6 @@ const buyerNavGroups: NavGroup[] = [
       { href: "/buyer/e-signatures", icon: PenLine, label: "E-signatures" },
       { href: "/buyer/documents", icon: FileText, label: "Documents" },
       { href: "/buyer/verification", icon: ShieldCheck, label: "Verification" },
-      {
-        href: "/buyer/asset-verification",
-        icon: ShieldCheck,
-        label: "Asset Verification",
-      },
-      {
-        href: "/buyer/blockchain-traceability",
-        icon: Blocks,
-        label: "Blockchain",
-      },
-      {
-        href: "/buyer/smart-contracts",
-        icon: Workflow,
-        label: "Smart Contracts",
-      },
-    ],
-  },
-  {
-    label: "Intelligence",
-    items: [
-      { href: "/buyer/analytics", icon: BarChart3, label: "Analytics" },
-      {
-        href: "/buyer/recommendations",
-        icon: Lightbulb,
-        label: "Recommendations",
-      },
-      { href: "/buyer/language", icon: Languages, label: "Language" },
-      {
-        href: "/buyer/national-expansion",
-        icon: Rocket,
-        label: "National Expansion",
-      },
-      { href: "/buyer/video-demos", icon: Video, label: "Video demos" },
     ],
   },
   {
@@ -273,6 +223,10 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
   const [switchingRole, setSwitchingRole] = useState(false);
   const [roleError, setRoleError] = useState("");
   const [notifsOpen, setNotifsOpen] = useState(false);
+  // Unread count from saved notification read state; re-read after the panel
+  // closes so items marked read there clear the badge.
+  const liveNotifications = useLiveNotifications();
+  const unreadCount = liveNotifications.items.filter((n) => n.unread).length;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -503,9 +457,14 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
           >
             <div className="relative">
               <Bell className={`size-5 ${notifsOpen ? "fill-white" : ""}`} />
-              <span className="absolute -right-1.5 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                8
-              </span>
+              {unreadCount > 0 && (
+                <span
+                  aria-label={`${unreadCount} unread notifications`}
+                  className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </div>
             Notifications
           </button>
@@ -568,7 +527,10 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
 
       {notifsOpen && (
         <NotificationsPanel
-          onClose={() => setNotifsOpen(false)}
+          onClose={() => {
+            setNotifsOpen(false);
+            liveNotifications.reload();
+          }}
           seeAllHref="/buyer/notifications"
         />
       )}

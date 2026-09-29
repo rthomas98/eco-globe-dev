@@ -1,5 +1,7 @@
 "use client";
 
+import { useLiveNotifications } from "@/components/notifications/use-live-notifications";
+
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -24,18 +26,11 @@ import {
   FileSignature,
   PenLine,
   ShieldCheck,
-  Video,
   ListChecks,
   Package,
   FlaskConical,
   Route,
   Network,
-  Lightbulb,
-  Blocks,
-  Workflow,
-  Languages,
-  Rocket,
-  MonitorSmartphone,
 } from "lucide-react";
 import { NotificationsPanel } from "./notifications-panel";
 import {
@@ -85,17 +80,6 @@ export const sellerNavItems: NavItem[] = [
   },
   { label: "Partner Network", href: "/seller/partners", icon: Network },
   {
-    label: "Asset Verification",
-    href: "/seller/asset-verification",
-    icon: ShieldCheck,
-  },
-  {
-    label: "Blockchain",
-    href: "/seller/blockchain-traceability",
-    icon: Blocks,
-  },
-  { label: "Smart Contracts", href: "/seller/smart-contracts", icon: Workflow },
-  {
     label: "Carbon Calculator",
     href: "/seller/carbon-calculator",
     icon: TrendingDown,
@@ -123,24 +107,6 @@ export const sellerNavItems: NavItem[] = [
   },
   { label: "Disputes", href: "/seller/disputes", icon: AlertTriangle },
   { label: "Documents", href: "/seller/documents", icon: FileText },
-  { label: "Analytics", href: "/seller/analytics", icon: BarChart3 },
-  {
-    label: "Recommendations",
-    href: "/seller/recommendations",
-    icon: Lightbulb,
-  },
-  { label: "Language", href: "/seller/language", icon: Languages },
-  {
-    label: "National Expansion",
-    href: "/seller/national-expansion",
-    icon: Rocket,
-  },
-  {
-    label: "Mobile Access",
-    href: "/seller/mobile-access",
-    icon: MonitorSmartphone,
-  },
-  { label: "Video demos", href: "/seller/video-demos", icon: Video },
 ];
 
 function UserMenu({
@@ -251,6 +217,10 @@ export function SellerSidebar({
   const [switchingRole, setSwitchingRole] = useState(false);
   const [roleError, setRoleError] = useState("");
   const [notifsOpen, setNotifsOpen] = useState(false);
+  // Unread count from saved notification read state; re-read after the panel
+  // closes so items marked read there clear the badge.
+  const liveNotifications = useLiveNotifications();
+  const unreadCount = liveNotifications.items.filter((n) => n.unread).length;
 
   const handleLogout = async () => {
     await logoutBackendUser(readDemoUser()?.token);
@@ -381,9 +351,14 @@ export function SellerSidebar({
             <Bell
               className={`size-5 ${notifsOpen ? "fill-neutral-900" : ""}`}
             />
-            <span className="absolute -right-1.5 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-              8
-            </span>
+            {unreadCount > 0 && (
+              <span
+                aria-label={`${unreadCount} unread notifications`}
+                className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+              >
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </div>
           Notifications
         </button>
@@ -414,7 +389,7 @@ export function SellerSidebar({
         />
       )}
       {notifsOpen && (
-        <NotificationsPanel onClose={() => setNotifsOpen(false)} />
+        <NotificationsPanel onClose={() => { setNotifsOpen(false); liveNotifications.reload(); }} />
       )}
     </aside>
   );

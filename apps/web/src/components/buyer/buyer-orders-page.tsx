@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Truck,
   XCircle,
+  ImageOff,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { BuyerLayout } from "./buyer-layout";
@@ -24,19 +25,24 @@ import {
   type OrderDetail,
 } from "./buyer-order-detail-panel";
 import {
+  cancelCheckout,
   fetchOrders,
   formatOrderDate,
   formatOrderMoney,
   listingImageForTitle,
+  orderUnitPrice,
   type ApiOrder,
 } from "@/lib/api-orders";
+import { takePendingCheckoutByOrder } from "@/lib/checkout-pending";
 import { useDemoUser } from "@/lib/demo-user";
+import { describeBackendError } from "@/lib/backend-client";
 import { cancelOrder, numericOrderId } from "@/lib/api-fulfilment";
 
 const BUYER_STATUS_BY_CODE: Record<string, OrderStatus> = {
   draft: "Awaiting seller confirmation",
   approval_required: "Quote awaiting approval",
   escrow_required: "Awaiting payment",
+  awaiting_payment: "Awaiting payment",
   in_progress: "Processing",
   completed: "Completed",
   cancelled: "Cancelled",
@@ -58,7 +64,11 @@ function mapApiOrderToBuyerRow(order: ApiOrder): Order {
     seller: order.sellerCompanyName,
     product: order.listingTitle ?? "Marketplace order",
     productImage: listingImageForTitle(order.listingTitle),
-    productPrice: formatOrderMoney(order.totalAmount, order.currencyCode),
+    // Per-unit price (the card appends the unit); the order total is `total`.
+    productPrice: (() => {
+      const unit = orderUnitPrice(order);
+      return unit === null ? "—" : formatOrderMoney(unit, order.currencyCode);
+    })(),
   };
 }
 
@@ -66,6 +76,7 @@ export function buildOrderDetail(order: Order): OrderDetail {
   if (order.apiOrder) {
     const record = order.apiOrder;
     return {
+      escrowRequired: record.escrowRequired,
       orderId: order.orderId, shipping: order.shipping, status: order.status,
       orderPlaced: new Date(record.createdAt).toLocaleString(), seller: order.seller,
       quantity: order.qty, product: { name: order.product, price: order.productPrice, unit: record.quantityUnit ?? "", image: order.productImage },
@@ -74,119 +85,14 @@ export function buildOrderDetail(order: Order): OrderDetail {
       summary: { productCount: 1, itemSubtotal: order.total, fees: formatOrderMoney(0, record.currencyCode), total: order.total },
     };
   }
-  const isQuoteAwaiting = order.status === "Quote awaiting approval";
-  const isReadyForPickup = order.status === "Ready for pickup";
-  const isPickup = order.shipping === "Pickup";
-
-  const base = {
-    orderId: order.orderId,
-    shipping: order.shipping,
-    status: order.status,
-    orderPlaced: `${order.orderPlaced} 10:10 AM`,
-    seller: order.seller,
-    quantity: order.qty,
-    product: {
-      name: order.product,
-      price: order.productPrice,
-      unit: "tons",
-      image: order.productImage,
-    },
-    payment: {
-      transactionId: "TS93863",
-      escrowAmount: "$2,500.00",
-      escrowStatus: "Funded",
-      releaseDate: "May 20, 2026 10:10 AM",
-    },
-  };
-
-  if (isPickup) {
-    return {
-      ...base,
-      pickupCode: isReadyForPickup ? "EG-PU-4921" : undefined,
-      pickup: {
-        facility: "Acme Company 2",
-        contact: "Will Smith",
-        phone: "012345678910",
-        email: "example@mail.com",
-        pickupDate: "12/12/2026",
-        operatingHours: "09:00 AM - 09:00 PM",
-        vehicleType: "Truck",
-        plateNumber: "LKZ-9254",
-        location: "2012 Rue Beauregard, STE 202, Lafayette, LA 70508",
-      },
-      documents: [
-        { name: "Example data name.pdf" },
-        { name: "Example data name.pdf" },
-      ],
-      activity: [
-        {
-          label: "Order placed",
-          date: "May 18, 2026 10:10 AM",
-          complete: true,
-        },
-        {
-          label: "Escrow funded",
-          date: "May 18, 2026 10:15 AM",
-          complete: true,
-        },
-        { label: "Seller marked ready for pickup", complete: false },
-        { label: "Pickup confirmed", complete: false },
-        { label: "Escrow released", complete: false },
-        { label: "Order completed", complete: false },
-      ],
-      summary: {
-        productCount: 1,
-        itemSubtotal: "$600.00",
-        fees: "$2.00",
-        total: "$602.00",
-      },
-    };
-  }
-
+  // Every order on this page comes from the backend; nothing else is shown.
   return {
-    ...base,
-    quote: isQuoteAwaiting
-      ? {
-          eta: "12/12/2026",
-          distance: "120 mi",
-          shippingCost: "$200.00",
-          sellerNote: "Quote includes return-trip routing and a 12-hour pickup window — let us know if you need to adjust.",
-        }
-      : undefined,
-    delivery: {
-      buyer: "Acme Company 2",
-      contact: "Will Smith",
-      phone: "012345678910",
-      email: "example@mail.com",
-      location: "2012 Rue Beauregard, STE 202, Lafayette, LA 70508",
-    },
-    documents: [
-      { name: "Example Invoice data name.pdf" },
-      { name: "Example Carbon certificate data name.pdf" },
-    ],
-    activity: [
-      { label: "Order placed", date: "May 18, 2026 10:10 AM", complete: true },
-      {
-        label: "Seller sent shipping quote",
-        date: "May 18, 2026 10:15 AM",
-        complete: true,
-      },
-      { label: "Quote approved", complete: false },
-      { label: "Escrow funded", complete: false },
-      { label: "Seller prepared shipment", complete: false },
-      { label: "Bill of Lading (BOL) uploaded", complete: false },
-      { label: "Shipment in transit", complete: false },
-      { label: "Delivery confirmed", complete: false },
-      { label: "Escrow released", complete: false },
-      { label: "Order completed", complete: false },
-    ],
-    summary: {
-      productCount: 1,
-      itemSubtotal: "$600.00",
-      shipping: isQuoteAwaiting ? "Quote" : "$200.00",
-      fees: "$2.00",
-      total: isQuoteAwaiting ? "$600.00" : "$802.00",
-    },
+    orderId: order.orderId, shipping: order.shipping, status: order.status,
+    orderPlaced: order.orderPlaced, seller: order.seller, quantity: order.qty,
+    product: { name: order.product, price: order.productPrice, unit: "", image: order.productImage },
+    payment: { transactionId: "Not recorded", escrowAmount: "Not available", escrowStatus: "See payment records", releaseDate: "Not recorded" },
+    documents: [], activity: [],
+    summary: { productCount: 1, itemSubtotal: order.total, fees: "—", total: order.total },
   };
 }
 
@@ -729,12 +635,18 @@ function OrderCard({
         </div>
         <div className="flex flex-1 items-center gap-4">
           <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
-            <img src={order.productImage} alt="" className="h-full w-full object-cover" />
+            {order.productImage ? (
+              <img src={order.productImage} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center bg-neutral-100 text-neutral-400" role="img" aria-label="No product photo">
+                <ImageOff className="size-5" aria-hidden="true" />
+              </span>
+            )}
           </div>
           <div>
             <p className="text-base font-bold text-neutral-900">{order.product}</p>
             <p className="text-sm text-neutral-500">
-              {order.productPrice} <span className="text-neutral-400">/ton</span>
+              {order.productPrice}{order.productPrice !== "—" && order.apiOrder?.quantityUnit && <span className="text-neutral-400"> / {order.apiOrder.quantityUnit}</span>}
             </p>
           </div>
         </div>
@@ -938,9 +850,17 @@ export function BuyerOrdersPage() {
   const [loadError, setLoadError] = useState("");
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
-  // Live orders from the backend render ahead of the demo rows.
+  // Bumped after a confirmed change (cancel, approve) to re-read orders.
+  const [reloadKey, setReloadKey] = useState(0);
+  const [loadedCompanyId, setLoadedCompanyId] = useState<number | undefined>(undefined);
+
+  // Orders come only from the backend for the active buyer company. The list
+  // is cleared only when the company changes, not on a same-company reload.
   useEffect(() => {
-    setOrderList([]);
+    if (loadedCompanyId !== user?.activeCompanyId) {
+      setOrderList([]);
+      setLoadedCompanyId(user?.activeCompanyId);
+    }
     if (!user?.activeCompanyId) return;
     let cancelled = false;
     fetchOrders({ buyerCompanyId: user.activeCompanyId })
@@ -951,33 +871,45 @@ export function BuyerOrdersPage() {
     return () => {
       cancelled = true;
     };
-  }, [user?.activeCompanyId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.activeCompanyId, reloadKey]);
 
   const handleCancel = (id: string) => {
     setConfirmCancelId(id);
   };
 
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  // A cancellation shows only after the backend confirms it. Orders still
+  // awaiting Stripe payment are cancelled through checkout (expires the
+  // provider session and releases stock); others use the order endpoint.
   const confirmCancel = () => {
     if (!confirmCancelId) return;
     const target = orderList.find((o) => o.id === confirmCancelId);
     const liveId = target ? numericOrderId(target.orderId) : null;
-    if (liveId) {
-      // Live orders cancel on the backend; the row updates optimistically
-      // and reverts if the API refuses (e.g. already completed).
-      void cancelOrder(liveId).catch(() => {
-        setOrderList((prev) =>
-          prev.map((o) =>
-            o.id === confirmCancelId ? { ...o, status: target!.status } : o,
-          ),
-        );
-      });
-    }
-    setOrderList((prev) =>
-      prev.map((o) =>
-        o.id === confirmCancelId ? { ...o, status: "Cancelled" } : o,
-      ),
-    );
     setConfirmCancelId(null);
+    if (!liveId || !target) return;
+    setCancelError(null);
+    const viaCheckout = target.apiOrder?.orderStatusCode === "awaiting_payment";
+    const request = viaCheckout
+      ? cancelCheckout(liveId).then((result) => {
+          if (result.status === "expired") takePendingCheckoutByOrder(liveId);
+          if (result.status !== "expired")
+            throw new Error(
+              result.status === "paid"
+                ? `Order ${target.orderId} is already paid and cannot be cancelled here.`
+                : `Order ${target.orderId} is still processing payment. Try again shortly.`,
+            );
+        })
+      : cancelOrder(liveId);
+    void request
+      .then(() =>
+        setOrderList((prev) =>
+          prev.map((o) => (o.id === target.id ? { ...o, status: "Cancelled" } : o)),
+        ),
+      )
+      .catch((error) =>
+        setCancelError(describeBackendError(error, `Order ${target.orderId} was not cancelled.`)),
+      );
   };
 
   const tabFilters: Record<Tab, (o: Order) => boolean> = {
@@ -1015,6 +947,7 @@ export function BuyerOrdersPage() {
       <div className="flex h-full flex-col bg-neutral-50">
 <DemoOrdersPanel />
       {loadError && <p role="alert" className="p-4 text-red-700">{loadError}</p>}
+      {cancelError && <p role="alert" className="p-4 text-red-700">{cancelError}</p>}
         {/* Top bar */}
         <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-8 sm:py-6">
           <h1 className="text-2xl font-bold text-neutral-900">My Orders</h1>
@@ -1106,12 +1039,12 @@ export function BuyerOrdersPage() {
       />
 
       <BuyerOrderDetailPanel
-        order={
-          selectedOrderId
-            ? buildOrderDetail(orderList.find((o) => o.id === selectedOrderId)!)
-            : null
-        }
+        order={(() => {
+          const selected = selectedOrderId ? orderList.find((o) => o.id === selectedOrderId) : undefined;
+          return selected ? buildOrderDetail(selected) : null;
+        })()}
         onClose={() => setSelectedOrderId(null)}
+        onOrderChanged={() => setReloadKey((k) => k + 1)}
       />
 
       {confirmCancelId && (

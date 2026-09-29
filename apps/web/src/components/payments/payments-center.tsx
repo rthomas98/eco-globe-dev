@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Download, Receipt, ShieldCheck, X } from "lucide-react";
 import { fetchPayments, portalDate, portalMoney } from "@/lib/api-portal";
-import { fetchOrders } from "@/lib/api-orders";
+import { fetchOrders, reconcileCheckout } from "@/lib/api-orders";
+import { describeBackendError } from "@/lib/backend-client";
 import { useDemoUser } from "@/lib/demo-user";
+import Link from "next/link";
+import { useCart } from "@/components/cart/cart-context";
+import { takePendingCheckoutByOrder } from "@/lib/checkout-pending";
 import { startBackendStripeOnboarding, syncBackendStripeSetup } from "@/lib/backend-auth";
 import {
   paymentReceiptHtml,
@@ -64,6 +68,7 @@ function PaymentDialog({
 
 export function PaymentsCenter({ role }: { role: Role }) {
   const user = useDemoUser();
+  const { items: cartItems, removeItem: removeCartItem } = useCart();
   const companyId = user?.activeCompanyId;
   const userId = user?.id;
   const [rows, setRows] = useState<PaymentDocument[]>([]);
@@ -138,6 +143,47 @@ export function PaymentsCenter({ role }: { role: Role }) {
     };
   }, [companyId, userId, role, reload]);
 
+  // Returning from Stripe Checkout: confirm the order's payment with the
+  // provider before showing any outcome, then re-read persisted payments.
+  const [checkoutState, setCheckoutState] = useState<{ tone: "info" | "success" | "error"; text: string } | null>(null);
+  useEffect(() => {
+    if (role !== "buyer" || !userId) return;
+    const params = new URLSearchParams(window.location.search);
+    const orderId = Number(params.get("checkoutOrder"));
+    if (!Number.isInteger(orderId) || orderId <= 0) return;
+    let cancelled = false;
+    setCheckoutState({ tone: "info", text: `Confirming payment for order EG-${orderId} with Stripe…` });
+    reconcileCheckout(orderId)
+      .then((result) => {
+        if (cancelled) return;
+        // Only the paid order's cart item leaves the cart; expired orders keep
+        // their item so it can be checked out again. Other items are untouched.
+        if (result.status === "paid" || result.status === "expired") {
+          const entry = takePendingCheckoutByOrder(orderId);
+          if (entry && result.status === "paid") removeCartItem(entry.cartItemId);
+        }
+        setCheckoutState(
+          result.status === "paid"
+            ? { tone: "success", text: `Payment for order EG-${orderId} is confirmed.` }
+            : result.status === "expired"
+              ? { tone: "error", text: `Checkout for order EG-${orderId} expired without payment. Nothing was charged.` }
+              : { tone: "info", text: `Payment for order EG-${orderId} is not confirmed yet. Refresh this page in a moment.` },
+        );
+        setReload((value) => value + 1);
+        window.history.replaceState(null, "", window.location.pathname);
+      })
+      .catch((err) => {
+        if (!cancelled)
+          setCheckoutState({
+            tone: "error",
+            text: describeBackendError(err, `Payment for order EG-${orderId} could not be confirmed yet.`),
+          });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role, userId, removeCartItem]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const result = params.get("stripe");
@@ -183,6 +229,28 @@ export function PaymentsCenter({ role }: { role: Role }) {
 
   return (
     <div className="h-full overflow-y-auto bg-neutral-50 p-5 md:p-8">
+      {checkoutState && (
+        <p
+          role={checkoutState.tone === "error" ? "alert" : "status"}
+          className={`mb-5 rounded-xl px-4 py-3 text-sm ${
+            checkoutState.tone === "success"
+              ? "bg-emerald-50 text-emerald-800"
+              : checkoutState.tone === "error"
+                ? "bg-red-50 text-red-700"
+                : "bg-blue-50 text-blue-800"
+          }`}
+        >
+          {checkoutState.text}
+          {role === "buyer" && cartItems.length > 0 && (
+            <Link
+              href={`/buyer/checkout?listing=${encodeURIComponent(cartItems[0].id)}`}
+              className="ml-2 font-semibold underline"
+            >
+              Continue with {cartItems.length} remaining cart item{cartItems.length === 1 ? "" : "s"}
+            </Link>
+          )}
+        </p>
+      )}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="mb-2 text-xs font-semibold tracking-[0.25em] text-emerald-700">
@@ -190,12 +258,12 @@ export function PaymentsCenter({ role }: { role: Role }) {
           </p>
           <h1 className="text-3xl font-bold">
             {role === "seller"
-              ? "Track incoming payments and escrow funding."
+              ? "Track incoming payments."
               : "Payment records and receipts"}
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-neutral-600">
-            Recorded transactions for your account. Escrow funding and seller
-            payouts are separate stages.
+            Payments confirmed by Stripe for your account. Seller payouts and
+            settlement are not automated yet; EcoGlobe staff arrange them.
           </p>
         </div>
         {role !== "admin" && (
@@ -363,7 +431,8 @@ export function PaymentsCenter({ role }: { role: Role }) {
             {selected.status !== "captured"
               ? "This payment is not recorded as captured. The download is a payment record, not a paid receipt. "
               : ""}
-            Escrow funding does not confirm seller payout. Simulated
+            A captured payment does not mean the seller has been paid out;
+            payouts are arranged separately by EcoGlobe staff. Simulated
             transactions do not represent money moved.
           </p>
           <button

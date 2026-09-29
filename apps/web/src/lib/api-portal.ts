@@ -1,19 +1,17 @@
 "use client";
 
+import { apiFetch } from "./backend-client";
+
 /**
  * Shared portal reads for the authenticated pages: notifications, escrows,
  * payments, company details, and audit logs — all through the same-origin
  * backend proxy using the session cookie.
  */
 
+// Both helpers go through apiFetch so failures carry the backend's message,
+// a status-derived kind, and the standard request deadline.
 async function proxyGet<T>(path: string): Promise<T> {
-  const response = await fetch(`/api/backend${path}`, {
-    credentials: "same-origin",
-  });
-  if (!response.ok) {
-    throw new Error(`Backend request failed with status ${response.status}`);
-  }
-  return (await response.json()) as T;
+  return apiFetch<T>(path);
 }
 
 async function proxySend<T>(
@@ -21,16 +19,7 @@ async function proxySend<T>(
   method: "POST" | "PATCH",
   body: Record<string, unknown>,
 ): Promise<T> {
-  const response = await fetch(`/api/backend${path}`, {
-    method,
-    credentials: "same-origin",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    throw new Error(`Backend request failed with status ${response.status}`);
-  }
-  return (await response.json()) as T;
+  return apiFetch<T>(path, { method, body: JSON.stringify(body) });
 }
 
 /* ── Notifications ── */
@@ -120,8 +109,19 @@ export interface ApiCompany {
   id: number;
   legalName: string;
   companyTypeCode: string;
+  companyTypeName?: string;
   verificationStatusCode: string;
+  verificationStatusName?: string;
   createdAt: string;
+  updatedAt?: string;
+}
+
+/** Companies visible to the session (all companies for platform admins). */
+export async function fetchCompanies() {
+  const body = await proxyGet<{ ok: boolean; companies: ApiCompany[] }>(
+    "/api/companies",
+  );
+  return Array.isArray(body.companies) ? body.companies : [];
 }
 
 export interface ApiCompanyMember {
@@ -272,6 +272,8 @@ export interface ApiWantedListing {
   notes: string | null;
   isOpen: boolean;
   createdAt: string;
+  responseCount?: number;
+  acceptedCount?: number;
 }
 
 export async function fetchWantedListings(mineOnly = false) {

@@ -1,6 +1,5 @@
 export {
-  buyerNotifications,
-  sellerNotifications,
+  notificationGroupOrder,
   type NotificationGroup,
   type PortalNotification as SellerNotification,
-} from "@/components/notifications/notifications-demo-data";
+} from "@/components/notifications/notification-model";

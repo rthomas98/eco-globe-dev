@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ChevronRight, MoreHorizontal } from "lucide-react";
+import { ErrorState, LoadingState } from "@/components/shared/data-state";
 import {
-  buyerNotifications,
-  sellerNotifications,
+  notificationGroupOrder,
   type NotificationGroup,
   type SellerNotification,
 } from "./notifications-data";
@@ -18,7 +18,7 @@ import {
   type NotificationPortal,
 } from "./notification-detail-drawer";
 
-const groupOrder: NotificationGroup[] = ["Earlier", "Last 7 days", "Last 30 days"];
+const groupOrder: NotificationGroup[] = notificationGroupOrder;
 
 interface NotificationsPanelProps {
   onClose: () => void;
@@ -33,26 +33,28 @@ export function NotificationsPanel({
   const [showMenu, setShowMenu] = useState(false);
   const [selected, setSelected] = useState<SellerNotification | null>(null);
   const [readIds, setReadIds] = useState<string[]>([]);
-  const liveNotifications = useLiveNotifications();
+  const live = useLiveNotifications();
+  const [markError, setMarkError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const portal: NotificationPortal = seeAllHref.startsWith("/buyer")
     ? "buyer"
     : "seller";
   const settingsHref = portal === "buyer" ? "/buyer/account" : "/seller/account";
-  const notifications =
-    [...liveNotifications, ...(portal === "buyer" ? buyerNotifications : sellerNotifications)];
+  const notifications = live.items;
 
   const isUnread = (notification: SellerNotification) =>
     notification.unread && !readIds.includes(notification.id);
 
   const openNotification = (notification: SellerNotification) => {
     setSelected(notification);
-    if (notification.unread) {
-      setReadIds((current) =>
-        current.includes(notification.id)
-          ? current
-          : [...current, notification.id],
-      );
+    if (isUnread(notification)) {
+      // Shown as read only once the backend has saved the read state.
+      void markLiveNotificationRead(notification.id).then((saved) => {
+        if (saved)
+          setReadIds((current) =>
+            current.includes(notification.id) ? current : [...current, notification.id],
+          );
+      });
     }
   };
 
@@ -73,7 +75,7 @@ export function NotificationsPanel({
     <div className="fixed inset-0 z-50 flex">
       <div className="absolute inset-0" onClick={onClose} />
       <div
-        className="relative z-10 ml-[240px] flex h-full w-[420px] flex-col overflow-y-auto bg-white shadow-xl"
+        className="relative z-10 flex h-full w-full flex-col sm:ml-[240px] sm:w-[420px] overflow-y-auto bg-white shadow-xl"
         style={{ borderRight: "1px solid #F0F0F0" }}
       >
         <div className="sticky top-0 z-10 bg-white px-5 pt-5 pb-3">
@@ -105,9 +107,17 @@ export function NotificationsPanel({
                     <button
                       type="button"
                       onClick={() => {
-                        notifications.forEach((n) => markLiveNotificationRead(n.id));
-                        setReadIds(notifications.map((n) => n.id));
                         setShowMenu(false);
+                        setMarkError(null);
+                        const unread = notifications.filter((n) => isUnread(n));
+                        void Promise.all(
+                          unread.map((n) => markLiveNotificationRead(n.id).then((saved) => (saved ? n.id : null))),
+                        ).then((results) => {
+                          const saved = results.filter((id): id is string => id !== null);
+                          setReadIds((current) => [...new Set([...current, ...saved])]);
+                          if (saved.length < unread.length)
+                            setMarkError("Some notifications could not be marked as read.");
+                        });
                       }}
                       className="w-full px-4 py-2.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
                     >
@@ -192,9 +202,19 @@ export function NotificationsPanel({
               </div>
             );
           })}
-          {visible.length === 0 && (
-            <p className="py-12 text-center text-sm text-neutral-500">No notifications</p>
+          {live.status === "loading" && <LoadingState label="Loading notifications…" />}
+          {live.status === "error" && (
+            <ErrorState message={live.error ?? "Notifications could not be loaded."} onRetry={live.reload} />
           )}
+          {live.status === "signed-out" && (
+            <p className="py-12 text-center text-sm text-neutral-500">Sign in to see your notifications.</p>
+          )}
+          {live.status === "ready" && visible.length === 0 && (
+            <p className="py-12 text-center text-sm text-neutral-500">
+              {tab === "unread" ? "No unread notifications" : "No notifications yet"}
+            </p>
+          )}
+          {markError && <p role="alert" className="mt-2 text-center text-xs text-red-700">{markError}</p>}
         </div>
       </div>
       <NotificationDetailDrawer

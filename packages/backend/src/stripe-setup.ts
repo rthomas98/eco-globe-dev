@@ -19,6 +19,7 @@ const p = (name: string, value: unknown) => ({
 });
 type Role = "buyer" | "seller";
 type Binding = {
+  bindingId: string;
   customerId: string | null;
   connectedAccountId: string | null;
   billingReady: boolean;
@@ -107,6 +108,15 @@ export async function startStripeSetup(
     p("platform", config.platform),
     p("live", config.live),
   ];
+  // Commit an opaque provider namespace before making any remote requests. This
+  // survives uncertain responses and separates development databases sharing a sandbox.
+  await runInTransaction(async (tx) => {
+    await txQuery(
+      tx,
+      `IF NOT EXISTS(SELECT 1 FROM dbo.StripeCompanyBindings WITH(UPDLOCK,HOLDLOCK) WHERE CompanyId=@company AND PlatformAccountId=@platform AND Livemode=@live) INSERT dbo.StripeCompanyBindings(CompanyId,PlatformAccountId,Livemode) VALUES(@company,@platform,@live);`,
+      params,
+    );
+  });
   const binding = await runInTransaction(async (tx) => {
     const lock = await txQuery<{ result: number }>(
       tx,
@@ -128,16 +138,19 @@ export async function startStripeSetup(
     const row = (
       await txQuery<Binding>(
         tx,
-        `SELECT CustomerId AS customerId,ConnectedAccountId AS connectedAccountId,BillingReady AS billingReady,PayoutReady AS payoutReady FROM dbo.StripeCompanyBindings WHERE CompanyId=@company AND PlatformAccountId=@platform AND Livemode=@live;`,
+        `SELECT CONVERT(VARCHAR(36),BindingId) AS bindingId,CustomerId AS customerId,ConnectedAccountId AS connectedAccountId,BillingReady AS billingReady,PayoutReady AS payoutReady FROM dbo.StripeCompanyBindings WHERE CompanyId=@company AND PlatformAccountId=@platform AND Livemode=@live;`,
         params,
       )
     )[0]!;
-    const metadata = { ecoglobe_company_id: String(auth.companyId) };
+    const metadata = {
+      ecoglobe_company_id: String(auth.companyId),
+      ecoglobe_binding_id: row.bindingId,
+    };
     if (role === "buyer" && !row.customerId) {
       const customer = await config.stripe.customers.create(
         { email: member.email, name: member.legalName, metadata },
         {
-          idempotencyKey: `ecoglobe:${config.platform}:${config.live}:customer:${auth.companyId}`,
+          idempotencyKey: `ecoglobe:customer:${row.bindingId}`,
         },
       );
       row.customerId = customer.id;
@@ -170,7 +183,7 @@ export async function startStripeSetup(
           metadata,
         },
         {
-          idempotencyKey: `ecoglobe:${config.platform}:${config.live}:seller-v2:${auth.companyId}`,
+          idempotencyKey: `ecoglobe:seller-v2:${row.bindingId}`,
         },
       );
       row.connectedAccountId = account.id;
@@ -256,7 +269,7 @@ async function syncCompanyStripeSetup(
   ];
   const binding = (
     await query<Binding>(
-      `SELECT CustomerId AS customerId,ConnectedAccountId AS connectedAccountId,BillingReady AS billingReady,PayoutReady AS payoutReady FROM dbo.StripeCompanyBindings WHERE CompanyId=@company AND PlatformAccountId=@platform AND Livemode=@live`,
+      `SELECT CONVERT(VARCHAR(36),BindingId) AS bindingId,CustomerId AS customerId,ConnectedAccountId AS connectedAccountId,BillingReady AS billingReady,PayoutReady AS payoutReady FROM dbo.StripeCompanyBindings WHERE CompanyId=@company AND PlatformAccountId=@platform AND Livemode=@live`,
       params,
     )
   )[0];

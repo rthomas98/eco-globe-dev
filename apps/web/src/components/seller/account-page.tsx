@@ -1,18 +1,18 @@
 "use client";
 
+import { describeBackendError } from "@/lib/backend-client";
+
 import { useEffect, useState } from "react";
-import { Check, X, Eye, EyeOff, Minus, Plus, BellOff, ChevronUp, ChevronDown } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
 import { readDemoUser, useDemoUser, writeDemoUser } from "@/lib/demo-user";
 import { TeamTab } from "@/components/account/team-tab";
 import {
   changePassword,
-  fetchNotificationPreferences,
-  setNotificationPreference,
   updateUserName,
 } from "@/lib/api-account";
-import { notificationPreferenceCategories } from "@/components/notifications/notifications-demo-data";
+import { NotificationPreferencesPanel } from "@/components/notifications/notification-preferences-panel";
 
 type Tab = "profile" | "team" | "security" | "preferences";
 
@@ -26,12 +26,13 @@ interface ProfileData {
   avatar: string | null;
 }
 
+// Filled from the signed-in session; never seeded with example people.
 const initialProfile: ProfileData = {
-  firstName: "John",
-  lastName: "Senna",
-  workPhone: "01234567890",
-  workEmail: "johnsenna@mail.com",
-  jobTitle: "CEO & Founder",
+  firstName: "",
+  lastName: "",
+  workPhone: "",
+  workEmail: "",
+  jobTitle: "",
   department: "",
   avatar: null,
 };
@@ -116,168 +117,10 @@ function EditNameModal({ profile, onSave, onClose }: {
 }
 
 /* ─── Edit Sensitive Field (phone/email — needs password) ─── */
-function EditSensitiveModal({ title, valueLabel, currentValue, type = "text", onSave, onClose }: {
-  title: string;
-  valueLabel: string;
-  currentValue: string;
-  type?: "text" | "tel" | "email";
-  onSave: (value: string) => void;
-  onClose: () => void;
-}) {
-  const [value, setValue] = useState(currentValue);
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
-
-  return (
-    <Modal
-      title={title}
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>
-          <Button
-            variant="primary"
-            size="md"
-            disabled={!password.trim()}
-            style={!password.trim() ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
-            onClick={() => onSave(value)}
-          >
-            Save Change
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <Input
-          label={valueLabel}
-          id="value"
-          type={type}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-        />
-        <div className="flex flex-col gap-2">
-          <label htmlFor="pw" className="text-base font-medium text-neutral-900">
-            Password
-          </label>
-          <div className="relative">
-            <input
-              id="pw"
-              type={showPw ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg bg-white px-4 py-3 pr-11 text-base text-neutral-900 outline-none focus:ring-2 focus:ring-neutral-900/20"
-              style={{ border: "1px solid #E0E0E0" }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPw(!showPw)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700"
-            >
-              {showPw ? <Eye className="size-5" /> : <EyeOff className="size-5" />}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Modal>
-  );
-}
 
 /* ─── Edit Plain Field (job title, department) ─── */
-function EditPlainModal({ title, label, currentValue, onSave, onClose }: {
-  title: string;
-  label: string;
-  currentValue: string;
-  onSave: (value: string) => void;
-  onClose: () => void;
-}) {
-  const [value, setValue] = useState(currentValue);
-
-  return (
-    <Modal
-      title={title}
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" size="md" onClick={() => onSave(value)}>
-            Save Change
-          </Button>
-        </>
-      }
-    >
-      <Input
-        label={label}
-        id="value"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-      />
-    </Modal>
-  );
-}
 
 /* ─── Update Photo ─── */
-function UpdatePhotoModal({ onSave, onClose }: {
-  onSave: (dataUrl: string) => void;
-  onClose: () => void;
-}) {
-  const [zoom, setZoom] = useState(50);
-  // Demo image as placeholder
-  const demoImage = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80";
-
-  const scale = 1 + (zoom / 100) * 1.5;
-
-  return (
-    <Modal
-      title="Update Photo"
-      wide
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" size="md" onClick={() => onSave(demoImage)}>
-            Save Change
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <div className="relative h-[400px] overflow-hidden rounded-xl bg-neutral-200">
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage: `url(${demoImage})`,
-              transform: `scale(${scale})`,
-            }}
-          />
-          <div
-            className="absolute left-1/2 top-1/2 size-[260px] -translate-x-1/2 -translate-y-1/2 rounded-full"
-            style={{
-              boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)",
-              border: "2px solid white",
-            }}
-          />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="rounded-md bg-neutral-900/70 px-3 py-1.5 text-xs font-medium text-white">
-              Drag to Repotition
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Minus className="size-5 text-neutral-500" />
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={zoom}
-            onChange={(e) => setZoom(parseInt(e.target.value))}
-            className="flex-1 accent-green-700"
-          />
-          <Plus className="size-5 text-neutral-500" />
-        </div>
-      </div>
-    </Modal>
-  );
-}
 
 /* ─── Profile row with verified badge ─── */
 function ProfileRow({ label, value, verified, onEdit }: {
@@ -326,130 +169,37 @@ function ProfileTab({ profile, setProfile }: {
     | "photo"
   >(null);
   const fullName = `${profile.firstName} ${profile.lastName}`.trim();
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   return (
     <>
-      <div
-        className="flex items-center justify-between gap-6 px-4 py-6 sm:px-6"
-        style={{ borderBottom: "1px solid #F0F0F0" }}
-      >
-        <div className="flex flex-1 items-center">
-          {profile.avatar ? (
-            <img src={profile.avatar} alt="" className="size-16 rounded-full object-cover" />
-          ) : (
-            <div className="flex size-16 items-center justify-center rounded-full bg-neutral-200 text-2xl font-semibold text-neutral-500">
-              {profile.firstName.charAt(0).toUpperCase() || "A"}
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-5">
-          <button
-            type="button"
-            onClick={() => setProfile((p) => ({ ...p, avatar: null }))}
-            className="text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700"
-          >
-            Delete
-          </button>
-          <button
-            type="button"
-            onClick={() => setModal("photo")}
-            className="text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700"
-          >
-            Update
-          </button>
-        </div>
+      <ProfileRow label="Name" value={fullName || "—"} onEdit={() => setModal("name")} />
+      <div className="flex flex-col gap-2 px-4 py-5 sm:flex-row sm:items-center sm:gap-6 sm:px-6">
+        <span className="w-full text-sm text-neutral-700 sm:w-[200px] sm:shrink-0">Email</span>
+        <span className="text-sm text-neutral-900">{profile.workEmail || "—"}</span>
       </div>
-      <ProfileRow label="Name" value={fullName} onEdit={() => setModal("name")} />
-      <ProfileRow label="Work Phone" value={profile.workPhone} verified onEdit={() => setModal("phone")} />
-      <ProfileRow label="Work Email" value={profile.workEmail} verified onEdit={() => setModal("email")} />
-      <ProfileRow label="Job Title" value={profile.jobTitle} onEdit={() => setModal("jobTitle")} />
-      <div className="flex flex-col gap-2 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
-        <span className="w-full text-sm text-neutral-700 sm:w-[200px] sm:shrink-0">Department</span>
-        <div className="w-full min-w-0 flex-1 text-sm text-neutral-900 sm:w-auto">
-          {profile.department || <span className="text-neutral-400">Enter Data</span>}
-        </div>
-        <button
-          type="button"
-          onClick={() => setModal("department")}
-          className="self-start text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700 sm:self-auto"
-        >
-          Edit
-        </button>
-      </div>
+      <p className="px-4 pb-5 text-xs text-neutral-500 sm:px-6">
+        Your sign-in email cannot be changed here. Contact EcoGlobe to update it.
+      </p>
+      {saveError && <p role="alert" className="px-4 pb-4 text-sm text-red-700 sm:px-6">{saveError}</p>}
 
       {modal === "name" && (
         <EditNameModal
           profile={profile}
           onClose={() => setModal(null)}
           onSave={(firstName, lastName) => {
-            setProfile((p) => ({ ...p, firstName, lastName }));
             const fullNameNext = `${firstName} ${lastName}`.trim();
             const session = readDemoUser();
-            if (session?.id && fullNameNext) {
-              void updateUserName(session.id, fullNameNext)
-                .then(() => writeDemoUser({ ...session, name: fullNameNext }))
-                .catch(() => {});
-            }
-            setModal(null);
-          }}
-        />
-      )}
-      {modal === "phone" && (
-        <EditSensitiveModal
-          title="Edit Work Phone"
-          valueLabel="Phone number"
-          currentValue={profile.workPhone}
-          type="tel"
-          onClose={() => setModal(null)}
-          onSave={(workPhone) => {
-            setProfile((p) => ({ ...p, workPhone }));
-            setModal(null);
-          }}
-        />
-      )}
-      {modal === "email" && (
-        <EditSensitiveModal
-          title="Edit Work Email"
-          valueLabel="Email address"
-          currentValue={profile.workEmail}
-          type="email"
-          onClose={() => setModal(null)}
-          onSave={(workEmail) => {
-            setProfile((p) => ({ ...p, workEmail }));
-            setModal(null);
-          }}
-        />
-      )}
-      {modal === "jobTitle" && (
-        <EditPlainModal
-          title="Edit Job Title"
-          label="Job Title"
-          currentValue={profile.jobTitle}
-          onClose={() => setModal(null)}
-          onSave={(jobTitle) => {
-            setProfile((p) => ({ ...p, jobTitle }));
-            setModal(null);
-          }}
-        />
-      )}
-      {modal === "department" && (
-        <EditPlainModal
-          title="Edit Department"
-          label="Department"
-          currentValue={profile.department}
-          onClose={() => setModal(null)}
-          onSave={(department) => {
-            setProfile((p) => ({ ...p, department }));
-            setModal(null);
-          }}
-        />
-      )}
-      {modal === "photo" && (
-        <UpdatePhotoModal
-          onClose={() => setModal(null)}
-          onSave={(avatar) => {
-            setProfile((p) => ({ ...p, avatar }));
-            setModal(null);
+            if (!session?.id || !fullNameNext) return;
+            setSaveError(null);
+            // The name changes only after the backend saves it.
+            void updateUserName(session.id, fullNameNext)
+              .then(() => {
+                writeDemoUser({ ...session, name: fullNameNext });
+                setProfile((p) => ({ ...p, firstName, lastName }));
+              })
+              .catch((error) => setSaveError(describeBackendError(error, "Your name was not saved.")))
+              .finally(() => setModal(null));
           }}
         />
       )}
@@ -458,22 +208,9 @@ function ProfileTab({ profile, setProfile }: {
 }
 
 /* ─── Security tab ─── */
-interface DeviceSession {
-  id: string;
-  device: string;
-  client: string;
-  location: string;
-  when: string;
-}
 
-const initialSessions: DeviceSession[] = [
-  { id: "s1", device: "OS X 10.15.7", client: "Chrome", location: "Baton Rouge", when: "January 10, 2025 10:24 AM" },
-  { id: "s2", device: "Mobile App", client: "LSU Health", location: "Baton Rouge", when: "January 10, 2025 10:24 AM" },
-  { id: "s3", device: "OS X 10.15.7", client: "Firefox", location: "Baton Rouge", when: "January 10, 2025 10:24 AM" },
-];
 
 function SecurityTab() {
-  const [sessions, setSessions] = useState<DeviceSession[]>(initialSessions);
   const [showPwModal, setShowPwModal] = useState(false);
 
   return (
@@ -482,46 +219,13 @@ function SecurityTab() {
       <h3 className="text-lg font-bold text-neutral-900">Login</h3>
       <div className="mt-4 flex items-center justify-between gap-6 py-4">
         <span className="w-[200px] shrink-0 text-sm text-neutral-900">Password</span>
-        <div className="flex-1 text-sm italic text-neutral-500">Last updated 12 days ago</div>
+        <div className="flex-1 text-sm text-neutral-500">••••••••</div>
         <button
           onClick={() => setShowPwModal(true)}
           className="text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700"
         >
           Update
         </button>
-      </div>
-
-      {/* Device history */}
-      <h3 className="mt-8 text-lg font-bold text-neutral-900">Device History</h3>
-      <div className="mt-4 flex gap-6 py-4">
-        <span className="w-[200px] shrink-0 text-sm text-neutral-900">History</span>
-        <div className="flex flex-1 flex-col">
-          {sessions.map((s, i) => (
-            <div
-              key={s.id}
-              className="flex items-center justify-between gap-6 py-4"
-              style={{ borderBottom: i < sessions.length - 1 ? "1px solid #F0F0F0" : "none" }}
-            >
-              <div className="flex flex-col gap-1">
-                <span className="text-sm text-neutral-900">
-                  {s.device} · {s.client}
-                </span>
-                <span className="text-xs text-neutral-500">
-                  {s.location} · {s.when}
-                </span>
-              </div>
-              <button
-                onClick={() => setSessions((prev) => prev.filter((x) => x.id !== s.id))}
-                className="shrink-0 text-sm font-medium text-neutral-900 underline underline-offset-2 hover:text-neutral-700"
-              >
-                Log Out Device
-              </button>
-            </div>
-          ))}
-          {sessions.length === 0 && (
-            <span className="py-4 text-sm text-neutral-500">No active devices.</span>
-          )}
-        </div>
       </div>
 
       {showPwModal && (
@@ -583,258 +287,6 @@ function UpdatePasswordModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* ─── Preferences tab ─── */
-type Channel = "email" | "sms" | "inApp";
-
-interface NotifItem {
-  id: string;
-  label: string;
-  description: string;
-  prefs: Record<Channel, boolean>;
-}
-
-interface NotifCategory {
-  id: string;
-  title: string;
-  description: string;
-  items: NotifItem[];
-}
-
-const initialCategories: NotifCategory[] = notificationPreferenceCategories.map(
-  (category) => ({
-    id: category.id,
-    title: category.title,
-    description: category.description,
-    items: category.items.map((item) => ({
-      id: item.id,
-      label: item.label,
-      description: item.description,
-      prefs: { ...item.defaultChannels },
-    })),
-  }),
-);
-
-function Checkbox({
-  checked,
-  onChange,
-  ariaLabel,
-}: {
-  checked: boolean;
-  onChange: () => void;
-  ariaLabel: string;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={ariaLabel}
-      aria-pressed={checked}
-      onClick={onChange}
-      className={`flex size-5 items-center justify-center rounded transition-colors ${
-        checked ? "bg-neutral-900" : "bg-white hover:bg-neutral-50"
-      }`}
-      style={{ border: checked ? "1px solid #090909" : "1px solid #D0D0D0" }}
-    >
-      {checked && <Check className="size-3.5 text-white" strokeWidth={3} />}
-    </button>
-  );
-}
-
-function NotificationCategoryCard({ category, onToggle }: {
-  category: NotifCategory;
-  onToggle: (itemId: string, channel: Channel) => void;
-}) {
-  const [expanded, setExpanded] = useState(true);
-
-  return (
-    <div className="rounded-2xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-start justify-between gap-6 px-6 pt-5 pb-4 text-left"
-      >
-        <div className="flex flex-col gap-1">
-          <h3 className="text-lg font-bold text-neutral-900">{category.title}</h3>
-          <p className="text-sm text-neutral-500">{category.description}</p>
-        </div>
-        {expanded ? (
-          <ChevronUp className="mt-1 size-5 shrink-0 text-neutral-500" />
-        ) : (
-          <ChevronDown className="mt-1 size-5 shrink-0 text-neutral-500" />
-        )}
-      </button>
-
-      {expanded && (
-        <div className="px-6 pb-2">
-          <div
-            className="grid items-center gap-4 py-3 text-sm font-semibold text-neutral-900"
-            style={{ gridTemplateColumns: "1fr 80px 80px 80px", borderTop: "1px solid #F0F0F0" }}
-          >
-            <span>Question</span>
-            <span className="text-center">Email</span>
-            <span className="text-center">SMS</span>
-            <span className="text-center">In-App</span>
-          </div>
-          {category.items.map((item, i) => (
-            <div
-              key={item.id}
-              className="grid items-center gap-4 py-3.5 text-sm text-neutral-700"
-              style={{
-                gridTemplateColumns: "1fr 80px 80px 80px",
-                borderTop: i === 0 ? "1px solid #F0F0F0" : "1px solid #F8F8F8",
-              }}
-            >
-              <span>
-                <span className="block font-medium text-neutral-900">{item.label}</span>
-                <span className="mt-1 block text-xs text-neutral-500">{item.description}</span>
-              </span>
-              <div className="flex justify-center">
-                <Checkbox
-                  checked={item.prefs.email}
-                  onChange={() => onToggle(item.id, "email")}
-                  ariaLabel={`${item.label} email`}
-                />
-              </div>
-              <div className="flex justify-center">
-                <Checkbox
-                  checked={item.prefs.sms}
-                  onChange={() => onToggle(item.id, "sms")}
-                  ariaLabel={`${item.label} sms`}
-                />
-              </div>
-              <div className="flex justify-center">
-                <Checkbox
-                  checked={item.prefs.inApp}
-                  onChange={() => onToggle(item.id, "inApp")}
-                  ariaLabel={`${item.label} in-app`}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const CHANNEL_CODES: Record<Channel, string> = {
-  email: "email",
-  sms: "sms",
-  inApp: "in_app",
-};
-
-/** FE category card ids map to backend NotificationCategories codes. */
-function categoryCode(catId: string): string {
-  const code = catId.toLowerCase();
-  return ["orders", "payments", "logistics", "compliance", "sustainability"].includes(code)
-    ? code
-    : "sustainability";
-}
-
-function PreferencesTab() {
-  const [categories, setCategories] = useState<NotifCategory[]>(initialCategories);
-  const [paused, setPaused] = useState(false);
-  const user = useDemoUser();
-
-  // Load persisted preferences: a disabled (category, channel) row turns that
-  // channel off for every item in the category.
-  useEffect(() => {
-    if (!user?.id) return;
-    let cancelled = false;
-    fetchNotificationPreferences()
-      .then((prefs) => {
-        if (cancelled) return;
-        setCategories((prev) =>
-          prev.map((c) => {
-            const disabledChannels = (
-              Object.keys(CHANNEL_CODES) as Channel[]
-            ).filter((channel) =>
-              prefs.some(
-                (p) =>
-                  p.userId === user.id &&
-                  p.notificationCategoryCode === categoryCode(c.id) &&
-                  p.notificationChannelCode === CHANNEL_CODES[channel] &&
-                  !p.enabled,
-              ),
-            );
-            if (disabledChannels.length === 0) return c;
-            return {
-              ...c,
-              items: c.items.map((it) => ({
-                ...it,
-                prefs: {
-                  ...it.prefs,
-                  ...Object.fromEntries(disabledChannels.map((ch) => [ch, false])),
-                },
-              })),
-            };
-          }),
-        );
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  const toggle = (catId: string) => (itemId: string, channel: Channel) => {
-    setCategories((prev) => {
-      const next = prev.map((c) =>
-        c.id !== catId
-          ? c
-          : {
-              ...c,
-              items: c.items.map((it) =>
-                it.id !== itemId ? it : { ...it, prefs: { ...it.prefs, [channel]: !it.prefs[channel] } },
-              ),
-            },
-      );
-      // Persist the category-level signal: enabled while any item still is.
-      const category = next.find((c) => c.id === catId);
-      if (user?.id && category) {
-        const enabled = category.items.some((it) => it.prefs[channel]);
-        void setNotificationPreference(
-          user.id,
-          categoryCode(catId),
-          CHANNEL_CODES[channel],
-          enabled,
-        ).catch(() => {});
-      }
-      return next;
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-6 px-6 py-6">
-      {/* Don't disturb */}
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-lg font-bold text-neutral-900">Don&apos;t disturb</h3>
-          <p className="text-sm text-neutral-500">
-            Pause non-critical seller alerts while keeping high-priority order,
-            escrow, and compliance deadlines visible.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setPaused(!paused)}
-          className="flex shrink-0 items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
-          style={{ border: "1px solid #090909" }}
-        >
-          <BellOff className="size-4" />
-          {paused ? "Resume Notifications" : "Pause Notifications"}
-        </button>
-      </div>
-
-      {/* Categories */}
-      <div className="flex flex-col gap-4">
-        <h3 className="text-lg font-bold text-neutral-900">Notification Preferences</h3>
-        {categories.map((c) => (
-          <NotificationCategoryCard key={c.id} category={c} onToggle={toggle(c.id)} />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export function SellerAccountPage() {
   const [tab, setTab] = useState<Tab>("profile");
@@ -895,7 +347,11 @@ export function SellerAccountPage() {
             />
           )}
           {tab === "security" && <SecurityTab />}
-          {tab === "preferences" && <PreferencesTab />}
+          {tab === "preferences" && (
+            <div className="px-4 py-6 sm:px-6">
+              <NotificationPreferencesPanel />
+            </div>
+          )}
         </div>
       </div>
     </SellerLayout>

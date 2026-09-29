@@ -1,11 +1,9 @@
-export const ADMIN_DEMO_EMAIL = "demo.admin@ecoglobe.com";
-export const ADMIN_DEMO_PASSWORD = "EcoDemo2026!";
 export const ADMIN_AUTH_EVENT = "ecoglobe.admin-auth.changed";
 
 const PERSISTENT_SESSION_KEY = "ecoglobe.admin.session";
 const TAB_SESSION_KEY = "ecoglobe.admin.tab-session";
-const PASSWORD_HASH_KEY = "ecoglobe.admin.password-hash";
-const RECOVERY_KEY = "ecoglobe.admin.recovery";
+// Keys written by an earlier offline-credential build; removed on use.
+const LEGACY_KEYS = ["ecoglobe.admin.password-hash", "ecoglobe.admin.recovery"];
 
 export interface AdminSession {
   email: string;
@@ -15,22 +13,8 @@ export interface AdminSession {
   remembered: boolean;
 }
 
-interface RecoveryRequest {
-  email: string;
-  code: string;
-  expiresAt: number;
-}
-
 function inBrowser() {
   return typeof window !== "undefined";
-}
-
-async function hashValue(value: string) {
-  const encoded = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", encoded);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 function parseSession(raw: string | null): AdminSession | null {
@@ -105,12 +89,25 @@ function storeAdminSession(
   return session;
 }
 
+export type AdminLoginResult =
+  | { ok: true; session: AdminSession }
+  | { ok: false; reason: "invalid" | "not-admin" | "unavailable"; message: string };
+
+function removeLegacyKeys() {
+  for (const key of LEGACY_KEYS) {
+    try {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    } catch {
+      // Storage unavailable.
+    }
+  }
+}
+
 /**
- * Real backend admin login through the same-origin proxy: the proxy stores
- * the bearer token as an httpOnly session cookie, so every aliased portal
- * component authenticates against live data. The legacy hashed demo
- * credential remains only as an offline fallback when the backend is
- * unreachable.
+ * Backend admin login through the same-origin proxy: the proxy stores the
+ * bearer token as an httpOnly session cookie. There is no offline or
+ * hardcoded credential path; if the backend cannot be reached, sign-in fails.
  */
 export async function authenticateAdmin({
   email,
@@ -120,124 +117,95 @@ export async function authenticateAdmin({
   email: string;
   password: string;
   remember: boolean;
-}): Promise<AdminSession | null> {
-  if (!inBrowser()) return null;
+}): Promise<AdminLoginResult> {
+  if (!inBrowser())
+    return { ok: false, reason: "unavailable", message: "Sign-in is only available in the browser." };
+  removeLegacyKeys();
 
-  const normalizedEmail = email.trim().toLowerCase();
-
-  let response: Response | null = null;
+  let response: Response;
   try {
     response = await fetch("/api/backend/auth/login", {
       method: "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: normalizedEmail, password, role: "admin" }),
+      body: JSON.stringify({ email: email.trim().toLowerCase(), password, role: "admin" }),
     });
   } catch {
-    response = null;
-  }
-
-  if (response) {
-    if (!response.ok) return null;
-    const payload = (await response.json().catch(() => ({}))) as {
-      user?: {
-        id: number;
-        name: string;
-        email: string;
-        activeCompanyId?: number;
-        activeRoleCode?: string;
-      };
+    return {
+      ok: false,
+      reason: "unavailable",
+      message: "The EcoGlobe sign-in service could not be reached. Please try again shortly.",
     };
-    const user = payload.user;
-    if (!user || user.activeRoleCode !== "admin") return null;
-    // The aliased portal components read this session mirror; the bearer
-    // token itself lives only in the httpOnly cookie the proxy set.
-    try {
-      localStorage.setItem(
-        "ecoglobe.demoUser",
-        JSON.stringify({
-          id: user.id,
-          role: "admin",
-          roles: ["admin"],
-          name: user.name,
-          email: user.email,
-          activeCompanyId: user.activeCompanyId,
-        }),
-      );
-    } catch {
-      // Best-effort mirror; the cookie session still authenticates requests.
-    }
-    return storeAdminSession(user.name, user.email, remember);
   }
 
-  // Offline fallback: the local demo credential only.
-  const storedHash = localStorage.getItem(PASSWORD_HASH_KEY);
-  const expectedHash = storedHash ?? (await hashValue(ADMIN_DEMO_PASSWORD));
-  const suppliedHash = await hashValue(password);
-  if (normalizedEmail !== ADMIN_DEMO_EMAIL || suppliedHash !== expectedHash) {
-    return null;
-  }
-  return storeAdminSession(
-    "EcoGlobe Administrator",
-    ADMIN_DEMO_EMAIL,
-    remember,
-  );
-}
+  if (response.status >= 500)
+    return {
+      ok: false,
+      reason: "unavailable",
+      message: "The EcoGlobe sign-in service is unavailable right now. Please try again shortly.",
+    };
+  if (!response.ok)
+    return { ok: false, reason: "invalid", message: "The email or password is incorrect." };
 
-export function createAdminRecoveryRequest(email: string) {
-  if (!inBrowser()) return null;
-  const normalizedEmail = email.trim().toLowerCase();
-  if (normalizedEmail !== ADMIN_DEMO_EMAIL) return null;
-
-  const request: RecoveryRequest = {
-    email: normalizedEmail,
-    code: String(
-      crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000,
-    ).padStart(6, "0"),
-    expiresAt: Date.now() + 10 * 60 * 1000,
+  const payload = (await response.json().catch(() => ({}))) as {
+    user?: {
+      id: number;
+      name: string;
+      email: string;
+      activeCompanyId?: number;
+      activeRoleCode?: string;
+    };
   };
-  sessionStorage.setItem(RECOVERY_KEY, JSON.stringify(request));
-  return request;
-}
-
-export function readAdminRecoveryRequest(): RecoveryRequest | null {
-  if (!inBrowser()) return null;
+  const user = payload.user;
+  if (!user || user.activeRoleCode !== "admin")
+    return {
+      ok: false,
+      reason: "not-admin",
+      message: "This account does not have EcoGlobe administrator access.",
+    };
+  // The aliased portal components read this session mirror; the bearer
+  // token itself lives only in the httpOnly cookie the proxy set.
   try {
-    const raw = sessionStorage.getItem(RECOVERY_KEY);
-    if (!raw) return null;
-    const request = JSON.parse(raw) as RecoveryRequest;
-    if (request.expiresAt <= Date.now()) {
-      sessionStorage.removeItem(RECOVERY_KEY);
-      return null;
-    }
-    return request;
+    localStorage.setItem(
+      "ecoglobe.demoUser",
+      JSON.stringify({
+        id: user.id,
+        role: "admin",
+        roles: ["admin"],
+        name: user.name,
+        email: user.email,
+        activeCompanyId: user.activeCompanyId,
+      }),
+    );
   } catch {
-    sessionStorage.removeItem(RECOVERY_KEY);
-    return null;
+    // Best-effort mirror; the cookie session still authenticates requests.
   }
+  return { ok: true, session: storeAdminSession(user.name, user.email, remember) };
 }
 
-export function verifyAdminRecoveryCode(email: string, code: string) {
-  const request = readAdminRecoveryRequest();
-  return Boolean(
-    request &&
-    request.email === email.trim().toLowerCase() &&
-    request.code === code.trim(),
-  );
+async function postAuth(path: string, body: Record<string, unknown>) {
+  const response = await fetch(`/api/backend${path}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
+  if (!response.ok)
+    throw new Error(payload.error ?? "The request could not be completed. Please try again.");
+  return payload;
 }
 
-export async function resetAdminPassword({
-  email,
-  code,
-  password,
-}: {
-  email: string;
-  code: string;
-  password: string;
-}) {
-  if (!inBrowser() || !verifyAdminRecoveryCode(email, code)) return false;
-  localStorage.setItem(PASSWORD_HASH_KEY, await hashValue(password));
-  sessionStorage.removeItem(RECOVERY_KEY);
+/**
+ * Asks the backend to email a password-reset link. The response is the same
+ * whether or not the account exists.
+ */
+export async function requestAdminPasswordReset(email: string) {
+  return postAuth("/auth/request-password-reset", { email: email.trim().toLowerCase() });
+}
+
+/** Completes a reset with the single-use token from the emailed link. */
+export async function resetAdminPassword({ token, password }: { token: string; password: string }) {
+  await postAuth("/auth/reset-password", { token, password });
   clearAdminSession();
-  return true;
 }

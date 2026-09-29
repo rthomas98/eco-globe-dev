@@ -118,8 +118,8 @@ function ShippingDeskContent({ role }: { role: "buyer" | "seller" | "admin" }) {
         )}
         {mode === "unavailable" && (
           <p className="rounded-xl bg-amber-50 p-4">
-            Online shipping awaits EasyPost and Stripe test setup. Requests for
-            help remain available.
+            Online sample shipping is not configured yet. Contact EcoGlobe for
+            help arranging a sample.
           </p>
         )}
         {error && (
@@ -364,7 +364,7 @@ function ShippingDeskContent({ role }: { role: "buyer" | "seller" | "admin" }) {
             <h2 className="text-xl font-bold">Sample availability</h2>
             {policies.map((p) => (
               <div
-                className="flex justify-between gap-4 border-b py-3"
+                className="flex flex-wrap justify-between gap-4 border-b py-3"
                 key={p.id}
               >
                 <p>
@@ -383,6 +383,13 @@ function ShippingDeskContent({ role }: { role: "buyer" | "seller" | "admin" }) {
                 >
                   {p.enabled ? "Switch samples off" : "Enable sample requests"}
                 </button>
+                {p.enabled && p.classification !== "standard_solid" && (
+                  <p className="basis-full text-sm text-amber-800">
+                    Samples are on, but EcoGlobe has not yet approved this material for online sample
+                    shipping ({p.classification.replaceAll("_", " ")}). Buyers see “Ask EcoGlobe about a
+                    sample” until that review is complete.
+                  </p>
+                )}
               </div>
             ))}
           </section>

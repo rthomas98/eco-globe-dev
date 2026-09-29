@@ -16,6 +16,7 @@ import {
   Printer,
   Mail,
   AlertCircle,
+  ImageOff,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { DisputeThread } from "@/components/disputes/dispute-thread";
@@ -30,6 +31,8 @@ import {
   type ApiShipment,
 } from "@/lib/api-fulfilment";
 import { BuyerPaymentMethodScreen } from "./buyer-payment-method-screen";
+import { approveOrder } from "@/lib/api-orders";
+import { describeBackendError } from "@/lib/backend-client";
 import { PanelHeaderMenu, downloadTextFile } from "./panel-header-menu";
 import { DocumentRow } from "./document-row";
 
@@ -106,6 +109,8 @@ function ScrollDisputeIcon() {
 
 export interface OrderDetail {
   orderId: string;
+  /** From the saved order; decides the status an approval moves to. */
+  escrowRequired?: boolean;
   shipping: "Pickup" | "Delivery";
   status: string;
   orderPlaced: string;
@@ -164,6 +169,8 @@ export interface OrderDetail {
 interface Props {
   order: OrderDetail | null;
   onClose: () => void;
+  /** Called after the backend confirms a change so the order list reloads. */
+  onOrderChanged?: () => void;
 }
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -193,15 +200,38 @@ function SectionCard({
   );
 }
 
-export function BuyerOrderDetailPanel({ order, onClose }: Props) {
+export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props) {
   const [codeCopied, setCodeCopied] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [approvedStatus, setApprovedStatus] = useState<string | null>(null);
 
   // Live orders (EG-<id>) run the real backend chain; demo rows keep the
   // local flow so the walkthrough still works offline.
   const liveOrderId = order ? numericOrderId(order.orderId) : null;
+
+  // Approval is saved on the backend first; the confirmation reflects the
+  // status the backend recorded.
+  const runApproveOrder = async () => {
+    if (actionBusy) return;
+    if (!liveOrderId) {
+      setActionError("This order is not saved to EcoGlobe, so it cannot be approved.");
+      return;
+    }
+    setActionBusy(true);
+    setActionError("");
+    try {
+      const status = await approveOrder(liveOrderId, Boolean(order?.escrowRequired));
+      setApprovedStatus(status);
+      setActiveModal("quote-approved");
+      onOrderChanged?.();
+    } catch (error) {
+      setActionError(describeBackendError(error, "The order was not approved."));
+    } finally {
+      setActionBusy(false);
+    }
+  };
 
   // Receipt details are required for every confirmation. Errors are thrown
   // back to the receipt form, which shows them next to the fields. Unsaved
@@ -330,11 +360,13 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
   const isBuyerVerification = order.status === "Buyer verification";
   const isProcessing = order.status === "Processing";
   const headerCta = isQuoteAwaiting
-    ? "Approve Quote"
+    ? actionBusy
+      ? "Approving…"
+      : "Approve order"
     : isReadyForPickup
       ? "Confirm Pickup Completed"
       : isAwaitingPayment
-        ? "Payment Method"
+        ? "Payment status"
         : isBuyerVerification || isProcessing
           ? "Mark as Delivered"
           : null;
@@ -384,7 +416,7 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
                 variant="primary"
                 size="md"
                 onClick={() => {
-                  if (isQuoteAwaiting) setActiveModal("quote-approved");
+                  if (isQuoteAwaiting) void runApproveOrder();
                   else if (isReadyForPickup) setActiveModal("confirm-pickup");
                   else if (isAwaitingPayment) setPaymentScreenOpen(true);
                   else if (isBuyerVerification || isProcessing)
@@ -625,11 +657,17 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
               <SectionCard title="Products">
                 <div className="flex items-center gap-4">
                   <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
-                    <img
-                      src={order.product.image}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
+                    {order.product.image ? (
+                      <img
+                        src={order.product.image}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-neutral-400" role="img" aria-label="No product photo">
+                        <ImageOff className="size-5" aria-hidden="true" />
+                      </span>
+                    )}
                   </div>
                   <div>
                     <p className="text-base font-bold text-neutral-900">
@@ -910,11 +948,12 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
           <div className="flex flex-col items-center px-4 py-6 text-center">
             <ScrollCheckIcon />
             <h2 className="mt-6 text-2xl font-bold text-neutral-900">
-              Shipping quote approved
+              Order approved
             </h2>
             <p className="mt-3 text-sm text-neutral-500">
-              Your order total has been updated. Fund escrow to begin
-              processing.
+              {approvedStatus === "escrow_required"
+                ? "Your approval was saved. This order needs escrow funding before it starts; EcoGlobe staff will arrange payment with you."
+                : "Your approval was saved and the order is now in progress with the seller."}
             </p>
             <Button
               variant="primary"
@@ -1205,6 +1244,7 @@ export function BuyerOrderDetailPanel({ order, onClose }: Props) {
             total: order.summary.total,
           }}
           onBack={() => setPaymentScreenOpen(false)}
+          onChanged={onOrderChanged}
           onCloseAll={() => {
             setPaymentScreenOpen(false);
             onClose();

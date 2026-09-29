@@ -10,7 +10,7 @@ permissions:
 jobs:
   runtime:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,3 +32,17 @@ jobs:
       - name: Runtime regressions and backend tests/types
         working-directory: ${{ runner.temp }}/eco-worker
         run: python3 scripts/orca-runtime.py verify
+      - name: Web and standalone admin release checks
+        working-directory: ${{ runner.temp }}/eco-worker
+        run: |
+          python3 - <<'PYTHON'
+          import runpy
+          import subprocess
+          from pathlib import Path
+          root = Path.cwd()
+          runtime = runpy.run_path(str(root / "scripts/orca-runtime.py"))["Runtime"](root)
+          env = runtime.environment(runtime.check())
+          for app in ("@eco-globe/web", "@eco-globe/admin"):
+              for check in ("type-check", "lint", "build"):
+                  subprocess.run(["pnpm", "--filter", app, check], cwd=root, env=env, check=True)
+          PYTHON

@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { fetchAuditLogs } from "@/lib/api-portal";
-import { readDemoUser } from "@/lib/demo-user";
-import Link from "next/link";
+import { useMemo, useState } from "react";
 import { Search, Filter, Download } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { fetchAuditLogs, type ApiAuditLog } from "@/lib/api-portal";
+import { DataBoundary, useBackendData } from "@/components/shared/data-state";
 
-type Severity = "Info" | "Warning" | "Critical";
-type Category = "All" | "Auth" | "Listings" | "Orders" | "Escrow" | "KYC" | "Settings";
+type Category = "All" | "Listings" | "Orders" | "Escrow" | "Companies" | "Other";
 
 interface AuditEntry {
   id: string;
@@ -17,60 +15,52 @@ interface AuditEntry {
   category: Exclude<Category, "All">;
   action: string;
   resourceId?: string;
-  resourceHref?: string;
-  severity: Severity;
-  ip: string;
 }
 
-const entries: AuditEntry[] = [
-  { id: "AUD-90021", timestamp: "2026-05-04 11:42:08", actor: "Katarina Jenkins", category: "Listings", action: "Approved listing", resourceId: "EG-PROD-00027", resourceHref: "/admin/listings/EG-PROD-00027", severity: "Info", ip: "10.0.4.18" },
-  { id: "AUD-90020", timestamp: "2026-05-04 11:18:32", actor: "Katarina Jenkins", category: "Escrow", action: "Released escrow funds", resourceId: "ESC-50012", resourceHref: "/admin/accounting/escrow/ESC-50012", severity: "Info", ip: "10.0.4.18" },
-  { id: "AUD-90019", timestamp: "2026-05-04 10:55:21", actor: "System", category: "Orders", action: "Auto-flagged transaction over $100,000", resourceId: "TX-50021", resourceHref: "/admin/accounting/transactions/TX-50021", severity: "Warning", ip: "system" },
-  { id: "AUD-90018", timestamp: "2026-05-04 10:14:05", actor: "Anabea Costa", category: "KYC", action: "Approved seller verification", resourceId: "S-00231", resourceHref: "/admin/sellers/S-00231", severity: "Info", ip: "10.0.4.42" },
-  { id: "AUD-90017", timestamp: "2026-05-04 09:30:48", actor: "Anabea Costa", category: "Listings", action: "Rejected listing", resourceId: "EG-PROD-00025", resourceHref: "/admin/listings/EG-PROD-00025", severity: "Warning", ip: "10.0.4.42" },
-  { id: "AUD-90016", timestamp: "2026-05-03 18:22:11", actor: "System", category: "Auth", action: "Failed login attempts threshold reached", resourceId: "B-00184", resourceHref: "/admin/buyers/B-00184", severity: "Warning", ip: "203.0.113.42" },
-  { id: "AUD-90015", timestamp: "2026-05-03 15:05:00", actor: "Katarina Jenkins", category: "Settings", action: "Updated platform fee schedule", severity: "Critical", ip: "10.0.4.18" },
-  { id: "AUD-90014", timestamp: "2026-05-03 11:48:09", actor: "Anabea Costa", category: "Auth", action: "Granted admin role", resourceId: "U-00038", severity: "Critical", ip: "10.0.4.42" },
-];
+const CATEGORIES: Category[] = ["All", "Listings", "Orders", "Escrow", "Companies", "Other"];
 
-const CATEGORIES: Category[] = ["All", "Auth", "Listings", "Orders", "Escrow", "KYC", "Settings"];
+function categoryFor(recordType: string | null): Exclude<Category, "All"> {
+  if (recordType === "listing") return "Listings";
+  if (recordType === "order" || recordType === "quote" || recordType === "shipment") return "Orders";
+  if (recordType === "escrow" || recordType === "payment" || recordType === "payout") return "Escrow";
+  if (recordType === "user" || recordType === "company") return "Companies";
+  return "Other";
+}
+
+function toEntry(log: ApiAuditLog): AuditEntry {
+  return {
+    id: `AUD-${log.id}`,
+    timestamp: new Date(log.createdAt).toLocaleString("en-US"),
+    actor: log.actorUserName ?? (log.actorTypeCode === "system" ? "System" : log.actorTypeCode),
+    category: categoryFor(log.recordTypeCode),
+    action: `${log.actionTypeCode.replace(/_/g, " ")}${log.reason ? ` — ${log.reason}` : ""}`,
+    resourceId:
+      log.recordTypeCode && log.recordId !== null
+        ? `${log.recordTypeCode}-${log.recordId}`
+        : undefined,
+  };
+}
+
+function csvCell(value: string) {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+function downloadCsv(rows: AuditEntry[]) {
+  const header = ["Audit ID", "Timestamp", "Actor", "Category", "Action", "Resource"];
+  const lines = [header, ...rows.map((r) => [r.id, r.timestamp, r.actor, r.category, r.action, r.resourceId ?? ""])]
+    .map((cells) => cells.map(csvCell).join(","))
+    .join("\n");
+  const url = URL.createObjectURL(new Blob([lines], { type: "text/csv" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `ecoglobe-audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export function AdminAuditPage() {
-  const [entryRows, setEntryRows] = useState<AuditEntry[]>(entries);
-
-  // Live audit trail renders ahead of the demo rows.
-  useEffect(() => {
-    if (!readDemoUser()) return;
-    let cancelled = false;
-    fetchAuditLogs()
-      .then((logs) => {
-        if (cancelled || logs.length === 0) return;
-        const categoryFor = (recordType: string | null): Exclude<Category, "All"> => {
-          if (recordType === "listing") return "Listings";
-          if (recordType === "order" || recordType === "quote" || recordType === "shipment") return "Orders";
-          if (recordType === "escrow" || recordType === "payment") return "Escrow";
-          if (recordType === "user" || recordType === "company") return "KYC";
-          return "Settings";
-        };
-        const live: AuditEntry[] = logs.map((log) => ({
-          id: `AUD-${log.id}`,
-          timestamp: new Date(log.createdAt).toLocaleString("en-US"),
-          actor: log.actorUserName ?? "System",
-          category: categoryFor(log.recordTypeCode),
-          action: `${log.actionTypeCode.replace(/_/g, " ")}${log.reason ? ` — ${log.reason}` : ""}`,
-          resourceId: log.recordTypeCode ? `${log.recordTypeCode}-${log.recordId}` : undefined,
-          severity: log.actionTypeCode === "escrow_released" ? "Warning" : "Info",
-          ip: "—",
-        }));
-        setEntryRows([...live, ...entries]);
-      })
-      .catch(() => {
-        // Demo rows remain when the backend is unreachable.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const logs = useBackendData(fetchAuditLogs, [], "The audit log could not be loaded.");
+  const entryRows = useMemo(() => (logs.data ?? []).map(toEntry), [logs.data]);
 
   const [category, setCategory] = useState<Category>("All");
   const [search, setSearch] = useState("");
@@ -87,16 +77,21 @@ export function AdminAuditPage() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="px-8 py-8">
+      <div className="px-4 py-6 sm:px-8 sm:py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900">Audit log</h1>
             <p className="mt-1 text-sm text-neutral-500">
-              Tamper-evident log of platform actions. Filter by category or
+              Platform actions recorded by the EcoGlobe backend. Filter by category or
               search for a specific actor, resource, or audit ID.
             </p>
           </div>
-          <Button variant="secondary" size="md">
+          <Button
+            variant="secondary"
+            size="md"
+            disabled={visible.length === 0}
+            onClick={() => downloadCsv(visible)}
+          >
             <Download className="size-4" />
             Export CSV
           </Button>
@@ -132,71 +127,54 @@ export function AdminAuditPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
-          <table className="w-full text-sm">
-            <thead style={{ borderBottom: "1px solid #F0F0F0" }}>
-              <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                <th className="px-5 py-3">Timestamp</th>
-                <th className="px-5 py-3">Actor</th>
-                <th className="px-5 py-3">Category</th>
-                <th className="px-5 py-3">Action</th>
-                <th className="px-5 py-3">Resource</th>
-                <th className="px-5 py-3">Severity</th>
-                <th className="px-5 py-3">IP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((e, i) => (
-                <tr
-                  key={e.id}
-                  style={{ borderBottom: i === visible.length - 1 ? undefined : "1px solid #F4F4F5" }}
-                  className="hover:bg-neutral-50"
-                >
-                  <td className="px-5 py-3 font-mono text-xs text-neutral-700">{e.timestamp}</td>
-                  <td className="px-5 py-3 text-sm text-neutral-900">{e.actor}</td>
-                  <td className="px-5 py-3 text-sm text-neutral-700">{e.category}</td>
-                  <td className="px-5 py-3 text-sm text-neutral-900">{e.action}</td>
-                  <td className="px-5 py-3 font-mono text-xs">
-                    {e.resourceHref && e.resourceId ? (
-                      <Link href={e.resourceHref} className="text-neutral-700 underline hover:text-neutral-900">
-                        {e.resourceId}
-                      </Link>
-                    ) : e.resourceId ? (
-                      <span className="text-neutral-700">{e.resourceId}</span>
-                    ) : (
-                      <span className="text-neutral-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3">
-                    <SevBadge severity={e.severity} />
-                  </td>
-                  <td className="px-5 py-3 font-mono text-xs text-neutral-500">{e.ip}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {visible.length === 0 && (
-            <div className="px-6 py-12 text-center">
-              <p className="text-sm font-medium text-neutral-700">No audit entries match.</p>
-              <p className="mt-1 text-xs text-neutral-500">Adjust your filters or search query.</p>
-            </div>
-          )}
+        <div className="overflow-x-auto rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
+          <DataBoundary
+            state={logs}
+            loadingLabel="Loading audit log…"
+            isEmpty={() => visible.length === 0}
+            empty={
+              entryRows.length === 0
+                ? { title: "No audit entries yet", description: "Recorded platform actions will appear here." }
+                : { title: "No audit entries match.", description: "Adjust your filters or search query." }
+            }
+          >
+            {() => (
+              <table className="w-full min-w-[720px] text-sm">
+                <thead style={{ borderBottom: "1px solid #F0F0F0" }}>
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                    <th className="px-5 py-3">Timestamp</th>
+                    <th className="px-5 py-3">Actor</th>
+                    <th className="px-5 py-3">Category</th>
+                    <th className="px-5 py-3">Action</th>
+                    <th className="px-5 py-3">Resource</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((e, i) => (
+                    <tr
+                      key={e.id}
+                      style={{ borderBottom: i === visible.length - 1 ? undefined : "1px solid #F4F4F5" }}
+                      className="hover:bg-neutral-50"
+                    >
+                      <td className="px-5 py-3 font-mono text-xs text-neutral-700">{e.timestamp}</td>
+                      <td className="px-5 py-3 text-sm text-neutral-900">{e.actor}</td>
+                      <td className="px-5 py-3 text-sm text-neutral-700">{e.category}</td>
+                      <td className="px-5 py-3 text-sm text-neutral-900">{e.action}</td>
+                      <td className="px-5 py-3 font-mono text-xs">
+                        {e.resourceId ? (
+                          <span className="text-neutral-700">{e.resourceId}</span>
+                        ) : (
+                          <span className="text-neutral-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </DataBoundary>
         </div>
       </div>
     </div>
-  );
-}
-
-function SevBadge({ severity }: { severity: Severity }) {
-  const tone: Record<Severity, { bg: string; fg: string }> = {
-    Info: { bg: "#F1F5F9", fg: "#475569" },
-    Warning: { bg: "#FEF3C7", fg: "#92400E" },
-    Critical: { bg: "#FEE2E2", fg: "#991B1B" },
-  };
-  const t = tone[severity];
-  return (
-    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style={{ background: t.bg, color: t.fg }}>
-      {severity}
-    </span>
   );
 }

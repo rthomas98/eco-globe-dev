@@ -18,7 +18,6 @@ import {
   Settings,
   Bell,
   Info,
-  MoreHorizontal,
   Home,
   LogOut,
   Shield,
@@ -26,18 +25,15 @@ import {
   FileSignature,
   PenLine,
   FileText,
-  Video,
-  MapPin,
-  Lightbulb,
-  PackageCheck,
-  Blocks,
-  Workflow,
-  Languages,
-  Rocket,
-  MonitorSmartphone,
   FlaskConical,
   Handshake,
 } from "lucide-react";
+import {
+  markLiveNotificationRead,
+  useLiveNotifications,
+} from "@/components/notifications/use-live-notifications";
+import { notificationGroupOrder } from "@/components/notifications/notification-model";
+import { ErrorState, LoadingState } from "@/components/shared/data-state";
 
 interface NavItem {
   label: string;
@@ -69,37 +65,12 @@ const marketplaceAdminNavItems: NavItem[] = [
 const logisticsAdminNavItems: NavItem[] = [
   { label: "Logistics", href: "/admin/logistics", icon: Truck },
   { label: "Delivery Tracking", href: "/admin/delivery-tracking", icon: Truck },
-  { label: "Map Intelligence", href: "/admin/map-intelligence", icon: MapPin },
-  {
-    label: "Mobile Access",
-    href: "/admin/mobile-access",
-    icon: MonitorSmartphone,
-  },
 ];
 
 const contractAdminNavItems: NavItem[] = [
   { label: "Contracts", href: "/admin/contracts", icon: FileSignature },
   { label: "E-signatures", href: "/admin/e-signatures", icon: PenLine },
   { label: "Documents", href: "/admin/documents", icon: FileText },
-  { label: "Blockchain", href: "/admin/blockchain-traceability", icon: Blocks },
-  { label: "Smart Contracts", href: "/admin/smart-contracts", icon: Workflow },
-];
-
-const intelligenceAdminNavItems: NavItem[] = [
-  { label: "Video demos", href: "/admin/video-demos", icon: Video },
-  {
-    label: "Asset Verification",
-    href: "/admin/asset-verification",
-    icon: PackageCheck,
-  },
-  { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
-  { label: "Recommendations", href: "/admin/recommendations", icon: Lightbulb },
-  { label: "Language", href: "/admin/language", icon: Languages },
-  {
-    label: "National Expansion",
-    href: "/admin/national-expansion",
-    icon: Rocket,
-  },
 ];
 
 const financeAdminNavItems: NavItem[] = [
@@ -110,6 +81,7 @@ const financeAdminNavItems: NavItem[] = [
     children: [
       { label: "Transactions", href: "/admin/accounting/transactions" },
       { label: "Payments", href: "/admin/accounting/payments" },
+      { label: "Payment exceptions", href: "/admin/payment-exceptions" },
       { label: "Escrow", href: "/admin/accounting/escrow" },
     ],
   },
@@ -137,6 +109,7 @@ const governanceAdminNavItems: NavItem[] = [
       { label: "KYC", href: "/admin/kyc" },
       { label: "Disputes", href: "/admin/disputes" },
       { label: "Audit log", href: "/admin/audit" },
+      { label: "Contact requests", href: "/admin/contact-requests" },
     ],
   },
 ];
@@ -158,7 +131,6 @@ const expandedAdminNavGroups: NavGroup[] = [
   { label: "Marketplace", items: marketplaceAdminNavItems },
   { label: "Logistics", items: logisticsAdminNavItems },
   { label: "Contracts & Docs", items: contractAdminNavItems },
-  { label: "Intelligence", items: intelligenceAdminNavItems },
   { label: "Finance & Reports", items: financeAdminNavItems },
   { label: "Governance", items: governanceAdminNavItems },
   { label: "System", items: settingsAdminNavItems },
@@ -180,75 +152,12 @@ export const adminSearchLinks = expandedAdminNavGroups.flatMap((group) =>
   ]),
 );
 
-const notifications = [
-  {
-    group: "Earlier",
-    items: [
-      {
-        msg: "A new seller EcoPack Co has registered and is awaiting approval.",
-        source: "System",
-        time: "an hour ago",
-        unread: true,
-      },
-      {
-        msg: "GreenTex Ltd submitted verification documents. Review is required.",
-        source: "System",
-        time: "2 hours ago",
-        unread: true,
-      },
-    ],
-  },
-  {
-    group: "Last 7 days",
-    items: [
-      {
-        msg: 'A new product "Bio-based Resin Pellets" is pending approval.',
-        source: "Admin",
-        time: "2025-01-07 10:55 AM",
-        unread: false,
-      },
-      {
-        msg: 'A buyer flagged a sustainability claim on "Recycled Aluminum Sheet". Review is required.',
-        source: "System",
-        time: "2025-01-07 10:55 AM",
-        unread: false,
-      },
-      {
-        msg: "Certification GRS for EcoPack Co will expire in 7 days.",
-        source: "System",
-        time: "2025-01-07 10:55 AM",
-        unread: false,
-      },
-    ],
-  },
-  {
-    group: "Last 30 days",
-    items: [
-      {
-        msg: "A transaction over $100,000 has been initiated: Order #EG-50021.",
-        source: "Admin",
-        time: "2025-01-07 10:55 AM",
-        unread: false,
-      },
-      {
-        msg: "Escrow release for Order #EG-50012 requires admin review due to dispute history.",
-        source: "System",
-        time: "2025-01-07 10:55 AM",
-        unread: false,
-      },
-      {
-        msg: "Dispute for Order #EG-50009 has been escalated. Action required within 24 hours.",
-        source: "System",
-        time: "2025-01-07 10:55 AM",
-        unread: false,
-      },
-    ],
-  },
-];
-
 function NotificationPanel({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<"all" | "unread">("all");
-  const [showMenu, setShowMenu] = useState(false);
+  const [readIds, setReadIds] = useState<string[]>([]);
+  const live = useLiveNotifications();
+  const isUnread = (id: string, unread: boolean) => unread && !readIds.includes(id);
+  const visible = live.items.filter((n) => tab === "all" || isUnread(n.id, n.unread));
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -259,7 +168,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
         onClick={onClose}
       />
       <div
-        className="relative z-10 flex h-full w-[420px] flex-col overflow-y-auto bg-white shadow-xl"
+        className="relative z-10 flex h-full w-full flex-col overflow-y-auto bg-white shadow-xl sm:w-[420px]"
         style={{ borderRight: "1px solid #F0F0F0" }}
       >
         <div className="sticky top-0 z-10 bg-white px-5 pt-5 pb-3">
@@ -267,7 +176,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
             <h2 className="text-xl font-bold text-neutral-900">
               Notifications
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Link
                 href="/admin/notifications"
                 onClick={onClose}
@@ -275,45 +184,13 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
               >
                 View All
               </Link>
-              <div className="relative">
-                <button
-                  type="button"
-                  aria-label="Open notification actions"
-                  onClick={() => setShowMenu(!showMenu)}
-                  className="text-neutral-400 hover:text-neutral-700"
-                >
-                  <MoreHorizontal className="size-5" />
-                </button>
-                {showMenu && (
-                  <div
-                    className="absolute right-0 top-8 z-30 w-[180px] rounded-lg bg-white py-1"
-                    style={{
-                      border: "1px solid #F0F0F0",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50"
-                    >
-                      Mark all as read
-                    </button>
-                    <button
-                      type="button"
-                      className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50"
-                    >
-                      View all
-                    </button>
-                    <Link
-                      href="/admin/settings/notifications"
-                      onClick={onClose}
-                      className="block w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50"
-                    >
-                      Notification settings
-                    </Link>
-                  </div>
-                )}
-              </div>
+              <Link
+                href="/admin/settings/notifications"
+                onClick={onClose}
+                className="text-sm font-medium text-neutral-500"
+              >
+                Settings
+              </Link>
             </div>
           </div>
           <div className="flex gap-0 rounded-full bg-neutral-100 p-1">
@@ -334,41 +211,48 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <div className="flex-1 px-5 pb-5">
-          {notifications.map((group) => {
-            const items =
-              tab === "unread"
-                ? group.items.filter((i) => i.unread)
-                : group.items;
+          {live.status === "loading" && <LoadingState label="Loading notifications…" />}
+          {live.status === "error" && (
+            <ErrorState message={live.error ?? "Notifications could not be loaded."} onRetry={live.reload} />
+          )}
+          {live.status === "ready" && visible.length === 0 && (
+            <p className="py-12 text-center text-sm text-neutral-500">
+              {tab === "unread" ? "No unread notifications" : "No notifications yet"}
+            </p>
+          )}
+          {notificationGroupOrder.map((group) => {
+            const items = visible.filter((n) => n.group === group);
             if (items.length === 0) return null;
             return (
-              <div key={group.group} className="mb-4">
-                <h3 className="mb-2 text-xs font-bold text-neutral-900">
-                  {group.group}
-                </h3>
+              <div key={group} className="mb-4">
+                <h3 className="mb-2 text-xs font-bold text-neutral-900">{group}</h3>
                 {items.map((item) => (
-                  <div
-                    key={`${item.msg}-${item.time}`}
-                    className="flex gap-3 py-3"
+                  <button
+                    type="button"
+                    key={item.id}
+                    onClick={() => {
+                      if (!isUnread(item.id, item.unread)) return;
+                      // Shown as read only after the backend saves it.
+                      void markLiveNotificationRead(item.id).then((saved) => {
+                        if (saved) setReadIds((current) => [...current, item.id]);
+                      });
+                    }}
+                    className="flex w-full gap-3 py-3 text-left hover:bg-neutral-50"
                     style={{ borderBottom: "1px solid #F8F8F8" }}
                   >
-                    {item.unread && (
-                      <span className="mt-2 size-1.5 shrink-0 rounded-full bg-neutral-900" />
-                    )}
+                    <span className="mt-2 flex size-1.5 shrink-0">
+                      {isUnread(item.id, item.unread) && (
+                        <span className="size-1.5 rounded-full bg-neutral-900" />
+                      )}
+                    </span>
                     <Info className="mt-0.5 size-5 shrink-0 text-neutral-400" />
                     <div className="flex-1">
-                      <p className="text-sm text-neutral-700">{item.msg}</p>
+                      <p className="text-sm text-neutral-700">{item.message}</p>
                       <p className="mt-1 text-xs text-neutral-400">
                         {item.source} · {item.time}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      aria-label={`Open actions for ${item.msg}`}
-                      className="shrink-0 text-neutral-400"
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </button>
-                  </div>
+                  </button>
                 ))}
               </div>
             );
@@ -453,6 +337,11 @@ function SidebarBottom({
 }) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  // Unread count from saved read state for the signed-in admin (the admin
+  // login mirrors the backend user into the shared session profile). Reads
+  // confirmed in the panel or page are broadcast and applied immediately.
+  const liveNotifications = useLiveNotifications();
+  const unreadCount = liveNotifications.items.filter((n) => n.unread).length;
 
   return (
     <div className="relative flex flex-col gap-2 px-3 pb-4">
@@ -463,9 +352,14 @@ function SidebarBottom({
       >
         <Bell className="size-[18px]" />
         Notifications
-        <span className="absolute left-[18px] top-2 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-          8
-        </span>
+        {unreadCount > 0 && (
+          <span
+            aria-label={`${unreadCount} unread notifications`}
+            className="absolute left-[18px] top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+          >
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
       </button>
       <button
         type="button"
@@ -486,7 +380,14 @@ function SidebarBottom({
           )}
         </div>
       </button>
-      {showNotifs && <NotificationPanel onClose={() => setShowNotifs(false)} />}
+      {showNotifs && (
+        <NotificationPanel
+          onClose={() => {
+            setShowNotifs(false);
+            liveNotifications.reload();
+          }}
+        />
+      )}
       {showUserMenu && (
         <UserMenu
           session={session}

@@ -1,3 +1,6 @@
+import { handleRfqRoute } from "./rfq-routes.js";
+import { handleCheckoutRoute, reconcileCheckoutEvent } from "./checkout-routes.js";
+import { handleMvpRoute } from "./mvp-routes.js";
 import { rejectContractEvidence, rejectSignatureEvidence } from "./docusign-policy.js";
 import { startStripeSetup, syncStripeSetup, reconcileStripeSetupEvent } from "./stripe-setup.js";
 import { handleDemoOrderRoute } from "./demo-order-routes.js";
@@ -257,16 +260,7 @@ type EscrowBody = {
   disputeLocked?: boolean;
 };
 
-type PaymentBody = {
-  orderId: number;
-  escrowId?: number;
-  payerCompanyId: number;
-  providerPaymentId?: string;
-  amount?: number;
-  currencyCode?: string;
-  paymentStatusCode?: string;
-  paymentTypeCode?: string;
-};
+
 
 type PayoutBody = {
   orderId: number;
@@ -1507,6 +1501,8 @@ async function updateUser(
   const body = await readJsonBody<UserBody>(request);
   const name = getOptionalString(body, "name", 200);
   const accountStatusCode = getOptionalString(body, "accountStatusCode", 80);
+  if (accountStatusCode && !auth.isAdmin) throw new ApiError(403, "Only administrators can change account status.");
+  if (accountStatusCode && id === auth.userId && ["inactive", "suspended"].includes(accountStatusCode)) throw new ApiError(409, "Use another administrator to deactivate this account.");
   const accountStatusId = accountStatusCode
     ? await lookupId("AccountStatuses", accountStatusCode)
     : undefined;
@@ -1521,9 +1517,11 @@ async function updateUser(
         UpdatedAt = SYSUTCDATETIME()
       OUTPUT INSERTED.Id AS id, INSERTED.Name AS name, INSERTED.Email AS email, INSERTED.AccountStatusId AS accountStatusId
       WHERE Id = @id;
+      IF @revoke=1 UPDATE dbo.UserSessions SET RevokedAt=SYSUTCDATETIME() WHERE UserId=@id AND RevokedAt IS NULL;
     `,
     [
       intParam("id", id),
+      bitParam("revoke", Boolean(accountStatusCode && ["inactive","suspended"].includes(accountStatusCode))),
       nvarcharParam("name", name, 200),
       intParam("accountStatusId", accountStatusId),
       intParam("updatedByUserId", auth.userId),
@@ -1708,8 +1706,12 @@ async function updateCompany(
   const verificationStatusId = verificationStatusCode
     ? await lookupId("AccountStatuses", verificationStatusCode)
     : undefined;
-  if (!auth.isAdmin && verificationStatusCode) {
-    throw new ApiError(403, "Only admins can change company verification status.");
+  if (verificationStatusCode && (!auth.isAdmin || !["suspended", "pending_verification"].includes(verificationStatusCode))) {
+    throw new ApiError(403, "Use the verification review endpoint to approve company verification. Only administrators may suspend or reinstate companies.");
+  }
+  if (verificationStatusCode === "pending_verification") {
+    const suspended=await queryRowsWithParams("SELECT c.Id FROM dbo.Companies c JOIN dbo.AccountStatuses s ON s.Id=c.VerificationStatusId WHERE c.Id=@id AND s.Code='suspended'",[intParam("id",id)]);
+    if(!suspended.length) throw new ApiError(409,"Only suspended companies can be reinstated here. Use verification review for other decisions.");
   }
 
   const rows = await queryRowsWithParams(
@@ -2223,14 +2225,15 @@ async function updateCompanyMember(
   id: number,
   auth: AuthContext,
 ) {
-  const member = (await queryRowsWithParams<{ companyId: number }>(
-    "SELECT CompanyId AS companyId FROM dbo.CompanyMembers WHERE Id = @id;",
+  const member = (await queryRowsWithParams<{ companyId: number; userId: number }>(
+    "SELECT CompanyId AS companyId, UserId AS userId FROM dbo.CompanyMembers WHERE Id = @id;",
     [intParam("id", id)],
   ))[0];
   if (!member) throw new ApiError(404, "Company member not found.");
   await requireCompanyManager(auth, member.companyId);
 
   const body = await readJsonBody<MemberBody>(request);
+  if (member.userId === auth.userId) throw new ApiError(409, "Another company manager must change your own permissions.");
   const memberRoleCode = getOptionalString(body, "memberRoleCode", 80);
   const permissionTierCode = getOptionalString(body, "permissionTierCode", 80);
   if (!auth.isAdmin && normalizeCode(permissionTierCode ?? "") === "admin_override") throw new ApiError(403, "Only a platform administrator can grant internal admin permissions.");
@@ -2252,6 +2255,9 @@ async function updateCompanyMember(
         MemberRoleId = COALESCE(@memberRoleId, MemberRoleId),
         PermissionTierId = COALESCE(@permissionTierId, PermissionTierId),
         MemberStatusId = COALESCE(@memberStatusId, MemberStatusId),
+        CanApproveTransactions = COALESCE(@canApprove, CanApproveTransactions),
+        CanExecuteTransactions = COALESCE(@canExecute, CanExecuteTransactions),
+        TransactionApprovalLimit = COALESCE(@limit, TransactionApprovalLimit),
         UpdatedByUserId = @updatedByUserId,
         UpdatedAt = SYSUTCDATETIME()
       OUTPUT INSERTED.Id AS id, INSERTED.UserId AS userId, INSERTED.CompanyId AS companyId
@@ -2259,6 +2265,9 @@ async function updateCompanyMember(
     `,
     [
       intParam("id", id),
+      bitParam("canApprove", getOptionalBoolean(body,"canApproveTransactions")),
+      bitParam("canExecute", getOptionalBoolean(body,"canExecuteTransactions")),
+      moneyParam("limit", getOptionalNumber(body,"transactionApprovalLimit")),
       intParam("memberRoleId", memberRoleId),
       intParam("permissionTierId", permissionTierId),
       intParam("memberStatusId", memberStatusId),
@@ -3132,6 +3141,7 @@ async function listQuotes(response: ServerResponse, url: URL, auth: AuthContext)
       SELECT TOP (100)
         q.Id AS id,
         q.ListingId AS listingId,
+        q.WantedListingId AS wantedListingId,
         l.Title AS listingTitle,
         q.BuyerCompanyId AS buyerCompanyId,
         bc.LegalName AS buyerCompanyName,
@@ -3194,6 +3204,7 @@ async function getQuote(
       SELECT
         q.Id AS id,
         q.ListingId AS listingId,
+        q.WantedListingId AS wantedListingId,
         l.Title AS listingTitle,
         q.BuyerCompanyId AS buyerCompanyId,
         bc.LegalName AS buyerCompanyName,
@@ -3381,6 +3392,9 @@ async function updateQuote(
     );
   }
 
+  if (editsTerms && party === "buyer" && quote.quoteStatusCode === "sent") throw new ApiError(403, "Buyers cannot rewrite seller quote terms before accepting.");
+  const proposedPrice=getOptionalNumber(body,"unitPrice");
+  if (proposedPrice !== undefined && proposedPrice <= 0) throw new ApiError(400,"Unit price must be positive.");
   const quoteStatusId = quoteStatusCode
     ? await lookupId("QuoteStatuses", quoteStatusCode)
     : undefined;
@@ -3560,6 +3574,7 @@ async function createOrder(
   auth: AuthContext,
 ) {
   const body = await readJsonBody<OrderBody>(request);
+  if (!auth.isAdmin) throw new ApiError(409, "Use the provider-confirmed checkout endpoint to place an order.");
   const quoteId = getOptionalInt(body, "quoteId");
   const listingId = getOptionalInt(body, "listingId");
   const buyerCompanyId = getBodyInt(body, "buyerCompanyId");
@@ -3783,6 +3798,7 @@ async function updateOrder(
   }
 
   const body = await readJsonBody<OrderBody>(request);
+  if ((await queryRowsWithParams("SELECT Id FROM dbo.CheckoutAttempts WHERE OrderId=@id", [intParam("id",id)])).length) throw new ApiError(409, "Use payment reconciliation, cancellation or the logistics workflow for this checkout order.");
   const orderStatusCode = getOptionalString(body, "orderStatusCode", 80);
   if (orderStatusCode) {
     const toCode = normalizeCode(orderStatusCode);
@@ -4881,63 +4897,11 @@ async function getEscrow(
 }
 
 async function createEscrow(
-  request: IncomingMessage,
-  response: ServerResponse,
-  auth: AuthContext,
+  _request: IncomingMessage,
+  _response: ServerResponse,
+  _auth: AuthContext,
 ) {
-  const body = await readJsonBody<EscrowBody>(request);
-  const orderId = getBodyInt(body, "orderId");
-  await requireOrderAccess(auth, orderId);
-  const order = (
-    await queryRowsWithParams<{ totalAmount: number; currencyCode: string; escrowRequired: boolean }>(
-      "SELECT TotalAmount AS totalAmount, CurrencyCode AS currencyCode, EscrowRequired AS escrowRequired FROM dbo.Orders WHERE Id = @orderId;",
-      [intParam("orderId", orderId)],
-    )
-  )[0];
-  if (!order) throw new ApiError(404, "Order not found.");
-
-  const amount = getOptionalNumber(body, "amount") ?? Number(order.totalAmount);
-  const statusCode =
-    getOptionalString(body, "escrowStatusCode", 80) ??
-    (order.escrowRequired ? "funding_required" : "not_required");
-  const rows = await queryRowsWithParams(
-    `
-      INSERT INTO dbo.Escrows (
-        OrderId, EscrowProviderId, ProviderEscrowId, Amount, CurrencyCode, EscrowStatusId,
-        ThresholdAmount, ReleaseRuleId, DisputeLocked, CreatedByUserId, UpdatedByUserId
-      )
-      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.Amount AS amount, INSERTED.EscrowStatusId AS escrowStatusId
-      VALUES (
-        @orderId, @escrowProviderId, @providerEscrowId, @amount, @currencyCode, @escrowStatusId,
-        @thresholdAmount, @releaseRuleId, @disputeLocked, @createdByUserId, @updatedByUserId
-      );
-    `,
-    [
-      intParam("orderId", orderId),
-      intParam("escrowProviderId", await lookupId("EscrowProviders", getOptionalString(body, "escrowProviderCode", 80) ?? "demo_escrow")),
-      varcharParam("providerEscrowId", getOptionalString(body, "providerEscrowId", 200), 200),
-      moneyParam("amount", amount),
-      varcharParam("currencyCode", getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? order.currencyCode, 3),
-      intParam("escrowStatusId", await lookupId("EscrowStatuses", statusCode)),
-      moneyParam("thresholdAmount", getOptionalNumber(body, "thresholdAmount") ?? 1000),
-      intParam("releaseRuleId", await lookupId("EscrowReleaseRules", getOptionalString(body, "releaseRuleCode", 80) ?? "delivery_confirmation")),
-      bitParam("disputeLocked", getOptionalBoolean(body, "disputeLocked") ?? false),
-      intParam("createdByUserId", auth.userId),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-
-  await writeAuditLog({
-    auth,
-    request,
-    actionTypeCode: "escrow_triggered",
-    recordTypeCode: "escrow",
-    recordId: rows[0].id as number,
-    newValue: rows[0],
-    reason: "Escrow record created.",
-  });
-
-  sendJson(response, 201, { ok: true, escrow: rows[0] });
+  throw new ApiError(409, "Automated escrow is not configured. No escrow record has been created.");
 }
 
 async function updateEscrow(
@@ -4968,6 +4932,7 @@ async function updateEscrow(
 
   const body = await readJsonBody<EscrowBody>(request);
   const statusCode = getOptionalString(body, "escrowStatusCode", 80);
+  if (statusCode && ["funded", "released", "refunded"].includes(normalizeCode(statusCode))) throw new ApiError(409, "Financial transitions require provider confirmation.");
   if (statusCode) {
     const toCode = normalizeCode(statusCode);
     assertStatusTransition(
@@ -5138,88 +5103,20 @@ async function getPayment(
 }
 
 async function createPayment(
-  request: IncomingMessage,
-  response: ServerResponse,
-  auth: AuthContext,
+  _request: IncomingMessage,
+  _response: ServerResponse,
+  _auth: AuthContext,
 ) {
-  const body = await readJsonBody<PaymentBody>(request);
-  const orderId = getBodyInt(body, "orderId");
-  await requireOrderAccess(auth, orderId);
-  const order = (
-    await queryRowsWithParams<{ totalAmount: number; currencyCode: string }>(
-      "SELECT TotalAmount AS totalAmount, CurrencyCode AS currencyCode FROM dbo.Orders WHERE Id = @orderId;",
-      [intParam("orderId", orderId)],
-    )
-  )[0];
-  if (!order) throw new ApiError(404, "Order not found.");
-
-  const rows = await queryRowsWithParams(
-    `
-      INSERT INTO dbo.Payments (
-        OrderId, EscrowId, PayerCompanyId, ProviderPaymentId, Amount, CurrencyCode,
-        PaymentStatusId, PaymentTypeId, CreatedByUserId, UpdatedByUserId
-      )
-      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.Amount AS amount, INSERTED.PaymentStatusId AS paymentStatusId
-      VALUES (
-        @orderId, @escrowId, @payerCompanyId, @providerPaymentId, @amount, @currencyCode,
-        @paymentStatusId, @paymentTypeId, @createdByUserId, @updatedByUserId
-      );
-    `,
-    [
-      intParam("orderId", orderId),
-      intParam("escrowId", getOptionalInt(body, "escrowId")),
-      intParam("payerCompanyId", getBodyInt(body, "payerCompanyId")),
-      varcharParam("providerPaymentId", getOptionalString(body, "providerPaymentId", 200), 200),
-      moneyParam("amount", getOptionalNumber(body, "amount") ?? Number(order.totalAmount)),
-      varcharParam("currencyCode", getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? order.currencyCode, 3),
-      intParam("paymentStatusId", await lookupId("PaymentStatuses", getOptionalString(body, "paymentStatusCode", 80) ?? "pending")),
-      intParam("paymentTypeId", await lookupId("PaymentTypes", getOptionalString(body, "paymentTypeCode", 80) ?? "buyer_funding")),
-      intParam("createdByUserId", auth.userId),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-
-  await writeAuditLog({ auth, request, actionTypeCode: "created", recordTypeCode: "payment", recordId: rows[0].id as number, newValue: rows[0], reason: "Payment created." });
-  sendJson(response, 201, { ok: true, payment: rows[0] });
+  throw new ApiError(409, "Payments are created and reconciled by the payment provider.");
 }
 
 async function updatePayment(
-  request: IncomingMessage,
-  response: ServerResponse,
-  id: number,
-  auth: AuthContext,
+  _request: IncomingMessage,
+  _response: ServerResponse,
+  _id: number,
+  _auth: AuthContext,
 ) {
-  const paymentOrder = (await queryRowsWithParams<{ orderId: number }>(
-    "SELECT OrderId AS orderId FROM dbo.Payments WHERE Id = @id;",
-    [intParam("id", id)],
-  ))[0];
-  if (!paymentOrder) throw new ApiError(404, "Payment not found.");
-  await requireOrderAccess(auth, paymentOrder.orderId);
-  const body = await readJsonBody<PaymentBody>(request);
-  const statusCode = getOptionalString(body, "paymentStatusCode", 80);
-  const rows = await queryRowsWithParams(
-    `
-      UPDATE dbo.Payments
-      SET
-        ProviderPaymentId = COALESCE(@providerPaymentId, ProviderPaymentId),
-        Amount = COALESCE(@amount, Amount),
-        PaymentStatusId = COALESCE(@paymentStatusId, PaymentStatusId),
-        UpdatedByUserId = @updatedByUserId,
-        UpdatedAt = SYSUTCDATETIME()
-      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.Amount AS amount, INSERTED.PaymentStatusId AS paymentStatusId
-      WHERE Id = @id;
-    `,
-    [
-      intParam("id", id),
-      varcharParam("providerPaymentId", getOptionalString(body, "providerPaymentId", 200), 200),
-      moneyParam("amount", getOptionalNumber(body, "amount")),
-      intParam("paymentStatusId", statusCode ? await lookupId("PaymentStatuses", statusCode) : undefined),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-  if (!rows[0]) throw new ApiError(404, "Payment not found.");
-  await writeAuditLog({ auth, request, actionTypeCode: statusCode ? "status_changed" : "updated", recordTypeCode: "payment", recordId: id, newValue: rows[0], reason: "Payment updated." });
-  sendJson(response, 200, { ok: true, payment: rows[0] });
+  throw new ApiError(409, "Payment records cannot be edited directly. Use provider reconciliation.");
 }
 
 async function listPayouts(response: ServerResponse, url: URL, auth: AuthContext) {
@@ -5974,37 +5871,7 @@ async function handleStripeWebhook(
   if (event.livemode !== (process.env.STRIPE_MODE === "live")) {
     throw new ApiError(400, "Stripe event mode does not match this environment.");
   }
-  const object = event.data.object as unknown as Record<string, unknown>;
-
-  if (event.type === "payment_intent.succeeded" && typeof object.id === "string") {
-    const capturedId = await lookupId("PaymentStatuses", "captured");
-    await queryRowsWithParams(
-      `
-        UPDATE dbo.Payments
-        SET PaymentStatusId = @statusId, UpdatedAt = SYSUTCDATETIME()
-        WHERE ProviderPaymentId = @providerPaymentId;
-      `,
-      [
-        intParam("statusId", capturedId),
-        varcharParam("providerPaymentId", object.id, 200),
-      ],
-    );
-  }
-
-  if (event.type === "payment_intent.payment_failed" && typeof object.id === "string") {
-    const failedId = await lookupId("PaymentStatuses", "failed");
-    await queryRowsWithParams(
-      `
-        UPDATE dbo.Payments
-        SET PaymentStatusId = @statusId, UpdatedAt = SYSUTCDATETIME()
-        WHERE ProviderPaymentId = @providerPaymentId;
-      `,
-      [
-        intParam("statusId", failedId),
-        varcharParam("providerPaymentId", object.id, 200),
-      ],
-    );
-  }
+  await reconcileCheckoutEvent(event);
 
   await reconcileStripeSetupEvent(event);
 
@@ -6128,7 +5995,9 @@ async function listWantedListings(
         w.StateProvince AS stateProvince,
         w.Notes AS notes,
         w.IsOpen AS isOpen,
-        w.CreatedAt AS createdAt
+        w.CreatedAt AS createdAt,
+        (SELECT COUNT(*) FROM dbo.Quotes q WHERE q.WantedListingId=w.Id) AS responseCount,
+        (SELECT COUNT(*) FROM dbo.Quotes q JOIN dbo.QuoteStatuses qs ON qs.Id=q.QuoteStatusId WHERE q.WantedListingId=w.Id AND qs.Code='accepted') AS acceptedCount
       FROM dbo.WantedListings w
       INNER JOIN dbo.Companies c ON c.Id = w.BuyerCompanyId
       INNER JOIN dbo.MaterialTypes mt ON mt.Id = w.MaterialTypeId
@@ -6463,6 +6332,9 @@ export async function handleApiRoute(
 ) {
   // The modular handlers own listing/sample CRUD. Legacy core implementations below
   // remain for reference; only explicitly forwarded marketplace/moderation paths reach them.
+  if (await handleCheckoutRoute(request,response,requestUrl)) return true;
+  if (await handleRfqRoute(request,response,requestUrl)) return true;
+  if (await handleMvpRoute(request,response,requestUrl)) return true;
   if (await handlePartnerRoute(request,response,requestUrl)) return true;
   if (await handleTrackerRoute(request,response,requestUrl)) return true;
   if (await handleDemoOrderRoute(request,response,requestUrl)) return true;

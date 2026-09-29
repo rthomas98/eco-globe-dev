@@ -71,6 +71,11 @@ try {
     const buyer = await call('/auth/login','POST',{email:'demo.buyer@ecoglobe.com',password:process.env.ECOGLOBE_DEMO_PASSWORD,role:'buyer'});
     assert.equal((await call('/auth/session','GET',undefined,admin.token)).user.activeRoleCode,'admin');
     await call('/api/companies','POST',{legalName:'Rejected',companyTypeCode:'seller'},undefined,401);
+    phase = 'payment exception admin isolation';
+    assert.ok(Array.isArray((await call('/api/admin/payment-exceptions','GET',undefined,admin.token)).exceptions));
+    await call('/api/admin/payment-exceptions','GET',undefined,buyer.token,403);
+    await call('/api/admin/payment-exceptions','GET',undefined,undefined,401);
+    await call('/api/admin/payment-exceptions?status=invalid','GET',undefined,admin.token,400);
     phase = 'company create and direct SQL read';
     const company = (await call('/api/companies','POST',{legalName:name,companyTypeCode:'seller'},admin.token,201)).company;
     assert.equal((await pool.request().input('id',sql.Int,company.id).query('SELECT LegalName FROM dbo.Companies WHERE Id=@id')).recordset[0].LegalName,name);
@@ -84,8 +89,79 @@ try {
     await call('/api/companies/'+company.id,'DELETE',undefined,admin.token);
     const deleted=await pool.request().input('id',sql.Int,company.id).query('SELECT s.Code FROM dbo.Companies c JOIN dbo.AccountStatuses s ON c.VerificationStatusId=s.Id WHERE c.Id=@id');
     assert.equal(deleted.recordset[0].Code,'inactive');
+    phase = 'MVP documents persist and isolate tenants';
+    const buyerCompany=buyer.user.activeCompanyId;
+    assert.ok(buyerCompany);
+    const { PDFDocument } = require('pdf-lib');
+    const pdf=await PDFDocument.create();pdf.addPage();
+    const documentBody={fileName:'mvp-verification.pdf',contentType:'application/pdf',contentBase64:Buffer.from(await pdf.save()).toString('base64'),category:'general'};
+    const uploaded=(await call('/api/documents','POST',documentBody,buyer.token,201)).document;
+    assert.ok((await call('/api/documents','GET',undefined,buyer.token)).documents.some(d=>d.id===uploaded.id));
+    await call('/api/documents?companyId='+company.id,'GET',undefined,buyer.token,403);
+    const download=await fetch(origin+'/api/documents/'+uploaded.id+'/download',{headers:{authorization:'Bearer '+buyer.token}});
+    assert.equal(download.status,200);assert.equal(Buffer.from(await download.arrayBuffer()).toString('base64'),documentBody.contentBase64);
+    await call('/api/documents/'+uploaded.id,'PATCH',{status:'approved',note:'Cannot approve own evidence'},buyer.token,403);
+    await call('/api/documents/'+uploaded.id,'PATCH',{status:'approved',note:'Local QA evidence review'},admin.token);
+    assert.equal((await call('/api/documents','GET',undefined,buyer.token)).documents.find(d=>d.id===uploaded.id).status,'approved');
+    phase='MVP verification evidence and review persist';
+    await call('/api/companies/'+buyerCompany+'/verification','POST',{...documentBody,type:'business'},buyer.token,201);
+    await call('/api/admin/verifications/'+buyerCompany,'PATCH',{decision:'approved',note:'Local QA verification'},admin.token);
+    assert.equal((await call('/api/companies/'+buyerCompany+'/verification','GET',undefined,buyer.token)).status,'verified');
+    phase='MVP contact persists and finance rejects fabricated success';
+    const contact=await call('/api/contact','POST',{name:'Local QA',email:'qa@example.invalid',topic:'MVP test',message:'Local persistence verification only'},undefined,202);
+    assert.equal(contact.deliveryStatus,'recorded');
+    assert.ok((await call('/api/admin/contact-requests','GET',undefined,admin.token)).requests.some(r=>r.id===contact.id));
+    await call('/api/admin/contact-requests','GET',undefined,buyer.token,403);
+    await call('/api/payments','POST',{orderId:1,payerCompanyId:buyerCompany,paymentStatusCode:'captured'},buyer.token,409);
+    await call('/api/escrows','POST',{orderId:1,escrowStatusCode:'funded'},buyer.token,409);
+    await call('/api/checkout','POST',{listingId:1,quantity:1,idempotencyKey:'local-qa-checkout-001'},buyer.token,503);
+    await call('/api/users/'+buyer.user.id,'PATCH',{accountStatusCode:'active'},buyer.token,403);
+    console.log(JSON.stringify({mvpDocuments:true,downloadBytes:true,tenantRejection:true,verificationPersistence:true,contactPersistence:true,falsePaymentRejected:true,providerUnavailableSafe:true}));
+    phase = 'RFQ responses and buyer-only acceptance';
+    const seller=await call('/auth/login','POST',{email:'demo.seller@ecoglobe.com',password:process.env.ECOGLOBE_DEMO_PASSWORD,role:'seller'});
+    const lookups=(await call('/api/lookups')).lookups;
+    const material=lookups.MaterialTypes[0];
+    const location=(await pool.request().input('company',sql.Int,seller.user.activeCompanyId).query(`
+      INSERT dbo.Locations(CompanyId,LocationTypeId,Name,AddressLine1,City,CountryCode)
+      OUTPUT INSERTED.Id AS id VALUES(@company,(SELECT TOP(1) Id FROM dbo.LocationTypes ORDER BY Id),'Local QA location','Test fixture only','Local QA','US')`)).recordset[0];
+    const listing=(await pool.request().input('company',sql.Int,seller.user.activeCompanyId).input('location',sql.Int,location.id).input('slug',sql.VarChar,'local-qa-'+randomBytes(8).toString('hex')).input('material',sql.Int,material.id).query(`
+      INSERT dbo.Listings(SellerCompanyId,LocationId,Title,Slug,MaterialTypeId,Quantity,QuantityUnit,MinimumOrderQuantity,PricePerUnit,CurrencyCode,ListingStatusId)
+      OUTPUT INSERTED.Id AS id VALUES(@company,@location,'Local QA RFQ feedstock',@slug,@material,10,'ton',1,25,'USD',(SELECT Id FROM dbo.ListingStatuses WHERE Code='published'))`)).recordset[0];
+    const wanted=(await call('/api/wanted-listings','POST',{title:'Local QA demand',materialTypeCode:material.code,quantity:2,quantityUnit:'ton',countryCode:'US'},buyer.token,201)).wantedListing;
+    const reply=(await call('/api/wanted-listings/'+wanted.id+'/responses','POST',{listingId:listing.id,quantity:2,unitPrice:24},seller.token,201)).quote;
+    assert.equal((await call('/api/wanted-listings/'+wanted.id+'/responses','GET',undefined,buyer.token)).responses[0].id,reply.id);
+    await call('/api/quotes/'+reply.id,'PATCH',{quoteStatusCode:'accepted'},seller.token,403);
+    await call('/api/quotes/'+reply.id,'PATCH',{quoteStatusCode:'accepted',unitPrice:1},buyer.token,403);
+    await call('/api/quotes/'+reply.id,'PATCH',{quoteStatusCode:'accepted'},buyer.token);
+    const wantedSaved=(await call('/api/wanted-listings?mine=true','GET',undefined,buyer.token)).wantedListings.find(w=>w.id===wanted.id);
+    assert.equal(wantedSaved.responseCount,1);assert.equal(wantedSaved.acceptedCount,1);
+    phase='checkout idempotency, stock reservation and concurrent oversell';
+    const {reserveCheckout}=await import('../packages/backend/src/checkout-routes.ts');
+    const actor={userId:buyer.user.id,companyId:buyerCompany,isAdmin:false};
+    const config={platform:'acct_local_qa',live:false};
+    const retryKey='qa-retry-'+randomBytes(8).toString('hex');
+    const checkoutBody={listingId:listing.id,quantity:2,idempotencyKey:retryKey,deliveryMethod:'pickup',quoteId:reply.id};
+    await assert.rejects(reserveCheckout(actor,checkoutBody,config),/upload the SDS/);
+    await pool.request().input('listing',sql.Int,listing.id).input('content',sql.VarBinary(sql.MAX),Buffer.from(documentBody.contentBase64,'base64')).query(`
+      INSERT dbo.ListingDocuments(ListingId,DocumentTypeId,FileName,FileUrl,VerificationStatusId,Content,ContentType)
+      VALUES(@listing,(SELECT Id FROM dbo.DocumentTypes WHERE Code='sds'),'SYNTHETIC-QA-NOT-A-REAL-SDS.pdf','',(SELECT Id FROM dbo.AccountStatuses WHERE Code='pending_verification'),@content,'application/pdf')`);
+    const [first,retry]=await Promise.all([reserveCheckout(actor,checkoutBody,config),reserveCheckout(actor,checkoutBody,config)]);
+    assert.equal(first.orderId,retry.orderId);assert.equal(Number(first.amountCents),4800);
+    await assert.rejects(reserveCheckout(actor,{...checkoutBody,quantity:3},config),/different details/);
+    const attempts=await Promise.allSettled([reserveCheckout(actor,{listingId:listing.id,quantity:6,idempotencyKey:'qa-stock-a-'+randomBytes(8).toString('hex')},config),reserveCheckout(actor,{listingId:listing.id,quantity:6,idempotencyKey:'qa-stock-b-'+randomBytes(8).toString('hex')},config)]);
+    assert.equal(attempts.filter(r=>r.status==='fulfilled').length,1);
+    const available=(await pool.request().input('id',sql.Int,listing.id).query('SELECT Quantity FROM dbo.Listings WHERE Id=@id')).recordset[0].Quantity;
+    assert.equal(Number(available),2);
+    console.log(JSON.stringify({checkoutIdempotent:true,quotePriceSaved:true,concurrentOversellRejected:true,remainingStock:Number(available)}));
+    await call('/auth/logout','POST',undefined,seller.token);
+    console.log(JSON.stringify({rfqPersisted:true,responseCounts:true,sellerCannotAccept:true,buyerCannotReprice:true}));
+    phase = 'admin suspension revokes existing sessions permanently';
+    await call('/api/users/'+buyer.user.id,'PATCH',{accountStatusCode:'suspended'},admin.token);
+    await call('/auth/session','GET',undefined,buyer.token,401);
+    await call('/api/users/'+buyer.user.id,'PATCH',{accountStatusCode:'active'},admin.token);
+    await call('/auth/session','GET',undefined,buyer.token,401);
     phase = 'logout revocation';
-    for (const session of [admin,buyer]) {
+    for (const session of [admin]) {
       await call('/auth/logout','POST',undefined,session.token);
       await call('/auth/session','GET',undefined,session.token,401);
     }

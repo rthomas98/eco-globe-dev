@@ -1,103 +1,67 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { fetchAllListings, moderateListing, trailingNumericId } from "@/lib/api-portal";
-import { readDemoUser } from "@/lib/demo-user";
+import { useState } from "react";
 import Link from "next/link";
-import { Flag, Filter, Check, X, Eye } from "lucide-react";
+import { Filter, Check, X, Eye, Package } from "lucide-react";
+import { fetchAllListings, moderateListing, type ApiAdminListing } from "@/lib/api-portal";
+import { listingImageForTitle } from "@/lib/api-orders";
+import { describeBackendError } from "@/lib/backend-client";
+import { DataBoundary, useBackendData } from "@/components/shared/data-state";
 
-type ModStatus = "Pending" | "Flagged" | "Approved" | "Rejected";
+type ModStatus = "Pending" | "Published" | "Paused" | "Draft";
 
-interface ModItem {
-  id: string;
-  product: string;
-  seller: string;
-  image: string;
-  submitted: string;
-  status: ModStatus;
-  reason?: string;
+function statusOf(listing: ApiAdminListing): ModStatus | null {
+  switch (listing.listingStatusCode) {
+    case "pending_review":
+      return "Pending";
+    case "published":
+      return "Published";
+    case "paused":
+      return "Paused";
+    case "draft":
+      return "Draft";
+    default:
+      return null; // closed and other terminal states are not moderated
+  }
 }
 
-const items: ModItem[] = [
-  { id: "EG-PROD-00031", product: "Bio-based Resin Pellets", seller: "EcoPack Co.", image: "/products/red-granules.png", submitted: "2026-05-03", status: "Pending" },
-  { id: "EG-PROD-00030", product: "Recycled Aluminum Sheet", seller: "Metal Reclaim LLC", image: "/products/wood-chips.png", submitted: "2026-05-02", status: "Flagged", reason: "Buyer flagged sustainability claim" },
-  { id: "EG-PROD-00028", product: "CBO Coal Tar Carbon Black Oil", seller: "Refinery Surplus", image: "/products/coal-tar.png", submitted: "2026-05-01", status: "Pending" },
-  { id: "EG-PROD-00027", product: "Molecular Sieve Zeolite 13X", seller: "EcoPack Co.", image: "/products/molecular-sieve.png", submitted: "2026-04-30", status: "Approved" },
-  { id: "EG-PROD-00026", product: "Natural Zeolite Powder", seller: "EcoPack Co.", image: "/products/zeolite-powder.png", submitted: "2026-04-29", status: "Approved" },
-  { id: "EG-PROD-00025", product: "Natural Rutile Sand Concentrate", seller: "Metal Reclaim LLC", image: "/products/rutile-sand.png", submitted: "2026-04-28", status: "Rejected", reason: "Origin documentation incomplete" },
-];
-
-const STATUSES: Array<ModStatus | "All"> = ["All", "Pending", "Flagged", "Approved", "Rejected"];
+const STATUSES: Array<ModStatus | "All"> = ["All", "Pending", "Published", "Paused", "Draft"];
 
 export function AdminModerationPage() {
-  const [rows, setRows] = useState<ModItem[]>(items);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const listings = useBackendData(fetchAllListings, [], "Listings could not be loaded.");
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Live listings awaiting review render ahead of the demo queue.
-  useEffect(() => {
-    if (!readDemoUser()) return;
-    let cancelled = false;
-    fetchAllListings()
-      .then((listings) => {
-        if (cancelled) return;
-        const live: ModItem[] = listings
-          .filter((l) => l.listingStatusCode !== "closed")
-          .map((l) => ({
-            id: `LS-${l.id}`,
-            product: l.title,
-            seller: l.sellerCompanyName,
-            image: "/products/generated/bagasse.png",
-            submitted: "—",
-            status:
-              l.listingStatusCode === "pending_review"
-                ? "Pending"
-                : l.listingStatusCode === "published"
-                  ? "Approved"
-                  : l.listingStatusCode === "paused"
-                    ? "Flagged"
-                    : "Rejected",
-          }));
-        if (live.length > 0) setRows([...live, ...items]);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const decide = async (item: ModItem, decision: "approve" | "reject") => {
-    const liveId = trailingNumericId(item.id);
-    setBusyId(item.id);
-    if (liveId && item.id.startsWith("LS-")) {
-      try {
-        await moderateListing(liveId, decision);
-      } catch {
-        setBusyId(null);
-        return;
-      }
+  // A decision is shown only after the backend saves it and the list is re-read.
+  const decide = async (listing: ApiAdminListing, decision: "approve" | "reject") => {
+    setBusyId(listing.id);
+    setActionError(null);
+    try {
+      await moderateListing(listing.id, decision);
+      listings.reload();
+    } catch (error) {
+      setActionError(
+        describeBackendError(error, `The decision for “${listing.title}” was not saved.`),
+      );
+    } finally {
+      setBusyId(null);
     }
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === item.id
-          ? { ...r, status: decision === "approve" ? "Approved" : "Rejected" }
-          : r,
-      ),
-    );
-    setBusyId(null);
   };
-  void busyId;
-  const [filter, setFilter] = useState<ModStatus | "All">("All");
-  const visible = rows.filter((i) => filter === "All" || i.status === filter);
+  const [filter, setFilter] = useState<ModStatus | "All">("Pending");
+  const matches = (listing: ApiAdminListing) => {
+    const status = statusOf(listing);
+    return status !== null && (filter === "All" || status === filter);
+  };
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="px-8 py-8">
+      <div className="px-4 py-6 sm:px-8 sm:py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900">Listing moderation</h1>
             <p className="mt-1 text-sm text-neutral-500">
-              Approve new listings, review flagged sustainability claims, and keep
-              the marketplace catalog trustworthy.
+              Approve listings submitted for review or return them to the seller as drafts.
+              Changes are saved to the listing before they appear here.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -121,51 +85,86 @@ export function AdminModerationPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((item) => (
-            <div
-              key={item.id}
-              className="overflow-hidden rounded-xl bg-white"
-              style={{ border: "1px solid #F0F0F0" }}
-            >
-              <div className="relative h-40 overflow-hidden">
-                <img src={item.image} alt="" className="size-full object-cover" />
-                <div className="absolute left-3 top-3">
-                  <ModBadge status={item.status} />
-                </div>
-                {item.reason && (
-                  <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1.5 bg-amber-50/90 px-3 py-1.5 text-xs text-amber-900">
-                    <Flag className="size-3" />
-                    {item.reason}
-                  </div>
-                )}
-              </div>
-              <div className="p-4">
-                <p className="text-sm font-semibold text-neutral-900 line-clamp-2">{item.product}</p>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  {item.seller} · submitted {item.submitted}
-                </p>
-                <p className="mt-0.5 font-mono text-xs text-neutral-400">{item.id}</p>
-                <div className="mt-4 flex items-center gap-2">
-                  <Link
-                    href={`/admin/listings/${item.id}`}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-white py-1.5 text-xs font-medium text-neutral-900 hover:bg-neutral-100"
-                    style={{ border: "1px solid #E0E0E0" }}
+        {actionError && (
+          <p role="alert" className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+            {actionError}
+          </p>
+        )}
+
+        <DataBoundary
+          state={listings}
+          loadingLabel="Loading listings…"
+          isEmpty={(rows) => rows.filter(matches).length === 0}
+          empty={{
+            title: filter === "Pending" ? "No listings awaiting review" : "No listings match this filter",
+            description: "Listings appear here when sellers submit them for review.",
+          }}
+        >
+          {(rows) => (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {rows.filter(matches).map((item) => {
+                const status = statusOf(item) as ModStatus;
+                const image = listingImageForTitle(item.title);
+                const busy = busyId === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    className="overflow-hidden rounded-xl bg-white"
+                    style={{ border: "1px solid #F0F0F0" }}
                   >
-                    <Eye className="size-3" />
-                    Review
-                  </Link>
-                  <button onClick={() => void decide(item, "reject")} className="flex size-8 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100" title="Reject">
-                    <X className="size-3" />
-                  </button>
-                  <button onClick={() => void decide(item, "approve")} className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-white hover:bg-neutral-800" title="Approve">
-                    <Check className="size-3" />
-                  </button>
-                </div>
-              </div>
+                    <div className="relative flex h-40 items-center justify-center overflow-hidden bg-neutral-100">
+                      {image ? (
+                        <img src={image} alt="" className="size-full object-cover" />
+                      ) : (
+                        <Package className="size-8 text-neutral-400" />
+                      )}
+                      <div className="absolute left-3 top-3">
+                        <ModBadge status={status} />
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <p className="text-sm font-semibold text-neutral-900 line-clamp-2">{item.title}</p>
+                      <p className="mt-0.5 text-xs text-neutral-500">{item.sellerCompanyName}</p>
+                      <p className="mt-0.5 font-mono text-xs text-neutral-400">LS-{item.id}</p>
+                      <div className="mt-4 flex items-center gap-2">
+                        <Link
+                          href={`/admin/listings/LS-${item.id}`}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-white py-1.5 text-xs font-medium text-neutral-900 hover:bg-neutral-100"
+                          style={{ border: "1px solid #E0E0E0" }}
+                        >
+                          <Eye className="size-3" />
+                          Review
+                        </Link>
+                        {status !== "Draft" && (
+                          <button
+                            disabled={busy}
+                            onClick={() => void decide(item, "reject")}
+                            className="flex size-8 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
+                            title="Return to seller as draft"
+                            aria-label={`Return ${item.title} to draft`}
+                          >
+                            <X className="size-3" />
+                          </button>
+                        )}
+                        {status !== "Published" && (
+                          <button
+                            disabled={busy}
+                            onClick={() => void decide(item, "approve")}
+                            className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-white hover:bg-neutral-800 disabled:opacity-50"
+                            title="Approve and publish"
+                            aria-label={`Publish ${item.title}`}
+                          >
+                            <Check className="size-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          )}
+        </DataBoundary>
       </div>
     </div>
   );
@@ -174,9 +173,9 @@ export function AdminModerationPage() {
 function ModBadge({ status }: { status: ModStatus }) {
   const tone: Record<ModStatus, { bg: string; fg: string }> = {
     Pending: { bg: "#FEF3C7", fg: "#92400E" },
-    Flagged: { bg: "#FFEDD5", fg: "#C2410C" },
-    Approved: { bg: "#DCFCE7", fg: "#166534" },
-    Rejected: { bg: "#FEE2E2", fg: "#991B1B" },
+    Paused: { bg: "#FFEDD5", fg: "#C2410C" },
+    Published: { bg: "#DCFCE7", fg: "#166534" },
+    Draft: { bg: "#F4F4F5", fg: "#3F3F46" },
   };
   const t = tone[status];
   return (

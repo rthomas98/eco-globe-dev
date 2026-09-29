@@ -10,7 +10,6 @@ const ranges = [
   { key: "6m", label: "Last 6 months" },
   { key: "1y", label: "Last year" },
   { key: "all", label: "All time" },
-  { key: "custom", label: "Custom range" },
 ];
 
 interface DateRangeDropdownProps {

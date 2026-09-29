@@ -3,130 +3,109 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Info, MoreHorizontal, Filter, CheckCheck, Settings, Mail, MessageSquareText, MonitorDot } from "lucide-react";
-import {
-  adminNotificationGroups,
-  type AdminNotification,
-} from "./notifications-data";
+import type { AdminNotification } from "./notifications-data";
 import {
   markLiveNotificationRead,
   useLiveNotifications,
 } from "@/components/notifications/use-live-notifications";
-import type { NotificationChannel } from "@/components/notifications/notifications-demo-data";
+import {
+  notificationGroupOrder,
+  type NotificationCategory,
+  type NotificationChannel,
+  type PortalNotification,
+} from "@/components/notifications/notification-model";
+import { EmptyState, ErrorState, LoadingState } from "@/components/shared/data-state";
 import { LabNotificationsSection } from "./lab-notifications-section";
 
 type Tab = "all" | "unread";
-type Category =
-  | "All"
-  | "Approvals"
-  | "Compliance"
-  | "Transactions"
-  | "Disputes"
-  | "System"
-  | "Orders"
-  | "Payments"
-  | "Sustainability";
+type Category = "All" | NotificationCategory;
 
-const CATEGORIES: Category[] = [
-  "All",
-  "Approvals",
-  "Compliance",
-  "Transactions",
-  "Disputes",
-  "Orders",
-  "Payments",
-  "Sustainability",
-  "System",
-];
+const CATEGORIES: Category[] = ["All", "Orders", "Payments", "Compliance", "Sustainability", "System"];
 
-const CATEGORY_TONE: Record<Exclude<Category, "All">, { bg: string; fg: string }> = {
-  Approvals: { bg: "#E0F2FE", fg: "#075985" },
+const CATEGORY_TONE: Record<NotificationCategory, { bg: string; fg: string }> = {
   Compliance: { bg: "#FEF3C7", fg: "#92400E" },
-  Transactions: { bg: "#DCFCE7", fg: "#166534" },
-  Disputes: { bg: "#FEE2E2", fg: "#991B1B" },
   Orders: { bg: "#DBEAFE", fg: "#1D4ED8" },
   Payments: { bg: "#DCFCE7", fg: "#166534" },
   Sustainability: { bg: "#D1FAE5", fg: "#047857" },
   System: { bg: "#F1F5F9", fg: "#334155" },
 };
 
+const HREF_BY_CATEGORY: Record<NotificationCategory, string> = {
+  Orders: "/admin/sales",
+  Payments: "/admin/accounting/escrow",
+  Sustainability: "/admin/reports/carbon",
+  Compliance: "/admin/kyc",
+  System: "/admin/settings/notifications",
+};
+
+function toAdminNotification(n: PortalNotification): AdminNotification {
+  return {
+    id: n.id,
+    group: n.group,
+    msg: typeof n.message === "string" ? n.message : n.detail,
+    source: n.source,
+    time: n.time,
+    unread: n.unread,
+    category: n.category,
+    href: HREF_BY_CATEGORY[n.category],
+    channels: n.channels,
+    detail: n.detail,
+  };
+}
+
 export function AdminNotificationsPage() {
   const [tab, setTab] = useState<Tab>("all");
   const [category, setCategory] = useState<Category>("All");
   const [readIds, setReadIds] = useState<string[]>([]);
+  const [markError, setMarkError] = useState<string | null>(null);
+  const live = useLiveNotifications();
 
-  const isUnread = (item: AdminNotification) =>
-    item.unread && !readIds.includes(item.id);
+  const isUnread = (item: AdminNotification) => item.unread && !readIds.includes(item.id);
+  const all = useMemo(() => live.items.map(toAdminNotification), [live.items]);
 
-  const liveNotifications = useLiveNotifications();
+  const filtered = notificationGroupOrder
+    .map((group) => ({
+      group,
+      items: all.filter((i) => {
+        if (i.group !== group) return false;
+        if (tab === "unread" && !isUnread(i)) return false;
+        if (category !== "All" && i.category !== category) return false;
+        return true;
+      }),
+    }))
+    .filter((g) => g.items.length > 0);
 
-  const filtered = useMemo(() => {
-    // Live platform notifications join the demo groups by time bucket.
-    const liveAsAdmin: AdminNotification[] = liveNotifications.map((n) => ({
-      id: n.id,
-      msg: typeof n.message === "string" ? n.message : n.detail,
-      source: n.source,
-      time: n.time,
-      unread: n.unread,
-      category:
-        n.category === "Orders"
-          ? "Orders"
-          : n.category === "Payments"
-            ? "Payments"
-            : n.category === "Sustainability"
-              ? "Sustainability"
-              : "System",
-      channels: n.channels,
-      priority: n.priority,
-      detail: n.detail,
-    }));
-    const groupsWithLive = adminNotificationGroups.map((g) => ({
-      group: g.group,
-      items: [
-        ...liveAsAdmin.filter((_, idx) =>
-          liveNotifications[idx]?.group === g.group,
-        ),
-        ...g.items,
-      ],
-    }));
-    return groupsWithLive
-      .map((g) => ({
-        group: g.group,
-        items: g.items.filter((i) => {
-          if (tab === "unread" && !isUnread(i)) return false;
-          if (category !== "All" && i.category !== category) return false;
-          return true;
-        }),
-      }))
-      .filter((g) => g.items.length > 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, category, readIds, liveNotifications]);
+  const totalUnread = all.filter((i) => isUnread(i)).length;
 
-  const totalUnread = adminNotificationGroups
-    .flatMap((g) => g.items)
-    .filter((i) => isUnread(i)).length;
+  // Rows turn read only after the backend confirms each change.
+  const markRead = async (items: AdminNotification[]) => {
+    setMarkError(null);
+    const results = await Promise.all(
+      items.map((item) => markLiveNotificationRead(item.id).then((saved) => (saved ? item.id : null))),
+    );
+    const saved = results.filter((id): id is string => id !== null);
+    setReadIds((current) => [...new Set([...current, ...saved])]);
+    if (saved.length < items.length) setMarkError("Some notifications could not be marked as read.");
+  };
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="px-8 pt-8 pb-16">
+      <div className="px-4 pt-6 pb-16 sm:px-8 sm:pt-8">
         {/* Heading */}
-        <div className="mb-6 flex items-end justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900">Notifications</h1>
             <p className="mt-1 text-sm text-neutral-500">
-              All platform activity in one place — {totalUnread} unread.
+              In-app notifications recorded for your account
+              {live.status === "ready" ? ` — ${totalUnread} unread.` : "."}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                liveNotifications.forEach((n) => markLiveNotificationRead(n.id));
-                setReadIds([
-                  ...liveNotifications.map((n) => n.id),
-                  ...adminNotificationGroups.flatMap((g) => g.items.map((item) => item.id)),
-                ]);
-              }}
-              className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              disabled={totalUnread === 0}
+              onClick={() => void markRead(all.filter((i) => isUnread(i)))}
+              className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
               style={{ border: "1px solid #E0E0E0" }}
             >
               <CheckCheck className="size-4" />
@@ -144,8 +123,6 @@ export function AdminNotificationsPage() {
         </div>
 
         <LabNotificationsSection />
-
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Demo activity (sample data)</p>
 
         {/* Tabs + category filter */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -190,39 +167,56 @@ export function AdminNotificationsPage() {
           </div>
         </div>
 
-        {/* Empty state */}
-        {filtered.length === 0 && (
-          <div className="rounded-xl bg-white px-6 py-12 text-center" style={{ border: "1px solid #F0F0F0" }}>
-            <p className="text-sm font-medium text-neutral-700">No notifications match.</p>
-            <p className="mt-1 text-xs text-neutral-500">Try clearing your filters or switching tabs.</p>
-          </div>
+        {markError && (
+          <p role="alert" className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+            {markError}
+          </p>
         )}
 
-        {/* Groups */}
-        <div className="flex flex-col gap-6">
-          {filtered.map((group) => (
-            <section key={group.group}>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
-                {group.group}
-              </h3>
-              <div className="rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
-                {group.items.map((item, i) => (
-                  <NotificationRow
-                    key={item.id}
-                    item={item}
-                    unread={isUnread(item)}
-                    onOpen={() =>
-                      setReadIds((current) =>
-                        current.includes(item.id) ? current : [...current, item.id],
-                      )
-                    }
-                    isLast={i === group.items.length - 1}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+        {live.status !== "ready" || filtered.length === 0 ? (
+          <div className="rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
+            {live.status === "loading" && <LoadingState label="Loading notifications…" />}
+            {live.status === "error" && (
+              <ErrorState message={live.error ?? "Notifications could not be loaded."} onRetry={live.reload} />
+            )}
+            {live.status === "signed-out" && (
+              <EmptyState title="Sign in to see notifications" />
+            )}
+            {live.status === "ready" && (
+              <EmptyState
+                title={all.length === 0 ? "No notifications yet" : "No notifications match."}
+                description={
+                  all.length === 0
+                    ? "Platform notifications for your account will appear here."
+                    : "Try clearing your filters or switching tabs."
+                }
+              />
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-6">
+            {filtered.map((group) => (
+              <section key={group.group}>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
+                  {group.group}
+                </h3>
+                <div className="rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
+                  {group.items.map((item, i) => (
+                    <NotificationRow
+                      key={item.id}
+                      item={item}
+                      unread={isUnread(item)}
+                      onOpen={() => {
+                        if (isUnread(item)) void markRead([item]);
+                      }}
+                      isLast={i === group.items.length - 1}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -239,7 +233,7 @@ function NotificationRow({
   onOpen: () => void;
   isLast: boolean;
 }) {
-  const tone = CATEGORY_TONE[item.category as Exclude<Category, "All">];
+  const tone = CATEGORY_TONE[item.category];
   const channelIcon: Record<NotificationChannel, React.ComponentType<{ className?: string }>> = {
     email: Mail,
     sms: MessageSquareText,
@@ -271,7 +265,7 @@ function NotificationRow({
           </p>
         </div>
         <p className="mt-1 text-xs text-neutral-400">
-          {item.source} · {item.time} · {item.priority} priority
+          {item.source} · {item.time}
         </p>
         <p className="mt-2 text-xs leading-5 text-neutral-500">{item.detail}</p>
         <div className="mt-3 flex flex-wrap gap-1.5">

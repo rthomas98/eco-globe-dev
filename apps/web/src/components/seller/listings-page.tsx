@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, LayoutGrid, List, Info, ChevronRight, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@eco-globe/ui";
+import { RfqRespondForm } from "./rfq-respond-form";
 import { SellerLayout } from "./seller-layout";
 import { useDemoUser } from "@/lib/demo-user";
 import { useListings } from "@/lib/use-listings";
@@ -82,6 +83,7 @@ export function ListingsPage() {
   const localDrafts = useLocalListingDrafts();
   const [interest, setInterest] = useState<ApiInterestRow[]>([]);
   const [demand, setDemand] = useState<ApiWantedListing[]>([]);
+  const [respondingId, setRespondingId] = useState<number | null>(null);
 
   // Aggregate buyer-interest signals and open buyer demand for the active company.
   useEffect(() => {
@@ -148,16 +150,12 @@ export function ListingsPage() {
         <div className="mb-5 rounded-xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
           <h2 className="mb-1 text-sm font-bold text-neutral-900">Buyers are looking for</h2>
           <p className="mb-3 text-xs text-neutral-500">
-            Open wanted listings from verified buyers. Post a matching listing
-            to connect.
+            Open requests from buyers. Respond with a quote from a matching published listing.
           </p>
           <div className="flex flex-col gap-2">
             {demand.slice(0, 5).map((row) => (
-              <div
-                key={row.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-neutral-50 px-4 py-2 text-sm"
-                style={{ border: "1px solid #F0F0F0" }}
-              >
+              <div key={row.id} className="rounded-lg bg-neutral-50 px-4 py-2 text-sm" style={{ border: "1px solid #F0F0F0" }}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold text-neutral-900">{row.title}</span>
                 <span className="text-neutral-600">
                   {row.quantity} {row.quantityUnit} · {row.materialTypeName} ·{" "}
@@ -165,6 +163,13 @@ export function ListingsPage() {
                   {row.targetPricePerUnit != null &&
                     ` · target ${portalMoney(row.targetPricePerUnit, row.currencyCode)}`}
                 </span>
+                {respondingId !== row.id && (
+                  <button type="button" onClick={() => setRespondingId(row.id)} className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-semibold text-white">
+                    Respond
+                  </button>
+                )}
+              </div>
+              {respondingId === row.id && <RfqRespondForm wanted={row} onClose={() => setRespondingId(null)} />}
               </div>
             ))}
           </div>

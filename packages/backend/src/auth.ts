@@ -1005,7 +1005,7 @@ export async function getSessionFromToken(token: string | undefined) {
   );
 
   const session = rows[0];
-  if (!session) return undefined;
+  if (!session || ["inactive", "suspended"].includes(session.accountStatusCode)) return undefined;
 
   await queryRowsWithParams(
     `

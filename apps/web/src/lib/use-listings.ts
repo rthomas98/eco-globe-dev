@@ -14,6 +14,18 @@ import { useDemoUser, readDemoUser, clearDemoUser } from "./demo-user";
 import { refreshBackendSession } from "./backend-auth";
 import { BackendApiError } from "./backend-client";
 
+// Several listing hooks can mount at once (catalogue, map, favourites); they
+// share one in-flight session check instead of each calling /auth/session.
+let inflightRefresh: Promise<unknown> | null = null;
+function sharedSessionRefresh() {
+  if (!inflightRefresh) {
+    inflightRefresh = refreshBackendSession().finally(() => {
+      inflightRefresh = null;
+    });
+  }
+  return inflightRefresh;
+}
+
 /** Revalidate server-owned listing visibility after login, logout or company changes. */
 function useListingViewerKey() {
   const user = useDemoUser();
@@ -66,16 +78,20 @@ export function useListings(
     setState((prev) => ({ ...prev, status: "loading", error: null }));
     (async () => {
       // Public pages must not treat a cached profile as a valid server session.
-      if (readDemoUser()) {
-        try {
-          await refreshBackendSession();
-        } catch (error) {
-          if (error instanceof BackendApiError && error.status === 401)
-            clearDemoUser();
-          else throw error;
-        }
-      }
-      return fetchListings(scope, { search });
+      // The listings request is authorized server-side from the same session
+      // cookie, so it runs in parallel with the session check instead of
+      // after it; a 401 still clears the cached profile, which changes the
+      // viewer key and refetches as a guest.
+      const [records] = await Promise.all([
+        fetchListings(scope, { search }),
+        readDemoUser()
+          ? sharedSessionRefresh().catch((error: unknown) => {
+              if (error instanceof BackendApiError && error.status === 401) clearDemoUser();
+              else throw error;
+            })
+          : Promise.resolve(),
+      ]);
+      return records;
     })()
       .then((records) => {
         if (cancelled) return;

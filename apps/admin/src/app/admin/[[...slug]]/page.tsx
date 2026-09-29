@@ -1,19 +1,33 @@
-import { LabTestingQueuePage } from "@/components/admin/lab-testing-queue-page";
-import { LabPanelsPage } from "@/components/admin/lab-panels-page";
-import { AdminDocumentReviewPage } from "@/components/admin/document-review-page";
-import { SampleShippingDesk } from "@/components/samples/sample-shipping-desk";
 import { notFound, redirect } from "next/navigation";
 import { AccountPage } from "@/components/admin/account-page";
+import { AdminAuditPage } from "@/components/admin/audit-page";
 import { AdminBuyerDetailPage } from "@/components/admin/buyer-detail-page";
 import { AdminBuyersPage } from "@/components/admin/buyers-page";
+import { AdminContactRequestsPage } from "@/components/admin/contact-requests-page";
 import { AdminContractsPage } from "@/components/admin/contracts-page";
+import { AdminDisputesPage } from "@/components/admin/disputes-page";
+import { AdminDocumentReviewPage } from "@/components/admin/document-review-page";
 import { AdminESignaturesPage } from "@/components/admin/e-signatures-page";
-import { AdminLogisticsCommandCenter } from "@/components/logistics/admin-logistics-command-center";
+import { AdminEscrowDetailPage } from "@/components/admin/escrow-detail-page";
+import { EscrowPage } from "@/components/admin/escrow-page";
+import { AdminKycPage } from "@/components/admin/kyc-page";
+import { LabPanelsPage } from "@/components/admin/lab-panels-page";
+import { LabTestingQueuePage } from "@/components/admin/lab-testing-queue-page";
 import { AdminListingDetailPage } from "@/components/admin/listing-detail-page";
 import { AdminListingsPage } from "@/components/admin/listings-page";
+import { AdminLogisticsPage } from "@/components/admin/logistics-page";
+import { AdminModerationPage } from "@/components/admin/moderation-page";
 import { AdminNotificationsPage } from "@/components/admin/notifications-page";
-import { AdminPilotDeskPage } from "@/components/admin/pilot-desk-page";
+import { AdminPaymentExceptionsPage } from "@/components/admin/payment-exceptions-page";
+import { NotificationsPreferencesPage } from "@/components/admin/notifications-preferences-page";
 import { AdminPilotAvailabilityPage } from "@/components/admin/pilot-availability-page";
+import { AdminPilotDeskPage } from "@/components/admin/pilot-desk-page";
+import {
+  CarbonReportPage,
+  EscrowReportPage,
+  ProductsReportPage,
+  SalesReportPage,
+} from "@/components/admin/reports-pages";
 import { AdminSaleDetailPage } from "@/components/admin/sale-detail-page";
 import { SalesPage } from "@/components/admin/sales-page";
 import { AdminSellerDetailPage } from "@/components/admin/seller-detail-page";
@@ -27,45 +41,32 @@ import {
   SellerSettingsPage,
   TransactionRulesPage,
 } from "@/components/admin/settings-pages";
-import { NotificationsPreferencesPage } from "@/components/admin/notifications-preferences-page";
 import { SettingsRolesPage } from "@/components/admin/settings-roles-page";
 import { SettingsUsersPage } from "@/components/admin/settings-users-page";
+import { AdminTransactionDetailPage } from "@/components/admin/transaction-detail-page";
+import { TransactionsPage } from "@/components/admin/transactions-page";
 import { DocumentsCenter } from "@/components/documents/documents-center";
+import { PaymentsCenter } from "@/components/payments/payments-center";
 import {
   AnalyticsCenter,
+  AssetVerificationCenter,
+  DeliveryTrackingCenter,
+  MapIntelligenceCenter,
+  PartnerNetworkCenter,
   RecommendationsCenter,
 } from "@/components/phase-two/phase-two-centers";
 import {
+  BlockchainTraceabilityCenter,
   LanguageReadinessCenter,
+  MobileAccessPreviewCenter,
   NationalExpansionCenter,
+  SmartContractAutomationCenter,
 } from "@/components/phase-three/phase-three-centers";
+import { SampleShippingDesk } from "@/components/samples/sample-shipping-desk";
 import { VideoDemoCenter } from "@/components/video-demo/video-demo-center";
-import { AdminPartnerNetworkPage } from "@/components/partners/partner-network-workspace";
-import { AdminDeliveryTrackingCenter } from "@/components/logistics/admin-delivery-tracking-center";
-import { AdminMapIntelligenceCenter } from "@/components/logistics/admin-map-intelligence-center";
-import { AdminMobileAccessCenter } from "@/components/mobile/admin-mobile-access-center";
-import {
-  AdminBlockchainTraceabilityCenter,
-  AdminSmartContractAutomationCenter,
-} from "@/components/automation/admin-traceability-automation-centers";
-import {
-  AdminAssetVerificationCenter,
-  AdminPaymentsCenter,
-  AdminTransactionsCenter,
-} from "@/components/finance/admin-risk-finance-centers";
-import {
-  AdminCarbonReportPage,
-  AdminEscrowOperationsCenter,
-  AdminEscrowReportPage,
-  AdminProductsReportPage,
-  AdminSalesReportPage,
-} from "@/components/finance/admin-finance-reporting-centers";
-import {
-  AdminDisputesCenter,
-  AdminKycCenter,
-  AdminModerationCenter,
-} from "@/components/governance/admin-governance-centers";
-import { AdminAuditCenter } from "@/components/governance/admin-audit-center";
+
+// Mirrors the route tree in apps/web/src/app/(admin)/admin so the standalone
+// admin deployment renders exactly the same components as the web admin portal.
 
 interface PageProps {
   params: Promise<{ slug?: string[] }>;
@@ -73,10 +74,10 @@ interface PageProps {
 
 function renderSettings(path: string[]) {
   const route = path.join("/");
+  if (route === "" || route === "system") redirect("/admin/settings/system/users");
+
   const page =
-    route === "" || route === "system" ? (
-      redirect("/admin/settings/system/users")
-    ) : route === "system/users" ? (
+    route === "system/users" ? (
       <SettingsUsersPage />
     ) : route === "system/roles" ? (
       <SettingsRolesPage />
@@ -100,18 +101,44 @@ function renderSettings(path: string[]) {
   return <SettingsLayout>{page}</SettingsLayout>;
 }
 
+function renderAccounting(second?: string, third?: string) {
+  if (!second) redirect("/admin/accounting/transactions");
+  if (second === "transactions") {
+    return third ? (
+      <AdminTransactionDetailPage id={third} />
+    ) : (
+      <TransactionsPage />
+    );
+  }
+  if (second === "escrow") {
+    return third ? <AdminEscrowDetailPage id={third} /> : <EscrowPage />;
+  }
+  if (second === "payments" && !third) return <PaymentsCenter role="admin" />;
+  notFound();
+}
+
+function renderReports(second?: string) {
+  if (!second) redirect("/admin/reports/sales");
+  if (second === "sales") return <SalesReportPage />;
+  if (second === "products") return <ProductsReportPage />;
+  if (second === "escrow") return <EscrowReportPage />;
+  if (second === "carbon") return <CarbonReportPage />;
+  notFound();
+}
+
 export default async function Page({ params }: PageProps) {
   const { slug = [] } = await params;
   const [section, second, third] = slug;
 
   if (!section || section === "dashboard") redirect("/admin/sales");
-
   if (section === "settings") return renderSettings(slug.slice(1));
+  if (section === "accounting") return renderAccounting(second, third);
+  if (section === "reports") return renderReports(second);
 
+  // Detail routes: /admin/<section>/<id>
   if (section === "sales") {
     return second ? <AdminSaleDetailPage id={second} /> : <SalesPage />;
   }
-
   if (section === "listings") {
     return second ? (
       <AdminListingDetailPage id={second} />
@@ -119,7 +146,6 @@ export default async function Page({ params }: PageProps) {
       <AdminListingsPage />
     );
   }
-
   if (section === "sellers") {
     return second ? (
       <AdminSellerDetailPage id={second} />
@@ -127,83 +153,77 @@ export default async function Page({ params }: PageProps) {
       <AdminSellersPage />
     );
   }
-
   if (section === "buyers") {
     return second ? <AdminBuyerDetailPage id={second} /> : <AdminBuyersPage />;
   }
-
+  if (section === "pilots") {
+    if (second === "availability") return <AdminPilotAvailabilityPage />;
+    return <AdminPilotDeskPage id={second} />;
+  }
   if (section === "lab-testing") {
     if (second === "panels" && !third) return <LabPanelsPage />;
     if (!second) return <LabTestingQueuePage />;
     notFound();
   }
-  if (section === "document-review" && !second)
-    return <AdminDocumentReviewPage />;
-
-  if (section === "samples") return <SampleShippingDesk role="admin" />;
-  if (section === "pilots") {
-    if (second === "availability") return <AdminPilotAvailabilityPage />;
-    return <AdminPilotDeskPage id={second} />;
-  }
-
-  if (section === "logistics")
-    return <AdminLogisticsCommandCenter shipmentId={second} />;
-  if (section === "contracts")
-    return <AdminContractsPage contractId={second} />;
+  if (section === "contracts") return <AdminContractsPage contractId={second} />;
   if (section === "e-signatures")
     return <AdminESignaturesPage envelopeId={second} />;
-  if (section === "documents")
-    return <DocumentsCenter role="admin" documentId={second} />;
-  if (section === "video-demos")
-    return <VideoDemoCenter role="admin" demoId={second} />;
-  if (section === "delivery-tracking")
-    return <AdminDeliveryTrackingCenter shipmentId={second} />;
-  if (section === "partners")
-    return <AdminPartnerNetworkPage partnerId={second} />;
-  if (section === "asset-verification")
-    return <AdminAssetVerificationCenter assetId={second} />;
-  if (section === "map-intelligence")
-    return <AdminMapIntelligenceCenter facilityId={second} />;
-  if (section === "analytics") return <AnalyticsCenter role="admin" />;
-  if (section === "recommendations")
-    return <RecommendationsCenter role="admin" />;
-  if (section === "blockchain-traceability")
-    return <AdminBlockchainTraceabilityCenter recordId={second} />;
-  if (section === "smart-contracts")
-    return <AdminSmartContractAutomationCenter ruleId={second} />;
-  if (section === "language") return <LanguageReadinessCenter role="admin" />;
-  if (section === "national-expansion")
-    return <NationalExpansionCenter role="admin" />;
-  if (section === "mobile-access")
-    return <AdminMobileAccessCenter releaseId={second} />;
 
-  if (section === "accounting") {
-    if (!second) redirect("/admin/accounting/transactions");
-    if (second === "transactions") {
-      return <AdminTransactionsCenter transactionId={third} />;
-    }
-    if (second === "escrow") {
-      return <AdminEscrowOperationsCenter escrowId={third} />;
-    }
-    if (second === "payments") return <AdminPaymentsCenter paymentId={third} />;
+  // Remaining routes have no nested segments.
+  if (second) notFound();
+
+  switch (section) {
+    case "samples":
+      return <SampleShippingDesk role="admin" />;
+    case "logistics":
+      return <AdminLogisticsPage />;
+    case "delivery-tracking":
+      return <DeliveryTrackingCenter role="admin" />;
+    case "document-review":
+      return <AdminDocumentReviewPage />;
+    case "documents":
+      return <DocumentsCenter role="admin" />;
+    case "partners":
+      return <PartnerNetworkCenter role="admin" />;
+    case "map-intelligence":
+      return <MapIntelligenceCenter role="admin" />;
+    case "mobile-access":
+      return <MobileAccessPreviewCenter role="admin" />;
+    case "blockchain-traceability":
+      return <BlockchainTraceabilityCenter role="admin" />;
+    case "smart-contracts":
+      return <SmartContractAutomationCenter role="admin" />;
+    case "video-demos":
+      return <VideoDemoCenter role="admin" />;
+    case "asset-verification":
+      return <AssetVerificationCenter role="admin" />;
+    case "analytics":
+      return <AnalyticsCenter role="admin" />;
+    case "recommendations":
+      return <RecommendationsCenter role="admin" />;
+    case "language":
+      return <LanguageReadinessCenter role="admin" />;
+    case "national-expansion":
+      return <NationalExpansionCenter role="admin" />;
+    case "operations":
+      return redirect("/admin/moderation");
+    case "moderation":
+      return <AdminModerationPage />;
+    case "kyc":
+      return <AdminKycPage />;
+    case "disputes":
+      return <AdminDisputesPage />;
+    case "payment-exceptions":
+      return <AdminPaymentExceptionsPage />;
+    case "contact-requests":
+      return <AdminContactRequestsPage />;
+    case "audit":
+      return <AdminAuditPage />;
+    case "notifications":
+      return <AdminNotificationsPage />;
+    case "account":
+      return <AccountPage />;
   }
-
-  if (section === "reports") {
-    if (!second) redirect("/admin/reports/sales");
-    if (second === "sales") return <AdminSalesReportPage />;
-    if (second === "products") return <AdminProductsReportPage />;
-    if (second === "escrow") return <AdminEscrowReportPage />;
-    if (second === "carbon") return <AdminCarbonReportPage />;
-  }
-
-  if (section === "operations") redirect("/admin/moderation");
-  if (section === "moderation")
-    return <AdminModerationCenter caseId={second} />;
-  if (section === "kyc") return <AdminKycCenter verificationId={second} />;
-  if (section === "disputes") return <AdminDisputesCenter disputeId={second} />;
-  if (section === "audit") return <AdminAuditCenter eventId={second} />;
-  if (section === "notifications") return <AdminNotificationsPage />;
-  if (section === "account") return <AccountPage />;
 
   notFound();
 }

@@ -1,3 +1,4 @@
+import { processPendingCheckouts } from "./checkout-routes.js";
 import { processSampleShipping } from './sample-shipping-routes.js';
 import { createServer } from "node:http";
 import { handleApiRoute } from "./api.js";
@@ -1034,3 +1035,11 @@ const sampleTimer = setInterval(async () => {
   finally { samplesProcessing = false; }
 }, 60_000);
 sampleTimer.unref();
+
+let checkoutProcessing=false;
+const checkoutTimer=setInterval(async()=>{
+  if(checkoutProcessing) return;
+  checkoutProcessing=true;
+  try { await processPendingCheckouts(); } catch { /* Provider/database outage: retain reservations and retry. */ } finally { checkoutProcessing=false; }
+},60_000);
+checkoutTimer.unref();

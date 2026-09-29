@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, SlidersHorizontal } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { ErrorState, LoadingState } from "@/components/shared/data-state";
 import { BuyerLayout } from "./buyer-layout";
 import {
-  buyerNotifications,
+  notificationGroupOrder,
   type NotificationGroup,
   type SellerNotification,
 } from "../seller/notifications-data";
@@ -14,31 +15,31 @@ import {
   useLiveNotifications,
 } from "@/components/notifications/use-live-notifications";
 
-const groupOrder: NotificationGroup[] = [
-  "Earlier",
-  "Last 7 days",
-  "Last 30 days",
-];
+const groupOrder: NotificationGroup[] = notificationGroupOrder;
 
 export function BuyerNotificationsPage() {
   const [tab, setTab] = useState<"all" | "unread">("all");
   const [selected, setSelected] = useState<SellerNotification | null>(null);
   const [readIds, setReadIds] = useState<string[]>([]);
-  const liveNotifications = useLiveNotifications();
-  const allNotifications = [...liveNotifications, ...buyerNotifications];
+  const live = useLiveNotifications();
+  const allNotifications = live.items;
+  const [readError, setReadError] = useState<string | null>(null);
 
   const isUnread = (notification: SellerNotification) =>
     notification.unread && !readIds.includes(notification.id);
 
   const openNotification = (notification: SellerNotification) => {
     setSelected(notification);
-    if (notification.unread) {
-      markLiveNotificationRead(notification.id);
-      setReadIds((current) =>
-        current.includes(notification.id)
-          ? current
-          : [...current, notification.id],
-      );
+    if (isUnread(notification)) {
+      setReadError(null);
+      // Shown as read only once the backend has saved the read state.
+      void markLiveNotificationRead(notification.id).then((saved) => {
+        if (saved)
+          setReadIds((current) =>
+            current.includes(notification.id) ? current : [...current, notification.id],
+          );
+        else setReadError("This notification could not be marked as read. It stays unread.");
+      });
     }
   };
 
@@ -50,19 +51,11 @@ export function BuyerNotificationsPage() {
   return (
     <BuyerLayout>
       <div className="flex h-full flex-col overflow-y-auto bg-neutral-50">
-        <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 px-8 py-8">
+        <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
           <div className="flex items-center justify-between px-1">
             <h1 className="text-2xl font-bold text-neutral-900">
               Notifications
             </h1>
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
-              style={{ border: "1px solid #090909" }}
-            >
-              <SlidersHorizontal className="size-4" />
-              Filters
-            </button>
           </div>
 
           <div className="rounded-2xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
@@ -136,10 +129,20 @@ export function BuyerNotificationsPage() {
                   </div>
                 );
               })}
-              {visible.length === 0 && (
+              {live.status === "loading" && <LoadingState label="Loading notifications…" />}
+              {live.status === "error" && (
+                <ErrorState message={live.error ?? "Notifications could not be loaded."} onRetry={live.reload} />
+              )}
+              {live.status === "signed-out" && (
+                <p className="py-16 text-center text-sm text-neutral-500">Sign in to see your notifications.</p>
+              )}
+              {live.status === "ready" && visible.length === 0 && (
                 <p className="py-16 text-center text-sm text-neutral-500">
-                  No notifications
+                  {tab === "unread" ? "No unread notifications" : "No notifications yet"}
                 </p>
+              )}
+              {readError && (
+                <p role="alert" className="mt-2 text-center text-xs text-red-700">{readError}</p>
               )}
             </div>
           </div>

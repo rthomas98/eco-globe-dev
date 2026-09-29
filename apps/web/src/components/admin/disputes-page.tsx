@@ -1,5 +1,8 @@
 "use client";
 
+import { describeBackendError } from "@/lib/backend-client";
+import { ErrorState, LoadingState } from "@/components/shared/data-state";
+
 import React from "react";
 
 import { useEffect, useState } from "react";
@@ -11,7 +14,6 @@ import Link from "next/link";
 import { AlertTriangle, Filter, ChevronRight } from "lucide-react";
 
 type DisputeStatus = "Open" | "Awaiting seller" | "Awaiting buyer" | "Under review" | "Resolved";
-type Severity = "High" | "Medium" | "Low";
 
 interface Dispute {
   live?: boolean;
@@ -24,18 +26,9 @@ interface Dispute {
   amount: string;
   opened: string;
   status: DisputeStatus;
-  severity: Severity;
-  age: string;
   escrowAction: string;
 }
 
-const disputes: Dispute[] = [
-  { id: "DSP-2041", orderId: "EG-50021", escrowId: "ESC-50021", buyer: "AgriCorp Solutions", seller: "EcoPack Co.", reason: "Quantity mismatch on delivery", amount: "$13,440.00", opened: "2026-05-01", status: "Open", severity: "High", age: "3d", escrowAction: "Hold funds until buyer/seller evidence is reviewed" },
-  { id: "DSP-2038", orderId: "EG-50018", escrowId: "ESC-50018", buyer: "GreenHarvest Co.", seller: "GreenTex Ltd", reason: "Quality below specification", amount: "$8,210.00", opened: "2026-04-28", status: "Under review", severity: "High", age: "6d", escrowAction: "Pause automated release; decide partial release or refund" },
-  { id: "DSP-2031", orderId: "EG-50012", escrowId: "ESC-50012", buyer: "NutriFeed Industries", seller: "EcoPack Co.", reason: "Damaged in transit", amount: "$4,990.00", opened: "2026-04-22", status: "Awaiting seller", severity: "Medium", age: "12d", escrowAction: "Escrow released; attach dispute to seller score only" },
-  { id: "DSP-2027", orderId: "EG-50009", escrowId: "ESC-50009", buyer: "BioGreen Innovations", seller: "Trinity Feedstocks", reason: "Wrong product shipped", amount: "$2,180.00", opened: "2026-04-15", status: "Awaiting buyer", severity: "Medium", age: "19d", escrowAction: "Hold scheduled release until buyer responds" },
-  { id: "DSP-2018", orderId: "EG-50002", escrowId: "ESC-50002", buyer: "PurePastures Ltd.", seller: "EcoPack Co.", reason: "Carbon certification missing", amount: "$5,640.00", opened: "2026-04-08", status: "Resolved", severity: "Low", age: "26d", escrowAction: "Closed with buyer credit and seller payout adjustment" },
-];
 
 const FILTERS: Array<DisputeStatus | "All"> = [
   "All",
@@ -50,15 +43,21 @@ export function AdminDisputesPage() {
   const [filter, setFilter] = useState<DisputeStatus | "All">("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const [rows, setRows] = useState<Dispute[]>(disputes);
+  const [rows, setRows] = useState<Dispute[]>([]);
+  const [loadState, setLoadState] = useState<{ status: "loading" | "ready" | "error"; error?: string }>({ status: "loading" });
+  const [reloadKey, setReloadKey] = useState(0);
 
-  // Live disputes render ahead of the demo rows.
+  // Disputes come only from the backend.
   useEffect(() => {
-    if (!readDemoUser()) return;
+    if (!readDemoUser()) {
+      setLoadState({ status: "error", error: "Sign in to see disputes." });
+      return;
+    }
     let cancelled = false;
+    setLoadState({ status: "loading" });
     Promise.all([fetchDisputes(), fetchOrders()])
       .then(([apiDisputes, orders]) => {
-        if (cancelled || apiDisputes.length === 0) return;
+        if (cancelled) return;
         const orderById = new Map(orders.map((o) => [o.id, o]));
         const live: Dispute[] = apiDisputes.map((d) => {
           const order = d.orderId ? orderById.get(d.orderId) : undefined;
@@ -77,18 +76,19 @@ export function AdminDisputesPage() {
               : d.disputeStatusCode === "under_review"
                 ? "Under review"
                 : "Resolved",
-            severity: "High",
-            age: "—",
             escrowAction: d.escrowId ? "Escrow locked pending resolution" : "No escrow on order",
           };
         });
-        setRows([...live, ...disputes]);
+        setRows(live);
+        setLoadState({ status: "ready" });
       })
-      .catch(() => {});
+      .catch((error) => {
+        if (!cancelled) setLoadState({ status: "error", error: describeBackendError(error, "Disputes could not be loaded.") });
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
 
   const visible = rows.filter((d) => filter === "All" || d.status === filter);
   const counts = rows.reduce<Record<string, number>>((acc, d) => {
@@ -98,7 +98,7 @@ export function AdminDisputesPage() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="px-8 py-8">
+      <div className="px-4 py-6 sm:px-8 sm:py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900">Disputes</h1>
@@ -110,7 +110,7 @@ export function AdminDisputesPage() {
             <Stat label="Open" value={counts["Open"] ?? 0} tone="red" />
             <Stat label="Awaiting seller" value={counts["Awaiting seller"] ?? 0} tone="amber" />
             <Stat label="Under review" value={counts["Under review"] ?? 0} tone="purple" />
-            <Stat label="Resolved (30d)" value={counts["Resolved"] ?? 0} tone="green" />
+            <Stat label="Resolved" value={counts["Resolved"] ?? 0} tone="green" />
           </div>
         </div>
 
@@ -136,8 +136,21 @@ export function AdminDisputesPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
-          <table className="w-full text-sm">
+        {loadState.status !== "ready" || visible.length === 0 ? (
+          <div className="rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
+            {loadState.status === "loading" ? (
+              <LoadingState label="Loading disputes…" />
+            ) : loadState.status === "error" ? (
+              <ErrorState message={loadState.error ?? "Disputes could not be loaded."} onRetry={() => setReloadKey((k) => k + 1)} />
+            ) : (
+              <p className="px-6 py-12 text-center text-sm text-neutral-600">
+                {rows.length === 0 ? "No disputes have been opened." : "No disputes match this filter."}
+              </p>
+            )}
+          </div>
+        ) : (
+        <div className="overflow-x-auto rounded-xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
+          <table className="w-full min-w-[860px] text-sm">
             <thead style={{ borderBottom: "1px solid #F0F0F0" }}>
               <tr className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 <th className="px-5 py-3">Dispute</th>
@@ -146,8 +159,6 @@ export function AdminDisputesPage() {
                 <th className="px-5 py-3">Parties</th>
                 <th className="px-5 py-3">Amount</th>
                 <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Severity</th>
-                <th className="px-5 py-3">Age</th>
                 <th className="px-5 py-3"></th>
               </tr>
             </thead>
@@ -202,10 +213,6 @@ export function AdminDisputesPage() {
                   <td className="px-5 py-4">
                     <DisputeBadge status={d.status} />
                   </td>
-                  <td className="px-5 py-4">
-                    <SeverityBadge severity={d.severity} />
-                  </td>
-                  <td className="px-5 py-4 text-sm text-neutral-700">{d.age}</td>
                   <td className="px-5 py-4 text-right">
                     <Link
                       href={`/admin/sales/${d.orderId}`}
@@ -218,7 +225,7 @@ export function AdminDisputesPage() {
                 </tr>
                 {liveId !== null && expandedId === d.id && (
                   <tr style={{ borderBottom: i === visible.length - 1 ? undefined : "1px solid #F4F4F5" }}>
-                    <td colSpan={9} className="bg-neutral-50/60 px-8 py-6">
+                    <td colSpan={7} className="bg-neutral-50/60 px-8 py-6">
                       <div className="max-w-[720px]">
                         <DisputeThread disputeId={liveId} viewerRole="admin" />
                       </div>
@@ -231,6 +238,7 @@ export function AdminDisputesPage() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );
@@ -264,20 +272,6 @@ function DisputeBadge({ status }: { status: DisputeStatus }) {
   return (
     <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style={{ background: t.bg, color: t.fg }}>
       {status}
-    </span>
-  );
-}
-
-function SeverityBadge({ severity }: { severity: Severity }) {
-  const tone: Record<Severity, { bg: string; fg: string }> = {
-    High: { bg: "#FEE2E2", fg: "#991B1B" },
-    Medium: { bg: "#FEF3C7", fg: "#92400E" },
-    Low: { bg: "#F1F5F9", fg: "#475569" },
-  };
-  const t = tone[severity];
-  return (
-    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style={{ background: t.bg, color: t.fg }}>
-      {severity}
     </span>
   );
 }
