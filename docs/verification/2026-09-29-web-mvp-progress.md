@@ -1,4 +1,4 @@
-# Web MVP verification — in progress
+# Web MVP development release verification
 
 Scope: responsive public, buyer, seller and admin web portals backed by persisted API records. Native mobile, advanced analytics/blockchain and FedEx onboarding are deferred by the user. Production DocuSign commercial templates/Go-Live remain deferred.
 
@@ -26,7 +26,7 @@ Checkout uses persisted random bindings and Stripe idempotency; ambiguous provid
 - Remaining browser gates: broader negative-path/tenant-switch tests. A fresh Chrome tab now applies the 390px viewport correctly. Payment exceptions and admin navigation passed at measured 390x844 with no page-level horizontal overflow; broader responsive flows remain to test.
 - Externally delivered webhook and failure-recovery browser acceptance remain outstanding. Seller onboarding, card checkout and duplicate reconciliation pass as recorded above.
 - Payment refunds and seller settlement must not be claimed complete without implementation and provider evidence.
-- No current MVP changes have been committed, pushed or deployed.
+- Combined release committed and pushed as `1b20c40` on `rthomas98/ecoglobe-mvp-backend`; deployed to the existing development services on September 29. See release evidence below.
 
 Implementation is in isolated Orca worktrees `ecoglobe-mvp-backend` and `ecoglobe-mvp-frontend`; primary checkout is preserved.
 
@@ -47,7 +47,7 @@ Implementation is in isolated Orca worktrees `ecoglobe-mvp-backend` and `ecoglob
 
 - Added GET /api/admin/payment-exceptions with open/all filter and bounded results. Live local API checks: admin 200, buyer 403, anonymous 401, invalid filter 400. Checks added to SQL smoke suite.
 - Reciprocal review passed. Chrome verified permission-denied handling and a persisted synthetic QA exception with order, companies, amount, reason and provider reference. The inbox cannot issue refunds or mark exceptions resolved; Stripe refunds do not automatically close local exceptions.
-- Development target inspected read-only: backend revision ecoglobe-backend-dev--0000026 still serves the prior logistics release; STRIPE_WEBHOOK_SECRET is not configured. No current MVP deployment performed.
+- Before release, development served revision `0000026`. The release below replaces it with `0000027`. `STRIPE_WEBHOOK_SECRET` remains unconfigured pending approval of destination creation.
 
 - Integrated payment exception changes pass backend build, web/admin TypeScript and diff whitespace checks. Full combined backend/shared/web/admin builds and web/admin lint passed (exit 0, 39 web warnings, no errors).
 
@@ -67,3 +67,19 @@ Source: `24 Sept New Ecoglobe Marketplace Site test.pdf` (five pages). Its meeti
 - Stripe development webhook form prepared for checkout.session.completed, checkout.session.async_payment_succeeded and checkout.session.expired. Creating the destination and storing the signing secret awaits explicit browser access confirmation.
 
 - Final combined release builds and lint passed after all September 24 feedback and admin badge/sign-out fixes: exit 0, 39 existing web lint warnings, no lint errors. Admin detail browser check opened LS-5 and matched its saved title, seller, $25 price, and 1-ton remaining quantity.
+
+## Development release — September 29
+
+- Application commit: `1b20c40`, pushed to `origin/rthomas98/ecoglobe-mvp-backend`. Primary and frontend worktrees preserved.
+- Five additive September 29 SQL migrations applied successfully to `sqldb-ecoglobe-dev`; no reset or seed.
+- Azure image `acrecoglobe7c180adf.azurecr.io/ecoglobe-backend:mvp-1b20c40`, digest `sha256:db5fd882f2167ed24c3dc13bc680ae50a1e889855f621ecd908fee545a9b0217`; revision `ecoglobe-backend-dev--0000027` Healthy/Provisioned. Public health reports database connected.
+- Web deployment `dpl_8YvRqxXnH6X14mVPPzuh1CHSwazH` READY and promoted to https://eco-globe-dev-web.vercel.app.
+- Admin deployment `dpl_7Zp5YUL8RS8bokx8tAwULnEdWkDQ` READY and promoted to https://eco-globe-dev-admin.vercel.app.
+- Chrome deployed acceptance: demo buyer login; 22 persisted listings; saved orders with honest missing-photo placeholders and no captured console errors; admin login and 20 saved sales; live notification count 89 (rather than static 8); $1–$20 filter returns PVC $3 and pallets $15; selected LS-27 detail matches PVC/MKDK/$3/1000 units; admin sign-out returns securely to login.
+- Deployed API acceptance: buyer/seller/admin login 200; payment exceptions admin 200, buyer and seller 403, anonymous 401.
+- Full two-order checkout, notification read-all, sample inquiry and pilot country validation evidence above remains isolated local acceptance, not a repeated shared-development transaction. Deployed listing latency has not been quantitatively benchmarked.
+- Stripe webhook form remains prepared but unsubmitted pending explicit user approval; external delivery is not verified. FedEx onboarding, production DocuSign and refund/settlement decision remain outside this release.
+
+![Deployed buyer orders](2026-09-29-deployed-orders.png)
+![Deployed admin price filter](2026-09-29-deployed-admin-filter.png)
+![Deployed selected listing](2026-09-29-deployed-admin-detail.png)
