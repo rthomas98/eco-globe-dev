@@ -9,10 +9,24 @@ const SESSION_COOKIE = "ecoglobe.session";
 
 type RouteContext = { params: Promise<{ path: string[] }> };
 
+// Matches the web proxy so private downloads (for example FedEx sandbox test
+// labels) keep their filename and no-store caching. Content-Length is left to
+// Next.js because the login response body is rewritten below.
+const FORWARDED_RESPONSE_HEADERS = [
+  "content-type",
+  "content-disposition",
+  "x-content-type-options",
+  "cache-control",
+  "etag",
+  "last-modified",
+];
+
 function responseHeaders(response: Response) {
   const headers = new Headers();
-  const contentType = response.headers.get("content-type");
-  if (contentType) headers.set("content-type", contentType);
+  for (const name of FORWARDED_RESPONSE_HEADERS) {
+    const value = response.headers.get(name);
+    if (value) headers.set(name, value);
+  }
   return headers;
 }
 

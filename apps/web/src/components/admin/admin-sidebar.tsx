@@ -65,6 +65,7 @@ const marketplaceAdminNavItems: NavItem[] = [
 const logisticsAdminNavItems: NavItem[] = [
   { label: "Logistics", href: "/admin/logistics", icon: Truck },
   { label: "Delivery Tracking", href: "/admin/delivery-tracking", icon: Truck },
+  { label: "FedEx sandbox", href: "/admin/fedex-sandbox", icon: FlaskConical },
 ];
 
 const contractAdminNavItems: NavItem[] = [

@@ -1,3 +1,4 @@
+import { handleFedExSandboxRoute } from "./fedex-sandbox-routes.js";
 import { handleRfqRoute } from "./rfq-routes.js";
 import { handleCheckoutRoute, reconcileCheckoutEvent } from "./checkout-routes.js";
 import { handleMvpRoute } from "./mvp-routes.js";
@@ -6332,6 +6333,7 @@ export async function handleApiRoute(
 ) {
   // The modular handlers own listing/sample CRUD. Legacy core implementations below
   // remain for reference; only explicitly forwarded marketplace/moderation paths reach them.
+  if (await handleFedExSandboxRoute(request,response,requestUrl)) return true;
   if (await handleCheckoutRoute(request,response,requestUrl)) return true;
   if (await handleRfqRoute(request,response,requestUrl)) return true;
   if (await handleMvpRoute(request,response,requestUrl)) return true;

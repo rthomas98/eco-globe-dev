@@ -10,6 +10,7 @@ import { AdminDocumentReviewPage } from "@/components/admin/document-review-page
 import { AdminESignaturesPage } from "@/components/admin/e-signatures-page";
 import { AdminEscrowDetailPage } from "@/components/admin/escrow-detail-page";
 import { EscrowPage } from "@/components/admin/escrow-page";
+import { AdminFedexSandboxPage } from "@/components/admin/fedex-sandbox/fedex-sandbox-page";
 import { AdminKycPage } from "@/components/admin/kyc-page";
 import { LabPanelsPage } from "@/components/admin/lab-panels-page";
 import { LabTestingQueuePage } from "@/components/admin/lab-testing-queue-page";
@@ -179,6 +180,8 @@ export default async function Page({ params }: PageProps) {
       return <AdminLogisticsPage />;
     case "delivery-tracking":
       return <DeliveryTrackingCenter role="admin" />;
+    case "fedex-sandbox":
+      return <AdminFedexSandboxPage />;
     case "document-review":
       return <AdminDocumentReviewPage />;
     case "documents":

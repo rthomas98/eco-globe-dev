@@ -45,6 +45,11 @@ function upstreamDeadline(pathname: string, method: string) {
   if (/^\/api\/logistics\/orders\/\d+\/bol$/.test(pathname) && method === "POST") {
     return UPLOAD_UPSTREAM_DEADLINE_MS;
   }
+  // FedEx sandbox quote/book/track/cancel wait on provider OAuth plus the
+  // provider call; a shorter proxy deadline would report an unknown outcome.
+  if (pathname.startsWith("/api/admin/fedex-sandbox/") && method === "POST") {
+    return UPLOAD_UPSTREAM_DEADLINE_MS;
+  }
   return DEFAULT_UPSTREAM_DEADLINE_MS;
 }
 

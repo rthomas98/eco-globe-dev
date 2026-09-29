@@ -108,6 +108,9 @@ export function AdminLayout({
   );
 }
 
+/** Breadcrumb labels whose brand casing title-case would get wrong. */
+const PAGE_LABEL_OVERRIDES: Record<string, string> = { "fedex-sandbox": "FedEx Sandbox" };
+
 function AdminTopNavigation({
   pathname,
   onOpenMobile,
@@ -121,7 +124,7 @@ function AdminTopNavigation({
   const [search, setSearch] = useState("");
   const segments = pathname.split("/").filter(Boolean).slice(1);
   const pageLabel = segments[0]
-    ? segments[0]
+    ? PAGE_LABEL_OVERRIDES[segments[0]] ?? segments[0]
         .replaceAll("-", " ")
         .replace(/\b\w/g, (letter) => letter.toUpperCase())
     : "Dashboard";
