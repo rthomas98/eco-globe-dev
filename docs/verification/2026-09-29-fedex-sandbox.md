@@ -30,4 +30,19 @@ The admin-only `/admin/fedex-sandbox` test desk uses real FedEx sandbox response
 
 ## Development deployment
 
-Pending release verification; update this section after deployment.
+Application commit `f7709b8` is pushed to `rthomas98/ecoglobe-mvp-backend`.
+
+- Azure revision `ecoglobe-backend-dev--0000029` is Healthy / Provisioned, receiving 100% latest-revision traffic. Image `ecoglobe-backend:fedex-f7709b8`, digest `sha256:0cfc14179a7f9a13d381e6527527d4b649277e9e99aa4f8c80825f81e6c00a80`.
+- Additive SQL migration applied successfully to the development database. Existing records were not reset.
+- Backend uses `FEDEX_MODE=sandbox`; client ID, client secret, and test account are managed-identity Key Vault references.
+- Admin deployment `dpl_2HifyMP1zeTZwWX6jko5bLcht5e8` READY and promoted to https://eco-globe-dev-admin.vercel.app.
+- Web deployment `dpl_FosioQ36wqvUcCoWHuBajJ8oq561` READY and promoted to https://eco-globe-dev-web.vercel.app.
+- Chrome on the deployed admin completed quote → booking → PDF download → tracking → cancellation → reload. Shipment `7663805A-316A-4206-BA87-966FEF293655`, USD 88.29, tracking `794876510438`, cancelled at 2026-09-29 22:28:03 UTC. Synthetic test contacts only. Downloaded PDF validated at 38,262 bytes.
+- The deployed tracking panel shows the actual provider scan timestamp and clearly labels historical sandbox responses. Cancelled state survives reload.
+- Live development API checks: configured list 200; anonymous 401; buyer 403; unsupported Ground 400.
+- Additional local persisted checks: quote retry returns the same row; changing its package with the same key returns 409; cancellation replay returns cancelled without another provider request.
+- Backend tests 51/51; backend, web, and admin builds pass. Scoped React Doctor has no errors and six warnings as described above.
+
+Test entry: https://eco-globe-dev-admin.vercel.app/admin/fedex-sandbox (administrator login required). Use **New sandbox quote**, enter synthetic US sender/recipient and parcel details, request quote, confirm booking, download the TEST PDF, refresh tracking, and cancel. Do not attach test labels to goods.
+
+![Deployed sandbox cancellation](2026-09-29-fedex-deployed-result.png)
