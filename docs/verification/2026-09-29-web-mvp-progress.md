@@ -24,7 +24,7 @@ Checkout uses persisted random bindings and Stripe idempotency; ambiguous provid
 - Reciprocal frontend/backend review approved. Combined backend/shared/web/admin build and web/admin lint pass (web 39 warnings, 0 errors). Final browser follow-up files pass owner types/lint; final combined rebuild and lint passed after those changes (exit 0).
 - Chrome passed: buyer captured payment/receipt/order status; seller connected Stripe test account; admin saved sales; document upload/reload/exact download bytes; seller RFQ response, buyer acceptance, $46 Stripe checkout; unpaid order cancellation with stock restored.
 - Remaining browser gates: broader negative-path/tenant-switch tests. A fresh Chrome tab now applies the 390px viewport correctly. Payment exceptions and admin navigation passed at measured 390x844 with no page-level horizontal overflow; broader responsive flows remain to test.
-- Externally delivered webhook and failure-recovery browser acceptance remain outstanding. Seller onboarding, card checkout and duplicate reconciliation pass as recorded above.
+- External delivery now passes the transport/signature checks below; paid-order webhook mutation and failure-recovery browser acceptance remain outstanding. Seller onboarding, card checkout and duplicate reconciliation pass as recorded above.
 - Payment refunds and seller settlement must not be claimed complete without implementation and provider evidence.
 - Combined release committed and pushed as `1b20c40` on `rthomas98/ecoglobe-mvp-backend`; deployed to the existing development services on September 29. See release evidence below.
 
@@ -47,7 +47,7 @@ Implementation is in isolated Orca worktrees `ecoglobe-mvp-backend` and `ecoglob
 
 - Added GET /api/admin/payment-exceptions with open/all filter and bounded results. Live local API checks: admin 200, buyer 403, anonymous 401, invalid filter 400. Checks added to SQL smoke suite.
 - Reciprocal review passed. Chrome verified permission-denied handling and a persisted synthetic QA exception with order, companies, amount, reason and provider reference. The inbox cannot issue refunds or mark exceptions resolved; Stripe refunds do not automatically close local exceptions.
-- Before release, development served revision `0000026`. The release below replaces it with `0000027`. `STRIPE_WEBHOOK_SECRET` remains unconfigured pending approval of destination creation.
+- Before release, development served revision `0000026`. The release below replaces it with `0000027`. `STRIPE_WEBHOOK_SECRET` is now configured through Key Vault in revision `0000028`, as recorded below.
 
 - Integrated payment exception changes pass backend build, web/admin TypeScript and diff whitespace checks. Full combined backend/shared/web/admin builds and web/admin lint passed (exit 0, 39 web warnings, no errors).
 
@@ -64,7 +64,7 @@ Source: `24 Sept New Ecoglobe Marketplace Site test.pdf` (five pages). Its meeti
 - Backend checkout now enforces the existing SDS requirement; real SQL smoke rejects absent SDS and passes reservation/idempotency tests with synthetic QA document bytes.
 - Latest focused checks: backend 48/48, frontend helper regressions 8/8, runtime isolation 22/22, SQL runtime tooling 12/12. Initial isolation reruns were blocked by sandbox sockets and wrong shell Node; rerun with local permissions and Node 22.20.0 passed.
 - React Doctor: 71/100, 22 warnings, no errors. Remaining warnings concern complexity, duplicated JSX, render-time date formatting and existing event-handler patterns; no blanket suppression applied.
-- Stripe development webhook form prepared for checkout.session.completed, checkout.session.async_payment_succeeded and checkout.session.expired. Creating the destination and storing the signing secret awaits explicit browser access confirmation.
+- Stripe development webhook form prepared for checkout.session.completed, checkout.session.async_payment_succeeded and checkout.session.expired. The user subsequently approved creation; see external delivery evidence below.
 
 - Final combined release builds and lint passed after all September 24 feedback and admin badge/sign-out fixes: exit 0, 39 existing web lint warnings, no lint errors. Admin detail browser check opened LS-5 and matched its saved title, seller, $25 price, and 1-ton remaining quantity.
 
@@ -78,8 +78,22 @@ Source: `24 Sept New Ecoglobe Marketplace Site test.pdf` (five pages). Its meeti
 - Chrome deployed acceptance: demo buyer login; 22 persisted listings; saved orders with honest missing-photo placeholders and no captured console errors; admin login and 20 saved sales; live notification count 89 (rather than static 8); $1–$20 filter returns PVC $3 and pallets $15; selected LS-27 detail matches PVC/MKDK/$3/1000 units; admin sign-out returns securely to login.
 - Deployed API acceptance: buyer/seller/admin login 200; payment exceptions admin 200, buyer and seller 403, anonymous 401.
 - Full two-order checkout, notification read-all, sample inquiry and pilot country validation evidence above remains isolated local acceptance, not a repeated shared-development transaction. Deployed listing latency has not been quantitatively benchmarked.
-- Stripe webhook form remains prepared but unsubmitted pending explicit user approval; external delivery is not verified. FedEx onboarding, production DocuSign and refund/settlement decision remain outside this release.
+- Stripe webhook creation and external delivery are now verified below. FedEx onboarding, production DocuSign and refund/settlement decision remain outside this release.
 
 ![Deployed buyer orders](2026-09-29-deployed-orders.png)
 ![Deployed admin price filter](2026-09-29-deployed-admin-filter.png)
 ![Deployed selected listing](2026-09-29-deployed-admin-detail.png)
+
+## Stripe external delivery — September 29
+
+User approved creating the prepared sandbox destination and storing its signing secret.
+
+- Active destination: `we_1UL8O4CEJFfU7hsbqwbpgXFW`, EcoGlobe development checkout, sandbox account `acct_1TwOYYCEJFfU7hsb`.
+- Endpoint: `https://ecoglobe-backend-dev.jollystone-041012ed.eastus.azurecontainerapps.io/api/stripe/webhook`. Snapshot API version `2026-06-24.dahlia`; checkout completed, async payment succeeded and expired events selected.
+- Signing secret stored in Azure Key Vault as `stripe-sandbox-webhook-secret`; Container App uses its system-managed-identity reference. No secret committed. Revision `ecoglobe-backend-dev--0000028` Healthy/Provisioned; database health connected. Application image unchanged from `1b20c40`.
+- Created and expired an unpaid sandbox Checkout probe with no EcoGlobe order binding and no card/payment intent. Stripe emitted `evt_1UL8QtCEJFfU7hsbgkkzyqiC` (`checkout.session.expired`).
+- Stripe dashboard confirms automatic external delivery at 21:19:28 UTC returned HTTP 200 with `{"ok":true,"received":"checkout.session.expired"}`. Dashboard manual resend at 21:19:57 UTC also returned 200.
+- Public endpoint rejects unsigned and invalid-signature requests with HTTP 400.
+- Scope: verifies real Stripe delivery, signature validation, authoritative session fetch and safe acknowledgement of an unbound probe. It does not establish paid-order mutation or stock restoration from an external event; those require a bound development order test. Earlier local paid checkout/duplicate reconciliation evidence remains separate.
+
+![Stripe external delivery and replay](2026-09-29-stripe-external-delivery.png)
