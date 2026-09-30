@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {assertRefundAction,refundAmount,refundRequestKey,refundText,emailRetryState,escapeRefundHtml,refundStatuses} from './refund-domain.js';
+import {assertRefundAction,refundAmount,refundRequestKey,refundText,emailRetryState,escapeRefundHtml,refundStatuses,refundEmailJobKey} from './refund-domain.js';
 import {assertRefundMatches,assertConfirmedRefundBalance,type RefundBinding} from './refund-provider.js';
 const binding:RefundBinding={paymentIntentId:'pi_correct',platformAccountId:'acct_platform',livemode:false,amountCents:1250,paidCents:3000,currencyCode:'USD'};
 const proof={payment_intent:'pi_correct',amount:1250,currency:'usd',status:'succeeded' as const,created:1790776800};
@@ -15,3 +15,12 @@ test('user messages cannot inject email HTML',()=>{assert.equal(escapeRefundHtml
 test('historical external refunds cannot close a newer request',()=>{assert.throws(()=>assertRefundMatches({...binding,createdAt:new Date((proof.created+1)*1000)},proof));assert.doesNotThrow(()=>assertRefundMatches({...binding,createdAt:new Date(proof.created*1000+999)},proof));});
 
 test('succeeded refund must add to the saved baseline even within the same second',()=>{assert.throws(()=>assertConfirmedRefundBalance({...binding,baselineRefundedCents:1250},1250,'succeeded'));assert.doesNotThrow(()=>assertConfirmedRefundBalance({...binding,baselineRefundedCents:1250},2500,'succeeded'));assert.doesNotThrow(()=>assertConfirmedRefundBalance({...binding,baselineRefundedCents:1250},1250,'pending'));});
+
+test("email replay stays stable within an origin and cannot collide between local and development",()=>{
+ const args=[1,"event-1","buyer",0] as const;
+ const local=refundEmailJobKey("http://localhost:20032",...args);
+ const development=refundEmailJobKey("https://eco-globe-dev-web.vercel.app",...args);
+ assert.notEqual(local,development);
+ assert.equal(development,refundEmailJobKey("https://eco-globe-dev-web.vercel.app/",...args));
+ assert.notEqual(development,refundEmailJobKey("https://eco-globe-dev-web.vercel.app",1,"event-1","seller",0));
+});

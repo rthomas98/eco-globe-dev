@@ -1,7 +1,7 @@
 import { queryRowsWithParams as query,queryRowsWithParamsInTransaction as txQuery,runInTransaction,sql,type QueryParameter } from './database.js';
 import { ApiError,type AuthContext } from './http.js';
 import {buildResendPayload} from './email.js';
-import {escapeRefundHtml} from './refund-domain.js';
+import {escapeRefundHtml,refundEmailJobKey} from './refund-domain.js';
 export const rp=(name:string,value:unknown,type:QueryParameter['type']=sql.NVarChar(2000)):QueryParameter=>({name,value,type});
 export type RefundCaseRow={id:number;sourceType:'order'|'sample';sourceId:number;orderId:number|null;sampleRequestId:number|null;buyerCompanyId:number;sellerCompanyId:number;buyerCompanyName:string;sellerCompanyName:string;paymentIntentId:string;platformAccountId:string;livemode:boolean;amountCents:number;paidCents:number;baselineRefundedCents:number;currencyCode:string;status:string;active:boolean;reason:string;requiredAction:string|null;actionDueAt:Date|null;actionVersion:number;createdAt:Date;updatedAt:Date;providerRefundId:string|null;providerStatus:string|null};
 export const caseSelect=`SELECT r.Id AS id,r.SourceType AS sourceType,r.SourceId AS sourceId,r.OrderId AS orderId,r.SampleRequestId AS sampleRequestId,r.BuyerCompanyId AS buyerCompanyId,r.SellerCompanyId AS sellerCompanyId,b.LegalName AS buyerCompanyName,s.LegalName AS sellerCompanyName,r.PaymentIntentId AS paymentIntentId,r.PlatformAccountId AS platformAccountId,r.Livemode AS livemode,r.AmountCents AS amountCents,r.PaidCents AS paidCents,r.BaselineRefundedCents AS baselineRefundedCents,r.CurrencyCode AS currencyCode,r.Status AS status,r.Active AS active,r.Reason AS reason,r.RequiredAction AS requiredAction,r.ActionDueAt AS actionDueAt,r.ActionVersion AS actionVersion,r.CreatedAt AS createdAt,r.UpdatedAt AS updatedAt,r.ProviderRefundId AS providerRefundId,r.ProviderStatus AS providerStatus FROM dbo.RefundCases r JOIN dbo.Companies b ON b.Id=r.BuyerCompanyId JOIN dbo.Companies s ON s.Id=r.SellerCompanyId`;
@@ -50,7 +50,7 @@ export async function queueRefundEmails(exec:RefundExec,row:RefundCaseRow,kind:'
    if(!recipient.email) error='No active company transaction contact has a valid email.';
    else if(!link) error='Application email link is not configured.';
    else {try {payload=JSON.stringify(buildResendPayload({to:process.env.REFUND_EMAIL_TEST_RECIPIENT?.trim() || recipient.email,subject:`${process.env.REFUND_EMAIL_SUBJECT_PREFIX?.trim() ? process.env.REFUND_EMAIL_SUBJECT_PREFIX.trim()+' ' : ''}${kind==='reminder'?'Action reminder: ':''}EcoGlobe refund RF-${row.id}`,text:plain,html:`<p>${escapeRefundHtml(plain).replaceAll('\n','<br>')}</p>`}));}catch{error='Email recipient configuration is invalid.';}}
-   const jobKey=`refund/${row.id}/${key}/${role}/${index}`;
+   const jobKey=refundEmailJobKey(web,row.id,key,role,index);
    await exec(`IF NOT EXISTS(SELECT Id FROM dbo.RefundEmailOutbox WITH(UPDLOCK,HOLDLOCK) WHERE JobKey=@key) INSERT dbo.RefundEmailOutbox(RefundCaseId,RecipientRole,Kind,ActionVersion,JobKey,Recipient,PayloadJson,State,LastError) VALUES(@id,@role,@kind,@version,@key,@recipient,@payload,@state,@error)`,[rp('id',row.id,sql.Int),rp('role',role),rp('kind',kind),rp('version',row.actionVersion,sql.Int),rp('key',jobKey),rp('recipient',recipient.email||null),rp('payload',payload,sql.NVarChar(sql.MAX)),rp('state',error?'needs_review':'queued'),rp('error',error)]);
   }
  }

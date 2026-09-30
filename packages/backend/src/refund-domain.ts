@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import { ApiError } from './http.js';
 export const refundStatuses = ['requested','awaiting_buyer','awaiting_seller','approved','provider_pending','provider_failed','refunded','declined'] as const;
 export type RefundStatus = typeof refundStatuses[number];
@@ -23,4 +24,10 @@ export function refundHours(name:string,fallback:number,max:number) {
 export function escapeRefundHtml(text:string) { return text.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]??c)); }
 export function emailRetryState(firstAttempt:Date,now:Date,attempts:number) {
  return now.getTime()-firstAttempt.getTime()>=23*3600000||attempts>=8?'needs_review':'failed';
+}
+
+export function refundEmailJobKey(webUrl:string|undefined,caseId:number,eventKey:string,role:string,index:number) {
+ let origin="unconfigured";try {origin=new URL(webUrl??"").origin;}catch{/* Missing URL creates a needs-review job without egress. */}
+ const namespace=createHash("sha256").update(origin).digest("hex").slice(0,16);
+ return `refund/${namespace}/${caseId}/${eventKey}/${role}/${index}`;
 }
