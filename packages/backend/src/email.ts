@@ -79,7 +79,12 @@ export function buildResendPayload(input: EcoGlobeEmail): ResendEmailPayload {
   };
 }
 
-export async function sendEcoGlobeEmail(input: EcoGlobeEmail) {
+export async function sendEcoGlobeEmail(input: EcoGlobeEmail, idempotencyKey?: string) {
+  return sendEcoGlobePayload(buildResendPayload(input), idempotencyKey);
+}
+
+/** Persisted payloads preserve recipients/content across retry attempts. */
+export async function sendEcoGlobePayload(payload: ResendEmailPayload, idempotencyKey?: string) {
   const apiKey = process.env.RESEND_API_KEY?.trim();
 
   if (!apiKey) {
@@ -89,14 +94,15 @@ export async function sendEcoGlobeEmail(input: EcoGlobeEmail) {
     );
   }
 
-  const payload = buildResendPayload(input);
   const response = await fetch(RESEND_API_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15000),
   });
 
   const rawBody = await response.text();
@@ -121,5 +127,6 @@ export async function sendEcoGlobeEmail(input: EcoGlobeEmail) {
       ? String(body.id)
       : undefined;
 
+  if (!id) throw new ApiError(502, "Email provider did not confirm an email ID.");
   return { id, payload };
 }

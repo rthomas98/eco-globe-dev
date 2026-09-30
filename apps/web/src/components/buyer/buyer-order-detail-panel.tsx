@@ -35,6 +35,7 @@ import { approveOrder } from "@/lib/api-orders";
 import { describeBackendError } from "@/lib/backend-client";
 import { PanelHeaderMenu, downloadTextFile } from "./panel-header-menu";
 import { DocumentRow } from "./document-row";
+import { OrderRefundSection } from "@/components/refunds/order-refund-section";
 
 type ActiveModal =
   | "request-changes"
@@ -774,6 +775,10 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                   />
                 </div>
               </SectionCard>
+
+              {liveOrderId && (
+                <OrderRefundSection orderId={liveOrderId} role="buyer" />
+              )}
 
               <SectionCard title="Documents">
                 <div className="flex flex-col gap-3">

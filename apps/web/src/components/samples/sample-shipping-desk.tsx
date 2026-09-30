@@ -191,7 +191,8 @@ function ShippingDeskContent({ role }: { role: "buyer" | "seller" | "admin" }) {
                 </h3>
                 <p>
                   End of day Central Time. After 10 business days without
-                  dispatch, the buyer is refunded automatically.
+                  dispatch, a refund case opens automatically and EcoGlobe
+                  staff refund the buyer&apos;s shipping payment through Stripe.
                 </p>
               </div>
             )}
@@ -327,8 +328,18 @@ function ShippingDeskContent({ role }: { role: "buyer" | "seller" | "admin" }) {
             {r.refundState !== "none" && (
               <p className="rounded-xl bg-amber-50 p-4">
                 {r.mode === "simulation" ? "Simulated refund" : "Refund"}:{" "}
-                <strong>{r.refundState}</strong>. Label cancellation:{" "}
+                <strong>{r.refundState === "manual_review" ? "staff review in Stripe" : r.refundState}</strong>. Label cancellation:{" "}
                 {r.labelVoidState}.{" "}
+                {r.mode !== "simulation" && (
+                  <>
+                    <Link
+                      className="underline"
+                      href={role === "admin" ? "/admin/refunds" : `/${role}/accounting/refunds`}
+                    >
+                      Refund cases
+                    </Link>{" "}
+                  </>
+                )}
                 {r.isBuyer && <Link className="underline" href="/buyer/browse">
                   Browse alternatives
                 </Link>}

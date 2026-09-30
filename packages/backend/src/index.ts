@@ -1,3 +1,5 @@
+import { handleRefundRoute } from "./refund-routes.js";
+import { processRefundReminders } from "./refund-reminders.js";
 import { processPendingCheckouts } from "./checkout-routes.js";
 import { processSampleShipping } from './sample-shipping-routes.js';
 import { createServer } from "node:http";
@@ -996,6 +998,8 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (await handleRefundRoute(request, response, requestUrl)) return;
+
     if (await handleLogisticsRoute(request, response, requestUrl)) return;
 
     const docusignHandled = await handleDocusignRoute(request, response, requestUrl);
@@ -1043,3 +1047,7 @@ const checkoutTimer=setInterval(async()=>{
   try { await processPendingCheckouts(); } catch { /* Provider/database outage: retain reservations and retry. */ } finally { checkoutProcessing=false; }
 },60_000);
 checkoutTimer.unref();
+
+// Refund emails remain disabled unless explicitly activated with approved recipients.
+const refundTimer=setInterval(()=>{void processRefundReminders().catch(()=>{ /* Durable jobs remain pending for the next tick. */ });},60_000);
+refundTimer.unref();

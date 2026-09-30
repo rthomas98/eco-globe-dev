@@ -105,4 +105,4 @@ pnpm --filter=@eco-globe/backend start
 
 ## Orca collaboration
 
-For paired development, read `.agents/skills/eco-globe-agent-pair/SKILL.md` and `docs/ORCA_DEVELOPMENT.md`. Codex owns backend, Claude owns frontend; require reciprocal review and objective checks. Astra uses medium reasoning and Standard service.
+For paired development, read `.agents/skills/eco-globe-agent-pair/SKILL.md` and `docs/ORCA_DEVELOPMENT.md`. Codex owns backend, Claude owns frontend; require reciprocal review and objective checks. Codex uses `gpt-6.1-sol`, medium reasoning and Standard service.

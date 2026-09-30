@@ -9,7 +9,8 @@
     "src/lib/listing-format.ts",
     "src/lib/value-recovery.ts",
     "src/lib/lab-testing.ts",
-    "src/lib/pilots.ts"
+    "src/lib/pilots.ts",
+    "src/lib/refund-format.ts"
   ],
   "exclude": [
     "node_modules"

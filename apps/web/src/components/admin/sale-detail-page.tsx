@@ -12,6 +12,7 @@ import {
   type ApiEscrowRecord,
   type ApiPayment,
 } from "@/lib/api-portal";
+import { OrderRefundSection } from "@/components/refunds/order-refund-section";
 import { AdminDetailPage, DetailCard, KeyValueGrid } from "./admin-detail-page";
 
 interface OrderDetail {
@@ -145,6 +146,9 @@ export function AdminSaleDetailPage({ id }: { id: string }) {
                 <LogisticsWorkspace portal="admin" orderId={routeOrderId} />
               )}
             </DetailCard>
+            {routeOrderId && (
+              <OrderRefundSection orderId={routeOrderId} role="admin" />
+            )}
             <DetailCard title="Documents">
               <p className="mb-3 text-sm text-neutral-500">
                 Review saved documents in the document center. No invoice or

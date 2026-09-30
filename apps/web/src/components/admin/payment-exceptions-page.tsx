@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { portalMoney } from "@/lib/api-portal";
 import {
@@ -56,8 +57,11 @@ export function AdminPaymentExceptionsPage() {
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <p>
             Investigate in Stripe using the Checkout session ID. Any refund must be handled through
-            the approved finance process. This page is read-only; completing a refund does not
-            automatically close this exception.
+            the approved finance process and tracked as a{" "}
+            <Link href="/admin/refunds" className="font-semibold underline underline-offset-2">
+              refund case
+            </Link>
+            . This page is read-only; completing a refund does not automatically close this exception.
           </p>
         </div>
 

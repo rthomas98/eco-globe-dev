@@ -91,6 +91,7 @@ export const sellerNavItems: NavItem[] = [
     children: [
       { label: "Transactions", href: "/seller/accounting/transactions" },
       { label: "Payments", href: "/seller/accounting/payments" },
+      { label: "Refunds", href: "/seller/accounting/refunds" },
       { label: "Escrow", href: "/seller/accounting/escrow" },
       { label: "Bank Account", href: "/seller/accounting/bank-account" },
     ],

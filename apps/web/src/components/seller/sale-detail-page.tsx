@@ -6,6 +6,7 @@ import {
   LogisticsWorkspace,
   parseOrderReference,
 } from "@/components/logistics/logistics-workspace";
+import { OrderRefundSection } from "@/components/refunds/order-refund-section";
 import { SellerLayout } from "./seller-layout";
 
 /**
@@ -34,7 +35,10 @@ export function SellerSaleDetailPage({ id }: { id: string }) {
           Sale {orderId ? `EG-${orderId}` : id}
         </h1>
         {orderId ? (
-          <LogisticsWorkspace portal="seller" orderId={orderId} />
+          <div className="flex flex-col gap-6">
+            <LogisticsWorkspace portal="seller" orderId={orderId} />
+            <OrderRefundSection orderId={orderId} role="seller" />
+          </div>
         ) : (
           <div role="status" className="rounded-2xl bg-white p-6 text-sm" style={{ border: "1px solid #F0F0F0" }}>
             <p className="font-semibold text-neutral-900">Sale unavailable.</p>

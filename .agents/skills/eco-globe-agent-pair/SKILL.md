@@ -9,7 +9,7 @@ Read `AGENTS.md` and `docs/ORCA_DEVELOPMENT.md` before dispatch.
 
 1. Inspect Git status and the selected base. Preserve existing changes. Use separate prepared worktrees for implementation so local credentials, ports, and writable files do not collide.
 2. Create an Orca Run and Tasks using the installed orchestration skill. Codex owns backend/API/SQL and runtime tooling; Claude owns web/admin/mobile UI. Assign each shared file (types, manifests, integration tests) to exactly one editor.
-3. Use Codex `gpt-6-astra`, medium reasoning, Standard service; Claude `claude-opus-5-5`, medium. Never add Fast or permission-bypass flags. Read launch receipts rather than trusting agent self-identification.
+3. Use Codex `gpt-6.1-sol`, medium reasoning, Standard service; Claude `claude-opus-5-5`, medium. Never add Fast or permission-bypass flags. Read launch receipts rather than trusting agent self-identification.
 4. Review the other agent's exact diff. Return concrete defects and evidence; the owner fixes them. Repeat focused review after fixes and integrate only the reviewed files.
 5. Run runtime isolation tests, backend tests, types, lint, builds and applicable browser stories on the combined revision. Record pre-existing failures separately. SQL-unconfigured runtime checks do not prove authenticated/database workflows.
 6. Record the final commit or file hashes, tests, browser evidence and blockers. Agreement alone is insufficient. Release completed Orca workers. Commit/push/deploy only when requested.

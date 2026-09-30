@@ -1,3 +1,4 @@
+import { ensureSampleManualRefund } from "./refund-routes.js";
 import {
   randomUUID,
   createHash,
@@ -40,14 +41,13 @@ import {
   paymentSession,
   paymentConfirmed,
   buyParcel,
-  refundPayment,
   voidParcel,
   parcelStatus,
   type ParcelAddress,
   type ParcelRate,
 } from "./sample-shipping-provider.js";
 type Row = Record<string, unknown>;
-type Exec = (q: string, p?: QueryParameter[]) => Promise<Row[]>;
+type Exec = <T extends Record<string,unknown> = Row>(q: string, p?: QueryParameter[]) => Promise<T[]>;
 const dt = (name: string, value: unknown): QueryParameter => ({
   name,
   type: sql.DateTime2,
@@ -192,15 +192,12 @@ async function config(
 async function refund(r: Row, exec: Exec) {
   const id = Number(r.id);
   if (r.refundState !== "succeeded") {
-    const result = await refundPayment(String(r.paymentIntentId), id);
-    await exec(
-      "UPDATE dbo.SampleShipping SET RefundState=@state,RefundId=@refund WHERE SampleRequestId=@id",
-      [
-        int("id", id),
-        text("state", result.succeeded ? "succeeded" : "pending"),
-        text("refund", result.id),
-      ],
-    );
+    if (r.mode === "simulation") {
+      await exec("UPDATE dbo.SampleShipping SET RefundState='manual_review',LastError='SIMULATION: staff refund review required.' WHERE SampleRequestId=@id",[int("id",id)]);
+    } else {
+      await ensureSampleManualRefund(exec, {id,buyerCompanyId:Number(r.buyerCompanyId),sellerCompanyId:Number(r.sellerCompanyId),paymentIntentId:String(r.paymentIntentId),shippingCents:Number(r.shippingCents)});
+      await exec("UPDATE dbo.SampleShipping SET RefundState='manual_review' WHERE SampleRequestId=@id AND RefundState='pending'",[int("id",id)]);
+    }
   }
   if (r.labelVoidState !== "succeeded") {
     const done = await voidParcel(String(r.shipmentId));
@@ -250,7 +247,7 @@ async function move(r: Row, to: ShippingState, exec: Exec, actor?: number) {
       Number(r.sellerCompanyId),
       Number(r.listingId),
       `Sample SR-${id} expired`,
-      "The dispatch deadline passed. The buyer refund is being processed and this listing has a missed-request mark.",
+      "The dispatch deadline passed. The buyer refund requires staff review in Stripe and this listing has a missed-request mark.",
     );
   await notifySampleCompany(
     exec,
@@ -258,7 +255,7 @@ async function move(r: Row, to: ShippingState, exec: Exec, actor?: number) {
     Number(r.buyerCompanyId),
     Number(r.listingId),
     `Sample SR-${id} updated`,
-    `${r.mode === "simulation" ? "SIMULATION: " : ""}${to.replaceAll("_", " ")}. ${requiresShippingRefund(to) ? "Your shipping refund is being processed." : ""}`,
+    `${r.mode === "simulation" ? "SIMULATION: " : ""}${to.replaceAll("_", " ")}. ${requiresShippingRefund(to) ? "Staff will review your shipping refund in Stripe." : ""}`,
   );
 }
 async function settle(id: number, auth: AuthContext, simulatePayment = false) {

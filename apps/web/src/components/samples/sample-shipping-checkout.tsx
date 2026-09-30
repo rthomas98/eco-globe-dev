@@ -237,7 +237,8 @@ export function SampleShippingCheckout({ listingId }: { listingId: number }) {
                 <p className="rounded-2xl bg-emerald-50 p-5 text-emerald-900">
                   Shipping is credited against your first qualifying order of
                   this material. If the seller has not dispatched within 10
-                  business days, your shipping payment is refunded.
+                  business days, EcoGlobe staff refund your shipping payment
+                  through Stripe; you can follow it under Accounting → Refunds.
                 </p>
                 <label className="flex gap-3">
                   <input

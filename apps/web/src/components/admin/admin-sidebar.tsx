@@ -83,6 +83,7 @@ const financeAdminNavItems: NavItem[] = [
       { label: "Transactions", href: "/admin/accounting/transactions" },
       { label: "Payments", href: "/admin/accounting/payments" },
       { label: "Payment exceptions", href: "/admin/payment-exceptions" },
+      { label: "Refunds", href: "/admin/refunds" },
       { label: "Escrow", href: "/admin/accounting/escrow" },
     ],
   },

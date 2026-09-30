@@ -104,6 +104,7 @@ const buyerNavGroups: NavGroup[] = [
         children: [
           { href: "/buyer/accounting/transactions", label: "Transactions" },
           { href: "/buyer/accounting/payments", label: "Payments" },
+          { href: "/buyer/accounting/refunds", label: "Refunds" },
           { href: "/buyer/accounting/escrow", label: "Escrow" },
           { href: "/buyer/accounting/bank-account", label: "Bank Account" },
         ],

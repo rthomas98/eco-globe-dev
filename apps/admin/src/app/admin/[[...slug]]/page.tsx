@@ -20,6 +20,10 @@ import { AdminLogisticsPage } from "@/components/admin/logistics-page";
 import { AdminModerationPage } from "@/components/admin/moderation-page";
 import { AdminNotificationsPage } from "@/components/admin/notifications-page";
 import { AdminPaymentExceptionsPage } from "@/components/admin/payment-exceptions-page";
+import {
+  RefundCasePage,
+  RefundCasesPage,
+} from "@/components/refunds/refund-cases-page";
 import { NotificationsPreferencesPage } from "@/components/admin/notifications-preferences-page";
 import { AdminPilotAvailabilityPage } from "@/components/admin/pilot-availability-page";
 import { AdminPilotDeskPage } from "@/components/admin/pilot-desk-page";
@@ -165,6 +169,14 @@ export default async function Page({ params }: PageProps) {
     if (second === "panels" && !third) return <LabPanelsPage />;
     if (!second) return <LabTestingQueuePage />;
     notFound();
+  }
+  if (section === "refunds") {
+    if (third) notFound();
+    return second ? (
+      <RefundCasePage role="admin" id={second} />
+    ) : (
+      <RefundCasesPage role="admin" />
+    );
   }
   if (section === "contracts") return <AdminContractsPage contractId={second} />;
   if (section === "e-signatures")

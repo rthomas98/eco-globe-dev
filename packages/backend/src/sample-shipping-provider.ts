@@ -223,16 +223,6 @@ export async function buyParcel(shipmentId: string, rateId: string) {
     throw new ApiError(502, "Invalid carrier label URL.");
   return { tracking: str(shipment.tracking_code), labelUrl };
 }
-export async function refundPayment(intent: string, id: number) {
-  if (shippingMode() === "simulation")
-    return { id: `sim_refund_${id}`, succeeded: true };
-  const refund = await stripe(
-    "refunds",
-    { payment_intent: intent },
-    `sample-refund-${id}`,
-  );
-  return { id: str(refund.id), succeeded: refund.status === "succeeded" };
-}
 export async function voidParcel(shipmentId: string) {
   if (shippingMode() === "simulation") return true;
   const shipment = await ep(`shipments/${encodeURIComponent(shipmentId)}`);

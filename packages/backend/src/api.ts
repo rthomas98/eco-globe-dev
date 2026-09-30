@@ -263,15 +263,6 @@ type EscrowBody = {
 
 
 
-type PayoutBody = {
-  orderId: number;
-  escrowId?: number;
-  sellerCompanyId?: number;
-  providerPayoutId?: string;
-  amount?: number;
-  currencyCode?: string;
-  payoutStatusCode?: string;
-};
 
 type ContractBody = {
   buyerCompanyId: number;
@@ -5142,88 +5133,13 @@ async function listPayouts(response: ServerResponse, url: URL, auth: AuthContext
   sendJson(response, 200, { ok: true, payouts });
 }
 
-async function createPayout(
-  request: IncomingMessage,
-  response: ServerResponse,
-  auth: AuthContext,
-) {
-  const body = await readJsonBody<PayoutBody>(request);
-  const orderId = getBodyInt(body, "orderId");
-  const order = (
-    await queryRowsWithParams<{ sellerCompanyId: number; totalAmount: number; currencyCode: string }>(
-      "SELECT SellerCompanyId AS sellerCompanyId, TotalAmount AS totalAmount, CurrencyCode AS currencyCode FROM dbo.Orders WHERE Id = @orderId;",
-      [intParam("orderId", orderId)],
-    )
-  )[0];
-  if (!order) throw new ApiError(404, "Order not found.");
-  await requireOrderAccess(auth, orderId);
-
-  const rows = await queryRowsWithParams(
-    `
-      INSERT INTO dbo.Payouts (
-        OrderId, EscrowId, SellerCompanyId, ProviderPayoutId, Amount, CurrencyCode,
-        PayoutStatusId, CreatedByUserId, UpdatedByUserId
-      )
-      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.Amount AS amount, INSERTED.PayoutStatusId AS payoutStatusId
-      VALUES (
-        @orderId, @escrowId, @sellerCompanyId, @providerPayoutId, @amount, @currencyCode,
-        @payoutStatusId, @createdByUserId, @updatedByUserId
-      );
-    `,
-    [
-      intParam("orderId", orderId),
-      intParam("escrowId", getOptionalInt(body, "escrowId")),
-      intParam("sellerCompanyId", getOptionalInt(body, "sellerCompanyId") ?? order.sellerCompanyId),
-      varcharParam("providerPayoutId", getOptionalString(body, "providerPayoutId", 200), 200),
-      moneyParam("amount", getOptionalNumber(body, "amount") ?? Number(order.totalAmount)),
-      varcharParam("currencyCode", getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? order.currencyCode, 3),
-      intParam("payoutStatusId", await lookupId("PayoutStatuses", getOptionalString(body, "payoutStatusCode", 80) ?? "pending")),
-      intParam("createdByUserId", auth.userId),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-
-  await writeAuditLog({ auth, request, actionTypeCode: "created", recordTypeCode: "payment", recordId: rows[0].id as number, newValue: rows[0], reason: "Payout created." });
-  sendJson(response, 201, { ok: true, payout: rows[0] });
+async function createPayout(_request: IncomingMessage,_response: ServerResponse,auth:AuthContext) {
+  requireAdmin(auth);
+  throw new ApiError(409,"Seller settlement is staff-managed in Stripe. Unverified payout records cannot be created in EcoGlobe.");
 }
-
-async function updatePayout(
-  request: IncomingMessage,
-  response: ServerResponse,
-  id: number,
-  auth: AuthContext,
-) {
-  const payoutOrder = (await queryRowsWithParams<{ orderId: number }>(
-    "SELECT OrderId AS orderId FROM dbo.Payouts WHERE Id = @id;",
-    [intParam("id", id)],
-  ))[0];
-  if (!payoutOrder) throw new ApiError(404, "Payout not found.");
-  await requireOrderAccess(auth, payoutOrder.orderId);
-  const body = await readJsonBody<PayoutBody>(request);
-  const statusCode = getOptionalString(body, "payoutStatusCode", 80);
-  const rows = await queryRowsWithParams(
-    `
-      UPDATE dbo.Payouts
-      SET
-        ProviderPayoutId = COALESCE(@providerPayoutId, ProviderPayoutId),
-        Amount = COALESCE(@amount, Amount),
-        PayoutStatusId = COALESCE(@payoutStatusId, PayoutStatusId),
-        UpdatedByUserId = @updatedByUserId,
-        UpdatedAt = SYSUTCDATETIME()
-      OUTPUT INSERTED.Id AS id, INSERTED.OrderId AS orderId, INSERTED.Amount AS amount, INSERTED.PayoutStatusId AS payoutStatusId
-      WHERE Id = @id;
-    `,
-    [
-      intParam("id", id),
-      varcharParam("providerPayoutId", getOptionalString(body, "providerPayoutId", 200), 200),
-      moneyParam("amount", getOptionalNumber(body, "amount")),
-      intParam("payoutStatusId", statusCode ? await lookupId("PayoutStatuses", statusCode) : undefined),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
-  if (!rows[0]) throw new ApiError(404, "Payout not found.");
-  await writeAuditLog({ auth, request, actionTypeCode: statusCode ? "status_changed" : "updated", recordTypeCode: "payment", recordId: id, newValue: rows[0], reason: "Payout updated." });
-  sendJson(response, 200, { ok: true, payout: rows[0] });
+async function updatePayout(_request: IncomingMessage,_response: ServerResponse,_id:number,auth:AuthContext) {
+  requireAdmin(auth);
+  throw new ApiError(409,"Payout status requires provider reconciliation. Refund cases must be resolved before staff settle the seller.");
 }
 
 async function listContracts(response: ServerResponse, url: URL, auth: AuthContext) {
