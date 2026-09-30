@@ -1,0 +1,51 @@
+{
+  "orderId": 22,
+  "refundId": 1,
+  "providerRefundId": "re_3ULPFbCEJFfU7hsb1CWPURCQ",
+  "status": "refunded",
+  "hold": false,
+  "remainingCents": 59000,
+  "replay": "pass",
+  "emailStates": [
+    [
+      "sent",
+      1
+    ],
+    [
+      "sent",
+      1
+    ],
+    [
+      "sent",
+      1
+    ],
+    [
+      "sent",
+      1
+    ],
+    [
+      "sent",
+      1
+    ],
+    [
+      "sent",
+      1
+    ],
+    [
+      "sent",
+      1
+    ],
+    [
+      "sent",
+      1
+    ]
+  ],
+  "health": {
+    "ok": true,
+    "service": "eco-globe-backend",
+    "database": {
+      "configured": true,
+      "connected": true
+    }
+  }
+}
