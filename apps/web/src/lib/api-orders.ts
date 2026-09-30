@@ -3,6 +3,8 @@
 import { materialImage } from "./material-images";
 import { apiFetch } from "./backend-client";
 import { readDemoUser } from "./demo-user";
+import { listingDocumentUrl } from "./api-listing-documents";
+import { parseOrderListingImageUrl } from "./order-listing-image";
 
 /**
  * Client helpers for the marketplace money path: provider-confirmed checkout
@@ -15,6 +17,11 @@ export interface ApiOrder {
   quoteId: number | null;
   listingId: number | null;
   listingTitle: string | null;
+  /**
+   * First saved listing photo (download path or legacy absolute URL), or null
+   * when the listing has no photo. Never a fixture or title-based image.
+   */
+  listingImageUrl?: string | null;
   buyerCompanyId: number;
   buyerCompanyName: string;
   sellerCompanyId: number;
@@ -219,6 +226,15 @@ export function orderUnitPrice(order: Pick<ApiOrder, "unitPrice" | "totalAmount"
   if (!quantity || quantity <= 0) return null;
   const total = Number(order.totalAmount) + Number(order.sampleShippingCreditCents ?? 0) / 100;
   return Math.round((total / quantity) * 100) / 100;
+}
+
+/**
+ * Browser URL for the order's saved listing photo through the same-origin
+ * backend proxy, or "" when there is no valid saved photo.
+ */
+export function orderListingImageSrc(order: Pick<ApiOrder, "listingImageUrl">) {
+  const ref = parseOrderListingImageUrl(order.listingImageUrl);
+  return ref ? listingDocumentUrl(ref) : "";
 }
 
 export function listingImageForTitle(title: string | null) {

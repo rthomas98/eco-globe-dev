@@ -15,13 +15,13 @@ import {
   MessageCircle,
   Truck,
   XCircle,
-  ImageOff,
 } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { BuyerLayout } from "./buyer-layout";
 import { SampleRequestsPanel } from "@/components/samples/sample-requests-panel";
 import {
   BuyerOrderDetailPanel,
+  OrderProductImage,
   type OrderDetail,
 } from "./buyer-order-detail-panel";
 import {
@@ -29,7 +29,7 @@ import {
   fetchOrders,
   formatOrderDate,
   formatOrderMoney,
-  listingImageForTitle,
+  orderListingImageSrc,
   orderUnitPrice,
   type ApiOrder,
 } from "@/lib/api-orders";
@@ -63,7 +63,8 @@ export function mapApiOrderToBuyerRow(order: ApiOrder): Order {
     category: "Marketplace",
     seller: order.sellerCompanyName,
     product: order.listingTitle ?? "Marketplace order",
-    productImage: listingImageForTitle(order.listingTitle),
+    // Only the listing's saved photo; never a title-matched stock image.
+    productImage: orderListingImageSrc(order),
     // Per-unit price (the card appends the unit); the order total is `total`.
     productPrice: (() => {
       const unit = orderUnitPrice(order);
@@ -398,15 +399,7 @@ function OrderCard({
           {order.seller}
         </div>
         <div className="flex flex-1 items-center gap-4">
-          <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
-            {order.productImage ? (
-              <img src={order.productImage} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center bg-neutral-100 text-neutral-400" role="img" aria-label="No product photo">
-                <ImageOff className="size-5" aria-hidden="true" />
-              </span>
-            )}
-          </div>
+          <OrderProductImage src={order.productImage} title={order.product} />
           <div>
             <p className="text-base font-bold text-neutral-900">{order.product}</p>
             <p className="text-sm text-neutral-500">

@@ -108,6 +108,42 @@ function ScrollDisputeIcon() {
   );
 }
 
+/**
+ * The order's saved listing photo, or an honest "No photo available" tile when
+ * none was saved or the photo fails to load. Keyed by src so a new photo
+ * clears an earlier load failure.
+ */
+export function OrderProductImage({ src, title }: { src: string; title: string }) {
+  return <OrderProductImageInner key={src} src={src} title={title} />;
+}
+
+function OrderProductImageInner({ src, title }: { src: string; title: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
+      {src && !failed ? (
+        <img
+          src={src}
+          alt={title}
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span
+          className="flex h-full w-full flex-col items-center justify-center gap-0.5 text-neutral-500"
+          role="img"
+          aria-label={`No photo available for ${title}`}
+          title="No photo available"
+        >
+          <ImageOff className="size-4" aria-hidden="true" />
+          <span className="text-[9px] leading-tight" aria-hidden="true">No photo</span>
+        </span>
+      )}
+    </div>
+  );
+}
+
 export interface OrderDetail {
   orderId: string;
   /** From the saved order; decides the status an approval moves to. */
@@ -657,19 +693,7 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
 
               <SectionCard title="Products">
                 <div className="flex items-center gap-4">
-                  <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
-                    {order.product.image ? (
-                      <img
-                        src={order.product.image}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center text-neutral-400" role="img" aria-label="No product photo">
-                        <ImageOff className="size-5" aria-hidden="true" />
-                      </span>
-                    )}
-                  </div>
+                  <OrderProductImage src={order.product.image} title={order.product.name} />
                   <div>
                     <p className="text-base font-bold text-neutral-900">
                       {order.product.name}

@@ -3461,6 +3461,7 @@ async function listOrders(response: ServerResponse, url: URL, auth: AuthContext)
         o.QuoteId AS quoteId,
         o.ListingId AS listingId,
         l.Title AS listingTitle,
+        listingPhoto.fileUrl AS listingImageUrl,
         o.BuyerCompanyId AS buyerCompanyId,
         bc.LegalName AS buyerCompanyName,
         o.SellerCompanyId AS sellerCompanyId,
@@ -3482,6 +3483,15 @@ async function listOrders(response: ServerResponse, url: URL, auth: AuthContext)
         o.UpdatedAt AS updatedAt
       FROM dbo.Orders o
       LEFT JOIN dbo.Listings l ON l.Id = o.ListingId
+      OUTER APPLY (
+        SELECT TOP (1)
+          CASE WHEN d.Content IS NOT NULL THEN CONCAT('/api/listing-documents/', d.Id, '/download') ELSE d.FileUrl END AS fileUrl
+        FROM dbo.ListingDocuments d
+        INNER JOIN dbo.DocumentTypes dt ON dt.Id = d.DocumentTypeId
+        WHERE d.ListingId = o.ListingId AND d.DeletedAt IS NULL AND dt.Code = 'photo'
+          AND (d.Content IS NOT NULL OR NULLIF(LTRIM(RTRIM(d.FileUrl)), '') IS NOT NULL)
+        ORDER BY d.Id
+      ) listingPhoto
       INNER JOIN dbo.Companies bc ON bc.Id = o.BuyerCompanyId
       INNER JOIN dbo.Companies sc ON sc.Id = o.SellerCompanyId
       INNER JOIN dbo.OrderStatuses os ON os.Id = o.OrderStatusId
@@ -3527,6 +3537,7 @@ async function getOrder(
         o.QuoteId AS quoteId,
         o.ListingId AS listingId,
         l.Title AS listingTitle,
+        listingPhoto.fileUrl AS listingImageUrl,
         o.BuyerCompanyId AS buyerCompanyId,
         bc.LegalName AS buyerCompanyName,
         o.SellerCompanyId AS sellerCompanyId,
@@ -3548,6 +3559,15 @@ async function getOrder(
         o.UpdatedAt AS updatedAt
       FROM dbo.Orders o
       LEFT JOIN dbo.Listings l ON l.Id = o.ListingId
+      OUTER APPLY (
+        SELECT TOP (1)
+          CASE WHEN d.Content IS NOT NULL THEN CONCAT('/api/listing-documents/', d.Id, '/download') ELSE d.FileUrl END AS fileUrl
+        FROM dbo.ListingDocuments d
+        INNER JOIN dbo.DocumentTypes dt ON dt.Id = d.DocumentTypeId
+        WHERE d.ListingId = o.ListingId AND d.DeletedAt IS NULL AND dt.Code = 'photo'
+          AND (d.Content IS NOT NULL OR NULLIF(LTRIM(RTRIM(d.FileUrl)), '') IS NOT NULL)
+        ORDER BY d.Id
+      ) listingPhoto
       INNER JOIN dbo.Companies bc ON bc.Id = o.BuyerCompanyId
       INNER JOIN dbo.Companies sc ON sc.Id = o.SellerCompanyId
       INNER JOIN dbo.OrderStatuses os ON os.Id = o.OrderStatusId
