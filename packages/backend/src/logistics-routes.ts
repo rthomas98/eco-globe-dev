@@ -44,7 +44,16 @@ type Order = {
   status: string;
   currencyCode: string;
   shippingTypeCode: string;
+  creationSourceCode?: string;
+  totalAmount?: number;
+  capturedFunding?: number;
 };
+export function requireFundedCheckout(order: Order) {
+  if (order.creationSourceCode === "listing_checkout" &&
+      (!(Number(order.totalAmount) > 0) || !Number.isFinite(Number(order.totalAmount)) ||
+       !Number.isFinite(Number(order.capturedFunding)) || Number(order.capturedFunding) < Number(order.totalAmount)))
+    throw new ApiError(409, "Captured buyer payment is required before fulfilling this checkout order.");
+}
 export function authorizeLogistics(
   auth: AuthContext,
   order: Order,
@@ -64,7 +73,9 @@ export function authorizeLogistics(
       "This company cannot perform that logistics action.",
     );
 }
-const orderSelect = `SELECT o.Id AS id,o.BuyerCompanyId AS buyerCompanyId,o.SellerCompanyId AS sellerCompanyId,os.Code AS status,o.CurrencyCode AS currencyCode,o.DeliveryMethod AS shippingTypeCode FROM dbo.Orders o WITH (UPDLOCK,HOLDLOCK) JOIN dbo.OrderStatuses os ON os.Id=o.OrderStatusId WHERE o.Id=@id`;
+const orderSelect = `SELECT o.Id AS id,o.BuyerCompanyId AS buyerCompanyId,o.SellerCompanyId AS sellerCompanyId,os.Code AS status,o.CurrencyCode AS currencyCode,o.DeliveryMethod AS shippingTypeCode,src.Code AS creationSourceCode,o.TotalAmount AS totalAmount,
+ COALESCE((SELECT SUM(p.Amount) FROM dbo.Payments p JOIN dbo.PaymentStatuses ps ON ps.Id=p.PaymentStatusId JOIN dbo.PaymentTypes pt ON pt.Id=p.PaymentTypeId WHERE p.OrderId=o.Id AND p.PayerCompanyId=o.BuyerCompanyId AND p.CurrencyCode=o.CurrencyCode AND ps.Code='captured' AND pt.Code='buyer_funding' AND NULLIF(LTRIM(RTRIM(p.ProviderPaymentId)),'') IS NOT NULL),0) AS capturedFunding
+ FROM dbo.Orders o WITH (UPDLOCK,HOLDLOCK) JOIN dbo.OrderStatuses os ON os.Id=o.OrderStatusId JOIN dbo.OrderCreationSources src ON src.Id=o.CreationSourceId WHERE o.Id=@id`;
 async function workspace(auth: AuthContext) {
   const orders = await query(
     `SELECT o.Id AS id,os.Code AS orderStatusCode,o.BuyerCompanyId AS buyerCompanyId,o.SellerCompanyId AS sellerCompanyId,b.LegalName AS buyerCompanyName,s.LegalName AS sellerCompanyName,l.Title AS listingTitle,o.Quantity AS quantity,o.QuantityUnit AS quantityUnitCode,o.DeliveryMethod AS shippingTypeCode,o.CurrencyCode AS currencyCode,o.DeliveryAddress AS deliveryAddress,CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.Escrows e JOIN dbo.EscrowStatuses es ON es.Id=e.EscrowStatusId WHERE e.OrderId=o.Id AND es.Code='dispute_locked') THEN 1 ELSE 0 END AS BIT) AS fulfilmentLocked,
@@ -126,6 +137,7 @@ async function action(
         params,
       )
     )[0];
+    requireFundedCheckout(order);
     if (kind === "confirm" && shipment?.status === "delivered") return;
     if (kind === "accept" && q?.status === "accepted" && q.id === body.quoteId)
       return;

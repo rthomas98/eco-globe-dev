@@ -85,6 +85,9 @@ export function validateCheckout(body: Record<string, unknown>) {
   }
   return {
     pickupRequestedAt,
+    pickupContactName: pickupText(body.pickupContactName, "pickup contact name", 160),
+    pickupContactPhone: pickupText(body.pickupContactPhone, "pickup contact phone", 80),
+    pickupVehicleDetails: pickupText(body.pickupVehicleDetails, "pickup vehicle details", 400),
     listingId: Number(body.listingId),
     quantity: body.quantity,
     idempotencyKey: body.idempotencyKey,
@@ -92,6 +95,12 @@ export function validateCheckout(body: Record<string, unknown>) {
     deliveryAddress,
     quoteId: body.quoteId === undefined ? null : Number(body.quoteId),
   };
+}
+function pickupText(value: unknown, label: string, max: number): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string" || value.length > max || /[\x00-\x1f\x7f]/.test(value))
+    throw new ApiError(400, `Invalid ${label} (maximum ${max} characters).`);
+  return value.trim() || null;
 }
 async function requireBuyer(auth: AuthContext, execute = true) {
   if (!auth.companyId)
@@ -273,7 +282,14 @@ export async function reserveCheckout(
 ): Promise<Attempt> {
   const companyId = await requireBuyer(auth);
   const value = validateCheckout(body);
-  const hash = createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  // Preserve hashes for retries created before the additive contact fields.
+  const { pickupContactName, pickupContactPhone, pickupVehicleDetails, ...originalValue } = value;
+  const hash = createHash("sha256").update(JSON.stringify({
+    ...originalValue,
+    ...(pickupContactName !== null ? { pickupContactName } : {}),
+    ...(pickupContactPhone !== null ? { pickupContactPhone } : {}),
+    ...(pickupVehicleDetails !== null ? { pickupVehicleDetails } : {}),
+  })).digest("hex");
   return runInTransaction(async (tx) => {
     const lock = await txQuery<{ result: number }>(
       tx,
@@ -392,8 +408,8 @@ export async function reserveCheckout(
     const expires = new Date(Date.now() + 35 * 60 * 1000);
     const rows = await txQuery<{ id: number }>(
       tx,
-      `INSERT dbo.Orders(QuoteId,ListingId,BuyerCompanyId,SellerCompanyId,CreationSourceId,OrderStatusId,TotalAmount,CurrencyCode,EscrowRequired,Quantity,QuantityUnit,DeliveryMethod,DeliveryAddress,PickupRequestedAt,CreatedByUserId,UpdatedByUserId)
-   OUTPUT INSERTED.Id AS id VALUES(@quote,@listing,@buyer,@seller,(SELECT Id FROM dbo.OrderCreationSources WHERE Code='listing_checkout'),(SELECT Id FROM dbo.OrderStatuses WHERE Code='awaiting_payment'),@amount,@currency,0,@quantity,@unit,@delivery,@address,@pickup,@user,@user)`,
+      `INSERT dbo.Orders(QuoteId,ListingId,BuyerCompanyId,SellerCompanyId,CreationSourceId,OrderStatusId,TotalAmount,CurrencyCode,EscrowRequired,Quantity,QuantityUnit,DeliveryMethod,DeliveryAddress,PickupRequestedAt,PickupContactName,PickupContactPhone,PickupVehicleDetails,CreatedByUserId,UpdatedByUserId)
+   OUTPUT INSERTED.Id AS id VALUES(@quote,@listing,@buyer,@seller,(SELECT Id FROM dbo.OrderCreationSources WHERE Code='listing_checkout'),(SELECT Id FROM dbo.OrderStatuses WHERE Code='awaiting_payment'),@amount,@currency,0,@quantity,@unit,@delivery,@address,@pickup,@pickupContactName,@pickupContactPhone,@pickupVehicleDetails,@user,@user)`,
       [
         p("quote", value.quoteId, sql.Int),
         p("listing", value.listingId, sql.Int),
@@ -405,6 +421,9 @@ export async function reserveCheckout(
         p("unit", listing.unit),
         p("delivery", value.deliveryMethod),
         p("address", value.deliveryAddress, sql.NVarChar(400)),
+        p("pickupContactName", value.pickupContactName, sql.NVarChar(160)),
+        p("pickupContactPhone", value.pickupContactPhone, sql.NVarChar(80)),
+        p("pickupVehicleDetails", value.pickupVehicleDetails, sql.NVarChar(400)),
         p(
           "pickup",
           value.pickupRequestedAt ? new Date(value.pickupRequestedAt) : null,

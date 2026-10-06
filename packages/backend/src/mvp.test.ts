@@ -71,6 +71,18 @@ test("checkout rejects ambiguous retries, invalid quantities and missing deliver
   ])
     assert.throws(() => validateCheckout({ ...body, ...patch }));
 });
+
+test("checkout preserves bounded pickup contact, vehicle and date and rejects malformed metadata", () => {
+  const body = { listingId: 1, quantity: 2, idempotencyKey: "pickup-1234567890123", pickupRequestedAt: "2026-10-07T09:00:00-05:00", pickupContactName: " QA Driver ", pickupContactPhone: " +1 555 0100 ", pickupVehicleDetails: "White truck" };
+  const value = validateCheckout(body);
+  assert.equal(value.pickupContactName, "QA Driver");
+  assert.equal(value.pickupContactPhone, "+1 555 0100");
+  assert.equal(value.pickupVehicleDetails, "White truck");
+  assert.equal(value.pickupRequestedAt, "2026-10-07T14:00:00.000Z");
+  assert.equal(validateCheckout({ ...body, pickupContactName: null }).pickupContactName, null);
+  for (const patch of [{ pickupContactName: 123 }, { pickupContactPhone: "x".repeat(81) }, { pickupVehicleDetails: "x".repeat(401) }, { pickupRequestedAt: "bad" }, { pickupContactName: "Driver\nInjected" }])
+    assert.throws(() => validateCheckout({ ...body, ...patch }));
+});
 test("provider reconciliation binds session, amount, currency and mode", () => {
   const attempt = {
     providerSessionId: "cs_test_1",

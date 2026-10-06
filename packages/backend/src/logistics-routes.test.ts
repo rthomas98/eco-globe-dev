@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { authorizeLogistics } from "./logistics-routes.js";
+import { authorizeLogistics, requireFundedCheckout } from "./logistics-routes.js";
 import { ApiError } from "./http.js";
 
 const order = {
@@ -36,4 +36,12 @@ test("staff may coordinate logistics but cannot impersonate buyer approval or re
     () => authorizeLogistics(admin, order, "buyer"),
     (error: unknown) => error instanceof ApiError && error.status === 403,
   );
+});
+
+test("historic listing checkout fulfilment requires full captured funding with no zero-total bypass", () => {
+  const checkout = { ...order, creationSourceCode: "listing_checkout", totalAmount: 30, capturedFunding: 30 };
+  assert.doesNotThrow(() => requireFundedCheckout(checkout));
+  for (const patch of [{ capturedFunding: 0 }, { capturedFunding: 29.99 }, { capturedFunding: undefined }, { capturedFunding: NaN }, { totalAmount: 0 }])
+    assert.throws(() => requireFundedCheckout({ ...checkout, ...patch }), (error: unknown) => error instanceof ApiError && error.status === 409);
+  assert.doesNotThrow(() => requireFundedCheckout({ ...order, creationSourceCode: "admin_direct", totalAmount: 0, capturedFunding: 0 }));
 });

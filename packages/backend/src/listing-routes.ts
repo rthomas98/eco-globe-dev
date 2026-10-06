@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { getOptionalSessionAuth, requireSessionAuth } from "./auth.js";
+import { parseListingRadius, withinListingRadius } from "./listing-radius.js";
 import {
   queryRowsWithParams as query,
   queryRowsWithParamsInTransaction,
@@ -144,6 +145,10 @@ const selectListing = `SELECT l.Id AS id,l.SellerCompanyId AS sellerCompanyId,c.
  mt.Code AS materialTypeCode,l.Quantity AS quantity,l.QuantityUnit AS quantityUnit,l.MinimumOrderQuantity AS minimumOrderQuantity,
  l.PricePerUnit AS pricePerUnit,l.CurrencyCode AS currencyCode,ls.Code AS listingStatusCode,l.CarbonIntensityKgCo2e AS carbonIntensityKgCo2e,
  l.Description AS description,l.SpecificationsJson AS specificationsJson,
+ (SELECT TOP (1) CASE WHEN d.Content IS NOT NULL THEN CONCAT('/api/listing-documents/',d.Id,'/download') ELSE d.FileUrl END
+  FROM dbo.ListingDocuments d JOIN dbo.DocumentTypes dt ON dt.Id=d.DocumentTypeId
+  WHERE d.ListingId=l.Id AND d.DeletedAt IS NULL AND dt.Code='photo'
+  AND (d.Content IS NOT NULL OR NULLIF(LTRIM(RTRIM(d.FileUrl)),'') IS NOT NULL) ORDER BY d.Id) AS listingImageUrl,
  loc.Name AS locationName,loc.AddressLine1 AS addressLine1,loc.AddressLine2 AS addressLine2,loc.City AS city,
  loc.StateProvince AS stateProvince,loc.PostalCode AS postalCode,loc.CountryCode AS countryCode,loc.Latitude AS latitude,loc.Longitude AS longitude
  FROM dbo.Listings l JOIN dbo.Companies c ON c.Id=l.SellerCompanyId JOIN dbo.AccountStatuses vs ON vs.Id=c.VerificationStatusId
@@ -560,7 +565,11 @@ export async function handleListingRoute(
         throw new ApiError(403, "Company access required.");
       const status = url.searchParams.get("statusCode");
       const search = url.searchParams.get("search");
-      const rows = await query(
+      const radius = parseListingRadius(url.searchParams);
+      // Radius membership could otherwise be probed to infer a private facility.
+      if (radius && !(viewer && (viewer.companyId || viewer.isAdmin)))
+        throw new ApiError(403, "Company membership is required for facility radius search.");
+      const catalogueRows = await query(
         selectListing +
           ` WHERE ` +
           (auth
@@ -575,6 +584,8 @@ export async function handleListingRoute(
           str("search", search),
         ],
       );
+      // Filter saved SQL coordinates before teaser redaction; never invent an origin.
+      const rows = radius ? catalogueRows.filter(row => withinListingRadius(row.latitude, row.longitude, radius)) : catalogueRows;
       // One metadata read for the catalogue, rather than one SQL request per
       // listing. Anonymous teasers never expose documents, so skip that read.
       const catalogueDocuments = viewer && (viewer.companyId || viewer.isAdmin)

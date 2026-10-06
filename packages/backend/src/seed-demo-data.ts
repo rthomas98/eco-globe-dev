@@ -1,3 +1,4 @@
+import { initializeCompanyProfilesSql } from "./company-profiles.js";
 /**
  * Idempotent marketplace demo seed: verified seller companies with real
  * locations and ~18 published listings that mirror the frontend's demo
@@ -115,6 +116,15 @@ async function main() {
         );
       companyId = inserted.recordset[0].id as number;
       companiesCreated += 1;
+    }
+    const profileTx = new sql.Transaction(pool);
+    await profileTx.begin();
+    try {
+      await new sql.Request(profileTx).input("companyId", sql.Int, companyId).query(initializeCompanyProfilesSql);
+      await profileTx.commit();
+    } catch (error) {
+      await profileTx.rollback();
+      throw error;
     }
     companyIds.set(seller.legalName, companyId);
 

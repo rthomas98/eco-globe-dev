@@ -62,7 +62,7 @@ export async function handleTrackerRoute(
     throw new ApiError(400, "Choose buyer or seller tracker.");
   const params = [int("company", company), int("user", auth.userId)];
   const profile = await query(
-    `SELECT Id FROM dbo.${role === "buyer" ? "BuyerProfiles" : "SellerProfiles"} WHERE CompanyId=@company`,
+    `SELECT p.Id FROM dbo.${role === "buyer" ? "BuyerProfiles" : "SellerProfiles"} p JOIN dbo.Companies c ON c.Id=p.CompanyId JOIN dbo.CompanyTypes ct ON ct.Id=c.CompanyTypeId WHERE p.CompanyId=@company AND ct.Code IN ('${role}','both')`,
     params,
   );
   if (!profile.length)
@@ -112,7 +112,7 @@ export async function handleTrackerRoute(
       params,
     ),
     query(
-      `SELECT d.Id AS id,d.ListingId AS listingId,d.FileName AS name FROM dbo.ListingDocuments d JOIN dbo.Listings l ON l.Id=d.ListingId WHERE ${scope}`,
+      `SELECT d.Id AS id,d.ListingId AS listingId,d.FileName AS name FROM dbo.ListingDocuments d JOIN dbo.Listings l ON l.Id=d.ListingId WHERE ${scope} AND d.DeletedAt IS NULL AND (d.Content IS NOT NULL OR NULLIF(LTRIM(RTRIM(d.FileUrl)),'') IS NOT NULL)`,
       params,
     ),
     query(

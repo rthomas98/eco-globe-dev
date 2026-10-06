@@ -1,3 +1,5 @@
+import { initializeCompanyProfilesSql } from "./company-profiles.js";
+import { validateLocationFields } from "./location-validation.js";
 import { handleFedExSandboxRoute } from "./fedex-sandbox-routes.js";
 import { handleRfqRoute } from "./rfq-routes.js";
 import { handleCheckoutRoute, reconcileCheckoutEvent } from "./checkout-routes.js";
@@ -1639,6 +1641,9 @@ async function createCompany(
       intParam("updatedByUserId", auth.userId),
     ],
   );
+  await runInTransaction(async transaction => {
+    await queryRowsWithParamsInTransaction(transaction, initializeCompanyProfilesSql, [intParam("companyId", rows[0]!.id as number)]);
+  });
   await queryRowsWithParams(
     `
       UPDATE dbo.UserSessions
@@ -2359,15 +2364,7 @@ async function createLocation(
     "LocationTypes",
     getOptionalString(body, "locationTypeCode", 80) ?? "delivery",
   );
-  const name = getRequiredString(body, "name", 160);
-  const addressLine1 = getRequiredString(body, "addressLine1", 240);
-  const addressLine2 = getOptionalString(body, "addressLine2", 240);
-  const city = getRequiredString(body, "city", 120);
-  const stateProvince = getOptionalString(body, "stateProvince", 120);
-  const postalCode = getOptionalString(body, "postalCode", 40);
-  const countryCode = getRequiredString(body, "countryCode", 2).toUpperCase();
-  const latitude = getOptionalNumber(body, "latitude");
-  const longitude = getOptionalNumber(body, "longitude");
+  const { name, addressLine1, addressLine2, city, stateProvince, postalCode, countryCode, latitude, longitude } = validateLocationFields(body);
   const isDefault = getOptionalBoolean(body, "isDefault") ?? false;
 
   const rows = await queryRowsWithParams<{id:number}>(
@@ -2385,15 +2382,15 @@ async function createLocation(
     [
       intParam("companyId", companyId),
       intParam("locationTypeId", locationTypeId),
-      nvarcharParam("name", name, 160),
-      nvarcharParam("addressLine1", addressLine1, 240),
-      nvarcharParam("addressLine2", addressLine2, 240),
-      nvarcharParam("city", city, 120),
-      nvarcharParam("stateProvince", stateProvince, 120),
-      nvarcharParam("postalCode", postalCode, 40),
+      nvarcharParam("name", name ?? undefined, 160),
+      nvarcharParam("addressLine1", addressLine1 ?? undefined, 240),
+      nvarcharParam("addressLine2", addressLine2 ?? undefined, 240),
+      nvarcharParam("city", city ?? undefined, 120),
+      nvarcharParam("stateProvince", stateProvince ?? undefined, 120),
+      nvarcharParam("postalCode", postalCode ?? undefined, 40),
       varcharParam("countryCode", countryCode, 2),
-      decimalParam("latitude", latitude),
-      decimalParam("longitude", longitude),
+      { name: "latitude", type: sql.Decimal(9, 6), value: latitude ?? null },
+      { name: "longitude", type: sql.Decimal(9, 6), value: longitude ?? null },
       bitParam("isDefault", isDefault),
       intParam("createdByUserId", auth.userId),
       intParam("updatedByUserId", auth.userId),
@@ -2423,9 +2420,8 @@ async function updateLocation(
     "Location",
   );
   const body = await readJsonBody<LocationBody>(request);
-  const name = getOptionalString(body, "name", 160);
-  const addressLine1 = getOptionalString(body, "addressLine1", 240);
-  const city = getOptionalString(body, "city", 120);
+  const fields = validateLocationFields(body, true);
+  const { name, addressLine1, city } = fields;
   const isDefault = getOptionalBoolean(body, "isDefault");
 
   const rows = await queryRowsWithParams(
@@ -2435,17 +2431,37 @@ async function updateLocation(
         Name = COALESCE(@name, Name),
         AddressLine1 = COALESCE(@addressLine1, AddressLine1),
         City = COALESCE(@city, City),
+        AddressLine2 = CASE WHEN @setAddressLine2=1 THEN @addressLine2 ELSE AddressLine2 END,
+        StateProvince = CASE WHEN @setStateProvince=1 THEN @stateProvince ELSE StateProvince END,
+        PostalCode = CASE WHEN @setPostalCode=1 THEN @postalCode ELSE PostalCode END,
+        CountryCode = COALESCE(@countryCode, CountryCode),
+        Latitude = CASE WHEN @setCoordinates=1 THEN @latitude ELSE Latitude END,
+        Longitude = CASE WHEN @setCoordinates=1 THEN @longitude ELSE Longitude END,
         IsDefault = COALESCE(@isDefault, IsDefault),
         UpdatedByUserId = @updatedByUserId,
         UpdatedAt = SYSUTCDATETIME()
-      OUTPUT INSERTED.Id AS id, INSERTED.CompanyId AS companyId, INSERTED.Name AS name
+      OUTPUT INSERTED.Id AS id, INSERTED.CompanyId AS companyId, INSERTED.Name AS name,
+        INSERTED.AddressLine1 AS addressLine1, INSERTED.AddressLine2 AS addressLine2,
+        INSERTED.City AS city, INSERTED.StateProvince AS stateProvince, INSERTED.PostalCode AS postalCode,
+        INSERTED.CountryCode AS countryCode, INSERTED.Latitude AS latitude, INSERTED.Longitude AS longitude,
+        INSERTED.IsDefault AS isDefault
       WHERE Id = @id;
     `,
     [
       intParam("id", id),
-      nvarcharParam("name", name, 160),
-      nvarcharParam("addressLine1", addressLine1, 240),
-      nvarcharParam("city", city, 120),
+      nvarcharParam("name", name ?? undefined, 160),
+      nvarcharParam("addressLine1", addressLine1 ?? undefined, 240),
+      nvarcharParam("city", city ?? undefined, 120),
+      nvarcharParam("addressLine2", fields.addressLine2 ?? undefined, 240),
+      nvarcharParam("stateProvince", fields.stateProvince ?? undefined, 120),
+      nvarcharParam("postalCode", fields.postalCode ?? undefined, 40),
+      varcharParam("countryCode", fields.countryCode, 2),
+      { name: "latitude", type: sql.Decimal(9, 6), value: fields.latitude ?? null },
+      { name: "longitude", type: sql.Decimal(9, 6), value: fields.longitude ?? null },
+      bitParam("setAddressLine2", fields.addressLine2 !== undefined),
+      bitParam("setStateProvince", fields.stateProvince !== undefined),
+      bitParam("setPostalCode", fields.postalCode !== undefined),
+      bitParam("setCoordinates", fields.latitude !== undefined),
       bitParam("isDefault", isDefault),
       intParam("updatedByUserId", auth.userId),
     ],
@@ -3479,6 +3495,9 @@ async function listOrders(response: ServerResponse, url: URL, auth: AuthContext)
         o.DeliveryMethod AS deliveryMethod,
         o.DeliveryAddress AS deliveryAddress,
         o.PickupRequestedAt AS pickupRequestedAt,
+        o.PickupContactName AS pickupContactName,
+        o.PickupContactPhone AS pickupContactPhone,
+        o.PickupVehicleDetails AS pickupVehicleDetails,
         o.CreatedAt AS createdAt,
         o.UpdatedAt AS updatedAt
       FROM dbo.Orders o
@@ -3555,6 +3574,9 @@ async function getOrder(
         o.DeliveryMethod AS deliveryMethod,
         o.DeliveryAddress AS deliveryAddress,
         o.PickupRequestedAt AS pickupRequestedAt,
+        o.PickupContactName AS pickupContactName,
+        o.PickupContactPhone AS pickupContactPhone,
+        o.PickupVehicleDetails AS pickupVehicleDetails,
         o.CreatedAt AS createdAt,
         o.UpdatedAt AS updatedAt
       FROM dbo.Orders o
@@ -3793,12 +3815,14 @@ async function updateOrder(
     sellerCompanyId: number;
     orderStatusCode: string;
     escrowRequired: boolean;
+    creationSourceCode: string;
   }>(
     `
       SELECT o.BuyerCompanyId AS buyerCompanyId, o.SellerCompanyId AS sellerCompanyId,
-        os.Code AS orderStatusCode, o.EscrowRequired AS escrowRequired
+        os.Code AS orderStatusCode, o.EscrowRequired AS escrowRequired, src.Code AS creationSourceCode
       FROM dbo.Orders o
       INNER JOIN dbo.OrderStatuses os ON os.Id = o.OrderStatusId
+      INNER JOIN dbo.OrderCreationSources src ON src.Id = o.CreationSourceId
       WHERE o.Id = @id;
     `,
     [intParam("id", id)],
@@ -3810,6 +3834,9 @@ async function updateOrder(
   }
 
   const body = await readJsonBody<OrderBody>(request);
+  // Historic listing checkouts predate CheckoutAttempts but obey the same gate.
+  if (order.creationSourceCode === "listing_checkout")
+    throw new ApiError(409, "Use payment reconciliation, cancellation or the logistics workflow for this checkout order.");
   if ((await queryRowsWithParams("SELECT Id FROM dbo.CheckoutAttempts WHERE OrderId=@id", [intParam("id",id)])).length) throw new ApiError(409, "Use payment reconciliation, cancellation or the logistics workflow for this checkout order.");
   const orderStatusCode = getOptionalString(body, "orderStatusCode", 80);
   if (orderStatusCode) {
