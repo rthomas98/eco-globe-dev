@@ -4,6 +4,7 @@ import { LabTestingDialog } from "@/components/lab-testing/lab-testing-dialog";
 import { BuyerLayout } from "@/components/buyer/buyer-layout";
 import { SellerLayout } from "@/components/seller/seller-layout";
 import Link from "next/link";
+import { SampleRequestsPanel } from "@/components/samples/sample-requests-panel";
 import {
   sampleApi,
   sampleMoney,
@@ -161,8 +162,15 @@ function ShippingDeskContent({ role }: { role: "buyer" | "seller" | "admin" }) {
           </div>
         )}
         {!loaded && !error && <p role="status">Loading sample requests…</p>}
+        {/* Sample requests arranged directly with the seller (also listed under
+            Orders and Sales) are separate from prepaid sample shipments. */}
+        {role !== "admin" && <SampleRequestsPanel role={role} />}
         {loaded && !rows.length && (
-          <p className="rounded-2xl bg-white p-8">No sample shipments yet.</p>
+          <p className="rounded-2xl bg-white p-8">
+            No prepaid sample shipments yet.
+            {role !== "admin" &&
+              " Sample requests arranged directly with the seller appear above when there are any."}
+          </p>
         )}
         {rows.map((r) => (
           <section

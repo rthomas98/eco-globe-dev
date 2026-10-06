@@ -5,6 +5,7 @@ import { apiFetch } from "./backend-client";
 import { readDemoUser } from "./demo-user";
 import { listingDocumentUrl } from "./api-listing-documents";
 import { parseOrderListingImageUrl } from "./order-listing-image";
+import type { OrderPaymentRecord } from "./order-truth";
 
 /**
  * Client helpers for the marketplace money path: provider-confirmed checkout
@@ -213,6 +214,12 @@ export async function reconcileCheckout(orderId: number) {
     `/api/checkout/${orderId}/reconcile`,
     { method: "POST", body: "{}" },
   );
+}
+
+/** Saved payment records for one order (buyer, seller or admin scope). */
+export async function fetchOrderPayments(orderId: number): Promise<OrderPaymentRecord[]> {
+  const body = await apiFetch<{ ok: true; payments?: OrderPaymentRecord[] }>(`/api/payments?orderId=${orderId}`);
+  return Array.isArray(body.payments) ? body.payments.filter((p) => p.orderId === orderId) : [];
 }
 
 /**

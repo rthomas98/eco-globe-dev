@@ -71,7 +71,7 @@ export const sellerStages = [
   "Pilot",
   "Shipping",
   "Delivered",
-  "Paid",
+  "Seller paid",
 ];
 export function stageEvidence(
   role: "buyer" | "seller",

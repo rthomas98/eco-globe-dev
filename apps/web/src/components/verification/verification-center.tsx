@@ -241,7 +241,11 @@ export function VerificationCenter({ role }: { role: Role }) {
                 />
               </div>
               <p className="mt-2 text-xs text-neutral-300">
-                {completeCount} of {baseSteps.length} sections approved
+                {completeCount} of {baseSteps.length} document sections approved
+              </p>
+              <p className="mt-1 text-xs text-neutral-400">
+                Company status is set by EcoGlobe staff. Document sections track the supporting
+                files saved for review and are counted separately.
               </p>
             </>
           )}

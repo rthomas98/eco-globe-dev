@@ -40,6 +40,8 @@ interface CartContextType {
   mixedCurrencies: boolean;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  /** False until the saved cart has been read from storage after mount. */
+  hydrated: boolean;
 }
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -120,7 +122,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotalsByCurrency, mixedCurrencies, isOpen, setIsOpen }}
+      value={{ items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotalsByCurrency, mixedCurrencies, isOpen, setIsOpen, hydrated }}
     >
       {children}
     </CartContext.Provider>

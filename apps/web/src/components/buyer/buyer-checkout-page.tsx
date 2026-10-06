@@ -647,7 +647,7 @@ function CartCheckoutOverview({ items, currentId }: { items: CartItem[]; current
 export function BuyerCheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { items, removeItem } = useCart();
+  const { items, removeItem, hydrated: cartHydrated } = useCart();
   // Checkout is bounded to one persisted listing: the one handed over from the
   // detail page when present, otherwise the first cart item. No invented product.
   const requestedId = searchParams.get("listing");
@@ -883,6 +883,16 @@ export function BuyerCheckoutPage() {
   };
 
 
+  // The cart is read from storage after mount; until then nothing is known to
+  // be missing, so a refresh never flashes "not in your cart".
+  if (!product && !cartHydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-neutral-100 px-6 text-center" role="status">
+        <p className="text-sm text-neutral-600">Loading your cart…</p>
+      </div>
+    );
+  }
+
   if (!product) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-neutral-100 px-6 text-center">
@@ -1054,6 +1064,14 @@ export function BuyerCheckoutPage() {
           Secure
         </div>
       </header>
+      <div className="mx-auto w-full max-w-[1280px] px-6 pt-6 lg:px-10">
+        <Link
+          href={`/buyer/browse/${encodeURIComponent(product.id)}`}
+          className="inline-flex items-center gap-1 text-sm font-semibold text-neutral-900 underline"
+        >
+          ← Back to listing
+        </Link>
+      </div>
 
       {/* Body */}
       <div className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col gap-6 p-6 lg:flex-row lg:p-10">

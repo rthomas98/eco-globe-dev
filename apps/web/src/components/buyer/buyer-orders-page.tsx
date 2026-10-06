@@ -34,7 +34,7 @@ import {
   type ApiOrder,
 } from "@/lib/api-orders";
 import { takePendingCheckoutByOrder } from "@/lib/checkout-pending";
-import { useDemoUser } from "@/lib/demo-user";
+import { readDemoUser, useDemoUser } from "@/lib/demo-user";
 import { describeBackendError } from "@/lib/backend-client";
 import { cancelOrder, numericOrderId } from "@/lib/api-fulfilment";
 
@@ -55,8 +55,9 @@ export function mapApiOrderToBuyerRow(order: ApiOrder): Order {
     orderId: `EG-${order.id}`,
     orderPlaced: formatOrderDate(order.createdAt),
     shipping: order.deliveryMethod === "pickup" ? "Pickup" : "Delivery",
+    // Only the saved unit; a missing unit is never assumed to be tons.
     qty: order.quantity
-      ? `${order.quantity} ${order.quantityUnit ?? "tons"}`
+      ? [order.quantity, order.quantityUnit].filter((part) => part !== null && part !== "").join(" ")
       : "—",
     total: formatOrderMoney(order.totalAmount, order.currencyCode),
     status: BUYER_STATUS_BY_CODE[order.orderStatusCode] ?? "Processing",
@@ -78,6 +79,10 @@ export function buildOrderDetail(order: Order): OrderDetail {
     const record = order.apiOrder;
     return {
       escrowRequired: record.escrowRequired,
+      live: {
+        deliveryAddress: record.deliveryAddress,
+        pickupRequestedAt: record.pickupRequestedAt,
+      },
       orderId: order.orderId, shipping: order.shipping, status: order.status,
       orderPlaced: new Date(record.createdAt).toLocaleString(), seller: order.seller,
       quantity: order.qty, product: { name: order.product, price: order.productPrice, unit: record.quantityUnit ?? "", image: order.productImage },
@@ -605,6 +610,7 @@ export function BuyerOrdersPage() {
   const user = useDemoUser();
   const [orderList, setOrderList] = useState<Order[]>([]);
   const [loadError, setLoadError] = useState("");
+  const [loaded, setLoaded] = useState(false);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   // Bumped after a confirmed change (cancel, approve) to re-read orders.
@@ -616,15 +622,20 @@ export function BuyerOrdersPage() {
   useEffect(() => {
     if (loadedCompanyId !== user?.activeCompanyId) {
       setOrderList([]);
+      setLoaded(false);
       setLoadedCompanyId(user?.activeCompanyId);
     }
-    if (!user?.activeCompanyId) return;
+    if (!user?.activeCompanyId) {
+      // No buyer company in this session (not just not-yet-read): nothing to load.
+      if (!readDemoUser()?.activeCompanyId) setLoaded(true);
+      return;
+    }
     let cancelled = false;
     fetchOrders({ buyerCompanyId: user.activeCompanyId })
       .then((apiOrders) => {
-        if (!cancelled) { setOrderList(apiOrders.map(mapApiOrderToBuyerRow)); setLoadError(""); }
+        if (!cancelled) { setOrderList(apiOrders.map(mapApiOrderToBuyerRow)); setLoadError(""); setLoaded(true); }
       })
-      .catch(() => { if (!cancelled) setLoadError("Orders could not be loaded. Please reload to retry."); });
+      .catch(() => { if (!cancelled) { setLoadError("Orders could not be loaded. Please reload to retry."); setLoaded(true); } });
     return () => {
       cancelled = true;
     };
@@ -702,7 +713,6 @@ export function BuyerOrdersPage() {
   return (
     <BuyerLayout>
       <div className="flex h-full flex-col bg-neutral-50">
-<DemoOrdersPanel />
       {loadError && <p role="alert" className="p-4 text-red-700">{loadError}</p>}
       {cancelError && <p role="alert" className="p-4 text-red-700">{cancelError}</p>}
         {/* Top bar */}
@@ -763,7 +773,9 @@ export function BuyerOrdersPage() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
-          {tab === "Completed" || tab === "Cancelled" ? (
+          {!loaded && !loadError ? (
+            <p role="status" className="py-16 text-center text-sm text-neutral-500">Loading orders…</p>
+          ) : tab === "Completed" || tab === "Cancelled" ? (
             <CompletedTable items={filtered} />
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-2xl bg-white py-16 text-center">
@@ -784,6 +796,8 @@ export function BuyerOrdersPage() {
               ))}
             </div>
           )}
+          {/* Simulated demo orders stay separate and below real orders. */}
+          <DemoOrdersPanel />
         </div>
       </div>
 

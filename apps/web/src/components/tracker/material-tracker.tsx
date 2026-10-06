@@ -14,7 +14,13 @@ import {
 } from "@/lib/api-tracker";
 import { LabTestingDialog } from "@/components/lab-testing/lab-testing-dialog";
 import { sampleApi } from "@/lib/api-sample-shipping";
+import { trackerPriceLabel } from "@/lib/order-truth";
 const nice = (s: string) => s.replaceAll("_", " ");
+/** Order status first; the shipment status is added only when it differs. */
+const orderStatusText = (r: { status: string; shippingStatus?: string | null }) =>
+  r.shippingStatus && r.shippingStatus !== r.status
+    ? `order ${nice(r.status)} · shipment ${nice(r.shippingStatus)}`
+    : nice(r.status);
 const date = (s: string) =>
   new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
@@ -105,7 +111,10 @@ export function MaterialTracker({ role }: { role: "buyer" | "seller" }) {
               <strong className="text-xs tracking-widest text-neutral-400">
                 YOUR ACCOUNT
               </strong>
-              <span>Company — {nice(data.account.verification)}</span>
+              <span>
+                Company status (set by EcoGlobe staff) —{" "}
+                {nice(data.account.verification)}
+              </span>
               {role === "buyer" ? (
                 <>
                   <span>
@@ -143,7 +152,7 @@ export function MaterialTracker({ role }: { role: "buyer" | "seller" }) {
                     href="/seller/verification"
                     className="ml-auto font-bold text-emerald-700"
                   >
-                    Review account setup
+                    Review verification documents
                   </Link>
                 </>
               )}
@@ -232,7 +241,7 @@ function MaterialCard({
           ? records.labs
           : name === "Pilot"
             ? records.pilots
-            : ["Order", "Shipping", "In transit", "Delivered", "Paid"].includes(
+            : ["Order", "Shipping", "In transit", "Delivered", "Seller paid"].includes(
                   name ?? "",
                 )
               ? records.orders
@@ -304,7 +313,7 @@ function MaterialCard({
         ? records.labs
         : stage === "Pilot"
           ? records.pilots
-          : ["Order", "Shipping", "In transit", "Delivered", "Paid"].includes(
+          : ["Order", "Shipping", "In transit", "Delivered", "Seller paid"].includes(
                 stage ?? "",
               )
             ? records.orders
@@ -312,7 +321,7 @@ function MaterialCard({
   const headline = attention
     ? `Sample — ${nice(attention.status)}`
     : records.orders[0]
-      ? `Order — ${nice(records.orders[0].shippingStatus ?? records.orders[0].status)}`
+      ? `EG-${records.orders[0].id} — ${orderStatusText(records.orders[0])}`
       : records.pilots[0]
         ? `Pilot — ${nice(records.pilots[0].status)}`
         : records.labs[0]
@@ -331,18 +340,12 @@ function MaterialCard({
           <h2 className="text-xl font-bold">
             {l.title}{" "}
             <span className="ml-2 text-xs font-normal text-neutral-400">
-              {role === "seller" ? `EG-${l.id}` : l.seller}
+              {role === "seller" ? `Listing #${l.id}` : l.seller}
             </span>
           </h2>
           <p className="mt-1 text-sm text-neutral-500">
-            {l.city}, {l.region} ·{" "}
-            {/^[A-Z]{3}$/i.test(l.currency?.trim() ?? "")
-              ? new Intl.NumberFormat("en-US", {
-                  style: "currency",
-                  currency: l.currency.trim().toUpperCase(),
-                }).format(l.price)
-              : `${new Intl.NumberFormat("en-US").format(l.price)} (currency not recorded)`}
-            /{l.unit}
+            {[l.city, l.region].filter(Boolean).join(", ") || "Location not recorded"} ·{" "}
+            {trackerPriceLabel(l.price, l.currency, l.unit)}
           </p>
         </div>
         {!expanded && (
@@ -453,8 +456,11 @@ function MaterialCard({
                             ? "PR"
                             : stage === "Testing"
                               ? "LAB"
-                              : "Order"}
-                        -{r.id} · {nice(r.shippingStatus ?? r.status)}
+                              : "EG"}
+                        -{r.id} ·{" "}
+                        {["Sample", "Pilot", "Testing"].includes(stage ?? "")
+                          ? nice(r.shippingStatus ?? r.status)
+                          : orderStatusText(r)}
                       </p>
                       {r.mode === "simulation" && (
                         <p className="mt-1 text-xs text-amber-700">
@@ -596,7 +602,9 @@ function MaterialCard({
               </div>
               {!visibleFiles.length && (
                 <p className="text-sm text-neutral-500">
-                  No accessible documents at this step.
+                  {files.length
+                    ? `No documents at this step. ${files.length} file${files.length === 1 ? " is" : "s are"} recorded at other steps — use All files.`
+                    : "No accessible documents recorded for this material yet."}
                 </p>
               )}
               <p className="mt-5 border-t pt-4 text-xs leading-5 text-neutral-400">

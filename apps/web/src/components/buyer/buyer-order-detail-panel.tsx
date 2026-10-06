@@ -31,7 +31,8 @@ import {
   type ApiShipment,
 } from "@/lib/api-fulfilment";
 import { BuyerPaymentMethodScreen } from "./buyer-payment-method-screen";
-import { approveOrder } from "@/lib/api-orders";
+import { approveOrder, fetchOrderPayments, formatOrderMoney } from "@/lib/api-orders";
+import { capturedPayment, receiptReadiness, type OrderPaymentRecord } from "@/lib/order-truth";
 import { describeBackendError } from "@/lib/backend-client";
 import { PanelHeaderMenu, downloadTextFile } from "./panel-header-menu";
 import { DocumentRow } from "./document-row";
@@ -148,6 +149,11 @@ export interface OrderDetail {
   orderId: string;
   /** From the saved order; decides the status an approval moves to. */
   escrowRequired?: boolean;
+  /** Fulfilment details saved on a backend order at checkout. */
+  live?: {
+    deliveryAddress: string | null;
+    pickupRequestedAt: string | null;
+  };
   shipping: "Pickup" | "Delivery";
   status: string;
   orderPlaced: string;
@@ -284,6 +290,8 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
     }
     await confirmOrderDelivery(liveOrderId, receipt);
     setActiveModal(successModal);
+    // The order is completed on the backend; reload so the list shows it.
+    onOrderChanged?.();
   };
 
   const runFileDispute = async () => {
@@ -317,6 +325,19 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
     setActionBusy(false);
   };
   const [liveDisputeId, setLiveDisputeId] = useState<number | null>(null);
+  // Saved payment records for this order; null until read (or if unreadable).
+  const [payments, setPayments] = useState<{ orderId: number; rows: OrderPaymentRecord[] | null; failed: boolean } | null>(null);
+  useEffect(() => {
+    if (!liveOrderId) return;
+    let cancelled = false;
+    fetchOrderPayments(liveOrderId)
+      .then((rows) => { if (!cancelled) setPayments({ orderId: liveOrderId, rows, failed: false }); })
+      .catch(() => { if (!cancelled) setPayments({ orderId: liveOrderId, rows: null, failed: true }); });
+    return () => {
+      cancelled = true;
+    };
+  }, [liveOrderId, activeModal]);
+  const orderPayments = payments && payments.orderId === liveOrderId ? payments : null;
   const [liveShipment, setLiveShipment] = useState<ApiShipment | null>(null);
 
   // The real shipment record backs the tracking facts in the panel.
@@ -396,17 +417,38 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
   const isAwaitingPayment = order.status === "Awaiting payment";
   const isBuyerVerification = order.status === "Buyer verification";
   const isProcessing = order.status === "Processing";
+  const paidRecord = liveOrderId && orderPayments?.rows ? capturedPayment(orderPayments.rows, liveOrderId) : null;
+  // Receipt (pickup or delivery) needs a captured payment and a dispatched
+  // shipment; anything unknown keeps the action hidden.
+  const receipt = receiptReadiness({
+    paymentsLoaded: Boolean(orderPayments?.rows),
+    hasCapturedPayment: Boolean(paidRecord),
+    shipmentStatusCode: liveShipment?.shipmentStatusCode ?? null,
+  });
+  const receiptStatus = isReadyForPickup || isBuyerVerification || isProcessing;
+  const canConfirmReceipt = receiptStatus && receipt.ready;
   const headerCta = isQuoteAwaiting
     ? actionBusy
       ? "Approving…"
       : "Approve order"
-    : isReadyForPickup
-      ? "Confirm Pickup Completed"
-      : isAwaitingPayment
-        ? "Payment status"
-        : isBuyerVerification || isProcessing
-          ? "Mark as Delivered"
-          : null;
+    : isAwaitingPayment
+      ? "Payment status"
+      : canConfirmReceipt
+        ? order.shipping === "Pickup"
+          ? "Confirm Pickup Completed"
+          : "Mark as Delivered"
+        : null;
+
+  const activity = paidRecord
+    ? [
+        ...order.activity,
+        {
+          label: "Payment captured",
+          date: new Date(paidRecord.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          complete: true,
+        },
+      ]
+    : order.activity;
 
   const handleCopyCode = async () => {
     if (!order.pickupCode) return;
@@ -454,10 +496,9 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                 size="md"
                 onClick={() => {
                   if (isQuoteAwaiting) void runApproveOrder();
-                  else if (isReadyForPickup) setActiveModal("confirm-pickup");
                   else if (isAwaitingPayment) setPaymentScreenOpen(true);
-                  else if (isBuyerVerification || isProcessing)
-                    setActiveModal("confirm-delivery");
+                  else if (canConfirmReceipt)
+                    setActiveModal(order.shipping === "Pickup" ? "confirm-pickup" : "confirm-delivery");
                 }}
               >
                 {headerCta}
@@ -507,6 +548,11 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
+          {liveOrderId && receiptStatus && !receipt.ready && (
+            <p role="status" className="mb-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {receipt.reason}
+            </p>
+          )}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
             {/* Left column */}
             <div className="flex flex-col gap-5">
@@ -699,14 +745,36 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                       {order.product.name}
                     </p>
                     <p className="text-sm text-neutral-500">
-                      {order.product.price}{" "}
-                      <span className="text-neutral-400">
-                        /{order.product.unit}
-                      </span>
+                      {order.product.price}
+                      {order.product.price !== "—" && order.product.unit && (
+                        <span className="text-neutral-400"> / {order.product.unit}</span>
+                      )}
                     </p>
                   </div>
                 </div>
               </SectionCard>
+
+              {order.live && (
+                <SectionCard title={order.shipping === "Pickup" ? "Pickup request" : "Delivery request"}>
+                  {order.shipping === "Pickup" ? (
+                    <>
+                      <Field
+                        label="Requested pickup"
+                        value={
+                          order.live.pickupRequestedAt
+                            ? new Date(order.live.pickupRequestedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
+                            : "No date requested at checkout"
+                        }
+                      />
+                      <p className="mt-3 text-xs text-neutral-500">
+                        The seller confirms the pickup facility, hours and any driver or vehicle details with you.
+                      </p>
+                    </>
+                  ) : (
+                    <Field label="Delivery address" value={order.live.deliveryAddress ?? "Not recorded"} />
+                  )}
+                </SectionCard>
+              )}
 
               {order.delivery && (
                 <SectionCard title="Delivery info">
@@ -779,6 +847,28 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                 </SectionCard>
               )}
 
+              {liveOrderId ? (
+                <SectionCard title="Payment Details">
+                  {!orderPayments ? (
+                    <p role="status" className="text-sm text-neutral-500">Loading payment records…</p>
+                  ) : orderPayments.failed ? (
+                    <p role="alert" className="text-sm text-red-700">Payment records could not be loaded. Reopen the order to retry.</p>
+                  ) : !orderPayments.rows?.length ? (
+                    <p className="text-sm text-neutral-700">No payment is recorded for this order yet.</p>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      {orderPayments.rows.map((p) => (
+                        <div key={p.id} className="grid grid-cols-2 gap-x-6 gap-y-3">
+                          <Field label="Transaction ID" value={p.providerPaymentId ?? "Not provided by the payment processor"} />
+                          <Field label="Status" value={p.paymentStatusCode.replace(/_/g, " ")} />
+                          <Field label="Amount" value={formatOrderMoney(p.amount, p.currencyCode)} />
+                          <Field label="Recorded" value={new Date(p.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+              ) : (
               <SectionCard title="Payment Details">
                 <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                   <Field
@@ -799,6 +889,7 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                   />
                 </div>
               </SectionCard>
+              )}
 
               {liveOrderId && (
                 <OrderRefundSection orderId={liveOrderId} role="buyer" />
@@ -809,13 +900,16 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                   {order.documents.map((doc, i) => (
                     <DocumentRow key={`${doc.name}-${i}`} name={doc.name} />
                   ))}
+                  {order.documents.length === 0 && (
+                    <p className="text-sm text-neutral-500">No documents are attached to this order.</p>
+                  )}
                 </div>
               </SectionCard>
 
               <SectionCard title="Activity Log">
                 <ol className="flex flex-col">
-                  {order.activity.map((item, i) => {
-                    const isLast = i === order.activity.length - 1;
+                  {activity.map((item, i) => {
+                    const isLast = i === activity.length - 1;
                     return (
                       <li key={item.label} className="flex gap-3">
                         <div className="flex flex-col items-center">
