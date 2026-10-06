@@ -32,9 +32,9 @@ const button =
  * its order. The page itself is the reviewable receipt; printing uses the same
  * content in an isolated frame, so nothing depends on a browser download.
  */
-function ReceiptContent({ role }: { role: Role }) {
+function ReceiptContent({ role, paymentId }: { role: Role; paymentId?: string }) {
   const params = useParams<{ id?: string }>();
-  const id = Number(params.id);
+  const id = Number(paymentId ?? params.id);
   // Results belong to one signed-in user and company; a switch drops them.
   const user = useDemoUser();
   const identity = user ? `${user.id ?? ""}:${user.activeCompanyId ?? ""}` : null;
@@ -205,8 +205,8 @@ function ReceiptContent({ role }: { role: Role }) {
   );
 }
 
-export function PaymentReceiptPage({ role }: { role: Role }) {
-  const content = <ReceiptContent role={role} />;
+export function PaymentReceiptPage({ role, paymentId }: { role: Role; paymentId?: string }) {
+  const content = <ReceiptContent role={role} paymentId={paymentId} />;
   if (role === "buyer") return <BuyerLayout>{content}</BuyerLayout>;
   if (role === "seller") return <SellerLayout title="Payment receipt">{content}</SellerLayout>;
   return content;

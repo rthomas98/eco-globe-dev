@@ -52,6 +52,7 @@ import { AdminTransactionDetailPage } from "@/components/admin/transaction-detai
 import { TransactionsPage } from "@/components/admin/transactions-page";
 import { DocumentsCenter } from "@/components/documents/documents-center";
 import { PaymentsCenter } from "@/components/payments/payments-center";
+import { PaymentReceiptPage } from "@/components/payments/payment-receipt-page";
 import {
   AnalyticsCenter,
   AssetVerificationCenter,
@@ -118,7 +119,9 @@ function renderAccounting(second?: string, third?: string) {
   if (second === "escrow") {
     return third ? <AdminEscrowDetailPage id={third} /> : <EscrowPage />;
   }
-  if (second === "payments" && !third) return <PaymentsCenter role="admin" />;
+  if (second === "payments") {
+    return third ? <PaymentReceiptPage role="admin" paymentId={third} /> : <PaymentsCenter role="admin" />;
+  }
   notFound();
 }
 
