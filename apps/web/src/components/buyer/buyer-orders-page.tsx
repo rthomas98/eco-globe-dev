@@ -1,7 +1,7 @@
 "use client";
-import { DemoOrdersPanel } from "@/components/demo/demo-orders-panel";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   SlidersHorizontal,
@@ -12,7 +12,6 @@ import {
   X,
   Calendar,
   FileText,
-  MessageCircle,
   Truck,
   XCircle,
 } from "lucide-react";
@@ -80,8 +79,18 @@ export function buildOrderDetail(order: Order): OrderDetail {
     return {
       escrowRequired: record.escrowRequired,
       live: {
+        funding: {
+          id: record.id,
+          buyerCompanyId: record.buyerCompanyId,
+          creationSourceCode: record.creationSourceCode,
+          totalAmount: record.totalAmount,
+          currencyCode: record.currencyCode,
+        },
         deliveryAddress: record.deliveryAddress,
         pickupRequestedAt: record.pickupRequestedAt,
+        pickupContactName: record.pickupContactName ?? null,
+        pickupContactPhone: record.pickupContactPhone ?? null,
+        pickupVehicleDetails: record.pickupVehicleDetails ?? null,
       },
       orderId: order.orderId, shipping: order.shipping, status: order.status,
       orderPlaced: new Date(record.createdAt).toLocaleString(), seller: order.seller,
@@ -177,16 +186,16 @@ const STATUS_INFO: Record<OrderStatus, { summary: string; nextStep: string }> = 
     nextStep: "They'll confirm details and prepare your shipment.",
   },
   "Awaiting payment": {
-    summary: "Quote approved — escrow funding is required next.",
-    nextStep: "Open Payment Method to fund the escrow.",
+    summary: "Payment is required before this order proceeds.",
+    nextStep: "Open Order Details to check payment status or cancel the unpaid reservation.",
   },
   "Ready for pickup": {
     summary: "The seller has marked your order ready.",
-    nextStep: "Schedule pickup and bring the pickup code shown on the order.",
+    nextStep: "Arrange the pickup with the seller, then confirm receipt in Order Details.",
   },
   "Buyer verification": {
     summary: "Your shipment has arrived.",
-    nextStep: "Confirm delivery to release the escrow, or report an issue.",
+    nextStep: "Confirm receipt in Order Details, or report an issue. Confirming receipt does not release funds; EcoGlobe staff handle settlement.",
   },
   Processing: {
     summary: "The seller is preparing your order.",
@@ -197,12 +206,12 @@ const STATUS_INFO: Record<OrderStatus, { summary: string; nextStep: string }> = 
     nextStep: "Track its progress here until it arrives.",
   },
   Completed: {
-    summary: "Order fulfilled and escrow released.",
-    nextStep: "Nothing more to do — keep documents for your records.",
+    summary: "Receipt of this order is recorded.",
+    nextStep: "Payment, escrow and refund details appear in Order Details only where they are saved.",
   },
   Cancelled: {
     summary: "This order was cancelled.",
-    nextStep: "If escrow had been funded it has been refunded.",
+    nextStep: "If you paid for this order, EcoGlobe staff review and issue any refund manually.",
   },
 };
 
@@ -270,8 +279,16 @@ function MoreMenu({
   onCancel: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  // A listing checkout can be cancelled here only while it awaits payment.
+  // Past that point its payment state needs review (the status alone does not
+  // prove it was paid), so the buyer opens the details, where refund
+  // eligibility is read from the backend.
+  const checkoutRequiresReview =
+    order.apiOrder?.creationSourceCode === "listing_checkout" &&
+    order.apiOrder.orderStatusCode !== "awaiting_payment";
   const canCancel =
-    order.status !== "Completed" && order.status !== "Cancelled";
+    order.status !== "Completed" && order.status !== "Cancelled" && !checkoutRequiresReview;
 
   const items: {
     label: string;
@@ -282,15 +299,22 @@ function MoreMenu({
   }[] = [
     { label: "View details", icon: FileText, onClick: onViewDetails },
     { label: "Track order", icon: Truck, onClick: onViewDetails },
-    { label: "Contact seller", icon: MessageCircle, onClick: () => {} },
-    { label: "Download receipt", icon: FileText, onClick: () => {} },
     {
-      label: "Cancel order",
-      icon: XCircle,
-      onClick: onCancel,
-      disabled: !canCancel,
-      destructive: true,
+      label: "View payment records",
+      icon: FileText,
+      onClick: () => router.push("/buyer/accounting/payments"),
     },
+    // Refunds are staff-run and never automatic; Order Details shows the
+    // request form only when the backend reports the order eligible.
+    checkoutRequiresReview && order.status !== "Cancelled"
+      ? { label: "Payment and refund details", icon: FileText, onClick: onViewDetails }
+      : {
+          label: "Cancel order",
+          icon: XCircle,
+          onClick: onCancel,
+          disabled: !canCancel,
+          destructive: true,
+        },
   ];
 
   return (
@@ -428,7 +452,7 @@ function OrderCard({
   );
 }
 
-function CompletedTable({ items }: { items: Order[] }) {
+function CompletedTable({ items, onOpen }: { items: Order[]; onOpen: (id: string) => void }) {
   return (
     <div className="overflow-x-auto rounded-2xl bg-white" style={{ border: "1px solid #F0F0F0" }}>
       <table className="w-full min-w-[860px]">
@@ -463,8 +487,12 @@ function CompletedTable({ items }: { items: Order[] }) {
                 </span>
               </td>
               <td className="px-6 py-4">
-                <button className="text-neutral-400 hover:text-neutral-700">
-                  <MoreHorizontal className="size-4" />
+                <button
+                  type="button"
+                  onClick={() => onOpen(o.id)}
+                  className="text-sm font-semibold text-neutral-900 underline"
+                >
+                  Order details
                 </button>
               </td>
             </tr>
@@ -776,7 +804,7 @@ export function BuyerOrdersPage() {
           {!loaded && !loadError ? (
             <p role="status" className="py-16 text-center text-sm text-neutral-500">Loading orders…</p>
           ) : tab === "Completed" || tab === "Cancelled" ? (
-            <CompletedTable items={filtered} />
+            <CompletedTable items={filtered} onOpen={setSelectedOrderId} />
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-2xl bg-white py-16 text-center">
               <p className="text-base font-semibold text-neutral-900">No orders</p>
@@ -796,8 +824,6 @@ export function BuyerOrdersPage() {
               ))}
             </div>
           )}
-          {/* Simulated demo orders stay separate and below real orders. */}
-          <DemoOrdersPanel />
         </div>
       </div>
 
@@ -825,8 +851,9 @@ export function BuyerOrdersPage() {
               Cancel this order?
             </h2>
             <p className="mt-3 text-sm text-neutral-700">
-              The seller will be notified. If escrow has been funded it will be
-              refunded. This action cannot be undone.
+              The seller will be notified. If you already paid, EcoGlobe staff
+              review the order and issue any refund manually; it is not
+              automatic. This action cannot be undone.
             </p>
             <div className="mt-6 flex items-center justify-end gap-3">
               <Button

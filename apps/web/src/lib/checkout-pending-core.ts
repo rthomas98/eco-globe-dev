@@ -10,6 +10,9 @@ export interface PendingCheckoutRequest {
   deliveryMethod: "pickup" | "delivery";
   deliveryAddress?: string;
   pickupRequestedAt?: string;
+  pickupContactName?: string;
+  pickupContactPhone?: string;
+  pickupVehicleDetails?: string;
 }
 
 export interface PendingCheckout {
@@ -41,7 +44,10 @@ export function isPendingRequest(value: unknown): value is PendingCheckoutReques
     /^[a-zA-Z0-9_-]{16,100}$/.test(r.idempotencyKey) &&
     (r.deliveryMethod === "pickup" || r.deliveryMethod === "delivery") &&
     (r.deliveryAddress === undefined || typeof r.deliveryAddress === "string") &&
-    (r.pickupRequestedAt === undefined || typeof r.pickupRequestedAt === "string")
+    (r.pickupRequestedAt === undefined || typeof r.pickupRequestedAt === "string") &&
+    (r.pickupContactName === undefined || typeof r.pickupContactName === "string") &&
+    (r.pickupContactPhone === undefined || typeof r.pickupContactPhone === "string") &&
+    (r.pickupVehicleDetails === undefined || typeof r.pickupVehicleDetails === "string")
   );
 }
 

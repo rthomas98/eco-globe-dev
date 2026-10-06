@@ -21,6 +21,13 @@ import { takeSampleConversion, updateSampleRequest } from "@/lib/api-samples";
 import { readDemoUser, useDemoUser } from "@/lib/demo-user";
 import { useCompanyLocations } from "@/lib/use-company-locations";
 import {
+  PICKUP_LIMITS,
+  pickupFormDateTime,
+  pickupRequestFields,
+  pickupStartTimeLabel,
+  type PickupFormValues,
+} from "@/lib/checkout-pickup";
+import {
   Shield,
   Package,
   Truck,
@@ -40,11 +47,7 @@ import { Button } from "@eco-globe/ui";
 type Step = "shipping" | "payment" | "success";
 type ShippingType = "pickup" | "delivery" | null;
 
-interface PickupData {
-  date: string;
-  /** Preferred start time, "HH:MM" local. */
-  timeRange: string;
-}
+type PickupData = PickupFormValues;
 
 interface BillingAddress {
   id: string;
@@ -157,6 +160,7 @@ function FormInput({
   value,
   onChange,
   type = "text",
+  maxLength,
 }: {
   id: string;
   label: string;
@@ -164,6 +168,7 @@ function FormInput({
   value: string;
   onChange: (v: string) => void;
   type?: string;
+  maxLength?: number;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -174,6 +179,7 @@ function FormInput({
         id={id}
         type={type}
         value={value}
+        maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-neutral-900/20"
         style={{ border: "1px solid #E0E0E0" }}
@@ -224,12 +230,22 @@ function PickupForm({
   data,
   onChange,
   location,
+  error,
+  dateRef,
 }: {
   data: PickupData;
   onChange: (d: PickupData) => void;
   location: string;
+  error: string | null;
+  dateRef: React.RefObject<HTMLInputElement | null>;
 }) {
   const update = (k: keyof PickupData, v: string) => onChange({ ...data, [k]: v });
+  // Native date inputs can change without a React change event (picker,
+  // autofill, assistive tools); read the element value on input and blur too.
+  const syncDate = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    const value = e.currentTarget.value;
+    if (value !== data.date) update("date", value);
+  };
 
   return (
     <div className="flex flex-col gap-3 px-5 pb-5 pt-3">
@@ -250,10 +266,13 @@ function PickupForm({
             </label>
             <input
               id="pu-date"
+              ref={dateRef}
               type="date"
               value={data.date}
-              min={new Date().toISOString().slice(0, 10)}
-              onChange={(e) => update("date", e.target.value)}
+              min={pickupFormDateTime(new Date().toISOString()).date}
+              onChange={syncDate}
+              onInput={syncDate}
+              onBlur={syncDate}
               className="w-full rounded-lg bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-neutral-900/20"
               style={{ border: "1px solid #E0E0E0" }}
             />
@@ -270,7 +289,47 @@ function PickupForm({
             ]}
           />
         </div>
+        {data.date && !data.timeRange && (
+          <p className="mt-2 text-xs text-neutral-500">
+            No start time chosen: 9:00 AM will be requested for this date.
+          </p>
+        )}
       </SubCard>
+
+      <SubCard icon={Info} label="Pickup contact (optional)">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormInput
+            id="pu-contact-name"
+            label="Contact name"
+            value={data.contactName}
+            maxLength={PICKUP_LIMITS.contactName}
+            onChange={(v) => update("contactName", v)}
+          />
+          <FormInput
+            id="pu-contact-phone"
+            label="Contact phone"
+            type="tel"
+            value={data.contactPhone}
+            maxLength={PICKUP_LIMITS.contactPhone}
+            onChange={(v) => update("contactPhone", v)}
+          />
+        </div>
+        <div className="mt-4">
+          <FormInput
+            id="pu-vehicle"
+            label="Vehicle details"
+            hint="For example truck type and plate number, if known."
+            value={data.vehicleDetails}
+            maxLength={PICKUP_LIMITS.vehicleDetails}
+            onChange={(v) => update("vehicleDetails", v)}
+          />
+        </div>
+      </SubCard>
+      {error && (
+        <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -699,7 +758,20 @@ export function BuyerCheckoutPage() {
   const pickupAddress = product?.location || "Seller facility (address on file with the listing)";
   const [step, setStep] = useState<Step>("shipping");
   const [shippingType, setShippingType] = useState<ShippingType>(null);
-  const [pickup, setPickup] = useState<PickupData>({ date: "", timeRange: "" });
+  const [pickup, setPickup] = useState<PickupData>({
+    date: "",
+    timeRange: "",
+    contactName: "",
+    contactPhone: "",
+    vehicleDetails: "",
+  });
+  const pickupDateRef = useRef<HTMLInputElement>(null);
+  // Prefill the contact name only from the saved account name; no phone is
+  // saved on the account, so the phone starts empty.
+  const savedUserName = sessionUser?.name?.trim() ?? "";
+  useEffect(() => {
+    if (savedUserName) setPickup((prev) => (prev.contactName ? prev : { ...prev, contactName: savedUserName }));
+  }, [savedUserName]);
   const [deliveryAddressId, setDeliveryAddressId] = useState<string | null>(null);
   const [showDeliveryPicker, setShowDeliveryPicker] = useState(false);
 
@@ -748,6 +820,11 @@ export function BuyerCheckoutPage() {
   const money = (n: number) => (product ? (formatMoney(n, product.currencyCode) ?? "—") : "—");
   const quantityLabel = product ? (formatQuantityWithUnitName(product.qty, product.quantityUnit) ?? String(product.qty)) : "";
 
+  const pickupConversion = shippingType === "pickup" ? pickupRequestFields(pickup) : null;
+  const pickupError = pickupConversion && !pickupConversion.ok ? pickupConversion.error : null;
+  const pickupFields = pickupConversion?.ok ? pickupConversion.fields : {};
+  // Pickup details are validated on Continue (after reading the native date
+  // input), so a date the browser set without an event is never lost.
   const canContinueShipping =
     (shippingType === "pickup") ||
     (shippingType === "delivery" && deliveryAddress !== null);
@@ -762,16 +839,15 @@ export function BuyerCheckoutPage() {
 
   // One idempotency key per unchanged checkout attempt, so a retry after a
   // network failure resumes the same order instead of creating another.
-  const pickupRequestedAt =
-    shippingType === "pickup" && pickup.date
-      ? new Date(`${pickup.date}T${pickup.timeRange || "09:00"}:00`).toISOString()
-      : undefined;
   const attemptSignature = JSON.stringify([
     cartItem?.id,
     cartItem?.quantity,
     shippingType,
     deliveryAddressId,
-    pickupRequestedAt,
+    pickupFields.pickupRequestedAt,
+    pickupFields.pickupContactName,
+    pickupFields.pickupContactPhone,
+    pickupFields.pickupVehicleDetails,
   ]);
 
   // Starts provider-confirmed checkout. The order is only paid when Stripe
@@ -795,6 +871,17 @@ export function BuyerCheckoutPage() {
       setPlaceError("Your account or company changed. Review this checkout again before paying.");
       return;
     }
+    // A saved unpaid order the buyer has not been shown yet is never resumed
+    // in place of the details on screen; show it first.
+    if (!pending && livePending) {
+      setPending(livePending);
+      setPlaceError(`Order EG-${livePending.orderId} for this item is already saved and awaiting payment. Review it before continuing.`);
+      return;
+    }
+    if (!pending && pickupError) {
+      setPlaceError(pickupError);
+      return;
+    }
     setPlacing(true);
     setPlaceError("");
     try {
@@ -809,7 +896,7 @@ export function BuyerCheckoutPage() {
         idempotencyKey: checkoutAttemptKey(attemptSignature),
         deliveryMethod: shippingType ?? "pickup",
         deliveryAddress: shippingType === "delivery" ? address : undefined,
-        pickupRequestedAt,
+        ...(shippingType === "pickup" ? pickupFields : {}),
       };
       const result = await startCheckout(request);
       // If this purchase started from a received sample ("Order in bulk"),
@@ -837,13 +924,12 @@ export function BuyerCheckoutPage() {
         if (livePending) {
           // The success summary shows the saved order's details.
           setShippingType(livePending.request.deliveryMethod);
-          if (livePending.request.pickupRequestedAt) {
-            const at = new Date(livePending.request.pickupRequestedAt);
-            setPickup({
-              date: `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`,
-              timeRange: `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`,
-            });
-          }
+          setPickup({
+            ...pickupFormDateTime(livePending.request.pickupRequestedAt),
+            contactName: livePending.request.pickupContactName ?? "",
+            contactPhone: livePending.request.pickupContactPhone ?? "",
+            vehicleDetails: livePending.request.pickupVehicleDetails ?? "",
+          });
           setPending(null);
         }
         setPaidItem({ ...cartItem, quantity: request.quantity });
@@ -877,7 +963,21 @@ export function BuyerCheckoutPage() {
 
   const handlePrimary = () => {
     if (pending && step !== "success") void finalizeOrder();
-    else if (step === "shipping" && canContinueShipping) setStep("payment");
+    else if (step === "shipping") {
+      // Pick up a native date value that changed without a React event.
+      if (shippingType === "pickup") {
+        const domDate = pickupDateRef.current?.value ?? pickup.date;
+        const current = { ...pickup, date: domDate };
+        if (domDate !== pickup.date) setPickup(current);
+        const checked = pickupRequestFields(current);
+        if (!checked.ok) {
+          setPlaceError(checked.error);
+          return;
+        }
+        setPlaceError("");
+        setStep("payment");
+      } else if (canContinueShipping) setStep("payment");
+    }
     else if (step === "payment" && canConfirmOrder) void finalizeOrder();
     else if (step === "success") router.push("/buyer/orders");
   };
@@ -923,7 +1023,10 @@ export function BuyerCheckoutPage() {
           { label: "Shipping method", value: "Pickup" },
           { label: "Pickup location", value: pickupAddress },
           { label: "Requested pickup date", value: pickup.date || "Not specified" },
-          { label: "Preferred start time", value: pickup.timeRange || "Not specified" },
+          { label: "Preferred start time", value: pickupStartTimeLabel(pickup) },
+          { label: "Pickup contact", value: pickup.contactName || "Not provided" },
+          { label: "Contact phone", value: pickup.contactPhone || "Not provided" },
+          { label: "Vehicle details", value: pickup.vehicleDetails || "Not provided" },
           { label: "Status", value: "Paid — awaiting seller confirmation" },
           { label: "Payment", value: "Confirmed by Stripe" },
         ]
@@ -1095,6 +1198,15 @@ export function BuyerCheckoutPage() {
                     {pending.request.pickupRequestedAt && (
                       <div className="sm:col-span-2"><dt className="inline text-amber-800">Requested pickup: </dt><dd className="inline font-semibold">{new Date(pending.request.pickupRequestedAt).toLocaleString("en-US")}</dd></div>
                     )}
+                    {pending.request.pickupContactName && (
+                      <div><dt className="inline text-amber-800">Pickup contact: </dt><dd className="inline font-semibold">{pending.request.pickupContactName}</dd></div>
+                    )}
+                    {pending.request.pickupContactPhone && (
+                      <div><dt className="inline text-amber-800">Contact phone: </dt><dd className="inline font-semibold">{pending.request.pickupContactPhone}</dd></div>
+                    )}
+                    {pending.request.pickupVehicleDetails && (
+                      <div className="sm:col-span-2"><dt className="inline text-amber-800">Vehicle: </dt><dd className="inline font-semibold">{pending.request.pickupVehicleDetails}</dd></div>
+                    )}
                   </dl>
                 </div>
               )}
@@ -1190,7 +1302,13 @@ export function BuyerCheckoutPage() {
                     </div>
                   </div>
                   {shippingType === "pickup" && (
-                    <PickupForm data={pickup} onChange={setPickup} location={pickupAddress} />
+                    <PickupForm
+                      data={pickup}
+                      onChange={setPickup}
+                      location={pickupAddress}
+                      error={pickupError}
+                      dateRef={pickupDateRef}
+                    />
                   )}
                   {shippingType === "delivery" && (
                     <DeliveryForm

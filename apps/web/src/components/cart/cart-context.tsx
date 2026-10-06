@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { mergeCartLine } from "@/lib/cart-lines";
 
 export interface CartItem {
   /** Canonical backend listing id. */
@@ -30,7 +31,11 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, "quantity"> & { quantity?: number }) => void;
+  /**
+   * Adds to the cart. By default an existing line's quantity is increased;
+   * with `exactQuantity` (Buy Now) the line is set to exactly this quantity.
+   */
+  addItem: (item: Omit<CartItem, "quantity"> & { quantity?: number }, options?: { exactQuantity?: boolean }) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -80,18 +85,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items, hydrated]);
 
   const addItem = useCallback(
-    (newItem: Omit<CartItem, "quantity"> & { quantity?: number }) => {
-      setItems((prev) => {
-        const existing = prev.find((i) => i.id === newItem.id);
-        if (existing) {
-          return prev.map((i) =>
-            i.id === newItem.id
-              ? { ...i, quantity: i.quantity + (newItem.quantity ?? existing.moq) }
-              : i,
-          );
-        }
-        return [...prev, { ...newItem, quantity: newItem.quantity ?? newItem.moq }];
-      });
+    (newItem: Omit<CartItem, "quantity"> & { quantity?: number }, options?: { exactQuantity?: boolean }) => {
+      setItems((prev) => mergeCartLine(prev, newItem, options));
       setIsOpen(true);
     },
     [],

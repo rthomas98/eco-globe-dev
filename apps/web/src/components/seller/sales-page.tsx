@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { SellerLayout } from "./seller-layout";
-import { DemoOrdersPanel } from "@/components/demo/demo-orders-panel";
 import { SampleRequestsPanel } from "@/components/samples/sample-requests-panel";
 import {
   readFileAsBase64,
@@ -189,7 +188,6 @@ export function SellerSalesPage() {
           {notice}
         </p>
       )}
-      <DemoOrdersPanel />
       <SampleRequestsPanel role="seller" />
       <div className="my-5 flex flex-wrap gap-2">
         {["All orders", "Action needed", "Processing", "Completed"].map((t) => (

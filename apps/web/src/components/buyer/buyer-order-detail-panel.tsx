@@ -32,7 +32,13 @@ import {
 } from "@/lib/api-fulfilment";
 import { BuyerPaymentMethodScreen } from "./buyer-payment-method-screen";
 import { approveOrder, fetchOrderPayments, formatOrderMoney } from "@/lib/api-orders";
-import { capturedPayment, receiptReadiness, type OrderPaymentRecord } from "@/lib/order-truth";
+import {
+  checkoutFunded,
+  countedFunding,
+  receiptReadiness,
+  type FundingOrder,
+  type OrderPaymentRecord,
+} from "@/lib/order-truth";
 import { describeBackendError } from "@/lib/backend-client";
 import { PanelHeaderMenu, downloadTextFile } from "./panel-header-menu";
 import { DocumentRow } from "./document-row";
@@ -151,8 +157,13 @@ export interface OrderDetail {
   escrowRequired?: boolean;
   /** Fulfilment details saved on a backend order at checkout. */
   live?: {
+    /** Fields the backend uses to decide whether checkout funding is complete. */
+    funding: FundingOrder;
     deliveryAddress: string | null;
     pickupRequestedAt: string | null;
+    pickupContactName: string | null;
+    pickupContactPhone: string | null;
+    pickupVehicleDetails: string | null;
   };
   shipping: "Pickup" | "Delivery";
   status: string;
@@ -339,6 +350,8 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
   }, [liveOrderId, activeModal]);
   const orderPayments = payments && payments.orderId === liveOrderId ? payments : null;
   const [liveShipment, setLiveShipment] = useState<ApiShipment | null>(null);
+  // Every shipment row read for this order; null until read (or unreadable).
+  const [shipmentRows, setShipmentRows] = useState<{ orderId: number; rows: ApiShipment[] } | null>(null);
 
   // The real shipment record backs the tracking facts in the panel.
   useEffect(() => {
@@ -347,9 +360,14 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
     let cancelled = false;
     fetchShipments(liveOrderId)
       .then((rows) => {
-        if (!cancelled && rows[0]) setLiveShipment(rows[0]);
+        if (cancelled) return;
+        const own = rows.filter((row) => row.orderId === liveOrderId);
+        setShipmentRows({ orderId: liveOrderId, rows: own });
+        if (own[0]) setLiveShipment(own[0]);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setShipmentRows(null);
+      });
     return () => {
       cancelled = true;
     };
@@ -417,14 +435,21 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
   const isAwaitingPayment = order.status === "Awaiting payment";
   const isBuyerVerification = order.status === "Buyer verification";
   const isProcessing = order.status === "Processing";
-  const paidRecord = liveOrderId && orderPayments?.rows ? capturedPayment(orderPayments.rows, liveOrderId) : null;
-  // Receipt (pickup or delivery) needs a captured payment and a dispatched
-  // shipment; anything unknown keeps the action hidden.
+  // Same rule as the backend: a listing checkout needs captured buyer
+  // funding covering its total; other creation sources are not gated here.
+  const funding = order.live?.funding;
+  const funded = funding ? checkoutFunded(funding, orderPayments?.rows ?? []) : false;
   const receipt = receiptReadiness({
+    funded,
     paymentsLoaded: Boolean(orderPayments?.rows),
-    hasCapturedPayment: Boolean(paidRecord),
-    shipmentStatusCode: liveShipment?.shipmentStatusCode ?? null,
+    fulfilment: order.shipping === "Pickup" ? "pickup" : "delivery",
+    shipments:
+      shipmentRows && shipmentRows.orderId === liveOrderId
+        ? shipmentRows.rows.map((row) => ({ statusCode: row.shipmentStatusCode }))
+        : null,
   });
+  const fundingRecords = funding && funded && orderPayments?.rows ? countedFunding(funding, orderPayments.rows) : [];
+  const paidRecord = fundingRecords.length ? fundingRecords[fundingRecords.length - 1] : null;
   const receiptStatus = isReadyForPickup || isBuyerVerification || isProcessing;
   const canConfirmReceipt = receiptStatus && receipt.ready;
   const headerCta = isQuoteAwaiting
@@ -758,16 +783,21 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                 <SectionCard title={order.shipping === "Pickup" ? "Pickup request" : "Delivery request"}>
                   {order.shipping === "Pickup" ? (
                     <>
-                      <Field
-                        label="Requested pickup"
-                        value={
-                          order.live.pickupRequestedAt
-                            ? new Date(order.live.pickupRequestedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
-                            : "No date requested at checkout"
-                        }
-                      />
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+                        <Field
+                          label="Requested pickup"
+                          value={
+                            order.live.pickupRequestedAt
+                              ? new Date(order.live.pickupRequestedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
+                              : "No date requested at checkout"
+                          }
+                        />
+                        <Field label="Pickup contact" value={order.live.pickupContactName ?? "Not provided"} />
+                        <Field label="Contact phone" value={order.live.pickupContactPhone ?? "Not provided"} />
+                        <Field label="Vehicle details" value={order.live.pickupVehicleDetails ?? "Not provided"} />
+                      </div>
                       <p className="mt-3 text-xs text-neutral-500">
-                        The seller confirms the pickup facility, hours and any driver or vehicle details with you.
+                        The seller confirms the pickup facility and hours with you.
                       </p>
                     </>
                   ) : (

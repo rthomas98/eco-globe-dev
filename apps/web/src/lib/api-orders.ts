@@ -42,6 +42,10 @@ export interface ApiOrder {
   deliveryMethod: string | null;
   deliveryAddress: string | null;
   pickupRequestedAt: string | null;
+  /** Optional pickup details saved at checkout (null when not provided). */
+  pickupContactName?: string | null;
+  pickupContactPhone?: string | null;
+  pickupVehicleDetails?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -166,6 +170,9 @@ export async function startCheckout(input: {
   deliveryMethod: "pickup" | "delivery";
   deliveryAddress?: string;
   pickupRequestedAt?: string;
+  pickupContactName?: string;
+  pickupContactPhone?: string;
+  pickupVehicleDetails?: string;
   quoteId?: number;
 }): Promise<CheckoutResult> {
   const body = await apiFetch<{ ok: true } & CheckoutResult>("/api/checkout", {
