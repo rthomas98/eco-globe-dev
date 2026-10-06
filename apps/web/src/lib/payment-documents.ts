@@ -78,3 +78,54 @@ export function paymentsCsv(payments: PaymentDocument[]): string {
     .map((row) => row.map(cell).join(","))
     .join("\r\n");
 }
+
+/** Saved payment row as returned by GET /api/payments and /api/payments/:id. */
+export interface SavedPaymentRow {
+  id: number;
+  orderId: number;
+  escrowId: number | null;
+  payerCompanyName: string;
+  providerPaymentId: string | null;
+  amount: number | string;
+  currencyCode: string;
+  paymentStatusCode: string;
+  paymentTypeCode: string;
+  createdAt: string;
+}
+
+/** Order fields a receipt shows; null when the order could not be read. */
+export interface ReceiptOrderFields {
+  listingTitle: string | null;
+  sellerCompanyName: string | null;
+}
+
+/**
+ * Receipt document built only from the saved payment and its order. Missing
+ * values stay null and print as "Not recorded".
+ */
+export function paymentDocumentFrom(payment: SavedPaymentRow, order: ReceiptOrderFields | null): PaymentDocument {
+  return {
+    id: payment.id,
+    orderId: payment.orderId,
+    title: order?.listingTitle ?? "Marketplace payment",
+    payer: payment.payerCompanyName,
+    payee: order?.sellerCompanyName ?? "Not recorded",
+    amount: Number(payment.amount),
+    currency: payment.currencyCode,
+    status: payment.paymentStatusCode,
+    type: payment.paymentTypeCode,
+    reference: payment.providerPaymentId?.trim() || null,
+    createdAt: payment.createdAt,
+    escrowId: payment.escrowId,
+  };
+}
+
+/** A paid receipt only for a captured payment; anything else is a record. */
+export function receiptTitle(payment: Pick<PaymentDocument, "id" | "status">) {
+  return `${payment.status === "captured" ? "Payment receipt" : "Payment record"} TX-${payment.id}`;
+}
+
+/** Printable receipt page for a role's payment centre. */
+export function receiptPath(role: "buyer" | "seller" | "admin", paymentId: number) {
+  return `/${role}/accounting/payments/${paymentId}`;
+}

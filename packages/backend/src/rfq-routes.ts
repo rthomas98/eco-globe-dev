@@ -8,6 +8,7 @@ import {
   type QueryParameter,
 } from "./database.js";
 import { ApiError, readJsonBody, sendJson } from "./http.js";
+import { sameQuantityUnit } from "./quantity-units.js";
 const p = (
   name: string,
   value: unknown,
@@ -121,7 +122,7 @@ export async function handleRfqRoute(
       quantity < Number(listing.minimum) ||
       quantity > Number(listing.quantity) ||
       listing.material !== wanted.material ||
-      listing.unit !== wanted.unit
+      !sameQuantityUnit(listing.unit, wanted.unit)
     )
       throw new ApiError(
         400,

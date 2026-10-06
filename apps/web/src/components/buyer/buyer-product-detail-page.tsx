@@ -213,7 +213,22 @@ export function BuyerProductDetailPage() {
               <button onClick={() => setShowFullOverview(!showFullOverview)} className="mt-2 text-sm font-bold text-neutral-900 underline">{showFullOverview ? "Show Less" : "Read More"}</button>
             </>
           ) : (
-            <p className="text-sm text-neutral-500">The seller has not added a description yet.</p>
+            <>
+              <p className="text-sm text-neutral-500">The seller has not added a description yet.</p>
+              {product.overviewFacts.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">At a glance (from saved listing details)</p>
+                  <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                    {product.overviewFacts.map((fact) => (
+                      <div key={fact.label} className="flex gap-2">
+                        <dt className="text-neutral-500">{fact.label}:</dt>
+                        <dd className="min-w-0 break-words text-neutral-900">{fact.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              )}
+            </>
           )}
         </div>
 

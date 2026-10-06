@@ -35,7 +35,7 @@ import {
 import { takePendingCheckoutByOrder } from "@/lib/checkout-pending";
 import { readDemoUser, useDemoUser } from "@/lib/demo-user";
 import { describeBackendError } from "@/lib/backend-client";
-import { cancelOrder, numericOrderId } from "@/lib/api-fulfilment";
+import { cancelOrder, fetchShipments, numericOrderId } from "@/lib/api-fulfilment";
 
 const BUYER_STATUS_BY_CODE: Record<string, OrderStatus> = {
   draft: "Awaiting seller confirmation",
@@ -380,10 +380,13 @@ function MoreMenu({
 
 function OrderCard({
   order,
+  shipmentStates,
   onOpen,
   onCancel,
 }: {
   order: Order;
+  /** Saved shipment states for this order (empty when none were read). */
+  shipmentStates: string[];
   onOpen: () => void;
   onCancel: () => void;
 }) {
@@ -418,6 +421,11 @@ function OrderCard({
         </div>
         <div className="ml-auto">
           <StatusBadge status={order.status} />
+          {shipmentStates.length > 0 && (
+            <p className="mt-1 text-right text-xs text-neutral-500">
+              Shipment: {shipmentStates.join(", ")}
+            </p>
+          )}
         </div>
       </div>
 
@@ -636,20 +644,31 @@ export function BuyerOrdersPage() {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const user = useDemoUser();
-  const [orderList, setOrderList] = useState<Order[]>([]);
+  const [loadedOrders, setOrderList] = useState<Order[]>([]);
   const [loadError, setLoadError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   // Bumped after a confirmed change (cancel, approve) to re-read orders.
   const [reloadKey, setReloadKey] = useState(0);
+  // Saved shipment states by order id, shown beside the order status so the
+  // list and the tracker describe the same records. Best effort: if this read
+  // fails, nothing about shipments is claimed.
+  const [shipmentStates, setShipmentStates] = useState<Map<number, string[]>>(new Map());
   const [loadedCompanyId, setLoadedCompanyId] = useState<number | undefined>(undefined);
+  // Orders and shipment states read for another company are hidden in the
+  // same render as a company switch, before the effect clears them.
+  const sameCompany = loadedCompanyId === user?.activeCompanyId;
+  const orderList = sameCompany ? loadedOrders : [];
+  const visibleShipmentStates = sameCompany ? shipmentStates : new Map<number, string[]>();
 
   // Orders come only from the backend for the active buyer company. The list
   // is cleared only when the company changes, not on a same-company reload.
   useEffect(() => {
     if (loadedCompanyId !== user?.activeCompanyId) {
       setOrderList([]);
+      setShipmentStates(new Map());
+      setLoadError("");
       setLoaded(false);
       setLoadedCompanyId(user?.activeCompanyId);
     }
@@ -659,6 +678,20 @@ export function BuyerOrdersPage() {
       return;
     }
     let cancelled = false;
+    fetchShipments()
+      .then((rows) => {
+        if (cancelled) return;
+        const byOrder = new Map<number, string[]>();
+        for (const row of rows) {
+          if (!row.orderId) continue;
+          const label = (row.shipmentStatusName ?? row.shipmentStatusCode).replace(/_/g, " ").toLowerCase();
+          byOrder.set(row.orderId, [...new Set([...(byOrder.get(row.orderId) ?? []), label])]);
+        }
+        setShipmentStates(byOrder);
+      })
+      .catch(() => {
+        if (!cancelled) setShipmentStates(new Map());
+      });
     fetchOrders({ buyerCompanyId: user.activeCompanyId })
       .then((apiOrders) => {
         if (!cancelled) { setOrderList(apiOrders.map(mapApiOrderToBuyerRow)); setLoadError(""); setLoaded(true); }
@@ -801,7 +834,7 @@ export function BuyerOrdersPage() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
-          {!loaded && !loadError ? (
+          {(!loaded || !sameCompany) && !loadError ? (
             <p role="status" className="py-16 text-center text-sm text-neutral-500">Loading orders…</p>
           ) : tab === "Completed" || tab === "Cancelled" ? (
             <CompletedTable items={filtered} onOpen={setSelectedOrderId} />
@@ -818,6 +851,7 @@ export function BuyerOrdersPage() {
                 <OrderCard
                   key={o.id}
                   order={o}
+                  shipmentStates={o.apiOrder ? (visibleShipmentStates.get(o.apiOrder.id) ?? []) : []}
                   onOpen={() => setSelectedOrderId(o.id)}
                   onCancel={() => handleCancel(o.id)}
                 />

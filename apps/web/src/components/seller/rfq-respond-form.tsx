@@ -8,15 +8,25 @@ import { submitRfqResponse } from "@/lib/api-rfq";
 import { fetchListings } from "@/lib/listings-api";
 import { describeBackendError } from "@/lib/backend-client";
 import { useBackendData } from "@/components/shared/data-state";
+import { quantityUnitsMatch, quoteQuantityError } from "@/lib/quantity-units";
 
 /** Seller quote for a buyer's request; shown as sent only after the backend saves it. */
 export function RfqRespondForm({ wanted, onClose }: { wanted: ApiWantedListing; onClose: () => void }) {
   const companyId = useDemoUser()?.activeCompanyId;
   const owned = useBackendData(() => fetchListings("owned"), [companyId], "Your listings could not be loaded.");
+  // Same unit rule as the backend: unit/units and tonne/tonnes/t are
+  // equivalent; every other unit (including ton/tons) must match exactly.
   const eligible = (owned.data ?? []).filter(
-    (l) => l.listingStatusCode === "published" && l.materialTypeCode === wanted.materialTypeCode && l.quantityUnit === wanted.quantityUnit,
+    (l) =>
+      l.listingStatusCode === "published" &&
+      l.materialTypeCode === wanted.materialTypeCode &&
+      quantityUnitsMatch(l.quantityUnit, wanted.quantityUnit),
   );
   const [listingId, setListingId] = useState<number | "">("");
+  const chosen = eligible.find((l) => l.id === listingId) ?? null;
+  // The quote is saved in the listing's own unit and currency.
+  const quoteUnit = chosen?.quantityUnit ?? wanted.quantityUnit;
+  const quoteCurrency = chosen?.currencyCode ?? null;
   const [quantity, setQuantity] = useState(String(wanted.quantity));
   const [unitPrice, setUnitPrice] = useState("");
   const [terms, setTerms] = useState("");
@@ -28,8 +38,21 @@ export function RfqRespondForm({ wanted, onClose }: { wanted: ApiWantedListing; 
   const submit = async () => {
     const qty = Number(quantity);
     const price = Math.round(Number(unitPrice) * 100) / 100;
-    if (!listingId || !(qty > 0) || !(price > 0)) {
-      setError("Choose a listing and enter a positive quantity and unit price.");
+    if (!listingId || !chosen) {
+      setError("Choose one of your matching listings.");
+      return;
+    }
+    const quantityError = quoteQuantityError(qty, chosen, quoteUnit);
+    if (quantityError) {
+      setError(quantityError);
+      return;
+    }
+    if (!(price > 0)) {
+      setError("Enter a positive unit price.");
+      return;
+    }
+    if (!quoteCurrency) {
+      setError("This listing has no currency recorded. Add one to the listing before quoting.");
       return;
     }
     setBusy(true);
@@ -66,7 +89,8 @@ export function RfqRespondForm({ wanted, onClose }: { wanted: ApiWantedListing; 
       {owned.status === "error" && <p className="text-xs text-red-700">{owned.error}</p>}
       {owned.status === "ready" && eligible.length === 0 && (
         <p className="text-xs text-neutral-600">
-          You need a published {wanted.materialTypeName} listing priced per {wanted.quantityUnit} to respond.
+          You need a published {wanted.materialTypeName} listing sold per {wanted.quantityUnit} to respond. Listings in
+          tons are not matched to tonne requests because tons may be short tons.
         </p>
       )}
       {eligible.length > 0 && (
@@ -87,13 +111,22 @@ export function RfqRespondForm({ wanted, onClose }: { wanted: ApiWantedListing; 
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-neutral-700">
-            Quantity ({wanted.quantityUnit})
+            Quantity ({quoteUnit})
             <input type="number" min="0" step="0.001" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="rounded-lg px-2 py-1.5 text-sm ring-1 ring-neutral-200" />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-neutral-700">
-            Unit price ({wanted.currencyCode})
+            Unit price ({quoteCurrency ?? "choose a listing"})
             <input type="number" min="0" step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className="rounded-lg px-2 py-1.5 text-sm ring-1 ring-neutral-200" />
           </label>
+          {chosen && (
+            <p className="text-xs text-neutral-500 sm:col-span-2">
+              Listing MOQ {chosen.minimumOrderQuantity ?? "not set"} · available {chosen.quantity ?? "not recorded"}{" "}
+              {quoteUnit} · priced in {chosen.currencyCode ?? "no currency recorded"}
+              {wanted.currencyCode && chosen.currencyCode && wanted.currencyCode !== chosen.currencyCode
+                ? ` (the buyer's target is in ${wanted.currencyCode}; your quote stays in ${chosen.currencyCode})`
+                : ""}
+            </p>
+          )}
           <label className="flex flex-col gap-1 text-xs font-medium text-neutral-700">
             Valid until (optional)
             <input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="rounded-lg px-2 py-1.5 text-sm ring-1 ring-neutral-200" />

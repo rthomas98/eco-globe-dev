@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { receiptPath } from "@/lib/payment-documents";
 import {
   X,
   MoreHorizontal,
@@ -893,6 +895,9 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                           <Field label="Status" value={p.paymentStatusCode.replace(/_/g, " ")} />
                           <Field label="Amount" value={formatOrderMoney(p.amount, p.currencyCode)} />
                           <Field label="Recorded" value={new Date(p.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })} />
+                          <Link href={receiptPath("buyer", p.id)} className="col-span-2 text-sm font-semibold text-neutral-900 underline">
+                            {p.paymentStatusCode === "captured" ? "View printable receipt" : "View payment record"} (TX-{p.id})
+                          </Link>
                         </div>
                       ))}
                     </div>

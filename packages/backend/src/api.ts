@@ -2,6 +2,7 @@ import { initializeCompanyProfilesSql } from "./company-profiles.js";
 import { validateLocationFields } from "./location-validation.js";
 import { handleFedExSandboxRoute } from "./fedex-sandbox-routes.js";
 import { handleRfqRoute } from "./rfq-routes.js";
+import { paymentReceiptPdf, type ReceiptPayment } from "./payment-receipt.js";
 import { handleCheckoutRoute, reconcileCheckoutEvent } from "./checkout-routes.js";
 import { handleMvpRoute } from "./mvp-routes.js";
 import { rejectContractEvidence, rejectSignatureEvidence } from "./docusign-policy.js";
@@ -5118,8 +5119,13 @@ async function getPayment(
   id: number,
   auth: AuthContext,
 ) {
+  const payment = await readPayment(id, auth);
+  sendJson(response, 200, { ok: true, payment });
+}
+
+async function readPayment(id: number, auth: AuthContext) {
   const rows = await queryRowsWithParams<
-    Record<string, unknown> & { orderId: number }
+    ReceiptPayment & Record<string, unknown>
   >(
     `
       SELECT
@@ -5138,7 +5144,24 @@ async function getPayment(
   const payment = rows[0];
   if (!payment) throw new ApiError(404, "Payment not found.");
   await requireOrderAccess(auth, payment.orderId);
-  sendJson(response, 200, { ok: true, payment });
+  return payment;
+}
+
+async function getPaymentReceipt(response: ServerResponse, id: number, auth: AuthContext) {
+  const payment = await readPayment(id, auth);
+  const order = (await queryRowsWithParams<{ listingTitle: string | null; sellerCompanyName: string }>(
+    "SELECT l.Title AS listingTitle,c.LegalName AS sellerCompanyName FROM dbo.Orders o LEFT JOIN dbo.Listings l ON l.Id=o.ListingId JOIN dbo.Companies c ON c.Id=o.SellerCompanyId WHERE o.Id=@id",
+    [intParam("id", payment.orderId)],
+  ))[0];
+  if (!order) throw new ApiError(404, "Order not found.");
+  const bytes = await paymentReceiptPdf(payment, order);
+  response.writeHead(200, {
+    "content-type": "application/pdf",
+    "content-disposition": `attachment; filename="ecoglobe-payment-${id}.pdf"`,
+    "cache-control": "private, no-store",
+    "x-content-type-options": "nosniff",
+  });
+  response.end(Buffer.from(bytes));
 }
 
 async function createPayment(
@@ -7037,6 +7060,13 @@ export async function handleApiRoute(
       await createPayment(request, response, await requireSessionAuth(request));
       return true;
     }
+  }
+
+  const receiptMatch = matchPath(requestUrl.pathname, "/api/payments/:id/receipt");
+  if (receiptMatch.matched) {
+    if (method !== "GET") throw new ApiError(405, "Method not allowed.");
+    await getPaymentReceipt(response, parseId(receiptMatch.params.id, "Payment ID"), await requireSessionAuth(request));
+    return true;
   }
 
   const paymentMatch = matchPath(requestUrl.pathname, "/api/payments/:id");

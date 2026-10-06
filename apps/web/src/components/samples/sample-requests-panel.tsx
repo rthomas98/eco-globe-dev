@@ -11,17 +11,10 @@ import {
   stashSampleConversion,
   updateSampleRequest,
   type ApiSampleRequest,
-  type SampleRequestStatus,
 } from "@/lib/api-samples";
 import { LabTestingDialog } from "@/components/lab-testing/lab-testing-dialog";
-
-const STATUS_TONES: Record<SampleRequestStatus, { bg: string; fg: string; label: string }> = {
-  requested: { bg: "#FEF3C7", fg: "#92400E", label: "Requested" },
-  accepted: { bg: "#DBEAFE", fg: "#1D4ED8", label: "Accepted" },
-  declined: { bg: "#FEE2E2", fg: "#991B1B", label: "Declined" },
-  shipped: { bg: "#EDE9FE", fg: "#5B21B6", label: "Shipped" },
-  received: { bg: "#DCFCE7", fg: "#166534", label: "Received" },
-};
+import { legacySampleRows } from "@/lib/sample-status";
+import { useDemoUser } from "@/lib/demo-user";
 
 type State =
   | { status: "loading" }
@@ -36,10 +29,15 @@ type State =
  * placed order back to the sample so both sides see the conversion. Buyers
  * can also request lab testing of a sample from here (same form, same queue).
  */
-export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" }) {
+export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" | "admin" }) {
   const headingId = useId();
   const router = useRouter();
-  const [state, setState] = useState<State>({ status: "loading" });
+  // Rows are tagged with the user/company they were read for; after a switch
+  // the previous company's rows are hidden in the same render.
+  const user = useDemoUser();
+  const identity = user ? `${user.id ?? ""}:${user.activeCompanyId ?? ""}` : "";
+  const [loadedState, setState] = useState<{ identity: string; value: State }>({ identity: "", value: { status: "loading" } });
+  const state: State = loadedState.identity === identity ? loadedState.value : { status: "loading" };
   const [busyId, setBusyId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [tracking, setTracking] = useState<{ id: number; value: string } | null>(null);
@@ -49,24 +47,36 @@ export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" }) {
 
   useEffect(() => {
     let cancelled = false;
-    setState((prev) => (prev.status === "ready" ? prev : { status: "loading" }));
+    // A same-identity reload keeps the rows on screen; a new identity starts empty.
+    setState((prev) =>
+      prev.identity === identity && prev.value.status === "ready" ? prev : { identity, value: { status: "loading" } },
+    );
     fetchSampleRequests()
       .then((samples) => {
-        if (!cancelled) setState({ status: "ready", samples });
+        if (!cancelled) setState({ identity, value: { status: "ready", samples } });
       })
       .catch((error: unknown) => {
         if (cancelled) return;
         // No session or no company: the panel simply has nothing to show.
         if (isBackendApiError(error) && (error.kind === "unauthorized" || error.kind === "forbidden")) {
-          setState({ status: "ready", samples: [] });
+          setState({ identity, value: { status: "ready", samples: [] } });
           return;
         }
-        setState({ status: "error", message: describeBackendError(error, "Sample requests could not be loaded.") });
+        setState({ identity, value: { status: "error", message: describeBackendError(error, "Sample requests could not be loaded.") } });
       });
     return () => {
       cancelled = true;
     };
-  }, [version]);
+  }, [version, identity]);
+
+  // Tracker links use ?sample=<id>; legacy requests carry the same anchor.
+  const loadedIds = state.status === "ready" ? state.samples.map((s) => s.id).join(",") : "";
+  useEffect(() => {
+    if (!loadedIds) return;
+    const id = new URLSearchParams(window.location.search).get("sample");
+    if (id && /^\d+$/.test(id) && loadedIds.split(",").includes(id))
+      document.getElementById(`sample-${id}`)?.scrollIntoView({ block: "start" });
+  }, [loadedIds]);
 
   const act = async (sample: ApiSampleRequest, patch: Parameters<typeof updateSampleRequest>[1]) => {
     if (busyId) return;
@@ -99,9 +109,11 @@ export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" }) {
         <div>
           <h2 id={headingId} className="text-lg font-bold text-neutral-900">Sample requests</h2>
           <p className="text-xs text-neutral-500">
-            {role === "seller"
-              ? "Small test batches buyers want before committing to a bulk order."
-              : "Your test batches — confirm receipt when a sample arrives."}
+            {role === "admin"
+              ? "Read-only: sample requests arranged directly between buyers and sellers, as recorded. Staff cannot change them here."
+              : role === "seller"
+                ? "Small test batches buyers want before committing to a bulk order."
+                : "Your test batches — confirm receipt when a sample arrives."}
           </p>
         </div>
       </div>
@@ -117,17 +129,18 @@ export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" }) {
 
       {state.status === "ready" && (
         <ul className="flex flex-col gap-2">
-          {state.samples.map((sample) => {
-            const tone = STATUS_TONES[sample.status] ?? STATUS_TONES.requested;
+          {legacySampleRows(state.samples, role).map(({ sample, ref, anchorId, status, counterparty }) => {
+            // Unknown legacy statuses are shown as recorded, never remapped.
+            const tone = status;
             const busy = busyId === sample.id;
             return (
-              <li key={sample.id} className="flex flex-wrap items-center gap-3 rounded-xl px-4 py-3" style={{ border: "1px solid #F0F0F0" }}>
+              <li key={sample.id} id={anchorId} className="flex flex-wrap items-center gap-3 rounded-xl px-4 py-3" style={{ border: "1px solid #F0F0F0" }}>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-neutral-900">
-                    #{sample.id} · {sample.quantityLb} lb · {sample.listingTitle}
+                    {ref} · {sample.quantityLb} lb · {sample.listingTitle}
                   </p>
                   <p className="truncate text-xs text-neutral-500">
-                    {role === "seller" ? `For ${sample.buyerCompanyName}` : `From ${sample.sellerCompanyName}`}
+                    {counterparty}
                     {sample.deliveryAddress ? ` · ${sample.deliveryAddress}` : ""}
                     {sample.trackingNumber ? ` · Tracking ${sample.trackingNumber}` : ""}
                   </p>

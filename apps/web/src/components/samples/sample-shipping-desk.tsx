@@ -164,12 +164,11 @@ function ShippingDeskContent({ role }: { role: "buyer" | "seller" | "admin" }) {
         {!loaded && !error && <p role="status">Loading sample requests…</p>}
         {/* Sample requests arranged directly with the seller (also listed under
             Orders and Sales) are separate from prepaid sample shipments. */}
-        {role !== "admin" && <SampleRequestsPanel role={role} />}
+        <SampleRequestsPanel role={role} />
         {loaded && !rows.length && (
           <p className="rounded-2xl bg-white p-8">
-            No prepaid sample shipments yet.
-            {role !== "admin" &&
-              " Sample requests arranged directly with the seller appear above when there are any."}
+            No prepaid sample shipments yet. Sample requests arranged directly with the seller appear above when there
+            are any.
           </p>
         )}
         {rows.map((r) => (

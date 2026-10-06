@@ -22,6 +22,7 @@ const CATEGORIES = [
   "Refinery byproducts",
   "Chemicals",
   "Industrial byproducts",
+  "Used products",
   "Other",
 ];
 
@@ -47,6 +48,8 @@ const MATERIAL_TYPE_BY_CATEGORY: Record<string, string> = {
   "Refinery byproducts": "industrial_byproduct",
   Chemicals: "industrial_byproduct",
   "Industrial byproducts": "industrial_byproduct",
+  // Used equipment and products (e.g. transformers) use the saved used_product type.
+  "Used products": "used_product",
   Other: "industrial_byproduct",
 };
 

@@ -29,6 +29,8 @@ export interface ProductDetailModel {
   images: string[];
   specs: Array<{ label: string; value: string }>;
   overview: string | null;
+  /** Saved facts shown under Overview when the seller wrote no description. */
+  overviewFacts: Array<{ label: string; value: string }>;
   seller: {
     name: string | null;
     verified: boolean;
@@ -38,6 +40,26 @@ export interface ProductDetailModel {
   sellerCoords: { lng: number; lat: number } | null;
   sdsUrl: string | null;
   documents: Listing["documents"];
+}
+
+/**
+ * Facts for an empty Overview, taken only from saved listing fields. Values
+ * the backend withholds for this viewer (MOQ on teasers) and values the view
+ * model defaults when missing (feedstock state) are left out; nothing is
+ * written as narrative.
+ */
+export function overviewFacts(listing: Listing): Array<{ label: string; value: string }> {
+  const facts: Array<{ label: string; value: string }> = [];
+  if (listing.category.trim()) facts.push({ label: "Category", value: listing.category });
+  if (listing.qtyNum !== null) {
+    const quantity = formatQuantityWithUnitName(listing.qtyNum, listing.quantityUnit);
+    if (quantity) facts.push({ label: "Available", value: `${listing.teaser ? "Approx. " : ""}${quantity}` });
+  }
+  if (!listing.teaser && listing.moqNum !== null && listing.moq.trim())
+    facts.push({ label: "Minimum order", value: listing.moq });
+  if (listing.frequency) facts.push({ label: "Supply frequency", value: listing.frequency });
+  if (listing.location.trim()) facts.push({ label: "Location", value: listing.location });
+  return facts;
 }
 
 export function buildProductDetail(listing: Listing): ProductDetailModel {
@@ -97,6 +119,7 @@ export function buildProductDetail(listing: Listing): ProductDetailModel {
     images: listing.images,
     specs: uniqueSpecs,
     overview: listing.description,
+    overviewFacts: listing.description?.trim() ? [] : overviewFacts(listing),
     seller: {
       name: listing.sellerCompanyName,
       verified: listing.sellerVerified,

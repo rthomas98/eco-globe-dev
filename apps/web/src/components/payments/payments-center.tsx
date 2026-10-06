@@ -11,8 +11,9 @@ import { useCart } from "@/components/cart/cart-context";
 import { takePendingCheckoutByOrder } from "@/lib/checkout-pending";
 import { startBackendStripeOnboarding, syncBackendStripeSetup } from "@/lib/backend-auth";
 import {
-  paymentReceiptHtml,
+  paymentDocumentFrom,
   paymentsCsv,
+  receiptPath,
   type PaymentDocument,
 } from "@/lib/payment-documents";
 
@@ -109,22 +110,7 @@ export function PaymentsCenter({ role }: { role: Role }) {
                 : order.buyerCompanyId !== companyId))
           )
             return [];
-          return [
-            {
-              id: payment.id,
-              orderId: payment.orderId,
-              title: order?.listingTitle ?? "Marketplace payment",
-              payer: payment.payerCompanyName,
-              payee: order?.sellerCompanyName ?? "Not recorded",
-              amount: Number(payment.amount),
-              currency: payment.currencyCode,
-              status: payment.paymentStatusCode,
-              type: payment.paymentTypeCode,
-              reference: payment.providerPaymentId,
-              createdAt: payment.createdAt,
-              escrowId: payment.escrowId,
-            },
-          ];
+          return [paymentDocumentFrom(payment, order ?? null)];
         });
         setRows(records);
         setSelectedId(records[0]?.id ?? null);
@@ -310,7 +296,8 @@ export function PaymentsCenter({ role }: { role: Role }) {
                   paymentsCsv(rows),
                   "text/csv;charset=utf-8",
                 );
-                setNotice("Payment history exported as CSV.");
+                // The browser decides whether a file is saved; this cannot be confirmed.
+                setNotice("Your browser was asked to save the payment history as CSV. Check your downloads.");
               }}
             >
               <Download className="mr-2 inline size-4" />
@@ -429,28 +416,19 @@ export function PaymentsCenter({ role }: { role: Role }) {
           <PaymentFields payment={selected} />
           <p className="my-4 text-sm text-neutral-600">
             {selected.status !== "captured"
-              ? "This payment is not recorded as captured. The download is a payment record, not a paid receipt. "
+              ? "This payment is not recorded as captured, so its printable page is a payment record, not a paid receipt. "
               : ""}
             A captured payment does not mean the seller has been paid out;
             payouts are arranged separately by EcoGlobe staff. Simulated
             transactions do not represent money moved.
           </p>
-          <button
-            className={`${button} bg-black text-white`}
-            onClick={() => {
-              download(
-                `ecoglobe-payment-${selected.id}.html`,
-                paymentReceiptHtml(selected),
-                "text/html;charset=utf-8",
-              );
-              setNotice(
-                `TX-${selected.id} downloaded. Open the document to print or save as PDF.`,
-              );
-            }}
+          <Link
+            href={receiptPath(role, selected.id)}
+            className={`${button} inline-block bg-black text-white`}
           >
-            Download printable{" "}
+            Open printable{" "}
             {selected.status === "captured" ? "receipt" : "record"}
-          </button>
+          </Link>
         </PaymentDialog>
       )}
       {selected && panel === "review" && (

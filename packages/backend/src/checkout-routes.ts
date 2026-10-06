@@ -1,6 +1,7 @@
 import { applySampleShippingCredit } from "./sample-shipping-credit.js";
 import { createHash, randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { sameQuantityUnit } from "./quantity-units.js";
 import type Stripe from "stripe";
 import { requireSessionAuth } from "./auth.js";
 import {
@@ -374,7 +375,7 @@ export async function reserveCheckout(
         !quote ||
         Number(quote.quantity) !== value.quantity ||
         quote.currency !== listing.currency ||
-        quote.unit !== listing.unit
+        !sameQuantityUnit(quote.unit, listing.unit)
       )
         throw new ApiError(
           409,
