@@ -3,11 +3,13 @@
 import { useLiveNotifications } from "@/components/notifications/use-live-notifications";
 
 import { useState } from "react";
+import { SoonPill } from "@/components/feedstock-iq/soon-pill";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Search,
+  Sparkles,
   ShoppingCart,
   DollarSign,
   HelpCircle,
@@ -47,6 +49,8 @@ interface NavIcon {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   children?: { href: string; label: string }[];
+  /** Announced feature that is not available yet. */
+  soon?: boolean;
 }
 
 interface NavGroup {
@@ -72,6 +76,7 @@ const buyerNavGroups: NavGroup[] = [
       { href: "/buyer/tracker", icon: ListChecks, label: "Tracker" },
       { href: "/buyer/samples", icon: Package, label: "Samples" },
       { href: "/buyer/pilots", icon: FlaskConical, label: "Pilots" },
+      { href: "/feedstock-iq", icon: Sparkles, label: "Feedstock IQ", soon: true },
     ],
   },
   {
@@ -404,8 +409,9 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
                               }`}
                             >
                               <item.icon className="size-5" />
-                              <span className="whitespace-nowrap">
+                              <span className="flex items-center whitespace-nowrap">
                                 {item.label}
+                                {item.soon && <SoonPill />}
                               </span>
                             </Link>
                           )}

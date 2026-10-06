@@ -113,12 +113,12 @@ export function ServicesPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* Consulting */}
           <div className="flex flex-col gap-8 rounded-2xl bg-white p-10" style={{ border: "1px solid #E0E0E0" }}>
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">Consulting Services</h2>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900">Hands-on Services</h2>
             <p className="text-base text-neutral-700">Companies new to circular economy, those with complex waste streams, or those ready to unlock new revenue. We assess your waste streams, identify which ones have real market value, and build the business strategy to turn them into income.</p>
             <div className="h-[240px] overflow-hidden rounded-xl bg-neutral-100">
               <img
                 src="/images/services-consulting.png"
-                alt="Circular economy consulting for industrial waste streams"
+                alt="Hands-on circular economy services for industrial waste streams"
                 className="h-full w-full object-cover"
               />
             </div>
@@ -181,11 +181,11 @@ export function ServicesPage() {
         <div className="mx-auto max-w-[1440px] px-4 sm:px-8 lg:px-[135px]">
           <div className="mb-12 text-center">
             <h2 className="mb-4 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Not Sure Which Path Is<br />Right for You?</h2>
-            <p className="text-base text-neutral-700">Include a simple decision guide below the two pathways to help users self-select:</p>
+            <p className="text-base text-neutral-700">Use this quick guide to choose the path that fits your business.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16">
             <div>
-              <h3 className="mb-6 text-lg font-bold text-neutral-900">Choose Consulting if...</h3>
+              <h3 className="mb-6 text-lg font-bold text-neutral-900">Choose Hands-on Services if...</h3>
               <ul className="flex flex-col gap-3">
                 {consultingPath.map((item) => (
                   <li key={item} className="text-sm text-neutral-700">• {item}</li>
@@ -209,7 +209,7 @@ export function ServicesPage() {
         <div className="mx-auto flex flex-col lg:flex-row max-w-[1440px] gap-8 lg:gap-16 px-4 sm:px-8 lg:px-[135px]">
           <div className="flex-1">
             <h2 className="mb-4 text-xl sm:text-3xl lg:text-4xl font-bold text-neutral-900">Why EcoGlobe?</h2>
-            <p className="mb-10 text-base text-neutral-700">Include a simple decision guide below the two pathways to help users self-select:</p>
+            <p className="mb-10 text-base text-neutral-700">Use this quick guide to choose the path that fits your business.</p>
             <div className="flex flex-col gap-6">
               {whyEcoGlobe.map((item) => (
                 <div key={item.text} className="flex gap-4">

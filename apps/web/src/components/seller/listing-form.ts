@@ -29,19 +29,17 @@ export const MATERIAL_TYPE_OPTIONS = [
 ];
 
 /**
- * Quantity unit choices. The plural aliases are the codes live listings were
- * saved with; they stay selectable so an existing listing keeps its recorded
- * unit on edit instead of being silently relabeled to the singular code.
+ * Quantity unit choices for new listings: one unambiguous code per unit.
+ * Historical codes ("ton", "tons", "tonnes", "units") are not offered again.
+ * "ton"/"tons" are ambiguous (short or metric) and are never relabeled as
+ * metric here; `unitOptionsFor` keeps a recorded code selectable on edit,
+ * shown exactly as recorded.
  */
 export const UNIT_OPTIONS = [
-  { value: "ton", label: "t (metric tonne)" },
-  { value: "tons", label: "tons (metric tonnes)" },
-  { value: "tonne", label: "tonne (metric tonne)" },
-  { value: "tonnes", label: "tonnes (metric tonnes)" },
+  { value: "tonne", label: "t (metric tonne, 1,000 kg)" },
   { value: "kg", label: "kg (kilogram)" },
   { value: "lb", label: "lb (pound)" },
   { value: "unit", label: "unit (per item)" },
-  { value: "units", label: "units (per item)" },
 ];
 
 /** Options for a form, including a recorded unit this list does not know so it is never dropped. */

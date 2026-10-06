@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, LayoutGrid, List, Info, ChevronRight, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@eco-globe/ui";
-import { RfqRespondForm } from "./rfq-respond-form";
+import { BuyerRequestRow } from "./buyer-request-row";
+import { FeedstockIqCard } from "@/components/feedstock-iq/feedstock-iq-prompt";
 import { SellerLayout } from "./seller-layout";
 import { useDemoUser } from "@/lib/demo-user";
 import { useListings } from "@/lib/use-listings";
@@ -16,7 +17,6 @@ import type { Listing } from "../public/browse-listings";
 import {
   fetchInterestSummary,
   fetchWantedListings,
-  portalMoney,
   type ApiInterestRow,
   type ApiWantedListing,
 } from "@/lib/api-portal";
@@ -83,7 +83,6 @@ export function ListingsPage() {
   const localDrafts = useLocalListingDrafts();
   const [interest, setInterest] = useState<ApiInterestRow[]>([]);
   const [demand, setDemand] = useState<ApiWantedListing[]>([]);
-  const [respondingId, setRespondingId] = useState<number | null>(null);
 
   // Aggregate buyer-interest signals and open buyer demand for the active company.
   useEffect(() => {
@@ -148,33 +147,26 @@ export function ListingsPage() {
       {/* Open buyer demand — wanted listings posted by buyers */}
       {demand.length > 0 && (
         <div className="mb-5 rounded-xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
-          <h2 className="mb-1 text-sm font-bold text-neutral-900">Buyers are looking for</h2>
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-neutral-900">Buyers are looking for</h2>
+            <Link href="/seller/rfq" className="text-xs font-semibold text-neutral-900 underline">
+              View all {demand.length} buyer request{demand.length === 1 ? "" : "s"}
+            </Link>
+          </div>
           <p className="mb-3 text-xs text-neutral-500">
             Open requests from buyers. Respond with a quote from a matching published listing.
           </p>
           <div className="flex flex-col gap-2">
             {demand.slice(0, 5).map((row) => (
-              <div key={row.id} className="rounded-lg bg-neutral-50 px-4 py-2 text-sm" style={{ border: "1px solid #F0F0F0" }}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-semibold text-neutral-900">{row.title}</span>
-                <span className="text-neutral-600">
-                  {row.quantity} {row.quantityUnit} · {row.materialTypeName} ·{" "}
-                  {[row.stateProvince, row.countryCode].filter(Boolean).join(", ")}
-                  {row.targetPricePerUnit != null &&
-                    ` · target ${portalMoney(row.targetPricePerUnit, row.currencyCode)}`}
-                </span>
-                {respondingId !== row.id && (
-                  <button type="button" onClick={() => setRespondingId(row.id)} className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-semibold text-white">
-                    Respond
-                  </button>
-                )}
-              </div>
-              {respondingId === row.id && <RfqRespondForm wanted={row} onClose={() => setRespondingId(null)} />}
-              </div>
+              <BuyerRequestRow key={row.id} request={row} />
             ))}
           </div>
         </div>
       )}
+
+      <div className="mb-5">
+        <FeedstockIqCard />
+      </div>
 
       <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-neutral-900">Listings</h1>

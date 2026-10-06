@@ -195,6 +195,10 @@ interface ListingMapProps {
   /** Browse selection uses the chosen listing as the radius center. */
   selectionRadius?: boolean;
   unlocatedSelection?: Listing;
+  /** Explains missing pins (e.g. redacted for signed-out visitors); shown over the map. */
+  notice?: React.ReactNode;
+  /** Called when the visitor picks the map center as the radius origin. */
+  onOriginChange?: (origin: { lng: number; lat: number; label: string }) => void;
 }
 
 /**
@@ -325,6 +329,8 @@ export function ListingMap({
   radiusFitListings = true,
   selectionRadius = false,
   unlocatedSelection,
+  notice,
+  onOriginChange,
 }: ListingMapProps = {}) {
   const city = useCityLocation(unlocatedSelection?.cityLocation);
   const data = useMemo(() => {
@@ -742,12 +748,15 @@ export function ListingMap({
           className="absolute left-3 top-3 z-10 rounded-lg bg-white p-3 text-sm shadow"
           onClick={() => {
             const center = mapRef.current?.getCenter();
-            if (center)
-              setManualOrigin({
+            if (center) {
+              const picked = {
                 lng: center.lng,
                 lat: center.lat,
                 label: "Selected map center",
-              });
+              };
+              setManualOrigin(picked);
+              onOriginChange?.(picked);
+            }
           }}
         >
           Use map center for search radius
@@ -768,6 +777,14 @@ export function ListingMap({
         </div>
       )}
       <div ref={mapContainer} className="h-full w-full rounded-xl" />
+      {notice && !selectionNotice && (
+        <div
+          role="status"
+          className="absolute bottom-16 left-1/2 z-10 w-[min(360px,calc(100%-1.5rem))] -translate-x-1/2 rounded-lg bg-white p-3 text-center text-sm text-neutral-700 shadow"
+        >
+          {notice}
+        </div>
+      )}
       <div className="absolute bottom-8 left-3 max-w-[280px] rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-neutral-700 shadow-sm backdrop-blur-sm">
         {origin && radiusMiles
           ? `${radiusMiles} mi radius · ${origin.label ?? "Selected location"}`

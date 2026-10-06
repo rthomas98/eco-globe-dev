@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";
 import { ListingMap, type MapListing } from "../public/listing-map";
+import { FeedstockIqPrompt } from "@/components/feedstock-iq/feedstock-iq-prompt";
 import { useDemoUser } from "@/lib/demo-user";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
 import {
@@ -193,6 +194,24 @@ function TextArea({
         className="w-full resize-none rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
         style={{ border: "1px solid #E0E0E0" }}
       />
+    </div>
+  );
+}
+
+/** Origin map, or an explicit reason when the chosen facility cannot be pinned. */
+function OriginMapPreview({
+  listing,
+  selectedLocation,
+}: {
+  listing: MapListing | null;
+  selectedLocation: { name: string } | null | undefined;
+}) {
+  if (listing) return <ListingMap listings={[listing]} activeId={listing.id} />;
+  return (
+    <div className="flex h-full items-center justify-center rounded-xl bg-neutral-50 p-6 text-center text-sm text-neutral-600" style={{ border: "1px dashed #E0E0E0" }}>
+      {selectedLocation
+        ? `${selectedLocation.name} has no saved coordinates, so it cannot be shown on the map yet. Use Edit on the facility to add them.`
+        : "Choose the facility this listing ships from to preview its origin on the map."}
     </div>
   );
 }
@@ -536,10 +555,7 @@ export function AddListingPage() {
                 Origin map preview
               </p>
               <div className="h-[260px] overflow-hidden rounded-xl">
-                <ListingMap
-                  listings={previewMapListing ? [previewMapListing] : []}
-                  activeId={previewMapListing?.id}
-                />
+                <OriginMapPreview listing={previewMapListing} selectedLocation={selectedLocation} />
               </div>
               <p className="mt-2 text-xs text-neutral-500">
                 {previewMapListing
@@ -802,6 +818,9 @@ export function AddListingPage() {
                 offered at no charge. Currency and unit must be chosen
                 explicitly before submitting.
               </p>
+              <div className="mt-3">
+                <FeedstockIqPrompt context="pricing" />
+              </div>
             </div>
             <div>
               <label
@@ -1081,10 +1100,7 @@ export function AddListingPage() {
               onChange={(e) => up("originLocation", e.target.value)}
             />
             <div className="h-[300px] overflow-hidden rounded-xl">
-              <ListingMap
-                listings={previewMapListing ? [previewMapListing] : []}
-                activeId={previewMapListing?.id}
-              />
+              <OriginMapPreview listing={previewMapListing} selectedLocation={selectedLocation} />
             </div>
           </div>
         </StepLayout>
@@ -1306,10 +1322,7 @@ export function AddListingPage() {
                   </div>
                 </div>
                 <div className="h-[250px] overflow-hidden rounded-xl">
-                  <ListingMap
-                    listings={previewMapListing ? [previewMapListing] : []}
-                    activeId={previewMapListing?.id}
-                  />
+                  <OriginMapPreview listing={previewMapListing} selectedLocation={selectedLocation} />
                 </div>
 
                 <h2 className="mb-3 mt-8 text-lg font-bold text-neutral-900">

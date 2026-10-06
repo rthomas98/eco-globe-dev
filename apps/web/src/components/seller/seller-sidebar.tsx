@@ -31,6 +31,8 @@ import {
   FlaskConical,
   Route,
   Network,
+  FileQuestion,
+  Sparkles,
 } from "lucide-react";
 import { NotificationsPanel } from "./notifications-panel";
 import {
@@ -53,6 +55,7 @@ function shortDisplayName(name: string) {
   return `${parts[0]} ${parts[1][0]?.toUpperCase() ?? ""}`.trim();
 }
 import { logoutBackendUser, switchBackendRole } from "@/lib/backend-auth";
+import { SoonPill } from "@/components/feedstock-iq/soon-pill";
 
 type NavChild = { label: string; href: string };
 type NavItem = {
@@ -60,15 +63,19 @@ type NavItem = {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   children?: NavChild[];
+  /** Announced feature that is not available yet. */
+  soon?: boolean;
 };
 
 export const sellerNavItems: NavItem[] = [
   { label: "Home", href: "/", icon: Home },
   { label: "Listings", href: "/seller/listings", icon: LayoutGrid },
+  { label: "Buyer requests", href: "/seller/rfq", icon: FileQuestion },
   { label: "Sales", href: "/seller/sales", icon: TrendingUp },
   { label: "Tracker", href: "/seller/tracker", icon: ListChecks },
   { label: "Sample dispatch", href: "/seller/samples", icon: Package },
   { label: "Pilot interest", href: "/seller/pilots", icon: FlaskConical },
+  { label: "Feedstock IQ", href: "/feedstock-iq", icon: Sparkles, soon: true },
   { label: "Logistics", href: "/seller/logistics", icon: Truck },
   { label: "Contracts", href: "/seller/contracts", icon: FileSignature },
   { label: "E-signatures", href: "/seller/e-signatures", icon: PenLine },
@@ -332,6 +339,7 @@ export function SellerSidebar({
             >
               <item.icon className="size-5" />
               {item.label}
+              {item.soon && <SoonPill />}
             </Link>
           );
         })}

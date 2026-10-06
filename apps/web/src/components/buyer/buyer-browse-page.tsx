@@ -25,15 +25,19 @@ import { useListings } from "@/lib/use-listings";
 import { CarbonCalculatorButton } from "./carbon-calculator-button";
 import { BuyerLayout } from "./buyer-layout";
 import { useViewerLocation } from "@/lib/viewer-location";
+import { filterByRadius, formatMiles } from "@/lib/radius-filter";
+import { FeedstockIqCard, FeedstockIqPrompt } from "@/components/feedstock-iq/feedstock-iq-prompt";
 
 function ListingCard({
   listing,
   selected,
   onSelect,
+  distanceMiles,
 }: {
   listing: Listing;
   selected: boolean;
   onSelect: () => void;
+  distanceMiles: number | undefined;
 }) {
   return (
     <div
@@ -51,7 +55,8 @@ function ListingCard({
           {listing.title}
         </h3>
         <p className="mt-1 text-sm text-neutral-700">
-          {listing.location} · {listing.distance}
+          {listing.location || "Location not provided"}
+          {distanceMiles !== undefined && <> · {formatMiles(distanceMiles)}</>}
         </p>
         <div className="mt-2 flex gap-2">
           <Badge>MOQ: {listing.moq}</Badge>
@@ -101,7 +106,13 @@ export function BuyerBrowsePage() {
   const router = useRouter();
   const { location: viewerLocation } = useViewerLocation();
   const [search, setSearch] = useState("");
-  const [radius, setRadius] = useState("2");
+  // "0" = any distance; the list is filtered only when a radius is chosen.
+  const [radius, setRadius] = useState("0");
+  const [manualOrigin, setManualOrigin] = useState<{
+    lng: number;
+    lat: number;
+    label: string;
+  }>();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -122,7 +133,7 @@ export function BuyerBrowsePage() {
     });
 
   const published = useListings("public");
-  const visibleListings = published.listings.filter((l) => {
+  const matchingListings = published.listings.filter((l) => {
     const haystack = `${l.title} ${l.tags.join(" ")}`.toLowerCase();
     if (q && !haystack.includes(q)) return false;
     if (
@@ -162,6 +173,18 @@ export function BuyerBrowsePage() {
     return true;
   });
 
+  const radiusMiles = parseInt(radius, 10) || 0;
+  const origin = manualOrigin ?? viewerLocation ?? undefined;
+  // Without completed onboarding, listings are teasers with no facility coordinates.
+  const locationsRedacted =
+    published.listings.length > 0 && published.listings.every((item) => item.teaser);
+  const radiusResult = filterByRadius(
+    matchingListings,
+    locationsRedacted ? null : origin,
+    radiusMiles,
+  );
+  const visibleListings = radiusResult.items;
+
   const mapListings: MapListing[] = useMemo(
     () =>
       visibleListings.filter(hasCoordinates).map((l) => ({
@@ -179,10 +202,15 @@ export function BuyerBrowsePage() {
     [visibleListings],
   );
 
-  const pricingUnavailable =
-    published.status === "ready" &&
-    published.listings.length > 0 &&
-    published.listings.every((item) => item.teaser);
+  const pricingUnavailable = published.status === "ready" && locationsRedacted;
+  const mapNotice =
+    published.status !== "ready" || mapListings.length > 0
+      ? undefined
+      : locationsRedacted
+        ? "Facility locations appear once your company onboarding is complete."
+        : visibleListings.length > 0
+          ? "None of these listings has a saved facility location yet."
+          : undefined;
 
   const activeFilterCount =
     filters.categories.length +
@@ -218,7 +246,9 @@ export function BuyerBrowsePage() {
             </div>
 
             <div className="hidden sm:block">
-              <LocationPill value={`Search radius: ${radius} mi`} />
+              <LocationPill
+                value={radiusMiles > 0 ? `Search radius: ${radiusMiles} mi` : "Any distance"}
+              />
             </div>
 
             <select
@@ -230,6 +260,7 @@ export function BuyerBrowsePage() {
               className="rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none"
               style={{ border: "1px solid #E0E0E0" }}
             >
+              <option value="0">Any distance</option>
               <option value="2">2 mi</option>
               <option value="10">10 mi</option>
               <option value="50">50 mi</option>
@@ -262,9 +293,31 @@ export function BuyerBrowsePage() {
           {/* Listings panel */}
           {!mapExpanded && (
             <div className="w-full overflow-y-auto p-6 lg:w-[55%]">
+              <div className="mb-4">
+                <FeedstockIqCard />
+              </div>
               <p className="mb-4 text-sm text-neutral-700">
-                {visibleListings.length} listings
+                {visibleListings.length} listing{visibleListings.length === 1 ? "" : "s"}
               </p>
+              {published.status === "ready" && radiusMiles > 0 && (
+                <p role="status" className="mb-4 rounded-xl bg-neutral-50 p-4 text-sm text-neutral-700">
+                  {radiusResult.applied ? (
+                    <>
+                      Within {radiusMiles} mi of {origin?.label ?? "your location"}.
+                      {radiusResult.outside > 0 && ` ${radiusResult.outside} outside the radius hidden.`}
+                      {radiusResult.unlocated > 0 &&
+                        ` ${radiusResult.unlocated} without a saved facility location hidden.`}{" "}
+                      <button type="button" onClick={() => setRadius("0")} className="font-semibold underline">
+                        Show any distance
+                      </button>
+                    </>
+                  ) : locationsRedacted ? (
+                    "Distance filtering needs facility locations, which appear once your company onboarding is complete."
+                  ) : (
+                    "Allow location access or use the map center to filter by distance."
+                  )}
+                </p>
+              )}
               {published.status === "loading" ? (
                 <p
                   className="rounded-xl bg-neutral-50 py-16 text-center text-sm text-neutral-600"
@@ -297,11 +350,13 @@ export function BuyerBrowsePage() {
                     Try a different keyword, loosen the filters, or clear
                     everything to see all listings.
                   </p>
+                  {published.listings.length > 0 && <FeedstockIqPrompt context="search" />}
                   <button
                     onClick={() => {
                       setSelectedId(null);
                       setFilters(defaultFilters);
                       setSearch("");
+                      setRadius("0");
                     }}
                     className="mt-2 rounded-full bg-neutral-900 px-5 py-2 text-sm font-medium text-white"
                   >
@@ -314,6 +369,7 @@ export function BuyerBrowsePage() {
                     <ListingCard
                       key={listing.id}
                       listing={listing}
+                      distanceMiles={radiusResult.distances.get(listing.id)}
                       selected={selectedId === listing.id}
                       onSelect={() =>
                         setSelectedId((curr) =>
@@ -342,9 +398,11 @@ export function BuyerBrowsePage() {
               onSelect={(id) =>
                 setSelectedId((curr) => (curr === id ? null : id))
               }
-              origin={viewerLocation ?? undefined}
+              origin={origin}
               radiusFitListings={false}
-              radiusMiles={parseInt(radius, 10) || undefined}
+              radiusMiles={radiusMiles || undefined}
+              notice={mapNotice}
+              onOriginChange={setManualOrigin}
             />
             <button
               type="button"

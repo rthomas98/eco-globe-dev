@@ -45,26 +45,26 @@ function filterLocations(listings: Listing[], query: string, max = 6) {
 }
 
 function useLiveCount(listings: Listing[], query: string, location: string) {
-  const [count, setCount] = useState(listings.length);
+  // Derived synchronously so the count is right on the first ready render.
+  const count = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const loc = location.trim().toLowerCase();
+    return listings.filter((l) => {
+      const haystack =
+        `${l.title} ${l.tags.join(" ")} ${l.category}`.toLowerCase();
+      if (q && !haystack.includes(q)) return false;
+      if (loc && !l.location.toLowerCase().includes(loc)) return false;
+      return true;
+    }).length;
+  }, [listings, query, location]);
   const [pulsing, setPulsing] = useState(false);
 
   useEffect(() => {
+    if (!query && !location) return;
     setPulsing(true);
-    const t = setTimeout(() => {
-      const q = query.trim().toLowerCase();
-      const loc = location.trim().toLowerCase();
-      const next = listings.filter((l) => {
-        const haystack =
-          `${l.title} ${l.tags.join(" ")} ${l.category}`.toLowerCase();
-        if (q && !haystack.includes(q)) return false;
-        if (loc && !l.location.toLowerCase().includes(loc)) return false;
-        return true;
-      }).length;
-      setCount(next);
-      setPulsing(false);
-    }, 180);
+    const t = setTimeout(() => setPulsing(false), 180);
     return () => clearTimeout(t);
-  }, [listings, query, location]);
+  }, [query, location]);
 
   return { count, pulsing };
 }
@@ -91,6 +91,8 @@ export function HeroSection() {
   );
 
   const { count, pulsing } = useLiveCount(listings, query, location);
+  // Never show a zero count while published listings are still loading.
+  const countReady = published.status === "ready";
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -125,7 +127,7 @@ export function HeroSection() {
           <h1 className="text-2xl sm:text-5xl lg:text-[64px] font-bold leading-tight text-white">
             Buy verified feedstocks,
             <br />
-            locally and transparently.
+            sourced close to you.
           </h1>
 
           <form
@@ -293,6 +295,13 @@ export function HeroSection() {
             <TrendingUp
               className={`size-4 transition-transform ${pulsing ? "scale-125" : ""}`}
             />
+            {!countReady ? (
+              <span aria-live="polite">
+                {published.status === "error"
+                  ? "Live listing count unavailable right now"
+                  : "Counting live feedstocks…"}
+              </span>
+            ) : (
             <span aria-live="polite">
               <span
                 className={`font-bold text-white tabular-nums transition-opacity ${
@@ -305,6 +314,7 @@ export function HeroSection() {
               {query || location ? " your filters" : " right now"}
               {location ? ` within ${distance}` : ""}
             </span>
+            )}
           </div>
 
           <div className="flex flex-col items-center gap-4">

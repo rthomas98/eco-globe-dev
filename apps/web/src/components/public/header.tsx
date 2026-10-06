@@ -7,12 +7,14 @@ import { useRouter } from "next/navigation";
 import { Search, Menu, X } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { HeaderUserMenu } from "@/components/auth/header-user-menu";
+import { SoonPill } from "@/components/feedstock-iq/soon-pill";
 
-const navLinks = [
+const navLinks: Array<{ label: string; href: string; soon?: boolean }> = [
   { label: "Home", href: "/" },
   { label: "Services", href: "/services" },
   { label: "Sellers", href: "/sellers" },
   { label: "Buyers", href: "/buyers" },
+  { label: "Feedstock IQ", href: "/feedstock-iq", soon: true },
   { label: "About", href: "/about" },
   { label: "Contact Us", href: "/contact" },
 ];
@@ -73,9 +75,10 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-base font-medium text-white transition-colors hover:opacity-80"
+                  className="flex items-center text-base font-medium text-white transition-colors hover:opacity-80"
                 >
                   {link.label}
+                  {link.soon && <SoonPill tone="dark" />}
                 </Link>
               ))}
             </nav>
@@ -106,9 +109,10 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-base font-medium text-neutral-800 transition-colors hover:opacity-80"
+                  className="flex items-center text-base font-medium text-neutral-800 transition-colors hover:opacity-80"
                 >
                   {link.label}
+                  {link.soon && <SoonPill />}
                 </Link>
               ))}
             </nav>
@@ -142,10 +146,11 @@ export function Header({ transparent = false }: { transparent?: boolean }) {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-base font-medium text-neutral-800 py-2"
+                className="flex items-center text-base font-medium text-neutral-800 py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {link.label}
+                {link.soon && <SoonPill />}
               </Link>
             ))}
             <div className="h-px w-full bg-neutral-200" />

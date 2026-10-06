@@ -19,7 +19,9 @@ export interface UnitDescriptor {
 }
 
 const UNITS: Record<string, UnitDescriptor> = {
-  ton: { code: "ton", short: "t", singular: "metric tonne", plural: "metric tonnes", isMass: true, tonnesPerUnit: 1 },
+  // "ton"/"tons" may mean a short (US) or metric ton. Without explicit source
+  // semantics it is shown as recorded and never converted to metric tonnes.
+  ton: { code: "ton", short: "ton", singular: "ton", plural: "tons", isMass: false, tonnesPerUnit: null },
   tonne: { code: "tonne", short: "t", singular: "metric tonne", plural: "metric tonnes", isMass: true, tonnesPerUnit: 1 },
   kg: { code: "kg", short: "kg", singular: "kilogram", plural: "kilograms", isMass: true, tonnesPerUnit: 0.001 },
   lb: { code: "lb", short: "lb", singular: "pound", plural: "pounds", isMass: true, tonnesPerUnit: 0.00045359237 },
@@ -29,18 +31,31 @@ const UNITS: Record<string, UnitDescriptor> = {
 export function describeUnit(code: string | null | undefined): UnitDescriptor {
   const key = (code ?? "").trim().toLowerCase();
   if (UNITS[key]) return UNITS[key];
-  if (key === "tons" || key === "tonnes" || key === "metric-tons") return UNITS.ton;
+  // Only unambiguous spellings map to the metric tonne.
+  if (key === "t" || key === "tonnes" || key === "metric-tons" || key === "metric-tonnes") return UNITS.tonne;
+  if (key === "tons") return UNITS.ton;
   if (key === "units") return UNITS.unit;
   if (key === "kgs" || key === "kilograms") return UNITS.kg;
   if (key === "lbs" || key === "pounds") return UNITS.lb;
+  // No saved unit: say so instead of assuming one.
+  if (!key) return UNIT_NOT_RECORDED;
   // Unknown unit: preserve the seller's label verbatim.
-  const label = key || "unit";
-  return { code: label, short: label, singular: label, plural: label, isMass: false, tonnesPerUnit: null };
+  return { code: key, short: key, singular: key, plural: key, isMass: false, tonnesPerUnit: null };
 }
 
-/** "/t", "/kg", "/unit" style suffix for a unit code. */
+const UNIT_NOT_RECORDED: UnitDescriptor = {
+  code: "",
+  short: "",
+  singular: "(unit not recorded)",
+  plural: "(unit not recorded)",
+  isMass: false,
+  tonnesPerUnit: null,
+};
+
+/** "/t", "/kg", "/unit" style suffix for a unit code; empty when no unit is recorded. */
 export function perUnitSuffix(code: string | null | undefined) {
-  return `/${describeUnit(code).short}`;
+  const { short } = describeUnit(code);
+  return short ? `/${short}` : "";
 }
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -118,7 +133,7 @@ export function formatQuantity(
 ): string | null {
   if (quantity === null || quantity === undefined || !Number.isFinite(quantity)) return null;
   const unit = describeUnit(unitCode);
-  return `${formatNumber(quantity, 3)} ${unit.short}`;
+  return `${formatNumber(quantity, 3)} ${unit.short || unit.singular}`;
 }
 
 /** "100 t (metric tonnes)" — explicit unit wording for MOQ displays. */

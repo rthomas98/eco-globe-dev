@@ -1,12 +1,11 @@
 "use client";
-import { DemoSdsFlow } from "@/components/public/demo-sds-flow";
 import { MaterialImage } from "@/components/public/material-image";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/cart-context";
-import { Heart, Share2, ArrowRight, Minus, Plus, ChevronRight, ThumbsUp, ThumbsDown, CheckCircle, AlertTriangle, FileText, RefreshCw } from "lucide-react";
+import { Heart, Share2, ArrowRight, Minus, Plus, ChevronRight, ThumbsUp, ThumbsDown, CheckCircle, AlertTriangle, FileText, RefreshCw, Lock } from "lucide-react";
 import { Button, Badge } from "@eco-globe/ui";
 import { buildProductDetail } from "../public/product-detail-data";
 import { BuyerLayout } from "./buyer-layout";
@@ -25,6 +24,13 @@ import { documentTypeLabel } from "@/components/seller/listing-documents";
 export function BuyerProductDetailPage() {
   const params = useParams<{ id?: string }>();
   const router = useRouter();
+  const [openingCheckout, startCheckoutTransition] = useTransition();
+  // Synchronous guard: a second click before React re-renders must not touch the cart again.
+  const buyNowStarted = useRef(false);
+  // If navigation is interrupted while this page stays mounted, allow Buy Now again.
+  useEffect(() => {
+    if (!openingCheckout) buyNowStarted.current = false;
+  }, [openingCheckout]);
   const { addItem, setIsOpen } = useCart();
   const id = typeof params.id === "string" ? params.id : undefined;
   const detail = useListing(id, "public");
@@ -50,6 +56,7 @@ export function BuyerProductDetailPage() {
 
   useEffect(() => {
     if (!product) return;
+    buyNowStarted.current = false;
     setSampleOpen(false);
     setQty(product.minOrder);
     setSelectedImg(0);
@@ -110,7 +117,8 @@ export function BuyerProductDetailPage() {
   // TDS / SDS / COA and certifications; photos are shown in the gallery.
   const attachments = product.documents.filter((doc) => doc.typeCode !== "photo");
   const handleBuyNow = () => {
-    if (buyDisabled || !priceKnown) return;
+    if (buyDisabled || !priceKnown || openingCheckout || buyNowStarted.current) return;
+    buyNowStarted.current = true;
     addItem({
       id: product.id,
       title: product.title,
@@ -124,10 +132,14 @@ export function BuyerProductDetailPage() {
       sellerName: product.seller.name,
       image: product.images[0] ?? null,
       quantity: qty,
-    });
+      // Buy Now checks out exactly the selected quantity, even if the listing is already in the cart.
+    }, { exactQuantity: true });
     recordListingInterest(backendId, "cart_add");
     setIsOpen(false);
-    router.push(`/buyer/checkout?listing=${encodeURIComponent(product.id)}`);
+    // Keep the button visibly busy while checkout loads so one click is enough.
+    startCheckoutTransition(() => {
+      router.push(`/buyer/checkout?listing=${encodeURIComponent(product.id)}`);
+    });
   };
 
   return shell(
@@ -160,7 +172,7 @@ export function BuyerProductDetailPage() {
 
         <h2 className="mb-4 text-xl font-bold text-neutral-900">Map</h2>
         <div className="mb-10">
-          {product.sellerCoords ? <SellerLocationMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} heightClassName="h-[260px]" /> : <p className="rounded-xl bg-neutral-50 p-6 text-sm text-neutral-600">The seller&apos;s facility has no saved coordinates, so it cannot be shown on the map.</p>}
+          {product.sellerCoords ? <SellerLocationMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} heightClassName="h-[260px]" /> : <p className="rounded-xl bg-neutral-50 p-6 text-sm text-neutral-600">{product.teaser ? "The exact facility location is shown once your company onboarding is complete." : "The seller's facility has no saved coordinates, so it cannot be shown on the map."}</p>}
         </div>
 
         {attachments.length > 0 && (
@@ -207,10 +219,10 @@ export function BuyerProductDetailPage() {
 
         <h2 className="mb-4 text-xl font-bold text-neutral-900">Seller</h2>
         <div className="mb-4 flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-full bg-neutral-200 text-sm font-bold text-neutral-700">{(product.seller.name ?? "?").slice(0, 1).toUpperCase()}</div>
+          <div className="flex size-10 items-center justify-center rounded-full bg-neutral-200 text-sm font-bold text-neutral-700">{product.seller.name ? product.seller.name.slice(0, 1).toUpperCase() : <Lock className="size-4 text-neutral-500" aria-hidden="true" />}</div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-neutral-900">{product.seller.name ?? "Seller name unavailable"}</span>
+              <span className="text-sm font-semibold text-neutral-900">{product.seller.name ?? (product.teaser ? "Seller identity shown after company onboarding" : "Seller name unavailable")}</span>
               {product.seller.verified && <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-green-700" style={{ backgroundColor: "#DCFCE7" }}>verified <CheckCircle className="size-3" /></span>}
             </div>
             <p className="text-xs text-neutral-500">{product.seller.location} · {product.seller.type}</p>
@@ -261,7 +273,7 @@ export function BuyerProductDetailPage() {
           </div>
           <div className="mb-5 mt-3 flex items-center justify-between text-base font-bold"><span className="text-neutral-900">Subtotal (excl. shipping)</span><span className="text-neutral-900">{money(itemSubtotal)}</span></div>
 
-          <Button variant="primary" size="lg" className="w-full" onClick={handleBuyNow} disabled={buyDisabled} style={buyDisabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}>Buy Now</Button>
+          <Button variant="primary" size="lg" className="w-full" onClick={handleBuyNow} disabled={buyDisabled || openingCheckout} aria-busy={openingCheckout} style={buyDisabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}>{openingCheckout ? "Opening checkout…" : "Buy Now"}</Button>
           {canRequest && sampleConfigError && <p className="mt-3 text-sm text-amber-800">{sampleConfigError} <button className="underline" onClick={()=>setSampleConfigVersion(v=>v+1)}>Retry</button> · <Link href="/contact" className="underline">Ask EcoGlobe about a sample</Link></p>}
           {canRequest && !sampleConfigError && sampleConfig?.eligibility.code !== "disabled" && (
             <button type="button" disabled={!sampleConfig} onClick={() => setSampleOpen(true)} className="mt-3 w-full rounded-full bg-white py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-900/40" style={{ border: "1px solid #E0E0E0" }}>
@@ -275,7 +287,6 @@ export function BuyerProductDetailPage() {
             </Link>
           )}
           {!hasSds && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Seller hasn&apos;t uploaded the SDS yet — purchase blocked.</p>}
-            <DemoSdsFlow key={product.id} listingId={product.id} />
           {!priceKnown && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />No price recorded — request a quote from the seller.</p>}
           <div className="mt-4 flex flex-col gap-2">
             <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="ghost" label="Open Carbon Calculator" />

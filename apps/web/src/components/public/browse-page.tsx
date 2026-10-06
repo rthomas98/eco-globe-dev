@@ -24,17 +24,21 @@ import { createSavedSearch } from "@/lib/api-portal";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
 import { formatQuantity } from "@/lib/listing-format";
 import { RefreshCw } from "lucide-react";
+import { filterByRadius, formatMiles } from "@/lib/radius-filter";
+import { FeedstockIqPrompt } from "@/components/feedstock-iq/feedstock-iq-prompt";
 
 function ListingCard({
   listing,
   selected,
   onSelect,
   isMember,
+  distanceMiles,
 }: {
   listing: Listing;
   selected: boolean;
   onSelect: () => void;
   isMember: boolean;
+  distanceMiles: number | undefined;
 }) {
   const hasSds = !!listing.sdsUrl;
   return (
@@ -58,7 +62,8 @@ function ListingCard({
         </h3>
         {isMember ? (
           <p className="mt-1 text-sm text-neutral-700">
-            {listing.location} · {listing.distance}
+            {listing.location || "Location not provided"}
+            {distanceMiles !== undefined && <> · {formatMiles(distanceMiles)}</>}
           </p>
         ) : (
           <p className="mt-1 text-sm text-neutral-500">
@@ -142,10 +147,15 @@ export function BrowsePage() {
     categories: urlCategory ? [urlCategory] : [],
   }));
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Default to a visible search radius so the map opens framed on the customer.
-  const parsedRadius = parseFloat(urlDistance);
+  // The radius filters only when the visitor chose one ("Any"/absent = off).
+  const parsedRadius = parseFloat(searchParams.get("distance") ?? "");
   const radiusMiles =
     Number.isFinite(parsedRadius) && parsedRadius > 0 ? parsedRadius : 0;
+  const [manualOrigin, setManualOrigin] = useState<{
+    lng: number;
+    lat: number;
+    label: string;
+  }>();
 
   const published = useListings("public");
   const allListings = published.listings;
@@ -167,14 +177,16 @@ export function BrowsePage() {
             lat: searchedLocation.lat,
             label: `Search location: ${searchedLocation.location}`,
           }
-        : viewerLocation
+        : manualOrigin
+          ? manualOrigin
+          : viewerLocation
           ? {
               lng: viewerLocation.lng,
               lat: viewerLocation.lat,
               label: viewerLocation.label,
             }
           : undefined,
-    [viewerLocation, searchedLocation],
+    [viewerLocation, searchedLocation, manualOrigin],
   );
 
   useEffect(() => {
@@ -201,7 +213,6 @@ export function BrowsePage() {
   const priceMax = filters.priceMax ? parseFloat(filters.priceMax) : null;
   const qtyMin = filters.qtyMin ? parseFloat(filters.qtyMin) : null;
   const qtyMax = filters.qtyMax ? parseFloat(filters.qtyMax) : null;
-  const radiusMax = parseFloat(urlDistance);
 
   const matchesCarbonBucket = (co2Num: number) =>
     filters.carbon.some((bucket) => {
@@ -226,7 +237,7 @@ export function BrowsePage() {
     }
   };
 
-  const visibleListings = allListings.filter((l) => {
+  const matchingListings = allListings.filter((l) => {
     const haystack = normalizeListingSearch(
       `${l.title} ${l.tags.join(" ")} ${l.category}`,
     );
@@ -239,15 +250,6 @@ export function BrowsePage() {
       if (!matchesTag) return false;
     }
     if (loc && !normalizeListingSearch(l.location).includes(loc)) return false;
-    if (
-      loc &&
-      Number.isFinite(radiusMax) &&
-      radiusMax > 0 &&
-      l.distance !== "—" &&
-      parseFloat(l.distance) > radiusMax
-    ) {
-      return false;
-    }
     if (
       filters.categories.length > 0 &&
       !filters.categories.some((category) =>
@@ -285,6 +287,21 @@ export function BrowsePage() {
     return true;
   });
 
+  // Signed-out visitors get no facility coordinates, so distance cannot be measured.
+  const locationsRedacted =
+    allListings.length > 0 && allListings.every((item) => item.teaser);
+  const radius = filterByRadius(
+    matchingListings,
+    locationsRedacted ? null : mapOrigin,
+    radiusMiles,
+  );
+  const visibleListings = radius.items;
+  const showAllDistances = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("distance", "Any");
+    router.replace(`/browse?${params.toString()}`, { scroll: false });
+  };
+
   const mapListings: MapListing[] = useMemo(
     () =>
       visibleListings.filter(hasCoordinates).map((l) => ({
@@ -302,10 +319,20 @@ export function BrowsePage() {
     [visibleListings],
   );
 
-  const pricingUnavailable =
-    published.status === "ready" &&
-    published.listings.length > 0 &&
-    published.listings.every((item) => item.teaser);
+  const pricingUnavailable = published.status === "ready" && locationsRedacted;
+  const mapNotice =
+    published.status !== "ready" || mapListings.length > 0 ? undefined : locationsRedacted ? (
+      <>
+        Facility locations are shown to signed-in members.{" "}
+        {!isMember && (
+          <Link href="/login" className="font-semibold underline">
+            Sign in
+          </Link>
+        )}
+      </>
+    ) : visibleListings.length > 0 ? (
+      "None of these listings has a saved facility location yet."
+    ) : undefined;
 
   const activeFilterCount =
     (urlTag ? 1 : 0) +
@@ -454,6 +481,40 @@ export function BrowsePage() {
               </Link>
             </p>
           )}
+          {published.status === "ready" && radiusMiles > 0 && (
+            <p role="status" className="mb-4 rounded-xl bg-neutral-50 p-4 text-sm text-neutral-700">
+              {radius.applied ? (
+                <>
+                  Showing listings within {radiusMiles} mi of{" "}
+                  {mapOrigin?.label ?? "the selected location"}.
+                  {radius.outside + radius.unlocated > 0 && (
+                    <>
+                      {" "}
+                      {radius.outside > 0 && `${radius.outside} outside the radius`}
+                      {radius.outside > 0 && radius.unlocated > 0 && " and "}
+                      {radius.unlocated > 0 &&
+                        `${radius.unlocated} without a saved facility location`}{" "}
+                      {radius.outside + radius.unlocated === 1 ? "is" : "are"} hidden.
+                    </>
+                  )}{" "}
+                  <button type="button" onClick={showAllDistances} className="font-semibold underline">
+                    Show all distances
+                  </button>
+                </>
+              ) : locationsRedacted ? (
+                <>
+                  Distance filtering uses facility locations, which are shown to signed-in members.{" "}
+                  {!isMember && (
+                    <Link href="/login" className="font-semibold underline">
+                      Sign in
+                    </Link>
+                  )}
+                </>
+              ) : (
+                "Allow location access, search a location, or use the map center to filter by distance."
+              )}
+            </p>
+          )}
           {published.status === "loading" ? (
             <p
               className="rounded-xl bg-neutral-50 py-16 text-center text-sm text-neutral-600"
@@ -486,6 +547,7 @@ export function BrowsePage() {
                 Try a different keyword, loosen the filters, or clear everything
                 to see all listings.
               </p>
+              {allListings.length > 0 && <FeedstockIqPrompt context="search" />}
               <button
                 onClick={() => {
                   setSelectedId(null);
@@ -505,6 +567,7 @@ export function BrowsePage() {
                   listing={listing}
                   selected={selectedId === listing.id}
                   isMember={isMember}
+                  distanceMiles={radius.distances.get(listing.id)}
                   onSelect={() =>
                     setSelectedId((curr) =>
                       curr === listing.id ? null : listing.id,
@@ -565,6 +628,8 @@ export function BrowsePage() {
             radiusMiles={radiusMiles > 0 ? radiusMiles : undefined}
             showOriginPin={false}
             radiusFitListings={false}
+            notice={mapNotice}
+            onOriginChange={setManualOrigin}
           />
         </div>
       </div>

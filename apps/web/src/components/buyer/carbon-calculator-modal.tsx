@@ -99,8 +99,8 @@ function MODE_ICON(mode: TransportMode) {
 
 /** Carbon-calculator weight unit matching a listing's pricing unit, when one exists. */
 function weightUnitForListing(quantityUnit: string): WeightUnit | null {
+  // Ambiguous "ton"/"tons" listings start blank rather than assuming metric tons.
   switch (describeUnit(quantityUnit).code) {
-    case "ton":
     case "tonne":
       return "metric-tons";
     case "kg":

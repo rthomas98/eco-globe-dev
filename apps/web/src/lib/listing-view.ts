@@ -1,4 +1,6 @@
 import { materialImage } from "./material-images";
+import { normalizeCountryCode } from "./location-format";
+import { parseOrderListingImageUrl } from "./order-listing-image";
 import type {
   Frequency,
   Listing,
@@ -42,7 +44,7 @@ export function formatLocation(location: ListingLocation | null | undefined) {
   const parts = [
     location.city,
     location.stateProvince,
-    location.city ? undefined : location.countryCode,
+    location.city ? undefined : normalizeCountryCode(location.countryCode),
   ]
     .map((part) => part?.trim())
     .filter((part): part is string => !!part);
@@ -113,6 +115,10 @@ export function toListing(record: BackendListing): Listing {
   const specs = record.specifications ?? {};
   const documents = (record.documents ?? []).map(toDocumentRef);
   const photos = documents.filter((doc) => doc.typeCode === "photo");
+  // Teasers carry no documents; the backend may still send the saved primary
+  // photo path. Only validated download paths are used, never guessed images.
+  const savedPhotoRef = parseOrderListingImageUrl(record.listingImageUrl);
+  const savedPhotoUrl = savedPhotoRef ? documentDownloadUrl(savedPhotoRef) : null;
   const sds = documents.find((doc) => doc.typeCode === "sds");
   const price = describePrice(record.pricePerUnit, record.currencyCode, record.quantityUnit);
   const moq = formatQuantityWithUnitName(record.minimumOrderQuantity, record.quantityUnit);
@@ -168,10 +174,13 @@ export function toListing(record: BackendListing): Listing {
     priceIsZero: price.kind === "zero",
     currencyCode: (record.currencyCode ?? "USD").toUpperCase(),
     unit: perUnitSuffix(record.quantityUnit),
-    quantityUnit: record.quantityUnit ?? "ton",
+    // Empty when the seller saved no unit; displays say "unit not recorded".
+    quantityUnit: record.quantityUnit ?? "",
     qtyNum: record.quantity,
-    image: photos[0]?.url ?? materialImage(record.title),
-    images: photos.length ? photos.map((doc) => doc.url) : [materialImage(record.title)].filter((url): url is string => !!url),
+    image: photos[0]?.url ?? savedPhotoUrl ?? materialImage(record.title),
+    images: photos.length
+      ? photos.map((doc) => doc.url)
+      : [savedPhotoUrl ?? materialImage(record.title)].filter((url): url is string => !!url),
     tags,
     lng: location.longitude ?? null,
     lat: location.latitude ?? null,

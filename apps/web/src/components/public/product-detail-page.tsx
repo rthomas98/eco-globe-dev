@@ -1,11 +1,10 @@
 "use client";
-import { DemoSdsFlow } from "@/components/public/demo-sds-flow";
 import { MaterialImage } from "@/components/public/material-image";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { SlidersHorizontal, Heart, Share2, ArrowRight, Minus, Plus, ChevronRight, ThumbsUp, ThumbsDown, CheckCircle, FileText, AlertTriangle, Lock, RefreshCw } from "lucide-react";
+import { SlidersHorizontal, Heart, Share2, ArrowRight, Minus, Plus, ChevronRight, ThumbsUp, ThumbsDown, CheckCircle, FileText, AlertTriangle, Lock, RefreshCw, ClipboardList } from "lucide-react";
 import { Button, Badge } from "@eco-globe/ui";
 import { SearchBar } from "./search-bar";
 import { Footer } from "./footer";
@@ -268,7 +267,16 @@ export function ProductDetailPage() {
             {product.sellerCoords ? (
               <SellerLocationMap lng={product.sellerCoords.lng} lat={product.sellerCoords.lat} />
             ) : (
-              <p className="rounded-xl bg-neutral-50 p-6 text-sm text-neutral-600">The seller&apos;s facility has no saved coordinates, so it cannot be shown on the map.</p>
+              <p className="rounded-xl bg-neutral-50 p-6 text-sm text-neutral-600">
+                {product.teaser ? (
+                  <>
+                    The exact facility location is shown to marketplace members.{" "}
+                    {!isMember && <Link href="/login" className="font-semibold text-neutral-900 underline">Sign in</Link>}
+                  </>
+                ) : (
+                  "The seller's facility has no saved coordinates, so it cannot be shown on the map."
+                )}
+              </p>
             )}
           </div>
 
@@ -295,13 +303,23 @@ export function ProductDetailPage() {
 
           <h2 className="mb-4 text-xl font-bold text-neutral-900">Seller</h2>
           <div className="mb-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-full bg-neutral-200 text-sm font-bold text-neutral-700">{(product.seller.name ?? "?").slice(0, 1).toUpperCase()}</div>
+            <div className="flex size-10 items-center justify-center rounded-full bg-neutral-200 text-sm font-bold text-neutral-700">
+              {product.seller.name ? product.seller.name.slice(0, 1).toUpperCase() : <Lock className="size-4 text-neutral-500" aria-hidden="true" />}
+            </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-neutral-900">{product.seller.name ?? (product.teaser ? "Shown to members" : "Seller name unavailable")}</span>
+                <span className="text-sm font-semibold text-neutral-900">{product.seller.name ?? (product.teaser ? "Seller identity shown to members" : "Seller name unavailable")}</span>
                 {product.seller.verified && <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-green-700" style={{ backgroundColor: "#DCFCE7" }}>verified <CheckCircle className="size-3" /></span>}
               </div>
-              <p className="text-xs text-neutral-500">{product.seller.location} · {product.seller.type}</p>
+              <p className="text-xs text-neutral-500">
+                {product.seller.location} · {product.seller.type}
+                {product.teaser && !isMember && (
+                  <>
+                    {" · "}
+                    <Link href="/login" className="font-medium text-neutral-900 underline">Sign in</Link> to see the seller
+                  </>
+                )}
+              </p>
             </div>
           </div>
 
@@ -364,7 +382,6 @@ export function ProductDetailPage() {
               </button>
             )}
             {isMember && !hasSds && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Seller hasn&apos;t uploaded the SDS yet — purchase blocked.</p>}
-            <DemoSdsFlow key={product.id} listingId={product.id} />
             {isMember && !priceKnown && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />No price recorded — request a quote from the seller.</p>}
           </div>
 
@@ -419,7 +436,7 @@ export function ProductDetailPage() {
       {!isMember && (
         <div className="my-10 flex flex-col items-start justify-between gap-4 rounded-2xl bg-neutral-50 px-6 py-8 sm:flex-row sm:items-center sm:px-10">
           <div className="flex items-center gap-4">
-            <div className="flex size-12 items-center justify-center rounded-xl bg-blue-100 text-2xl">📋</div>
+            <div className="flex size-12 items-center justify-center rounded-xl bg-blue-100"><ClipboardList className="size-6 text-blue-700" aria-hidden="true" /></div>
             <div><p className="text-lg font-bold text-neutral-900">Do you want to have more details?</p><p className="text-sm text-neutral-500">Sign up in our Marketplace</p></div>
           </div>
           <div className="flex gap-3"><Link href="/register"><Button variant="secondary" size="md">Sign up</Button></Link><Link href="/login"><Button variant="primary" size="md">Login</Button></Link></div>

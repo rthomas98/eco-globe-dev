@@ -8,6 +8,7 @@ import { fetchCompany, fetchCompanyMembers, portalDate } from "@/lib/api-portal"
 import { createCompanyLocation, fetchCompanyLocations } from "@/lib/listings-api";
 import { describeBackendError } from "@/lib/backend-client";
 import { formatCompanyLocation } from "@/lib/use-company-locations";
+import { validateFacilityDraft } from "@/lib/location-format";
 import { DataBoundary, LoadingState, useBackendData } from "@/components/shared/data-state";
 import { SellerLayout } from "./seller-layout";
 
@@ -186,22 +187,15 @@ function AddLocationForm({
   const update = (key: keyof typeof form, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
   const save = async () => {
-    if (!form.name.trim() || !form.addressLine1.trim() || !form.city.trim() || !/^[A-Za-z]{2}$/.test(form.countryCode.trim())) {
-      setError("Enter a name, street address, city and two-letter country code.");
+    const checked = validateFacilityDraft({ ...form, latitude: "", longitude: "" });
+    if (!checked.ok) {
+      setError(checked.error);
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      await createCompanyLocation(companyId, {
-        name: form.name.trim(),
-        addressLine1: form.addressLine1.trim(),
-        city: form.city.trim(),
-        stateProvince: form.stateProvince.trim() || undefined,
-        postalCode: form.postalCode.trim() || undefined,
-        countryCode: form.countryCode.trim().toUpperCase(),
-        locationTypeCode,
-      });
+      await createCompanyLocation(companyId, { ...checked.value, locationTypeCode });
       onDone(true);
     } catch (err) {
       setError(describeBackendError(err, "The location was not saved."));
@@ -216,8 +210,8 @@ function AddLocationForm({
       <Input label="Street address" id="loc-line1" value={form.addressLine1} onChange={(e) => update("addressLine1", e.target.value)} />
       <Input label="City" id="loc-city" value={form.city} onChange={(e) => update("city", e.target.value)} />
       <Input label="State / province" id="loc-state" value={form.stateProvince} onChange={(e) => update("stateProvince", e.target.value)} />
-      <Input label="Postal code" id="loc-zip" value={form.postalCode} onChange={(e) => update("postalCode", e.target.value)} />
-      <Input label="Country code" id="loc-country" value={form.countryCode} onChange={(e) => update("countryCode", e.target.value)} />
+      <Input label="Postal / ZIP code" id="loc-zip" value={form.postalCode} onChange={(e) => update("postalCode", e.target.value)} />
+      <Input label="Country (2-letter code, e.g. US)" id="loc-country" value={form.countryCode} maxLength={2} onChange={(e) => update("countryCode", e.target.value.toUpperCase())} />
       {error && <p role="alert" className="text-sm text-red-700 sm:col-span-2">{error}</p>}
       <div className="flex gap-2 sm:col-span-2">
         <Button variant="secondary" size="md" onClick={() => onDone(false)}>

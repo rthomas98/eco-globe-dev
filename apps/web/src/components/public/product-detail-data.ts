@@ -1,5 +1,5 @@
 import type { Listing } from "./browse-listings";
-import { formatQuantityWithUnitName } from "@/lib/listing-format";
+import { describeUnit, formatQuantityWithUnitName } from "@/lib/listing-format";
 
 /**
  * Presentation model for a persisted listing on the public and buyer detail
@@ -55,7 +55,7 @@ export function buildProductDetail(listing: Listing): ProductDetailModel {
     ...(listing.qtyNum !== null
       ? [{ label: "Available quantity", value: formatQuantityWithUnitName(listing.qtyNum, listing.quantityUnit) ?? "" }]
       : []),
-    { label: "Carbon profile", value: listing.hasCarbonData ? `${listing.co2} per ${listing.quantityUnit}` : "Not provided by seller" },
+    { label: "Carbon profile", value: listing.hasCarbonData ? `${listing.co2} per ${describeUnit(listing.quantityUnit).singular}` : "Not provided by seller" },
     ...(listing.claims.length > 0 ? [{ label: "Sustainability claims", value: listing.claims.join(", ") }] : []),
     ...(listing.additionalSpecs ?? []).map((spec) => ({ label: spec.label, value: spec.value })),
     ...(listing.location ? [{ label: "Pickup location", value: listing.location }] : []),

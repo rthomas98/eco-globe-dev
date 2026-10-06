@@ -88,7 +88,7 @@ export function Footer() {
                 <FooterSection
                   title="Other services"
                   links={[
-                    { label: "Consulting Services", href: "/services" },
+                    { label: "Hands-on Services", href: "/services" },
                     { label: "Feedstocks certifications", href: "/certifications" },
                     { label: "Other digital Products", href: "/digital-products" },
                     { label: "Logistics", href: "/logistics" },

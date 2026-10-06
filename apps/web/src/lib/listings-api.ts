@@ -116,6 +116,11 @@ export interface BackendListing {
   slug: string;
   /** True when licensed fields were redacted for this viewer. */
   teaser?: boolean;
+  /**
+   * Primary saved photo download path, sent even on teasers (where
+   * `documents` stays empty). Validate with `parseOrderListingImageUrl`.
+   */
+  listingImageUrl?: string | null;
   sellerCompanyId: number | null;
   sellerCompanyName: string | null;
   sellerVerificationStatusCode?: string | null;
@@ -368,6 +373,31 @@ export async function createCompanyLocation(
     { method: "POST", body: JSON.stringify({ companyId, ...body }) },
   );
   return response.location;
+}
+
+/**
+ * Edit a saved facility (contract: PATCH /api/locations/:id). Blank optional
+ * fields are sent as null to clear them; latitude and longitude are always
+ * sent as a pair (both numbers or both null) so stale coordinates never stay
+ * attached to a changed address. Callers reload the list afterwards.
+ */
+export async function updateCompanyLocation(
+  id: number,
+  body: {
+    name: string;
+    addressLine1: string;
+    city: string;
+    stateProvince: string | null;
+    postalCode: string | null;
+    countryCode: string;
+    latitude: number | null;
+    longitude: number | null;
+  },
+) {
+  await apiFetch<{ ok: true }>(`/api/locations/${encodeURIComponent(String(id))}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
 }
 
 export interface LookupOption {

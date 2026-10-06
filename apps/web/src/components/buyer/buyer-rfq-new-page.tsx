@@ -4,9 +4,15 @@ import { useState } from "react";
 import { createWantedListing } from "@/lib/api-portal";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Send } from "lucide-react";
+import { ArrowLeft, Send } from "lucide-react";
 import { Button, Input } from "@eco-globe/ui";
 import { BuyerLayout } from "./buyer-layout";
+import { UNIT_OPTIONS } from "@/components/seller/listing-form";
+import { useDemoUser } from "@/lib/demo-user";
+import { describeBackendError } from "@/lib/backend-client";
+import { describeUnit } from "@/lib/listing-format";
+import { validateRfqDraft } from "@/lib/rfq-request";
+import { formatCompanyLocation, useCompanyLocations } from "@/lib/use-company-locations";
 
 const CATEGORIES = [
   "Biomass & wood",
@@ -19,7 +25,8 @@ const CATEGORIES = [
   "Other",
 ];
 
-const UNITS = ["Metric tons", "Short tons", "Pallets", "Barrels", "Gallons", "Kilograms"];
+// Same unambiguous unit codes sellers list with, so requests match listings exactly.
+const UNITS = UNIT_OPTIONS;
 
 const RECURRENCE = [
   "One-time",
@@ -46,15 +53,32 @@ const MATERIAL_TYPE_BY_CATEGORY: Record<string, string> = {
 export function BuyerRfqNewPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const companyId = useDemoUser()?.activeCompanyId;
+  const facilities = useCompanyLocations(companyId);
+  // null = use the default saved facility; "manual" = buyer enters country/region.
+  const [facilityChoice, setFacilityChoice] = useState<string | null>(null);
+  const [manualCountry, setManualCountry] = useState("");
+  const [manualRegion, setManualRegion] = useState("");
+  const savedFacilities = facilities.status === "ready" ? facilities.locations : [];
+  const defaultFacility =
+    savedFacilities.find((l) => l.locationTypeCode === "delivery" && l.isDefault) ??
+    savedFacilities.find((l) => l.locationTypeCode === "delivery") ??
+    savedFacilities.find((l) => l.isDefault) ??
+    savedFacilities[0];
+  const effectiveChoice = facilityChoice ?? (defaultFacility ? String(defaultFacility.id) : "manual");
+  const chosenFacility =
+    effectiveChoice === "manual"
+      ? undefined
+      : savedFacilities.find((l) => String(l.id) === effectiveChoice);
   const [form, setForm] = useState({
     title: "",
     category: CATEGORIES[0],
     description: "",
     quantity: "",
-    unit: UNITS[0],
+    unit: UNITS[0]!.value,
     recurrence: RECURRENCE[0],
     needBy: "",
-    deliveryLocation: "",
     budget: "",
     notes: "",
   });
@@ -67,27 +91,41 @@ export function BuyerRfqNewPage() {
     form.title.trim() && form.quantity.trim() && form.needBy.trim();
 
   const handleSubmit = async () => {
+    if (submitting) return;
+    const checked = validateRfqDraft({
+      title: form.title,
+      quantity: form.quantity,
+      targetPrice: form.budget,
+      countryCode: chosenFacility ? chosenFacility.countryCode : manualCountry,
+      stateProvince: chosenFacility ? (chosenFacility.stateProvince ?? "") : manualRegion,
+    });
+    if (!checked.ok) {
+      setError(checked.error);
+      return;
+    }
     setSubmitting(true);
+    setError(null);
     try {
       await createWantedListing({
-        title: form.title.trim(),
+        title: checked.value.title,
         materialTypeCode:
           MATERIAL_TYPE_BY_CATEGORY[form.category] ?? "industrial_byproduct",
-        quantity: Number(form.quantity) || 1,
-        quantityUnit: form.unit.toLowerCase().includes("ton") ? "tons" : form.unit.toLowerCase(),
-        targetPricePerUnit: form.budget ? Number(form.budget) || undefined : undefined,
-        countryCode: "US",
-        stateProvince: form.deliveryLocation || undefined,
+        quantity: checked.value.quantity,
+        quantityUnit: form.unit,
+        targetPricePerUnit: checked.value.targetPricePerUnit,
+        countryCode: checked.value.countryCode,
+        stateProvince: checked.value.stateProvince,
         notes:
           [form.description, form.notes, `Need by ${form.needBy}`, form.recurrence]
             .filter(Boolean)
             .join(" — ") || undefined,
       });
-    } catch {
-      // The list page shows whatever the backend accepted.
+      router.push("/buyer/rfq");
+    } catch (err) {
+      // Stay on the form so nothing the buyer typed is lost.
+      setError(describeBackendError(err, "Your request for quote was not posted. Please try again."));
+      setSubmitting(false);
     }
-    setSubmitting(false);
-    router.push("/buyer/rfq");
   };
 
   return (
@@ -103,8 +141,8 @@ export function BuyerRfqNewPage() {
 
         <h1 className="text-3xl font-bold text-neutral-900">New request for quote</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Verified sellers will respond within 48 hours with pricing, available
-          quantity, and shipping options.
+          Sellers on EcoGlobe can respond with a quote from a matching listing.
+          Responses appear under Requests for quote.
         </p>
 
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -170,7 +208,9 @@ export function BuyerRfqNewPage() {
                     className="rounded-lg border border-neutral-300 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-neutral-900/20"
                   >
                     {UNITS.map((u) => (
-                      <option key={u}>{u}</option>
+                      <option key={u.value} value={u.value}>
+                        {u.label}
+                      </option>
                     ))}
                   </select>
                 </Field>
@@ -189,20 +229,59 @@ export function BuyerRfqNewPage() {
             </Section>
 
             <Section title="Logistics">
-              <Field label="Delivery location">
-                <Input
-                  label=""
-                  id="rfq-loc"
-                  placeholder="City, state, country"
-                  value={form.deliveryLocation}
-                  onChange={(e) => setField("deliveryLocation", e.target.value)}
-                />
+              <Field label="Deliver to">
+                {facilities.status === "loading" ? (
+                  <p className="text-sm text-neutral-500">Loading your saved facilities…</p>
+                ) : (
+                  <select
+                    aria-label="Delivery facility"
+                    value={effectiveChoice}
+                    onChange={(e) => setFacilityChoice(e.target.value)}
+                    className="rounded-lg border border-neutral-300 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-neutral-900/20"
+                  >
+                    {savedFacilities.map((l) => (
+                      <option key={l.id} value={String(l.id)}>
+                        {l.name} — {formatCompanyLocation(l)}
+                      </option>
+                    ))}
+                    <option value="manual">Enter delivery country and region</option>
+                  </select>
+                )}
               </Field>
-              <Field label="Budget (optional)">
+              {facilities.status === "error" && (
+                <p className="text-xs text-amber-700">
+                  Saved facilities could not be loaded; enter the delivery country and region instead.
+                </p>
+              )}
+              {effectiveChoice === "manual" && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Delivery country (2-letter code)">
+                    <Input
+                      label=""
+                      id="rfq-country"
+                      placeholder="e.g. US"
+                      maxLength={2}
+                      value={manualCountry}
+                      onChange={(e) => setManualCountry(e.target.value.toUpperCase())}
+                    />
+                  </Field>
+                  <Field label="State / region (optional)">
+                    <Input
+                      label=""
+                      id="rfq-region"
+                      placeholder="e.g. LA"
+                      value={manualRegion}
+                      onChange={(e) => setManualRegion(e.target.value)}
+                    />
+                  </Field>
+                </div>
+              )}
+              <Field label={`Target price per ${describeUnit(form.unit).singular} (optional)`}>
                 <Input
                   label=""
                   id="rfq-budget"
-                  placeholder="e.g. $400-450 / ton"
+                  inputMode="decimal"
+                  placeholder="e.g. 425"
                   value={form.budget}
                   onChange={(e) => setField("budget", e.target.value)}
                 />
@@ -218,30 +297,21 @@ export function BuyerRfqNewPage() {
               </Field>
             </Section>
 
-            <Section title="Attachments">
-              <div
-                className="flex flex-col items-center justify-center gap-2 rounded-lg px-4 py-8 text-center text-sm text-neutral-500"
-                style={{ border: "1px dashed #D4D4D8" }}
-              >
-                <Upload className="size-6" />
-                <p>
-                  <span className="font-medium text-neutral-900">Click to upload</span>{" "}
-                  or drag and drop SDS sheets, spec PDFs, or reference photos.
-                </p>
-                <p className="text-xs text-neutral-400">PDF, PNG, JPG up to 25 MB</p>
-              </div>
-            </Section>
           </div>
 
           <aside className="flex flex-col gap-6">
             <Section title="Submission">
               <div className="flex flex-col gap-3 text-sm text-neutral-700">
                 <p>
-                  We&apos;ll send your request for quote to <strong>verified sellers</strong> in
-                  matching categories who deliver to your region.
+                  Your request is posted to the marketplace, where sellers can respond with a
+                  quote. Response times depend on the sellers.
                 </p>
-                <p>Quotes typically arrive within 48 hours.</p>
               </div>
+              {error && (
+                <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </p>
+              )}
               <Button
                 variant="primary"
                 size="md"
@@ -253,15 +323,12 @@ export function BuyerRfqNewPage() {
                 <Send className="size-4" />
                 {submitting ? "Submitting…" : "Submit request for quote"}
               </Button>
-              <button className="mt-2 w-full text-sm font-medium text-neutral-700 underline">
-                Save as draft
-              </button>
             </Section>
-            <Section title="Tips for faster responses">
+            <Section title="Tips for clearer requests">
               <ul className="list-disc pl-5 text-sm text-neutral-700">
                 <li>Be specific about grade, purity, and any required certifications.</li>
-                <li>Attach SDS or specification PDFs when available.</li>
-                <li>State your delivery cadence — recurring requests get more attention.</li>
+                <li>List documents you need from the seller, such as an SDS, in the notes.</li>
+                <li>State your delivery cadence.</li>
               </ul>
             </Section>
           </aside>
