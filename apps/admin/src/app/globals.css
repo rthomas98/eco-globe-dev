@@ -7,6 +7,8 @@
 @source "../../../web/src/components/logistics";
 @source "../../../web/src/components/notifications";
 @source "../../../web/src/components/partners";
+@source "../../../web/src/components/payments";
+@source "../../../web/src/components/samples";
 @source "../../../web/src/components/public/listing-map.tsx";
 @source "../../../packages/ui/src";
 
