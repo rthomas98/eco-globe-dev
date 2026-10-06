@@ -1,0 +1,30 @@
+Fetching deployment "dpl_9X8xSx9NZF59sGSYjcKA1BP3cKHH" in rob-thomas-projects
+> Fetched deployment "eco-globe-dev-86w27q1su-rob-thomas-projects.vercel.app" in rob-thomas-projects [317ms]
+
+  General
+
+    id		dpl_9X8xSx9NZF59sGSYjcKA1BP3cKHH
+    name	eco-globe-dev-web
+    target	production
+    status	● Ready
+    url		https://eco-globe-dev-86w27q1su-rob-thomas-projects.vercel.app
+    created	Tue Oct 06 2026 11:26:27 GMT-0500 (Central Daylight Time) [3m ago]
+
+
+  Aliases
+
+    ╶ https://eco-globe-dev-web.vercel.app
+    ╶ https://eco-globe-dev-web-rob-thomas-projects.vercel.app
+    
+
+  Builds
+
+    ┌ .        [0ms]
+    ├── λ index (3.96MB) [iad1]
+    ├── λ _not-found (3.96MB) [iad1]
+    ├── λ _not-found.rsc (3.96MB) [iad1]
+    ├── λ about (3.96MB) [iad1]
+    ├── λ about.rsc (3.96MB) [iad1]
+    └── 385 output items hidden
+    
+

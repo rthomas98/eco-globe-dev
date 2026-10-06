@@ -1,0 +1,452 @@
+
+> @eco-globe/backend@0.0.0 test /Users/robthomas/Development/eco-globe/packages/backend
+> node --import tsx --test src/stripe-webhook.test.ts src/stripe-setup.test.ts src/email.test.ts src/docusign.test.ts src/listing-routes.test.ts src/lab-routes.test.ts src/pilot-routes.test.ts src/sample-shipping-domain.test.ts src/sample-shipping-provider.test.ts src/demo-order-domain.test.ts src/logistics-routes.test.ts src/mvp.test.ts src/fedex-sandbox-provider.test.ts src/refund-domain.test.ts src/quantity-units.test.ts src/payment-receipt.test.ts
+
+TAP version 13
+# Subtest: demo lifecycle requires sequential transitions
+ok 1 - demo lifecycle requires sequential transitions
+  ---
+  duration_ms: 0.413416
+  type: 'test'
+  ...
+# Subtest: terminal and unknown states cannot be reopened or refunded twice
+ok 2 - terminal and unknown states cannot be reopened or refunded twice
+  ---
+  duration_ms: 0.134375
+  type: 'test'
+  ...
+# Subtest: unsettled demo orders can cancel without provider calls
+ok 3 - unsettled demo orders can cancel without provider calls
+  ---
+  duration_ms: 0.04875
+  type: 'test'
+  ...
+# Subtest: creates a correctly scoped, signed DocuSign JWT assertion
+ok 4 - creates a correctly scoped, signed DocuSign JWT assertion
+  ---
+  duration_ms: 52.709625
+  type: 'test'
+  ...
+# Subtest: builds a hybrid embedded and email template envelope for both parties
+ok 5 - builds a hybrid embedded and email template envelope for both parties
+  ---
+  duration_ms: 54.101833
+  type: 'test'
+  ...
+# Subtest: accepts only the matching DocuSign Connect HMAC
+ok 6 - accepts only the matching DocuSign Connect HMAC
+  ---
+  duration_ms: 0.508666
+  type: 'test'
+  ...
+# Subtest: rejects forged signature evidence for all callers
+ok 7 - rejects forged signature evidence for all callers
+  ---
+  duration_ms: 8.8035
+  type: 'test'
+  ...
+# Subtest: archive readiness rejects write-only, expired and insecure SAS configuration
+ok 8 - archive readiness rejects write-only, expired and insecure SAS configuration
+  ---
+  duration_ms: 1.157042
+  type: 'test'
+  ...
+# Subtest: the same person signing for two companies retains separate recipient turns
+ok 9 - the same person signing for two companies retains separate recipient turns
+  ---
+  duration_ms: 21.201958
+  type: 'test'
+  ...
+# Subtest: local email delivery overrides all recipients to Kate
+ok 10 - local email delivery overrides all recipients to Kate
+  ---
+  duration_ms: 1.295166
+  type: 'test'
+  ...
+# Subtest: production sends retain explicit recipients when override is disabled
+ok 11 - production sends retain explicit recipients when override is disabled
+  ---
+  duration_ms: 0.107625
+  type: 'test'
+  ...
+# Subtest: validates parcel boundaries and optional fields
+ok 12 - validates parcel boundaries and optional fields
+  ---
+  duration_ms: 2.2065
+  type: 'test'
+  ...
+# Subtest: sandbox requires an explicit mode
+ok 13 - sandbox requires an explicit mode
+  ---
+  duration_ms: 0.251667
+  type: 'test'
+  ...
+# Subtest: provider rejection is distinguishable from ambiguous network failure
+ok 14 - provider rejection is distinguishable from ambiguous network failure
+  ---
+  duration_ms: 91.318541
+  type: 'test'
+  ...
+# Subtest: request validation defaults private, canonicalizes retries and rejects forged selections
+ok 15 - request validation defaults private, canonicalizes retries and rejects forged selections
+  ---
+  duration_ms: 0.878875
+  type: 'test'
+  ...
+# Subtest: published panels require lab review and bounded validated mappings
+ok 16 - published panels require lab review and bounded validated mappings
+  ---
+  duration_ms: 0.442375
+  type: 'test'
+  ...
+# Subtest: PDF bytes reject fake, corrupt, active and oversized documents
+ok 17 - PDF bytes reject fake, corrupt, active and oversized documents
+  ---
+  duration_ms: 18.681791
+  type: 'test'
+  ...
+# Subtest: reports require actual bounded results, dates and safe filenames
+ok 18 - reports require actual bounded results, dates and safe filenames
+  ---
+  duration_ms: 1.839708
+  type: 'test'
+  ...
+# Subtest: sample port validates quantities and enforces buyer/seller transition ownership
+ok 19 - sample port validates quantities and enforces buyer/seller transition ownership
+  ---
+  duration_ms: 0.229458
+  type: 'test'
+  ...
+# Subtest: lab private and internal routes reject missing bearer before database access
+ok 20 - lab private and internal routes reject missing bearer before database access
+  ---
+  duration_ms: 21.335708
+  type: 'test'
+  ...
+# Subtest: PDF parser accepts compressed object streams and binary data but rejects active parsed names
+ok 21 - PDF parser accepts compressed object streams and binary data but rejects active parsed names
+  ---
+  duration_ms: 38.229416
+  type: 'test'
+  ...
+# Subtest: specifications reject impossible dates, reversed availability, arbitrary properties and malformed arrays
+ok 22 - specifications reject impossible dates, reversed availability, arbitrary properties and malformed arrays
+  ---
+  duration_ms: 2.27275
+  type: 'test'
+  ...
+# Subtest: uploads reject mismatched signatures, remote URLs, invalid base64 and oversized content
+ok 23 - uploads reject mismatched signatures, remote URLs, invalid base64 and oversized content
+  ---
+  duration_ms: 13.20525
+  type: 'test'
+  ...
+# Subtest: Others onboarding interests require a persisted description
+ok 24 - Others onboarding interests require a persisted description
+  ---
+  duration_ms: 0.891209
+  type: 'test'
+  ...
+# Subtest: body reader caps accumulated bytes before parsing
+ok 25 - body reader caps accumulated bytes before parsing
+  ---
+  duration_ms: 1.002417
+  type: 'test'
+  ...
+# Subtest: listing teasers retain region but never disclose gated price, identity or specifications
+ok 26 - listing teasers retain region but never disclose gated price, identity or specifications
+  ---
+  duration_ms: 0.382959
+  type: 'test'
+  ...
+# Subtest: anonymous teasers retain the saved public photo URL while documents stay gated
+ok 27 - anonymous teasers retain the saved public photo URL while documents stay gated
+  ---
+  duration_ms: 0.216958
+  type: 'test'
+  ...
+# Subtest: radius excludes distant and unlocated feedstocks and handles zero and dateline coordinates
+ok 28 - radius excludes distant and unlocated feedstocks and handles zero and dateline coordinates
+  ---
+  duration_ms: 0.958125
+  type: 'test'
+  ...
+# Subtest: anonymous radius probes are denied before private SQL coordinates can be inferred
+ok 29 - anonymous radius probes are denied before private SQL coordinates can be inferred
+  ---
+  duration_ms: 18.324041
+  type: 'test'
+  ...
+# Subtest: facility validation preserves full address and clears stale coordinates when address is edited
+ok 30 - facility validation preserves full address and clears stale coordinates when address is edited
+  ---
+  duration_ms: 0.448292
+  type: 'test'
+  ...
+# Subtest: logistics actions follow active company, including a user belonging to both parties
+ok 31 - logistics actions follow active company, including a user belonging to both parties
+  ---
+  duration_ms: 0.990042
+  type: 'test'
+  ...
+# Subtest: staff may coordinate logistics but cannot impersonate buyer approval or receipt
+ok 32 - staff may coordinate logistics but cannot impersonate buyer approval or receipt
+  ---
+  duration_ms: 0.215125
+  type: 'test'
+  ...
+# Subtest: historic listing checkout fulfilment requires full captured funding with no zero-total bypass
+ok 33 - historic listing checkout fulfilment requires full captured funding with no zero-total bypass
+  ---
+  duration_ms: 0.430041
+  type: 'test'
+  ...
+# Subtest: document upload validates real PDF bytes and rejects active content formats, bad base64 and unsafe names
+ok 34 - document upload validates real PDF bytes and rejects active content formats, bad base64 and unsafe names
+  ---
+  duration_ms: 11.4425
+  type: 'test'
+  ...
+# Subtest: contact submission validates bounded data before persistence
+ok 35 - contact submission validates bounded data before persistence
+  ---
+  duration_ms: 0.264542
+  type: 'test'
+  ...
+# Subtest: checkout rejects ambiguous retries, invalid quantities and missing delivery address
+ok 36 - checkout rejects ambiguous retries, invalid quantities and missing delivery address
+  ---
+  duration_ms: 0.308584
+  type: 'test'
+  ...
+# Subtest: checkout preserves bounded pickup contact, vehicle and date and rejects malformed metadata
+ok 37 - checkout preserves bounded pickup contact, vehicle and date and rejects malformed metadata
+  ---
+  duration_ms: 0.337667
+  type: 'test'
+  ...
+# Subtest: provider reconciliation binds session, amount, currency and mode
+ok 38 - provider reconciliation binds session, amount, currency and mode
+  ---
+  duration_ms: 0.198
+  type: 'test'
+  ...
+# Subtest: downloaded PDF preserves actual payment facts and never claims seller payout
+ok 39 - downloaded PDF preserves actual payment facts and never claims seller payout
+  ---
+  duration_ms: 23.179167
+  type: 'test'
+  ...
+# Subtest: uncaptured payment PDF is a record with explicit missing reference and no paid claim
+ok 40 - uncaptured payment PDF is a record with explicit missing reference and no paid claim
+  ---
+  duration_ms: 5.208958
+  type: 'test'
+  ...
+# Subtest: receipt wraps wide and non-Latin saved text and rejects malformed money/date
+ok 41 - receipt wraps wide and non-Latin saved text and rejects malformed money/date
+  ---
+  duration_ms: 16.347875
+  type: 'test'
+  ...
+# Subtest: receipt endpoint rejects anonymous requests before SQL and never accepts mutation methods
+ok 42 - receipt endpoint rejects anonymous requests before SQL and never accepts mutation methods
+  ---
+  duration_ms: 3.421417
+  type: 'test'
+  ...
+# Subtest: pilot load choice and approximate tonnage validate independently
+ok 43 - pilot load choice and approximate tonnage validate independently
+  ---
+  duration_ms: 0.739334
+  type: 'test'
+  ...
+# Subtest: staff cannot grant buyer consent or skip the workflow
+ok 44 - staff cannot grant buyer consent or skip the workflow
+  ---
+  duration_ms: 0.099
+  type: 'test'
+  ...
+# Subtest: slots require real future UTC dates
+ok 45 - slots require real future UTC dates
+  ---
+  duration_ms: 1.117584
+  type: 'test'
+  ...
+# Subtest: RFQ and checkout units accept spelling aliases without quantity conversion
+ok 46 - RFQ and checkout units accept spelling aliases without quantity conversion
+  ---
+  duration_ms: 0.394
+  type: 'test'
+  ...
+# Subtest: RFQ and checkout units reject ambiguous tons, different scales and empty units
+ok 47 - RFQ and checkout units reject ambiguous tons, different scales and empty units
+  ---
+  duration_ms: 0.069042
+  type: 'test'
+  ...
+# Subtest: refund amounts reject unsafe, fractional, zero and negative money
+ok 48 - refund amounts reject unsafe, fractional, zero and negative money
+  ---
+  duration_ms: 0.801708
+  type: 'test'
+  ...
+# Subtest: refund reason and idempotency key are bounded
+ok 49 - refund reason and idempotency key are bounded
+  ---
+  duration_ms: 0.603292
+  type: 'test'
+  ...
+# Subtest: closed refunds cannot reopen; uncertain external outcomes cannot be declined
+ok 50 - closed refunds cannot reopen; uncertain external outcomes cannot be declined
+  ---
+  duration_ms: 0.335125
+  type: 'test'
+  ...
+# Subtest: approval needs review state and responses need a targeted action
+ok 51 - approval needs review state and responses need a targeted action
+  ---
+  duration_ms: 0.209083
+  type: 'test'
+  ...
+# Subtest: Stripe proof rejects wrong payment, amount, currency and unknown outcome
+ok 52 - Stripe proof rejects wrong payment, amount, currency and unknown outcome
+  ---
+  duration_ms: 0.301083
+  type: 'test'
+  ...
+# Subtest: ambiguous sends stop before Resend idempotency expiry and cap attempts
+ok 53 - ambiguous sends stop before Resend idempotency expiry and cap attempts
+  ---
+  duration_ms: 0.182291
+  type: 'test'
+  ...
+# Subtest: user messages cannot inject email HTML
+ok 54 - user messages cannot inject email HTML
+  ---
+  duration_ms: 0.23225
+  type: 'test'
+  ...
+# Subtest: historical external refunds cannot close a newer request
+ok 55 - historical external refunds cannot close a newer request
+  ---
+  duration_ms: 0.080834
+  type: 'test'
+  ...
+# Subtest: succeeded refund must add to the saved baseline even within the same second
+ok 56 - succeeded refund must add to the saved baseline even within the same second
+  ---
+  duration_ms: 0.568208
+  type: 'test'
+  ...
+# Subtest: email replay stays stable within an origin and cannot collide between local and development
+ok 57 - email replay stays stable within an origin and cannot collide between local and development
+  ---
+  duration_ms: 1.009833
+  type: 'test'
+  ...
+# Subtest: parcel catalogue cannot be overridden with an arbitrary size or weight
+ok 58 - parcel catalogue cannot be overridden with an arbitrary size or weight
+  ---
+  duration_ms: 0.482459
+  type: 'test'
+  ...
+# Subtest: all nonstandard material and address paths are blocked server-side
+ok 59 - all nonstandard material and address paths are blocked server-side
+  ---
+  duration_ms: 0.4205
+  type: 'test'
+  ...
+# Subtest: only payment confirmation can mark paid and only tracking can mark delivered
+ok 60 - only payment confirmation can mark paid and only tracking can mark delivered
+  ---
+  duration_ms: 0.082584
+  type: 'test'
+  ...
+# Subtest: every paid failure path requires a refund, including failed delivery
+ok 61 - every paid failure path requires a refund, including failed delivery
+  ---
+  duration_ms: 0.051208
+  type: 'test'
+  ...
+# Subtest: 10 business day deadlines use Central date, skip weekends and handle DST
+ok 62 - 10 business day deadlines use Central date, skip weekends and handle DST
+  ---
+  duration_ms: 3.173083
+  type: 'test'
+  ...
+# Subtest: reminders count Central business days rather than UTC midnight boundaries
+ok 63 - reminders count Central business days rather than UTC midnight boundaries
+  ---
+  duration_ms: 0.154875
+  type: 'test'
+  ...
+# Subtest: production cannot enable simulated or unverified paid shipping
+ok 64 - production cannot enable simulated or unverified paid shipping
+  ---
+  duration_ms: 1.901416
+  type: 'test'
+  ...
+# Subtest: carrier request uses configured dimensions in inches and packed weight in ounces, and filters unsupported rates
+ok 65 - carrier request uses configured dimensions in inches and packed weight in ounces, and filters unsupported rates
+  ---
+  duration_ms: 38.205292
+  type: 'test'
+  ...
+# Subtest: a paid redirect or mismatched provider amount is not accepted as payment proof
+ok 66 - a paid redirect or mismatched provider amount is not accepted as payment proof
+  ---
+  duration_ms: 1.016666
+  type: 'test'
+  ...
+# Subtest: retry retrieves an already purchased label instead of buying another
+ok 67 - retry retrieves an already purchased label instead of buying another
+  ---
+  duration_ms: 0.614125
+  type: 'test'
+  ...
+# Subtest: an asynchronous carrier refund is not presented as a completed label void
+ok 68 - an asynchronous carrier refund is not presented as a completed label void
+  ---
+  duration_ms: 1.477667
+  type: 'test'
+  ...
+# Subtest: Stripe setup fails closed and separates test/live credentials
+ok 69 - Stripe setup fails closed and separates test/live credentials
+  ---
+  duration_ms: 2.940917
+  type: 'test'
+  ...
+# Subtest: Stripe returns reject external origins and credential-bearing URLs
+ok 70 - Stripe returns reject external origins and credential-bearing URLs
+  ---
+  duration_ms: 0.183292
+  type: 'test'
+  ...
+# Subtest: webhooks fail closed without configuration or signature
+ok 71 - webhooks fail closed without configuration or signature
+  ---
+  duration_ms: 0.772375
+  type: 'test'
+  ...
+# Subtest: valid events pass; modified, stale and wrong-secret deliveries fail
+ok 72 - valid events pass; modified, stale and wrong-secret deliveries fail
+  ---
+  duration_ms: 1.035708
+  type: 'test'
+  ...
+# Subtest: signature rotation accepts any valid v1 signature and rejects invalid event shapes
+ok 73 - signature rotation accepts any valid v1 signature and rejects invalid event shapes
+  ---
+  duration_ms: 1.30075
+  type: 'test'
+  ...
+1..73
+# tests 73
+# suites 0
+# pass 73
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1272.890084

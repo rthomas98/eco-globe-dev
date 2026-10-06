@@ -1,0 +1,664 @@
+TAP version 13
+# Subtest: empty overview lists only saved facts
+ok 1 - empty overview lists only saved facts
+  ---
+  duration_ms: 14.949208
+  type: 'test'
+  ...
+# Subtest: teasers keep withheld MOQ out and mark approximate quantity
+ok 2 - teasers keep withheld MOQ out and mark approximate quantity
+  ---
+  duration_ms: 0.329917
+  type: 'test'
+  ...
+# Subtest: absent values and defaulted state are never shown
+ok 3 - absent values and defaulted state are never shown
+  ---
+  duration_ms: 0.244083
+  type: 'test'
+  ...
+# Subtest: Seller paid lists only orders with a recorded paid payout
+ok 4 - Seller paid lists only orders with a recorded paid payout
+  ---
+  duration_ms: 0.974917
+  type: 'test'
+  ...
+# Subtest: Shipping and In transit list only in-transit or delivered shipments
+ok 5 - Shipping and In transit list only in-transit or delivered shipments
+  ---
+  duration_ms: 0.23875
+  type: 'test'
+  ...
+# Subtest: Delivered lists only delivered evidence; cancelled and unshipped orders are excluded
+ok 6 - Delivered lists only delivered evidence; cancelled and unshipped orders are excluded
+  ---
+  duration_ms: 0.438792
+  type: 'test'
+  ...
+# Subtest: Order lists every order for the listing once, labelled by its own status
+ok 7 - Order lists every order for the listing once, labelled by its own status
+  ---
+  duration_ms: 0.175167
+  type: 'test'
+  ...
+# Subtest: stage evidence follows the same per-stage records
+ok 8 - stage evidence follows the same per-stage records
+  ---
+  duration_ms: 0.252542
+  type: 'test'
+  ...
+# Subtest: Buy Now on the same item twice keeps exactly the selected quantity
+ok 9 - Buy Now on the same item twice keeps exactly the selected quantity
+  ---
+  duration_ms: 0.451041
+  type: 'test'
+  ...
+# Subtest: Buy Now replaces an earlier Add to Cart quantity and refreshes saved fields
+ok 10 - Buy Now replaces an earlier Add to Cart quantity and refreshes saved fields
+  ---
+  duration_ms: 0.34575
+  type: 'test'
+  ...
+# Subtest: Add to Cart still increases an existing line and leaves other lines alone
+ok 11 - Add to Cart still increases an existing line and leaves other lines alone
+  ---
+  duration_ms: 0.070625
+  type: 'test'
+  ...
+# Subtest: pending storage is scoped per user and active company
+ok 12 - pending storage is scoped per user and active company
+  ---
+  duration_ms: 0.482375
+  type: 'test'
+  ...
+# Subtest: well-formed entries validate
+ok 13 - well-formed entries validate
+  ---
+  duration_ms: 0.115625
+  type: 'test'
+  ...
+# Subtest: malformed or mismatched entries are rejected
+ok 14 - malformed or mismatched entries are rejected
+  ---
+  duration_ms: 0.129583
+  type: 'test'
+  ...
+# Subtest: validPendingEntries drops bad rows and rows stored under another key
+ok 15 - validPendingEntries drops bad rows and rows stored under another key
+  ---
+  duration_ms: 0.603375
+  type: 'test'
+  ...
+# Subtest: a chosen date and morning slot become the local start instant
+ok 16 - a chosen date and morning slot become the local start instant
+  ---
+  duration_ms: 1.021
+  type: 'test'
+  ...
+# Subtest: a date without a time uses 09:00; no date sends no pickup time
+ok 17 - a date without a time uses 09:00; no date sends no pickup time
+  ---
+  duration_ms: 0.159
+  type: 'test'
+  ...
+# Subtest: a time without a date, invalid or past dates are reported instead of dropped
+ok 18 - a time without a date, invalid or past dates are reported instead of dropped
+  ---
+  duration_ms: 0.079584
+  type: 'test'
+  ...
+# Subtest: contact and vehicle details are trimmed, optional and bounded
+ok 19 - contact and vehicle details are trimmed, optional and bounded
+  ---
+  duration_ms: 0.186333
+  type: 'test'
+  ...
+# Subtest: an unreadable saved instant restores an empty form
+ok 20 - an unreadable saved instant restores an empty form
+  ---
+  duration_ms: 0.101208
+  type: 'test'
+  ...
+# Subtest: the shown start time matches the saved instant, including the 09:00 default
+ok 21 - the shown start time matches the saved instant, including the 09:00 default
+  ---
+  duration_ms: 0.088708
+  type: 'test'
+  ...
+# Subtest: Baton Rouge resolves with a state abbreviation or full name
+ok 22 - Baton Rouge resolves with a state abbreviation or full name
+  ---
+  duration_ms: 9.398083
+  type: 'test'
+  ...
+# Subtest: legacy invalid country requires a unique city and region match
+ok 23 - legacy invalid country requires a unique city and region match
+  ---
+  duration_ms: 37.584208
+  type: 'test'
+  ...
+# Subtest: unknown, ambiguous, or contradictory locations do not produce pins
+ok 24 - unknown, ambiguous, or contradictory locations do not produce pins
+  ---
+  duration_ms: 15.665833
+  type: 'test'
+  ...
+# Subtest: form requires a turnaround choice and explicit consent when sharing
+ok 25 - form requires a turnaround choice and explicit consent when sharing
+  ---
+  duration_ms: 0.786042
+  type: 'test'
+  ...
+# Subtest: scope is deduplicated, trimmed, and consent never leaks into private requests
+ok 26 - scope is deduplicated, trimmed, and consent never leaks into private requests
+  ---
+  duration_ms: 0.150833
+  type: 'test'
+  ...
+# Subtest: idempotency keys are unique and uuid shaped
+ok 27 - idempotency keys are unique and uuid shaped
+  ---
+  duration_ms: 0.401917
+  type: 'test'
+  ...
+# Subtest: tested badge names the laboratory and date and carries batch context
+ok 28 - tested badge names the laboratory and date and carries batch context
+  ---
+  duration_ms: 17.23975
+  type: 'test'
+  ...
+# Subtest: progress copy never promises cost or duration
+ok 29 - progress copy never promises cost or duration
+  ---
+  duration_ms: 3.433875
+  type: 'test'
+  ...
+# Subtest: sharing consent can be changed for every status, including cancelled
+ok 30 - sharing consent can be changed for every status, including cancelled
+  ---
+  duration_ms: 0.132208
+  type: 'test'
+  ...
+# Subtest: headline results format with units and are cleaned
+ok 31 - headline results format with units and are cleaned
+  ---
+  duration_ms: 0.244916
+  type: 'test'
+  ...
+# Subtest: report form requires real metadata, results and a pdf within the limit
+ok 32 - report form requires real metadata, results and a pdf within the limit
+  ---
+  duration_ms: 0.527125
+  type: 'test'
+  ...
+# Subtest: draft panels cannot publish without laboratory review metadata
+ok 33 - draft panels cannot publish without laboratory review metadata
+  ---
+  duration_ms: 0.289125
+  type: 'test'
+  ...
+# Subtest: requester line prefers real identity and falls back to the company id
+ok 34 - requester line prefers real identity and falls back to the company id
+  ---
+  duration_ms: 0.304959
+  type: 'test'
+  ...
+# Subtest: legacy material groups match discovery categories without matching unrelated titles
+ok 35 - legacy material groups match discovery categories without matching unrelated titles
+  ---
+  duration_ms: 0.671583
+  type: 'test'
+  ...
+# Subtest: missing price is unavailable, never zero
+ok 36 - missing price is unavailable, never zero
+  ---
+  duration_ms: 12.676458
+  type: 'test'
+  ...
+# Subtest: currency is preserved without conversion
+ok 37 - currency is preserved without conversion
+  ---
+  duration_ms: 0.179125
+  type: 'test'
+  ...
+# Subtest: MOQ carries an explicit unit name
+ok 38 - MOQ carries an explicit unit name
+  ---
+  duration_ms: 0.238084
+  type: 'test'
+  ...
+# Subtest: a missing unit is reported, never assumed
+ok 39 - a missing unit is reported, never assumed
+  ---
+  duration_ms: 51.847125
+  type: 'test'
+  ...
+# Subtest: optional number parsing distinguishes blank from zero
+ok 40 - optional number parsing distinguishes blank from zero
+  ---
+  duration_ms: 0.89725
+  type: 'test'
+  ...
+# Subtest: plural unit aliases saved on live listings are preserved and formatted
+ok 41 - plural unit aliases saved on live listings are preserved and formatted
+  ---
+  duration_ms: 0.179334
+  type: 'test'
+  ...
+# Subtest: ambiguous ton/tons stay as recorded and are never treated as metric
+ok 42 - ambiguous ton/tons stay as recorded and are never treated as metric
+  ---
+  duration_ms: 0.242041
+  type: 'test'
+  ...
+# Subtest: country codes must be two letters; truncated ZIPs are rejected
+ok 43 - country codes must be two letters; truncated ZIPs are rejected
+  ---
+  duration_ms: 1.857917
+  type: 'test'
+  ...
+# Subtest: a ZIP typed into the country box is rejected with guidance
+ok 44 - a ZIP typed into the country box is rejected with guidance
+  ---
+  duration_ms: 0.20025
+  type: 'test'
+  ...
+# Subtest: US ZIP format is checked; other countries accept free-form postal codes
+ok 45 - US ZIP format is checked; other countries accept free-form postal codes
+  ---
+  duration_ms: 0.15225
+  type: 'test'
+  ...
+# Subtest: coordinates are optional but must be a valid pair
+ok 46 - coordinates are optional but must be a valid pair
+  ---
+  duration_ms: 0.417792
+  type: 'test'
+  ...
+# Subtest: confirmed reads reach every subscriber and cleanup detaches
+ok 47 - confirmed reads reach every subscriber and cleanup detaches
+  ---
+  duration_ms: 0.828375
+  type: 'test'
+  ...
+# Subtest: empty broadcasts are not sent
+ok 48 - empty broadcasts are not sent
+  ---
+  duration_ms: 0.071209
+  type: 'test'
+  ...
+# Subtest: applyReadIds marks only matching unread items and keeps identity when unchanged
+ok 49 - applyReadIds marks only matching unread items and keeps identity when unchanged
+  ---
+  duration_ms: 0.129709
+  type: 'test'
+  ...
+# Subtest: scope key changes with user and company
+ok 50 - scope key changes with user and company
+  ---
+  duration_ms: 0.415833
+  type: 'test'
+  ...
+# Subtest: an uploaded photo download path goes through the same-origin backend proxy
+ok 51 - an uploaded photo download path goes through the same-origin backend proxy
+  ---
+  duration_ms: 0.588125
+  type: 'test'
+  ...
+# Subtest: a retained legacy https file URL is used as saved
+ok 52 - a retained legacy https file URL is used as saved
+  ---
+  duration_ms: 0.095875
+  type: 'test'
+  ...
+# Subtest: no saved photo yields no image source
+ok 53 - no saved photo yields no image source
+  ---
+  duration_ms: 0.058917
+  type: 'test'
+  ...
+# Subtest: unexpected or unsafe sources are rejected
+ok 54 - unexpected or unsafe sources are rejected
+  ---
+  duration_ms: 0.125458
+  type: 'test'
+  ...
+# Subtest: a listing checkout is funded only by covering provider-linked buyer funding
+ok 55 - a listing checkout is funded only by covering provider-linked buyer funding
+  ---
+  duration_ms: 0.535708
+  type: 'test'
+  ...
+# Subtest: partial, wrong-currency, refunded, other-payer or unlinked records never fund
+ok 56 - partial, wrong-currency, refunded, other-payer or unlinked records never fund
+  ---
+  duration_ms: 0.155125
+  type: 'test'
+  ...
+# Subtest: non-checkout orders are not gated by Stripe records and are not reported as paid
+ok 57 - non-checkout orders are not gated by Stripe records and are not reported as paid
+  ---
+  duration_ms: 0.046083
+  type: 'test'
+  ...
+# Subtest: an unfunded checkout can never confirm receipt
+ok 58 - an unfunded checkout can never confirm receipt
+  ---
+  duration_ms: 0.073375
+  type: 'test'
+  ...
+# Subtest: delivery receipt needs exactly one in-transit shipment
+ok 59 - delivery receipt needs exactly one in-transit shipment
+  ---
+  duration_ms: 0.053208
+  type: 'test'
+  ...
+# Subtest: a funded pickup with no shipment yet can confirm receipt
+ok 60 - a funded pickup with no shipment yet can confirm receipt
+  ---
+  duration_ms: 0.046375
+  type: 'test'
+  ...
+# Subtest: non-checkout orders skip the funding gate but keep shipment rules
+ok 61 - non-checkout orders skip the funding gate but keep shipment rules
+  ---
+  duration_ms: 0.039833
+  type: 'test'
+  ...
+# Subtest: tracker price shows saved zero prices and flags missing data
+ok 62 - tracker price shows saved zero prices and flags missing data
+  ---
+  duration_ms: 30.148792
+  type: 'test'
+  ...
+# Subtest: receipts escape untrusted data and preserve recorded amounts
+ok 63 - receipts escape untrusted data and preserve recorded amounts
+  ---
+  duration_ms: 0.472041
+  type: 'test'
+  ...
+# Subtest: uncaptured records cannot claim paid receipt
+ok 64 - uncaptured records cannot claim paid receipt
+  ---
+  duration_ms: 0.074667
+  type: 'test'
+  ...
+# Subtest: CSV protects spreadsheet formulas and quotes
+ok 65 - CSV protects spreadsheet formulas and quotes
+  ---
+  duration_ms: 0.159875
+  type: 'test'
+  ...
+# Subtest: receipt content comes from the saved payment and order
+ok 66 - receipt content comes from the saved payment and order
+  ---
+  duration_ms: 0.408166
+  type: 'test'
+  ...
+# Subtest: missing order or provider data is never invented
+ok 67 - missing order or provider data is never invented
+  ---
+  duration_ms: 0.066042
+  type: 'test'
+  ...
+# Subtest: only captured payments are titled as receipts
+ok 68 - only captured payments are titled as receipts
+  ---
+  duration_ms: 0.066875
+  type: 'test'
+  ...
+# Subtest: form requires load choice, tonnage and a delivery site
+ok 69 - form requires load choice, tonnage and a delivery site
+  ---
+  duration_ms: 43.58525
+  type: 'test'
+  ...
+# Subtest: other load choice needs a whole load count
+ok 70 - other load choice needs a whole load count
+  ---
+  duration_ms: 0.110125
+  type: 'test'
+  ...
+# Subtest: tonnage must be positive and within range
+ok 71 - tonnage must be positive and within range
+  ---
+  duration_ms: 0.163625
+  type: 'test'
+  ...
+# Subtest: write body carries numbers and the retained request key
+ok 72 - write body carries numbers and the retained request key
+  ---
+  duration_ms: 0.083958
+  type: 'test'
+  ...
+# Subtest: client request ids match the contract
+ok 73 - client request ids match the contract
+  ---
+  duration_ms: 0.269417
+  type: 'test'
+  ...
+# Subtest: Central Time labels honour daylight saving
+ok 74 - Central Time labels honour daylight saving
+  ---
+  duration_ms: 28.548375
+  type: 'test'
+  ...
+# Subtest: wall clock conversion round-trips in both offsets
+ok 75 - wall clock conversion round-trips in both offsets
+  ---
+  duration_ms: 0.7485
+  type: 'test'
+  ...
+# Subtest: slots group by Central day and drop past slots
+ok 76 - slots group by Central day and drop past slots
+  ---
+  duration_ms: 1.883916
+  type: 'test'
+  ...
+# Subtest: desk buckets and admin transitions follow the lifecycle
+ok 77 - desk buckets and admin transitions follow the lifecycle
+  ---
+  duration_ms: 0.244541
+  type: 'test'
+  ...
+# Subtest: load labels never invent tonnage
+ok 78 - load labels never invent tonnage
+  ---
+  duration_ms: 0.3685
+  type: 'test'
+  ...
+# Subtest: place labels drop stray separators from partial addresses
+ok 79 - place labels drop stray separators from partial addresses
+  ---
+  duration_ms: 0.379291
+  type: 'test'
+  ...
+# Subtest: safe legacy aliases match their canonical unit
+ok 80 - safe legacy aliases match their canonical unit
+  ---
+  duration_ms: 0.614917
+  type: 'test'
+  ...
+# Subtest: tons are never inferred to be metric tonnes or aliased
+ok 81 - tons are never inferred to be metric tonnes or aliased
+  ---
+  duration_ms: 0.109917
+  type: 'test'
+  ...
+# Subtest: missing units never match
+ok 82 - missing units never match
+  ---
+  duration_ms: 0.054417
+  type: 'test'
+  ...
+# Subtest: quoted quantity respects saved MOQ and available stock
+ok 83 - quoted quantity respects saved MOQ and available stock
+  ---
+  duration_ms: 0.194083
+  type: 'test'
+  ...
+# Subtest: haversine distance is in miles
+ok 84 - haversine distance is in miles
+  ---
+  duration_ms: 0.443625
+  type: 'test'
+  ...
+# Subtest: a 2 mile radius keeps only nearby listings and counts the rest
+ok 85 - a 2 mile radius keeps only nearby listings and counts the rest
+  ---
+  duration_ms: 0.408958
+  type: 'test'
+  ...
+# Subtest: no origin or no radius leaves the list unfiltered
+ok 86 - no origin or no radius leaves the list unfiltered
+  ---
+  duration_ms: 0.115542
+  type: 'test'
+  ...
+# Subtest: invalid pins are unlocated, never nearby; invalid origin or radius is not applied
+ok 87 - invalid pins are unlocated, never nearby; invalid origin or radius is not applied
+  ---
+  duration_ms: 0.142875
+  type: 'test'
+  ...
+# Subtest: identical and antipodal points stay finite
+ok 88 - identical and antipodal points stay finite
+  ---
+  duration_ms: 0.051625
+  type: 'test'
+  ...
+# Subtest: miles are formatted for cards
+ok 89 - miles are formatted for cards
+  ---
+  duration_ms: 44.755375
+  type: 'test'
+  ...
+# Subtest: typed amounts convert to integer cents without float drift
+ok 90 - typed amounts convert to integer cents without float drift
+  ---
+  duration_ms: 0.515042
+  type: 'test'
+  ...
+# Subtest: invalid, zero and over-precise amounts are rejected
+ok 91 - invalid, zero and over-precise amounts are rejected
+  ---
+  duration_ms: 0.078834
+  type: 'test'
+  ...
+# Subtest: money is formatted from cents in the case currency
+ok 92 - money is formatted from cents in the case currency
+  ---
+  duration_ms: 33.3225
+  type: 'test'
+  ...
+# Subtest: idempotency keys satisfy the contract shape and differ per attempt
+ok 93 - idempotency keys satisfy the contract shape and differ per attempt
+  ---
+  duration_ms: 0.348625
+  type: 'test'
+  ...
+# Subtest: only Stripe refund object IDs are accepted as references
+ok 94 - only Stripe refund object IDs are accepted as references
+  ---
+  duration_ms: 0.083084
+  type: 'test'
+  ...
+# Subtest: valid request keeps the entered values
+ok 95 - valid request keeps the entered values
+  ---
+  duration_ms: 0.9
+  type: 'test'
+  ...
+# Subtest: invalid quantity is an error, never replaced by 1
+ok 96 - invalid quantity is an error, never replaced by 1
+  ---
+  duration_ms: 0.126625
+  type: 'test'
+  ...
+# Subtest: target price is optional but must be a plain number
+ok 97 - target price is optional but must be a plain number
+  ---
+  duration_ms: 0.108084
+  type: 'test'
+  ...
+# Subtest: delivery country is required, never assumed
+ok 98 - delivery country is required, never assumed
+  ---
+  duration_ms: 0.054208
+  type: 'test'
+  ...
+# Subtest: title is required
+ok 99 - title is required
+  ---
+  duration_ms: 0.061583
+  type: 'test'
+  ...
+# Subtest: mixed legacy sample statuses keep their recorded meaning
+ok 100 - mixed legacy sample statuses keep their recorded meaning
+  ---
+  duration_ms: 0.761333
+  type: 'test'
+  ...
+# Subtest: sample references match the tracker format
+ok 101 - sample references match the tracker format
+  ---
+  duration_ms: 0.087958
+  type: 'test'
+  ...
+# Subtest: two distinct received legacy requests render as two received rows with tracker refs
+ok 102 - two distinct received legacy requests render as two received rows with tracker refs
+  ---
+  duration_ms: 0.458875
+  type: 'test'
+  ...
+# Subtest: duplicate rows collapse to one per saved id and unknown statuses stay as recorded
+ok 103 - duplicate rows collapse to one per saved id and unknown statuses stay as recorded
+  ---
+  duration_ms: 0.209708
+  type: 'test'
+  ...
+# Subtest: seller recovery sums avoided disposal and sale proceeds
+ok 104 - seller recovery sums avoided disposal and sale proceeds
+  ---
+  duration_ms: 0.551792
+  type: 'test'
+  ...
+# Subtest: seller recovery with zero quantity yields zero, not an error
+ok 105 - seller recovery with zero quantity yields zero, not an error
+  ---
+  duration_ms: 0.0715
+  type: 'test'
+  ...
+# Subtest: buyer savings match the deck example (155 − 150) × 500 = 2,500
+ok 106 - buyer savings match the deck example (155 − 150) × 500 = 2,500
+  ---
+  duration_ms: 0.148916
+  type: 'test'
+  ...
+# Subtest: buyer savings stay negative when the alternative costs more
+ok 107 - buyer savings stay negative when the alternative costs more
+  ---
+  duration_ms: 0.064667
+  type: 'test'
+  ...
+# Subtest: invalid inputs are rejected explicitly
+ok 108 - invalid inputs are rejected explicitly
+  ---
+  duration_ms: 0.135542
+  type: 'test'
+  ...
+# Subtest: unit-priced listings require an explicit weight basis
+ok 109 - unit-priced listings require an explicit weight basis
+  ---
+  duration_ms: 0.079833
+  type: 'test'
+  ...
+1..109
+# tests 109
+# suites 0
+# pass 109
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1466.87725

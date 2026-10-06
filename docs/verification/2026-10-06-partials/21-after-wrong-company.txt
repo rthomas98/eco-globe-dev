@@ -1,0 +1,85 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - link "Home":
+      - /url: /
+      - text: Home
+    - link "Listings":
+      - /url: /seller/listings
+      - text: Listings
+    - link "Buyer requests":
+      - /url: /seller/rfq
+      - text: Buyer requests
+    - link "Sales":
+      - /url: /seller/sales
+      - text: Sales
+    - link "Tracker":
+      - /url: /seller/tracker
+      - text: Tracker
+    - link "Sample dispatch":
+      - /url: /seller/samples
+      - text: Sample dispatch
+    - link "Pilot interest":
+      - /url: /seller/pilots
+      - text: Pilot interest
+    - link "Feedstock IQ Soon":
+      - /url: /feedstock-iq
+      - text: Feedstock IQ
+      - generic: Soon
+    - link "Logistics":
+      - /url: /seller/logistics
+      - text: Logistics
+    - link "Contracts":
+      - /url: /seller/contracts
+      - text: Contracts
+    - link "E-signatures":
+      - /url: /seller/e-signatures
+      - text: E-signatures
+    - link "Verification":
+      - /url: /seller/verification
+      - text: Verification
+    - link "Delivery Tracking":
+      - /url: /seller/delivery-tracking
+      - text: Delivery Tracking
+    - link "Partner Network":
+      - /url: /seller/partners
+      - text: Partner Network
+    - link "Carbon Calculator":
+      - /url: /seller/carbon-calculator
+      - text: Carbon Calculator
+    - button "Accounting":
+      - generic: Accounting
+    - link "Transactions":
+      - /url: /seller/accounting/transactions
+    - link "Payments":
+      - /url: /seller/accounting/payments
+    - link "Refunds":
+      - /url: /seller/accounting/refunds
+    - link "Escrow":
+      - /url: /seller/accounting/escrow
+    - link "Bank Account":
+      - /url: /seller/accounting/bank-account
+    - button "Reports":
+      - generic: Reports
+    - link "Disputes":
+      - /url: /seller/disputes
+      - text: Disputes
+    - link "Documents":
+      - /url: /seller/documents
+      - text: Documents
+  - button "12 unread notifications Notifications":
+    - generic "12 unread notifications": 9+
+    - text: Notifications
+  - button "ES EcoGlobe S":
+    - generic: ES
+    - generic: EcoGlobe S
+- banner:
+  - heading "Payment receipt" [level=1]
+  - button "Search":
+- main:
+  - alert: Your company does not have access to payment TX-9.
+  - link "Back to payments":
+    - /url: /seller/accounting/payments

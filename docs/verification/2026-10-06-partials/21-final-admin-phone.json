@@ -1,0 +1,7 @@
+{
+  "downloadBackground": "rgb(0, 0, 0)",
+  "downloadForeground": "rgb(255, 255, 255)",
+  "downloadLabel": " Download PDF receipt",
+  "scrollWidth": 390,
+  "width": 390
+}

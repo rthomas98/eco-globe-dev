@@ -1,0 +1,46 @@
+[
+  {
+    "name": "backend-tests",
+    "exitCode": 0
+  },
+  {
+    "name": "backend-types",
+    "exitCode": 0
+  },
+  {
+    "name": "backend-build",
+    "exitCode": 0
+  },
+  {
+    "name": "web-types",
+    "exitCode": 0
+  },
+  {
+    "name": "web-test-types",
+    "exitCode": 0
+  },
+  {
+    "name": "admin-types",
+    "exitCode": 0
+  },
+  {
+    "name": "web-tests",
+    "exitCode": 0
+  },
+  {
+    "name": "web-touched-lint",
+    "exitCode": 0
+  },
+  {
+    "name": "admin-lint",
+    "exitCode": 0
+  },
+  {
+    "name": "web-build",
+    "exitCode": 0
+  },
+  {
+    "name": "admin-build",
+    "exitCode": 0
+  }
+]

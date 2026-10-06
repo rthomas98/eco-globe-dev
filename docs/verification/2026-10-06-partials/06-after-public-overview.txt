@@ -1,0 +1,179 @@
+- banner:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - textbox "What"
+  - textbox "Where"
+  - button "Search listings":
+  - link "Filters":
+    - /url: /browse
+    - text: Filters
+  - button:
+  - link "Login":
+    - /url: /login
+  - link "Sign Up":
+    - /url: /register
+    - button "Sign Up"
+- link "Browse":
+  - /url: /browse
+- generic: Product details
+- heading "Premium Rice Hull Ash" [level=1]
+- generic: LA
+- generic: ·
+- generic: "MOQ: Sign in to see MOQ"
+- generic: Carbon data not provided
+- img "Illustrative image of Premium Rice Hull Ash"
+- generic: Illustrative image
+- button "Copy share link":
+- button "Add to favorites":
+- heading "Map" [level=2]
+- paragraph:
+  - text: The exact facility location is shown to marketplace members.
+  - link "Sign in":
+    - /url: /login
+- heading "Specifications" [level=2]
+- generic: Category
+- generic: Industrial Byproducts
+- generic: Feedstock state
+- generic: Solid
+- generic: Available quantity
+- generic: 800 tons
+- generic: Carbon profile
+- generic: Not provided by seller
+- generic: Pickup location
+- generic: LA
+- region "Independent analysis":
+  - heading "Independent analysis" [level=2]
+  - paragraph: No independent analysis on this listing yet.
+  - paragraph:
+    - link "Sign in":
+      - /url: /login
+    - text: to request lab testing.
+- heading "Overview" [level=2]
+- paragraph: The seller has not added a description yet.
+- paragraph: At a glance (from saved listing details)
+- term: "Category:"
+- definition: Industrial Byproducts
+- term: "Available:"
+- definition: Approx. 800 tons
+- term: "Location:"
+- definition: LA
+- heading "Seller" [level=2]
+- generic: Seller identity shown to members
+- text: verified
+- paragraph:
+  - text: LA · Industrial Byproducts ·
+  - link "Sign in":
+    - /url: /login
+  - text: to see the seller
+- heading "Carbon Analytics Tool" [level=2]
+- paragraph: Estimate transportation footprint, compare scenarios, and estimate your savings for Premium Rice Hull Ash.
+- link "Sign in to use the Calculator":
+  - /url: /login
+  - text: Sign in to use the Calculator
+- paragraph: Was this tool helpful, give us your feedback here
+- button:
+- button:
+- paragraph: Sign in to see price
+- note:
+  - text: Pricing, minimum order, seller details, specifications and documents are available to marketplace members.
+  - link "Sign in":
+    - /url: /login
+  - text: to unlock the full listing.
+- paragraph: "Minimum Order Quantity (MOQ): Sign in to see MOQ"
+- generic: Quantity (tons)
+- button "Decrease quantity":
+- spinbutton "Quantity": "1"
+- button "Increase quantity":
+- paragraph: Approx. 800 tons available
+- generic: Item subtotal
+- generic: —
+- generic: Shipping
+- generic: Quoted per order
+- generic: Subtotal (excl. shipping)
+- generic: —
+- button "Add to Cart" [disabled]
+- paragraph:
+  - link "Sign in":
+    - /url: /login
+  - text: to purchase
+- paragraph: Do you want to know more?
+- paragraph: Here is how it works
+- paragraph: Do you want to have more details?
+- paragraph: Sign up in our Marketplace
+- link "Sign up":
+  - /url: /register
+  - button "Sign up"
+- link "Login":
+  - /url: /login
+  - button "Login"
+- contentinfo:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - link "LinkedIn":
+    - /url: https://www.linkedin.com/company/ecoglobeworld
+  - link "Instagram":
+    - /url: https://www.instagram.com/ecoglobeworld/
+  - link "Facebook":
+    - /url: https://www.facebook.com/ecoglobeworld/
+  - heading "Buyers" [level=4]
+  - link "Browse feedstocks":
+    - /url: /browse
+  - link "Search by specs, volume, distance & Carbon footprint":
+    - /url: /browse
+  - link "Request quotes":
+    - /url: /register
+  - link "Track orders & delivery":
+    - /url: /buyer/orders
+  - link "Sustainability reports":
+    - /url: /sustainability-reports
+  - heading "Company" [level=4]
+  - link "About us":
+    - /url: /about
+  - link "Contact us":
+    - /url: /contact
+  - link "Careers":
+    - /url: /careers
+  - link "FAQs":
+    - /url: /faqs
+  - link "Help Center":
+    - /url: /help
+  - link "Newsletter":
+    - /url: /newsletter
+  - heading "Other services" [level=4]
+  - link "Hands-on Services":
+    - /url: /services
+  - link "Feedstocks certifications":
+    - /url: /certifications
+  - link "Other digital Products":
+    - /url: /digital-products
+  - link "Logistics":
+    - /url: /logistics
+  - heading "Sellers" [level=4]
+  - link "List your feedstock":
+    - /url: /register
+  - link "Manage availability & pricing":
+    - /url: /seller/listings
+  - link "Reach verified buyers":
+    - /url: /register
+  - link "Product passports":
+    - /url: /product-passports
+  - link "Get paid securely":
+    - /url: /secure-payments
+  - heading "Legal" [level=4]
+  - link "Terms of service":
+    - /url: /terms
+  - link "Privacy policy":
+    - /url: /privacy
+  - link "Cookie policy":
+    - /url: /cookie-policy
+  - link "Data protection":
+    - /url: /data-protection
+  - link "Feedstock policy and protection":
+    - /url: /feedstock-policy
+  - link "Logistics policy":
+    - /url: /logistics-policy
+  - paragraph: © 2026 EcoGlobe All rights reserved.
+  - paragraph: From Louisiana to the World
+- alert

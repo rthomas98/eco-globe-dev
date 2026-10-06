@@ -1,0 +1,108 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Home":
+      - /url: /
+      - generic: Home
+    - link "Search":
+      - /url: /buyer/browse
+      - generic: Search
+    - link "My Orders":
+      - /url: /buyer/orders
+      - generic: My Orders
+    - button "Marketplace" [expanded]:
+      - generic: Marketplace
+    - link "Partners":
+      - /url: /buyer/partners
+      - generic: Partners
+    - link "Saved":
+      - /url: /buyer/favorites
+      - generic: Saved
+    - link "Requests for quote":
+      - /url: /buyer/rfq
+      - generic: Requests for quote
+    - link "Tracker":
+      - /url: /buyer/tracker
+      - generic: Tracker
+    - link "Samples":
+      - /url: /buyer/samples
+      - generic: Samples
+    - link "Pilots":
+      - /url: /buyer/pilots
+      - generic: Pilots
+    - link "Feedstock IQ Soon":
+      - /url: /feedstock-iq
+      - text: Feedstock IQ
+      - generic: Soon
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Support":
+      - generic: Finance & Support
+  - button "Notifications":
+    - generic "3 unread notifications": "3"
+    - text: Notifications
+  - button "J Joanna Bell":
+    - generic: J
+    - generic: Joanna Bell
+- main:
+  - main:
+    - paragraph: buyer tracker
+    - heading "Where everything stands" [level=1]
+    - paragraph:
+      - text: AgriCorp Solutions · 1 materials
+      - button "Refresh"
+    - status: Up to date · Last checked 11:24:30 AM
+    - strong: YOUR ACCOUNT
+    - generic: Company status (set by EcoGlobe staff) — verified
+    - generic: Receiving sites — not recorded
+    - generic: Purchase authority — up to $500,000.00
+    - strong: Free — buyers never pay a licence
+    - article:
+      - button "Phase 1 Smoke Feedstock GulfStar Chemicals Houston, TX · $52.00 / tons EG-2 — in progress 1 files" [expanded]:
+        - heading "Phase 1 Smoke Feedstock GulfStar Chemicals" [level=2]
+        - paragraph: Houston, TX · $52.00 / tons
+        - generic: EG-2 — in progress
+        - generic: 1 files
+      - button "Interested — Recorded":
+        - strong: Interested
+        - generic: Recorded
+      - button "Sample — No activity":
+        - strong: Sample
+        - generic: No activity
+      - button "Testing — No activity":
+        - strong: Testing
+        - generic: No activity
+      - button "Pilot — No activity":
+        - strong: Pilot
+        - generic: No activity
+      - button "Order — EG-2 order in progress, EG-1 order escrow required · shipment in transit":
+        - strong: Order
+        - generic: Recorded
+      - button "In transit — EG-1 shipment SHP-1 in transit, EG-1 shipment SHP-5 in transit (current stage)" [pressed]:
+        - strong: In transit
+        - generic: Recorded
+      - button "Delivered — No activity":
+        - strong: Delivered
+        - generic: No activity
+      - heading "In transit" [level=3]
+      - paragraph: EG-1 · shipment SHP-1 in transit
+      - paragraph: · ECO-CODEX-0730-INTRANSIT
+      - link "View order":
+        - /url: /buyer/orders/1
+      - button "Show all 2 records at this step"
+      - button "Request lab testing"
+      - link "View material":
+        - /url: /buyer/browse/2
+      - link "Request a pilot":
+        - /url: /buyer/pilots/new?listing=2
+      - heading "Documents at this step" [level=3]
+      - button "All files (1)"
+      - paragraph: No documents at this step. 1 file is recorded at other steps — use All files.
+      - paragraph: Only available files are shown. Lab reports and shipping documents appear when recorded and shared with your company.

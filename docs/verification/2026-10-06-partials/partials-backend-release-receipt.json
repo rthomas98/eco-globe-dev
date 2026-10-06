@@ -1,0 +1,10 @@
+{
+  "image": "acrecoglobe7c180adf.azurecr.io/ecoglobe-backend@sha256:3e0c470e0edc1f1a27e2e692beb41c7a828fcfdfcb3f94fbff5624fbcdb1a0ce",
+  "revision": "ecoglobe-backend-dev--0000034",
+  "traffic": [
+    {
+      "latestRevision": true,
+      "weight": 100
+    }
+  ]
+}

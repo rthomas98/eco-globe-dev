@@ -1,0 +1,58 @@
+[
+  {
+    "check": "Anonymous receipt denied",
+    "status": 401
+  },
+  {
+    "check": "Buyer saved JSON and PDF agree",
+    "companyId": 42,
+    "paymentId": 9,
+    "orderId": 28,
+    "status": "captured",
+    "amount": 30,
+    "currency": "USD",
+    "bytes": 1707,
+    "headersValidated": true
+  },
+  {
+    "check": "Missing record and mutation refused",
+    "missingStatus": 404,
+    "postStatus": 405
+  },
+  {
+    "check": "Same user unrelated active company denied",
+    "companyId": 43,
+    "status": 403
+  },
+  {
+    "check": "Unrelated buyer denied",
+    "companyId": 2,
+    "status": 403
+  },
+  {
+    "check": "Staff original EG-12 and two legacy samples",
+    "orderId": 12,
+    "orderStatus": "in_progress",
+    "amount": 0,
+    "shipments": [
+      {
+        "id": 7,
+        "status": "delivered"
+      }
+    ],
+    "samples": [
+      {
+        "id": 2,
+        "status": "received",
+        "buyerCompanyId": 30,
+        "sellerCompanyId": 29
+      },
+      {
+        "id": 1,
+        "status": "received",
+        "buyerCompanyId": 30,
+        "sellerCompanyId": 29
+      }
+    ]
+  }
+]

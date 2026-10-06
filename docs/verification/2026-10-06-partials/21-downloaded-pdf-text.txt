@@ -1,0 +1,15 @@
+EcoGlobe
+Payment receipt TX-9
+Order: EG-28
+Material: PVC Scrap
+Payer: QA DocuSign Buyer 2026-09-28
+Seller: MKDK Shop
+Amount: USD 30.00
+Status: captured
+Payment type: buyer_funding
+Recorded: 2026-10-06T15:15:16.287Z
+Provider reference: pi_3UNa5GCEJFfU7hsb1Wk86fF8
+Escrow: None recorded
+A captured buyer payment is not a seller payout. Staff handle refunds and settlement.
+Sandbox and simulated transactions do not represent real money moved.
+Unsupported characters, if any, are marked with ?. See the app for original text.

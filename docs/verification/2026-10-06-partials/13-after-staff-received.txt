@@ -1,0 +1,537 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Dashboard":
+      - /url: /admin/dashboard
+      - generic: Dashboard
+    - link "Sales":
+      - /url: /admin/sales
+      - generic: Sales
+    - link "Listings":
+      - /url: /admin/listings
+      - generic: Listings
+    - link "Sample shipping":
+      - /url: /admin/samples
+      - generic: Sample shipping
+    - link "Lab testing":
+      - /url: /admin/lab-testing
+      - generic: Lab testing
+    - link "Pilot desk":
+      - /url: /admin/pilots
+      - generic: Pilot desk
+    - button "Marketplace":
+      - generic: Marketplace
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Reports":
+      - generic: Finance & Reports
+    - button "Governance":
+      - generic: Governance
+    - button "System":
+      - generic: System
+  - button "Notifications 70 unread notifications":
+    - text: Notifications
+    - generic "70 unread notifications": 9+
+  - button "A Admin":
+    - generic: A
+    - generic: Admin
+- banner:
+  - navigation "Breadcrumb":
+    - generic: Admin
+    - generic: Samples
+  - button "Search admin ⌘ K":
+    - generic: Search admin
+    - generic: ⌘ K
+  - link "Notifications":
+    - /url: /admin/notifications
+  - link "Admin settings":
+    - /url: /admin/settings/system/users
+  - link "Help and account":
+    - /url: /admin/account
+- main:
+  - main:
+    - paragraph: ADMIN VIEW
+    - heading "Sample shipping desk" [level=1]
+    - paragraph: Online sample shipping is not configured yet. Contact EcoGlobe for help arranging a sample.
+    - button "Refresh requests"
+    - button "Retry pending provider operations"
+    - paragraph: Paid requests
+    - strong: "0"
+    - paragraph: Dispatched on time
+    - strong: "0"
+    - paragraph: On-time dispatch rate
+    - strong: —
+    - region "Sample requests":
+      - heading "Sample requests" [level=2]
+      - paragraph: "Read-only: sample requests arranged directly between buyers and sellers, as recorded. Staff cannot change them here."
+      - list:
+        - paragraph: SR-3 · 5 lb · Tar
+        - paragraph: ana.sanz@ecoglobeworld.com from GulfStar Chemicals · Baton Rouge
+        - generic: Requested
+        - paragraph: SR-2 · 10 lb · Guard Test Bagasse
+        - paragraph: Marsh Materials BV from Greenfield Biomass LLC · 88 Delta Dock Road, Baton Rouge, LA 70802 · Tracking FEDEX-SAMPLE-8891
+        - paragraph: “Moisture and ash content analysis before a bulk order.”
+        - generic: Received
+        - paragraph: SR-1 · 10 lb · Guard Test Bagasse
+        - paragraph: Marsh Materials BV from Greenfield Biomass LLC · 88 Delta Dock Road, Baton Rouge, LA 70802 · Tracking USPS-9400-1234
+        - paragraph: “Need to run ash-content analysis before committing.”
+        - paragraph: "Seller: Sample ships Monday via USPS."
+        - generic: Received
+        - generic: Ordered · EG-8
+    - paragraph: No prepaid sample shipments yet. Sample requests arranged directly with the seller appear above when there are any.
+    - heading "Material shipping review" [level=2]
+    - paragraph: Enable only after confirming a standard solid, no restrictions and no special shipping instructions.
+    - strong: "#28 QA Seller Upload 2026-09-22 — draft only"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 28":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #28"'
+    - strong: "#27 PVC Scrap"
+    - checkbox "Samples enabled" [checked]
+    - text: Samples enabled
+    - combobox "Classification for listing 27":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #27"'
+    - strong: "#26 Re-use Oil"
+    - checkbox "Samples enabled" [checked]
+    - text: Samples enabled
+    - combobox "Classification for listing 26":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #26"'
+    - strong: "#25 Gasoline offspec"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 25":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #25"'
+    - strong: "#24 Gasoline offspec"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 24":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #24"'
+    - strong: "#23 Gasoline offspec"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 23":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #23"'
+    - strong: "#22 Premium Rice Hull Ash"
+    - checkbox "Samples enabled" [checked]
+    - text: Samples enabled
+    - combobox "Classification for listing 22":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #22"'
+    - strong: "#21 Guard Test Bagasse"
+    - checkbox "Samples enabled" [checked]
+    - text: Samples enabled
+    - combobox "Classification for listing 21":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #21"'
+    - strong: "#20 Dark Viscous Liquid Tonnels"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 20":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #20"'
+    - strong: "#19 Tar"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 19":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #19"'
+    - strong: "#18 White Label"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 18":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #18"'
+    - strong: "#17 Biochar"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 17":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #17"'
+    - strong: "#16 Used Pallets"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 16":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #16"'
+    - strong: "#15 Hydrochar"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 15":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #15"'
+    - strong: "#14 Used Dry Transformer"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 14":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #14"'
+    - strong: "#13 Refined Used Cooking Oil (UCO)"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 13":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #13"'
+    - strong: "#12 Recycled Tire Crumb Rubber"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 12":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #12"'
+    - strong: "#11 Certified Organic Wood Chips"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 11":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #11"'
+    - strong: "#10 Industrial By-Product: Rice Husk"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 10":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #10"'
+    - strong: "#9 Biomass Wood Pellets, Grade A"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 9":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #9"'
+    - strong: "#8 Harvested and Baled Corn Stover"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 8":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #8"'
+    - strong: "#7 Black Gypsum"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 7":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #7"'
+    - strong: "#6 Scrap Polymer Blend with Impurities"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 6":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #6"'
+    - strong: "#5 Shredded, Refined Sugar Bagasse"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 5":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #5"'
+    - strong: "#4 Epoxy Off-Spec"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 4":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #4"'
+    - strong: "#3 Pyrolysis Pitch"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 3":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #3"'
+    - strong: "#2 Phase 1 Smoke Feedstock"
+    - checkbox "Samples enabled"
+    - text: Samples enabled
+    - combobox "Classification for listing 2":
+      - option "unreviewed" [selected]
+      - option "standard solid"
+      - option "restricted"
+      - option "liquid"
+      - option "gas"
+    - checkbox "Special handling"
+    - text: Special handling
+    - generic: 0 missed
+    - 'button "Save #2"'
+    - heading "Receiving sites" [level=2]
+    - paragraph: Confirm that each address belongs to a business receiving site. Carrier address validation runs separately at quoting.
+    - paragraph: Registered address — To be provided during onboarding, To be provided,
+    - 'button "Confirm site #40"'
+    - paragraph: Registered address — To be provided during onboarding, To be provided,
+    - 'button "Confirm site #39"'
+    - paragraph: Primary delivery site — 1223 Sesame Street houston Texas, Pending,
+    - 'button "Confirm site #38"'
+    - paragraph: Primary delivery site — 123 Sesame Street Houston Texas, Pending,
+    - 'button "Confirm site #37"'
+    - paragraph: Primary pickup site — 201 Dairy ashford, Pending,
+    - 'button "Confirm site #36"'
+    - paragraph: Primary delivery site — 7777 allen parkway, Pending,
+    - 'button "Confirm site #35"'
+    - paragraph: Jubail terminal — Industrial City Rd 9, Jubail,
+    - 'button "Confirm site #34"'
+    - paragraph: Nagoya works — 1-2-3 Minato, Nagoya,
+    - 'button "Confirm site #33"'
+    - paragraph: Sao Paulo patio — Rua Verde 15, Sao Paulo, SP
+    - 'button "Confirm site #32"'
+    - paragraph: Guadalajara planta — Av. Industrial 88, Guadalajara, JAL
+    - 'button "Confirm site #31"'
+    - paragraph: Rotterdam depot — Havenstraat 42, Rotterdam,
+    - 'button "Confirm site #30"'
+    - paragraph: Port Allen yard — 180 River Rd, Port Allen, LA
+    - 'button "Confirm site #29"'
+    - paragraph: Houston terminal — 2400 Ship Channel Rd, Houston, TX
+    - 'button "Confirm site #28"'
+    - paragraph: Registered address — To be provided during onboarding, To be provided,
+    - 'button "Confirm site #27"'
+    - paragraph: Primary delivery site — Havenstraat 12, Rotterdam,
+    - 'button "Confirm site #26"'
+    - paragraph: Primary pickup site — 4801 Riverside Dr, Baton Rouge, LA
+    - 'button "Confirm site #25"'
+    - paragraph: Primary pickup site — 12 Test Way, Houston, TX 77002
+    - 'button "Confirm site #24"'
+    - paragraph: Registered address — To be provided during onboarding, To be provided,
+    - 'button "Confirm site #23"'
+    - paragraph: Primary delivery site — 123 Sesame Street, Pending,
+    - 'button "Confirm site #22"'
+    - paragraph: Primary delivery site — 100 Security Way, Houston, TX 77002
+    - 'button "Confirm site #21"'
+    - paragraph: Primary delivery site — 100 Security Way, Houston, TX 77002
+    - 'button "Confirm site #20"'
+    - paragraph: Primary delivery site — 100 Security Way, Houston, TX 77002
+    - 'button "Confirm site #19"'
+    - paragraph: Primary delivery site — 100 Security Way, Houston, TX 77002
+    - 'button "Confirm site #18"'
+    - paragraph: Primary pickup site — 100 Seller Way, Deer Park, TX 77536
+    - 'button "Confirm site #17"'
+    - paragraph: Primary delivery site — 400 Browser Way, Houston, TX 77002
+    - 'button "Confirm site #16"'
+    - paragraph: Primary pickup site — 100 Seller Way, Deer Park, TX 77536
+    - 'button "Confirm site #15"'
+    - paragraph: Primary delivery site — 400 Browser Way, Houston, TX 77002
+    - 'button "Confirm site #14"'
+    - paragraph: Primary pickup site — 100 Seller Way, Deer Park, TX 77536
+    - 'button "Confirm site #13"'
+    - paragraph: Primary delivery site — 400 Browser Way, Houston, TX 77002
+    - 'button "Confirm site #12"'
+    - paragraph: Primary pickup site — 100 Seller Way, Deer Park, TX 77536
+    - 'button "Confirm site #11"'
+    - paragraph: Primary delivery site — 400 Browser Way, Houston, TX 77002
+    - 'button "Confirm site #10"'
+    - paragraph: Smoke pickup — 1 Demo Way, Houston, TX 77001
+    - 'button "Confirm site #9"'
+    - paragraph: Primary delivery site — 100 Seller Way, Deer Park, TX 77536
+    - 'button "Confirm site #8"'
+    - paragraph: Primary delivery site — 100 Seller Way, Deer Park, TX 77536
+    - 'button "Confirm site #7"'
+    - paragraph: Primary pickup site — 100 Seller Way, Deer Park, TX 77536
+    - 'button "Confirm site #6"'
+    - paragraph: Primary delivery site — 400 Browser Way, Houston, TX 77002
+    - 'button "Confirm site #5"'
+    - paragraph: Primary pickup site — 100 Seller Way, Deer Park, TX 77536
+    - strong: Site confirmed
+    - paragraph: Primary delivery site — 400 Browser Way, Houston, TX 77002
+    - strong: Site confirmed
+    - paragraph: Primary delivery site — 400 Test Way, Houston, TX 77002, Pending,
+    - strong: Site confirmed
+    - heading "Requests for assistance" [level=2]
+    - paragraph:
+      - text: "#5 · Marsh Materials BV · PVC Scrap · restricted"
+      - text: Please help arrange a sample.
+    - paragraph:
+      - text: "#4 · MKDK Shop · Premium Rice Hull Ash · restricted"
+      - text: Please help arrange a sample.
+    - paragraph:
+      - text: "#3 · MKDK Shop · Tar · disabled"
+      - text: Please help arrange a sample.
+    - paragraph:
+      - text: "#2 · MKDK Shop · Guard Test Bagasse · disabled"
+      - text: Please help arrange a sample.
+    - paragraph:
+      - text: "#1 · MKDK Shop · Guard Test Bagasse · disabled"
+      - text: Please help arrange a sample.

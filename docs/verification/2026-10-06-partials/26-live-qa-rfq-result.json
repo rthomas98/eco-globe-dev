@@ -1,0 +1,16 @@
+{
+  "requestId": 2,
+  "requestClosed": true,
+  "quoteId": 4,
+  "status": "accepted",
+  "listingId": 14,
+  "buyerCompanyId": 42,
+  "sellerCompanyId": 3,
+  "quantity": 50,
+  "requestedUnit": "unit",
+  "quotedUnit": "units",
+  "unitPrice": 15000,
+  "currency": "USD",
+  "testOnly": true,
+  "quoteHistoryPreserved": true
+}

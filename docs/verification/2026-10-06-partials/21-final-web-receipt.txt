@@ -1,0 +1,85 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Home":
+      - /url: /
+      - generic: Home
+    - link "Search":
+      - /url: /buyer/browse
+      - generic: Search
+    - link "My Orders":
+      - /url: /buyer/orders
+      - generic: My Orders
+    - button "Marketplace":
+      - generic: Marketplace
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Support" [expanded]:
+      - generic: Finance & Support
+    - button "Accounting" [expanded]:
+      - generic: Accounting
+    - link "Transactions":
+      - /url: /buyer/accounting/transactions
+    - link "Payments":
+      - /url: /buyer/accounting/payments
+    - link "Refunds":
+      - /url: /buyer/accounting/refunds
+    - link "Escrow":
+      - /url: /buyer/accounting/escrow
+    - link "Bank Account":
+      - /url: /buyer/accounting/bank-account
+    - link "Account":
+      - /url: /buyer/account
+      - generic: Account
+    - link "Help":
+      - /url: /buyer/help
+      - generic: Help
+  - button "Notifications":
+    - generic "14 unread notifications": 9+
+    - text: Notifications
+  - button "E EcoGlobe Sandbox Tester":
+    - generic: E
+    - generic: EcoGlobe Sandbox Tester
+- main:
+  - main:
+    - link "← Back to payments":
+      - /url: /buyer/accounting/payments
+    - heading "EcoGlobe · Payment receipt TX-9" [level=1]
+    - term: Payment
+    - definition: TX-9
+    - term: Order
+    - definition: EG-28
+    - term: Material
+    - definition: PVC Scrap
+    - term: Payer
+    - definition: QA DocuSign Buyer 2026-09-28
+    - term: Seller
+    - definition: MKDK Shop
+    - term: Amount
+    - definition: $30.00
+    - term: Status
+    - definition: captured
+    - term: Payment type
+    - definition: buyer funding
+    - term: Recorded
+    - definition: Oct 6, 2026
+    - term: Provider reference
+    - definition: pi_3UNa5GCEJFfU7hsb1Wk86fF8
+    - term: Escrow
+    - definition: None recorded
+    - paragraph: This reflects the recorded EcoGlobe payment. A captured payment is not a seller payout; payouts and any refunds are handled by EcoGlobe staff. Simulated transactions do not represent money moved.
+    - link "Download PDF receipt":
+      - /url: /api/backend/api/payments/9/receipt
+      - text: Download PDF receipt
+    - button "Print receipt":
+      - text: Print receipt
+    - button "Save HTML copy":
+      - text: Save HTML copy
+    - iframe

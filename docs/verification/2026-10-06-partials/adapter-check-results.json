@@ -1,0 +1,26 @@
+[
+  {
+    "name": "web-types",
+    "exitCode": 0
+  },
+  {
+    "name": "admin-types",
+    "exitCode": 0
+  },
+  {
+    "name": "receipt-lint",
+    "exitCode": 0
+  },
+  {
+    "name": "admin-lint",
+    "exitCode": 0
+  },
+  {
+    "name": "web-build",
+    "exitCode": 0
+  },
+  {
+    "name": "admin-build",
+    "exitCode": 0
+  }
+]

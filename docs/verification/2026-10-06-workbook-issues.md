@@ -1,10 +1,14 @@
 # Workbook fixes and development acceptance — 6 October 2026
 
-The reviewed application changes are committed, pushed and deployed to [EcoGlobe development](https://eco-globe-dev-web.vercel.app). The 32 workbook issues are individually tracked: **19 resolved, 1 already corrected, 11 partly resolved, and 1 blocked by missing authentic SDS files**. This is not a claim that all 32 issues or the eight additional acceptance stories pass.
+The reviewed application changes are committed, pushed and deployed to [EcoGlobe development](https://eco-globe-dev-web.vercel.app). The 32 workbook issues are individually tracked: **25 resolved, 1 already corrected, 5 partly resolved, and 1 blocked by missing authentic SDS files**. This is not a claim that all 32 issues or the eight additional acceptance stories pass.
+
+Six of the eleven partials closed in the [follow-up report](2026-10-06-partial-issues-followup.md): issues 2, 6, 7, 12, 21 and 26. Issues 4, 5, 13, 16 and 28 still need authentic facility data or configured sample shipping. Current release/evidence is in that report and the JSON tracker; the original release sections below preserve the prior-wave history.
 
 The source workbook was read without modifying it. SHA-256: `29007012f883cc1448e02f150c40ee02318d327f6437d8ae211123aece44d75e`. Document contents were treated as defect reports, not operational instructions. Its credential-containing second sheet is not copied into this repository.
 
-An independent evidence audit downgraded issues 12, 16 and 26 to partial because fresh regression scenarios do not prove the original EG-12 comparison, owner pickup-address repair or a successful seller quote response. It also verified the counts/hash manifest and removed encoded ephemeral checkout URLs from durable text evidence.
+The initial independent evidence audit downgraded issues 12, 16 and 26 to partial because fresh regression scenarios do not prove the original EG-12 comparison, owner pickup-address repair or a successful seller quote response. It also verified the counts/hash manifest and removed encoded ephemeral checkout URLs from durable text evidence.
+
+A later independent scope audit assessed the new original-record evidence, actual downloaded PDF, saved-facts overview and positive quote response/acceptance. It kept the full sample row partial because PVC online shipping remains unconfigured.
 
 See [the row-by-row tracker](2026-10-06-workbook-issues.json) for reproduction notes, implementation, acceptance limitations and evidence filenames. Browser evidence is in [2026-10-06-workbook](2026-10-06-workbook/). Test accounts available locally were used as authorized; Bianca/Sasha's exact account-specific comparisons were not claimed.
 
@@ -13,18 +17,18 @@ See [the row-by-row tracker](2026-10-06-workbook-issues.json) for reproduction n
 | Issue | Area | Status |
 |---|---|---|
 | 1 | Feedstock IQ | Resolved |
-| 2 | Listings | Partial — owner data |
+| 2 | Listings | Resolved |
 | 3 | Listing detail | Resolved |
 | 4 | Map | Partial — owner data |
 | 5 | Listing data | Partial — owner data |
-| 6 | Listing detail | Partial — owner data |
-| 7 | Listings | Partial — owner data |
+| 6 | Listing detail | Resolved |
+| 7 | Listings | Resolved |
 | 8 | Home | Resolved |
 | 9 | Copy | Resolved |
 | 10 | Copy | Resolved |
 | 11 | Analytics | Already corrected |
-| 12 | My Orders | Partial — exact-record acceptance |
-| 13 | Samples | Partial — acceptance/data |
+| 12 | My Orders | Resolved |
+| 13 | Samples | Partial — shipping configuration |
 | 14 | Copy | Resolved |
 | 15 | Browse | Resolved |
 | 16 | Checkout | Partial — owner data |
@@ -32,12 +36,12 @@ See [the row-by-row tracker](2026-10-06-workbook-issues.json) for reproduction n
 | 18 | Tracker | Resolved |
 | 19 | Listings | Blocked — authentic SDS |
 | 20 | Checkout | Resolved |
-| 21 | Payment | Partial — printable export acceptance |
+| 21 | Payment | Resolved |
 | 22 | Checkout | Resolved |
 | 23 | Order details | Resolved |
 | 24 | Order details | Resolved |
 | 25 | Checkout | Resolved |
-| 26 | Quotes | Partial — seller response acceptance |
+| 26 | Quotes | Resolved |
 | 27 | Verification | Resolved |
 | 28 | Facility data | Partial — owner data |
 | 29 | Orders | Resolved |
@@ -45,7 +49,7 @@ See [the row-by-row tracker](2026-10-06-workbook-issues.json) for reproduction n
 | 31 | Add Listing | Resolved |
 | 32 | Buttons | Resolved |
 
-## Released application
+## Initial released application — prior-wave evidence
 
 - Source commit: `12d7df64227d4a1c1770e9b0b7e821f381a37444`, pushed to `origin/rthomas98/ecoglobe-mvp-backend`.
 - The primary checkout was fast-forwarded to that reviewed revision. Nineteen pre-existing overlapping files were verified byte-for-byte against the release and backed up before reconciliation. QA credentials and the current tracker were preserved. No database reset occurred.
@@ -55,7 +59,7 @@ See [the row-by-row tracker](2026-10-06-workbook-issues.json) for reproduction n
 - Two reviewed migrations added nullable pickup-contact fields and missing declared buyer/seller profiles. Existing profiles were compared before/after and unchanged; 3 buyer and 11 seller profiles were added. Historical orders/payments were not rewritten.
 - This release targets shared **development** services. Stripe test mode remains test mode; this does not activate commercial production payments, signing or shipping.
 
-## Implementation and review
+## Initial implementation and review — prior-wave evidence
 
 Supervised Orca workers split backend, transaction frontend and public/listing frontend ownership. Codex used the requested GPT 6.1 Sol configuration; Claude owned frontend changes. Scoped patches received reciprocal review and coordinator review before integration. A follow-up tracker defect discovered during live acceptance was reviewed, tested and released as `12d7df6`.
 
@@ -63,7 +67,7 @@ The changes remove demo purchase/order panels, preserve real records, add Feedst
 
 Confirmed QA listings 2 and 21 were reversibly paused and disappear from public browsing; their records and transaction history remain. Other listings were not hidden using name heuristics.
 
-## Objective checks
+## Initial objective checks — prior-wave evidence
 
 - Backend: **67/67** tests, types and build passed on the integrated release.
 - Web: **95/95** tests after the tracker follow-up; application/test types, touched tracker lint and web build passed. The first integration had 90 tests before the five mixed-stage regression cases were added.
@@ -74,7 +78,7 @@ Confirmed QA listings 2 and 21 were reversibly paused and disappear from public 
 - A positive local SQL runtime check could not run because the Docker daemon was unavailable. Database-unconfigured local rendering was not treated as authenticated acceptance. Actual deployed Azure SQL/API/browser checks supplied the database-backed evidence.
 - Initial sandbox attempts to write caches/build output in the integration worktree failed with EPERM. Only those blocked checks were repeated with authorized filesystem access and passed.
 
-## Live FE/BE acceptance
+## Initial live FE/BE acceptance — prior-wave evidence
 
 The Codex In-app Browser was used for before/after acceptance, normal account sign-in, field entry and saved-record checks. No browser session/token injection or shell browser automation was used.
 
@@ -90,15 +94,14 @@ The Codex In-app Browser was used for before/after acceptance, normal account si
 
 **Responsive scope:** Quote form and order details were checked at 390×844 and 768×1024; admin payment exceptions at 390×844. These tested pages have no horizontal document overflow, and the actual phone layouts were inspected. Temporary viewport overrides were reset. This is not acceptance of every route at every breakpoint.
 
-## Remaining inputs and acceptance
+## Current remaining inputs and acceptance
 
-1. Provide valid seller SDS files for Tar, Black Gypsum and Premium Rice Hull Ash. The purchase guard correctly blocks them today. Seller publishing with authentic photo/SDS remains an additional acceptance story.
-2. Supply the correct country, postal/address and paired coordinates for the Pending pickup site and Riverside facility. Invalid public country copy is fixed, but hiding bad data does not repair its stored values. Supply a real Phase 1 image and missing commercial overview content.
-3. Confirm whether White Label and Dark Viscous Liquid Tonnels are intentional names. Their owner records were preserved.
-4. Clarify/migrate legacy units with the listing owner. Recorded `tons` is not assumed to be metric `tonne`, and `units` is not silently rewritten as `unit`. A full buyer request → available seller response → quote acceptance test requires a matching valid published listing owned by an available seller. Negative RFQ validation and unpaid listing-checkout cancellation passed; they do not substitute for quote acceptance.
-5. The exact workbook buyer's two received legacy samples were not tested with that account. Available buyer empty state and seller legacy sample history were checked; PVC online prepaid sample shipping remains unconfigured and is shown truthfully.
-6. **Printable receipt file delivery remains unverified.** Its real captured-payment dialog/content and generated HTML tests pass, but the in-app browser download event timed out and no completed file was observed. The UI notice alone was not counted as download success. Further OS inspection was refused by browser safety; it was not bypassed. Kate should verify that the printable receipt actually saves and opens before closing issue 21.
-7. Positive staff approval/KYC decisions were not replayed against shared business records without actual evidence. Read/disabled-control checks are not claimed as full approval acceptance.
+1. Provide authentic seller SDS files for Tar, Black Gypsum and Premium Rice Hull Ash (original issue 19). Seller publishing with actual photo/SDS remains an additional acceptance story; quoted checkout of listing 14 also correctly stops without its SDS.
+2. Provide approved full addresses, valid country/postal codes and paired coordinates for PVC's Pending site22 and Rice Hull Ash's Riverside site25 (issues4/5/16/28). Missing commercial overview prose is disclosed; the empty-overview UI now uses saved facts.
+3. Configure and validate PVC online prepaid sample requesting/shipping (issue13). Original received samples are now visible in staff UI and retain actual statuses, but this does not prove prepaid shipping works.
+4. Positive staff approval/KYC decisions were not replayed against shared business records without actual evidence. Prior read/disabled-control checks are not claimed as full approval acceptance.
+
+Actual receipt-file delivery and seller response/buyer acceptance are now verified in the [follow-up evidence](2026-10-06-partials/). The original statements above about missing acceptance describe the initial release and are superseded by the follow-up report.
 
 No original workbook, authentic commercial documents, existing order history or private credentials were modified to manufacture a pass.
 

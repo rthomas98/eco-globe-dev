@@ -1,0 +1,108 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Dashboard":
+      - /url: /admin/dashboard
+      - generic: Dashboard
+    - link "Sales":
+      - /url: /admin/sales
+      - generic: Sales
+    - link "Listings":
+      - /url: /admin/listings
+      - generic: Listings
+    - link "Sample shipping":
+      - /url: /admin/samples
+      - generic: Sample shipping
+    - link "Lab testing":
+      - /url: /admin/lab-testing
+      - generic: Lab testing
+    - link "Pilot desk":
+      - /url: /admin/pilots
+      - generic: Pilot desk
+    - button "Marketplace":
+      - generic: Marketplace
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Reports" [expanded]:
+      - generic: Finance & Reports
+    - button "Accounting" [expanded]:
+      - generic: Accounting
+    - link "Transactions":
+      - /url: /admin/accounting/transactions
+    - link "Payments":
+      - /url: /admin/accounting/payments
+    - link "Payment exceptions":
+      - /url: /admin/payment-exceptions
+    - link "Refunds":
+      - /url: /admin/refunds
+    - link "Escrow":
+      - /url: /admin/accounting/escrow
+    - button "Reports":
+      - generic: Reports
+    - button "Governance":
+      - generic: Governance
+    - button "System":
+      - generic: System
+  - button "Notifications 70 unread notifications":
+    - text: Notifications
+    - generic "70 unread notifications": 9+
+  - button "E EcoGlobe":
+    - generic: E
+    - generic: EcoGlobe
+- banner:
+  - navigation "Breadcrumb":
+    - generic: Admin
+    - generic: Accounting
+    - generic: PAYMENTS
+  - button "Search admin ⌘ K":
+    - generic: Search admin
+    - generic: ⌘ K
+  - link "Notifications":
+    - /url: /admin/notifications
+  - link "Admin settings":
+    - /url: /admin/settings/system/users
+  - link "Help and account":
+    - /url: /admin/account
+- main:
+  - main:
+    - link "← Back to payments":
+      - /url: /admin/accounting/payments
+    - heading "EcoGlobe · Payment receipt TX-9" [level=1]
+    - term: Payment
+    - definition: TX-9
+    - term: Order
+    - definition: EG-28
+    - term: Material
+    - definition: PVC Scrap
+    - term: Payer
+    - definition: QA DocuSign Buyer 2026-09-28
+    - term: Seller
+    - definition: MKDK Shop
+    - term: Amount
+    - definition: $30.00
+    - term: Status
+    - definition: captured
+    - term: Payment type
+    - definition: buyer funding
+    - term: Recorded
+    - definition: Oct 6, 2026
+    - term: Provider reference
+    - definition: pi_3UNa5GCEJFfU7hsb1Wk86fF8
+    - term: Escrow
+    - definition: None recorded
+    - paragraph: This reflects the recorded EcoGlobe payment. A captured payment is not a seller payout; payouts and any refunds are handled by EcoGlobe staff. Simulated transactions do not represent money moved.
+    - link "Download PDF receipt":
+      - /url: /api/backend/api/payments/9/receipt
+      - text: Download PDF receipt
+    - button "Print receipt":
+      - text: Print receipt
+    - button "Save HTML copy":
+      - text: Save HTML copy
+    - iframe

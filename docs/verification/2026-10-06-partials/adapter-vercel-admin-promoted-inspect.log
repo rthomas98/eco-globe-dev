@@ -1,0 +1,30 @@
+Fetching deployment "dpl_BKfrJh2GhxnbwAUSW5C9B9DFMkBM" in rob-thomas-projects
+> Fetched deployment "eco-globe-dev-admin-gl3sbg5xu-rob-thomas-projects.vercel.app" in rob-thomas-projects [3s]
+
+  General
+
+    id		dpl_BKfrJh2GhxnbwAUSW5C9B9DFMkBM
+    name	eco-globe-dev-admin
+    target	production
+    status	● Ready
+    url		https://eco-globe-dev-admin-gl3sbg5xu-rob-thomas-projects.vercel.app
+    created	Tue Oct 06 2026 11:27:06 GMT-0500 (Central Daylight Time) [2m ago]
+
+
+  Aliases
+
+    ╶ https://eco-globe-dev-admin.vercel.app
+    ╶ https://eco-globe-dev-admin-rob-thomas-projects.vercel.app
+    
+
+  Builds
+
+    ┌ .        [0ms]
+    ├── λ index (1.15MB) [iad1]
+    ├── λ _not-found (1.15MB) [iad1]
+    ├── λ _not-found.rsc (1.15MB) [iad1]
+    ├── λ forgot-password (1.15MB) [iad1]
+    ├── λ forgot-password.rsc (1.15MB) [iad1]
+    └── 9 output items hidden
+    
+

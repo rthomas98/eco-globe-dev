@@ -43,13 +43,21 @@
       "owner": "public frontend",
       "backendOwner": "backend agent",
       "before": "Reproduced: public catalogue shows test-named listings and Tonnels typo.",
-      "implementation": "Reversibly paused confirmed QA listings 2 and 21; preserved orders.",
-      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
-      "liveRetest": "Public catalogue has 20 listings and excludes both QA records. Owner must confirm White Label and Tonnels names.",
-      "finalStatus": "Partial — owner data",
+      "implementation": "Confirmed seed-demo-data.ts provenance for White Label18 and Dark Viscous Liquid Tonnels20; reversibly paused those two as well as existing QA2/21. No title heuristics, deletion or history rewrite.",
+      "localRetest": "Follow-up55e378c: backend73/73 and web109/109 tests, types/builds and all touched/new lint passed; adapter422949a web/admin types, touched lint and builds passed. See follow-up report for diagnostic limits.",
+      "liveRetest": "Anonymous live catalogue contains18 listings, excludes2/18/20/21; PVC real photo remains visible.",
+      "finalStatus": "Resolved",
       "evidence": [
         "02-after-smoke-paused.txt",
-        "02-04-07-after-public-browse.txt"
+        "02-04-07-after-public-browse.txt",
+        "2026-10-06-partials/02-07-after-anonymous-catalogue.txt",
+        "2026-10-06-partials/02-07-after-anonymous-catalogue.png",
+        "2026-10-06-partials/partial-fixture-pause.json"
+      ],
+      "followupEvidence": [
+        "2026-10-06-partials/02-07-after-anonymous-catalogue.txt",
+        "2026-10-06-partials/02-07-after-anonymous-catalogue.png",
+        "2026-10-06-partials/partial-fixture-pause.json"
       ]
     },
     {
@@ -89,13 +97,17 @@
       "owner": "public frontend",
       "backendOwner": "backend agent",
       "before": "Reproduced: anonymous map lackspins; exactcoords intentionally private. Buyer has18pins. Genuine listing22 coords also missing.",
-      "implementation": "Explained public map privacy and missing saved member coordinates.",
-      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
-      "liveRetest": "Signed-in map works for located listings. Missing actual facility coordinates still prevent pins for affected listings.",
+      "implementation": "Existing privacy explanation, real signed-in pins and validated facility editor retained.",
+      "localRetest": "Follow-up55e378c: backend73/73 and web109/109 tests, types/builds and all touched/new lint passed; adapter422949a web/admin types, touched lint and builds passed. See follow-up report for diagnostic limits.",
+      "liveRetest": "Missing coordinates for genuine facilities22/25 still prevent their listing pins. Awaiting approved owner facility names, full addresses and paired coordinates.",
       "finalStatus": "Partial — owner data",
       "evidence": [
         "02-04-07-after-public-browse.txt",
-        "15-after-radius.png"
+        "15-after-radius.png",
+        "2026-10-06-partials/06-after-public-overview.txt"
+      ],
+      "followupEvidence": [
+        "2026-10-06-partials/06-after-public-overview.txt"
       ]
     },
     {
@@ -112,13 +124,17 @@
       "owner": "public frontend",
       "backendOwner": "backend agent",
       "before": "Reproduced: detail22 shows LA,70. Read-only SQL confirms stored CountryCode=70; it is invalid country data, not a truncated ZIP.",
-      "implementation": "Invalid country codes are omitted; facility editing validates country and ZIP.",
-      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
-      "liveRetest": "LA,70 no longer appears publicly. Stored Riverside country/postal/coordinates need verified owner values.",
+      "implementation": "Invalid country display removed and editor validates ISO country/paired coordinates.",
+      "localRetest": "Follow-up55e378c: backend73/73 and web109/109 tests, types/builds and all touched/new lint passed; adapter422949a web/admin types, touched lint and builds passed. See follow-up report for diagnostic limits.",
+      "liveRetest": "Public Rice Hull Ash now shows LA without country70. Stored Riverside facility25 still has country70, absent ZIP/coordinates. Correct values requested, not guessed.",
       "finalStatus": "Partial — owner data",
       "evidence": [
         "03-05-06-10-after-public-detail.txt",
-        "28-after-country-validation.txt"
+        "28-after-country-validation.txt",
+        "2026-10-06-partials/06-after-public-overview.txt"
+      ],
+      "followupEvidence": [
+        "2026-10-06-partials/06-after-public-overview.txt"
       ]
     },
     {
@@ -135,12 +151,18 @@
       "owner": "public frontend",
       "backendOwner": "backend agent",
       "before": "Reproduced: seller identity privatebut ?placeholder; description honestly absent.",
-      "implementation": "Replaced anonymous question-mark avatar with privacy explanation; honest empty overview.",
-      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
-      "liveRetest": "Privacy placeholder fixed. Commercial description still needs seller content.",
-      "finalStatus": "Partial — owner data",
+      "implementation": "Replaced question-mark identity with member privacy explanation and rendered At a glance overview from saved listing facts when description is absent.",
+      "localRetest": "Follow-up55e378c: backend73/73 and web109/109 tests, types/builds and all touched/new lint passed; adapter422949a web/admin types, touched lint and builds passed. See follow-up report for diagnostic limits.",
+      "liveRetest": "Anonymous Rice Hull Ash detail shows privacy copy and actual category800tons/LA overview facts. The seller has not supplied commercial description prose; none was authored or invented.",
+      "finalStatus": "Resolved",
       "evidence": [
-        "03-05-06-10-after-public-detail.txt"
+        "03-05-06-10-after-public-detail.txt",
+        "2026-10-06-partials/06-after-public-overview.txt",
+        "2026-10-06-partials/06-after-public-overview.png"
+      ],
+      "followupEvidence": [
+        "2026-10-06-partials/06-after-public-overview.txt",
+        "2026-10-06-partials/06-after-public-overview.png"
       ]
     },
     {
@@ -157,13 +179,19 @@
       "owner": "public frontend",
       "backendOwner": "backend agent",
       "before": "Reproduced: PVC public No material photo available; realphoto exists privately.",
-      "implementation": "Exposed validated actual listing image URL independently of private documents.",
-      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
-      "liveRetest": "PVC actual photo renders. Phase 1 has no authentic stored image bytes; reserved example.com URL is not a usable photo.",
-      "finalStatus": "Partial — owner data",
+      "implementation": "Real validated PVC image served publicly. Confirmed Phase1 demo fixture remains reversibly paused.",
+      "localRetest": "Follow-up55e378c: backend73/73 and web109/109 tests, types/builds and all touched/new lint passed; adapter422949a web/admin types, touched lint and builds passed. See follow-up report for diagnostic limits.",
+      "liveRetest": "Anonymous catalogue displays actual PVC photo598x498; Phase1 is absent from discovery. No replacement/fabricated material image. Historical QA order may still display a truthful no-photo state.",
+      "finalStatus": "Resolved",
       "evidence": [
         "07-after-pvc-photo.png",
-        "02-04-07-after-public-browse.txt"
+        "02-04-07-after-public-browse.txt",
+        "2026-10-06-partials/02-07-after-anonymous-catalogue.txt",
+        "2026-10-06-partials/02-07-after-anonymous-catalogue.png"
+      ],
+      "followupEvidence": [
+        "2026-10-06-partials/02-07-after-anonymous-catalogue.txt",
+        "2026-10-06-partials/02-07-after-anonymous-catalogue.png"
       ]
     },
     {
@@ -269,14 +297,26 @@
       "owner": "transaction frontend",
       "backendOwner": "backend agent",
       "before": "Reproduced partial: demo panel above realorders, staffviews EG22/23; exactBiancaEG12 requiresexistinglogin.",
-      "implementation": "Removed demo order panel; order and tracker retain distinct saved order/shipment states.",
-      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
-      "liveRetest": "Fresh QA EG28 completed/SHP16 delivered agree across buyer, tracker, admin and SQL. Historic EG12 stays in_progress; no payment/history fabricated.",
-      "finalStatus": "Partial — exact-record acceptance",
+      "implementation": "Buyer order cards display distinct saved Shipment status beside actual order status; no demo panels. Identity-tagged state prevents prior-company records appearing during switch.",
+      "localRetest": "Follow-up55e378c: backend73/73 and web109/109 tests, types/builds and all touched/new lint passed; adapter422949a web/admin types, touched lint and builds passed. See follow-up report for diagnostic limits.",
+      "liveRetest": "Original EG12 staff detail confirms in_progress order, delivered shipment7 and0USD/no payments. Available buyer Joanna EG1 card shows Awaiting payment plus Shipment: in transit; tracker agrees. Bianca login was not used. Fresh funded QA28 previously remains completed/delivered.",
+      "finalStatus": "Resolved",
       "evidence": [
         "24-after-pickup-refresh.txt",
         "12-18-29-after-buyer-tracker.txt",
-        "admin-after-order-statuses.txt"
+        "admin-after-order-statuses.txt",
+        "2026-10-06-partials/12-after-staff-original-order.txt",
+        "2026-10-06-partials/12-after-buyer-order-cards.txt",
+        "2026-10-06-partials/12-after-buyer-order-cards.png",
+        "2026-10-06-partials/12-after-buyer-tracker.txt",
+        "2026-10-06-partials/partials-live-api.json"
+      ],
+      "followupEvidence": [
+        "2026-10-06-partials/12-after-staff-original-order.txt",
+        "2026-10-06-partials/12-after-buyer-order-cards.txt",
+        "2026-10-06-partials/12-after-buyer-order-cards.png",
+        "2026-10-06-partials/12-after-buyer-tracker.txt",
+        "2026-10-06-partials/partials-live-api.json"
       ]
     },
     {
@@ -293,14 +333,28 @@
       "owner": "transaction frontend",
       "backendOwner": "backend agent",
       "before": "Reproduced partial: samplepage shows no shipments and shippingunconfigured on demo buyer; exactBianca requireslogin.",
-      "implementation": "Merge legacy sample requests with prepaid sample shipments; no placeholder samples.",
-      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
-      "liveRetest": "Available buyer has no saved sample requests and correctly shows empty state; seller Tar legacy request appears consistently. Exact workbook buyer received-sample comparison and PVC online sample request remain unverified/unconfigured.",
-      "finalStatus": "Partial — acceptance/data",
+      "implementation": "Shared legacy sample rows preserve received/ordered status and real SR references, deduplicate by saved ID, and appear in staff sample desk alongside prepaid shipments.",
+      "localRetest": "Follow-up55e378c: backend73/73 and web109/109 tests, types/builds and all touched/new lint passed; adapter422949a web/admin types, touched lint and builds passed. See follow-up report for diagnostic limits.",
+      "liveRetest": "Actual SR1/2 appear Received in live staff UI and API; shared row tests cover both received records and unknown-status preservation. Available buyer has no samples and a truthful empty state. Full workbook scope includes PVC sample-request sourceNotes: online prepaid sample shipping remains unconfigured. No label purchase or shipping simulation activated.",
+      "finalStatus": "Partial — shipping configuration",
       "evidence": [
         "13-after-available-buyer-samples.txt",
         "30-after-samples.txt",
-        "30-after-sales.txt"
+        "30-after-sales.txt",
+        "2026-10-06-partials/13-after-staff-received.txt",
+        "2026-10-06-partials/13-after-staff-received.png",
+        "2026-10-06-partials/13-after-available-buyer.txt",
+        "2026-10-06-partials/partials-live-api.json",
+        "2026-10-06-partials/13-after-standalone-admin-received.txt",
+        "2026-10-06-partials/13-final-admin-received.txt"
+      ],
+      "followupEvidence": [
+        "2026-10-06-partials/13-after-staff-received.txt",
+        "2026-10-06-partials/13-after-staff-received.png",
+        "2026-10-06-partials/13-after-available-buyer.txt",
+        "2026-10-06-partials/partials-live-api.json",
+        "2026-10-06-partials/13-after-standalone-admin-received.txt",
+        "2026-10-06-partials/13-final-admin-received.txt"
       ]
     },
     {
@@ -364,12 +418,16 @@
       "owner": "transaction frontend",
       "backendOwner": "backend agent",
       "before": "See saved browser baseline and QA read-only SQL/API evidence; exact workbook users were unavailable and user authorized available test users.",
-      "implementation": "Checkout back-link and truthful pickup/material totals; saved buyer identity only.",
-      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
-      "liveRetest": "PVC checkout shows Back, actual $30 for 10 units, pickup details and no invented zero delivery quote. Pending facility address remains a data blocker in issue28.",
+      "implementation": "Existing checkout back-link, real totals and recorded pickup facility retained.",
+      "localRetest": "Follow-up55e378c: backend73/73 and web109/109 tests, types/builds and all touched/new lint passed; adapter422949a web/admin types, touched lint and builds passed. See follow-up report for diagnostic limits.",
+      "liveRetest": "UI defects corrected earlier, but PVC facility22 still stores123SesameStreet/cityPending with no state/ZIP/coordinates. Owner-approved actual site values are still required.",
       "finalStatus": "Partial — owner data",
       "evidence": [
-        "16-17-22-23-25-after-checkout.txt"
+        "16-17-22-23-25-after-checkout.txt",
+        "2026-10-06-partials/06-after-public-overview.txt"
+      ],
+      "followupEvidence": [
+        "2026-10-06-partials/06-after-public-overview.txt"
       ]
     },
     {
@@ -480,14 +538,56 @@
       "owner": "transaction frontend",
       "backendOwner": "backend agent",
       "before": "QA EG26 decline truthfully remains Awaiting payment with no payment record. Historic EG19/20 have no payment rows; EG20 is completed despite no payment, confirmed by SQL.",
-      "implementation": "Display actual provider transaction reference, captured record and printable receipt content.",
-      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
-      "liveRetest": "Stripe sandbox captured TX9 for EG28; dialog/reference render. Actual printable-file download could not be observed (IAB download event timed out); export delivery remains unverified. Historic unpaid EG19/20 were not rewritten.",
-      "finalStatus": "Partial — printable export acceptance",
+      "implementation": "Authenticated payment receipt PDF endpoint uses existing order/company access checks and actual saved payment/order facts. Shared web receipt routes and standalone-admin slug adapter; download link uses server attachment filename. Loading state synchronously guards company/payment changes.",
+      "localRetest": "Follow-up55e378c: backend73/73 and web109/109 tests, types/builds and all touched/new lint passed; adapter422949a web/admin types, touched lint and builds passed. See follow-up report for diagnostic limits.",
+      "liveRetest": "Buyer42 clicked actual PDF link in live browser; ecoglobe-payment-9.pdf downloaded1706bytes, parsed1page and rendered legibly with TX9/EG28/30USD/captured/provider reference. Same user switched to seller43 and received403/no receipt actions. API anonymous401, missing404, POST405, unrelated company403, staff200. Existing unpaid history not rewritten; capture is not payout. Separate staff app route initially404, then actual PDF download passed. White-on-white action found at390px, missing Tailwind sources fixed and admin build/deployment retest confirms black background/white text and390px document width with no overflow.",
+      "finalStatus": "Resolved",
       "evidence": [
         "21-after-receipt-dialog.txt",
         "21-after-printable-receipt-notice.txt",
-        "21-23-24-after-funded-order.txt"
+        "21-23-24-after-funded-order.txt",
+        "2026-10-06-partials/21-after-live-receipt.txt",
+        "2026-10-06-partials/21-after-live-receipt.png",
+        "2026-10-06-partials/21-downloaded-payment-9.pdf",
+        "2026-10-06-partials/21-downloaded-pdf-text.txt",
+        "2026-10-06-partials/21-downloaded-pdf-render.png",
+        "2026-10-06-partials/21-after-wrong-company.txt",
+        "2026-10-06-partials/21-before-standalone-admin-receipt.txt",
+        "2026-10-06-partials/partials-live-api.json",
+        "2026-10-06-partials/21-after-standalone-admin-receipt.txt",
+        "2026-10-06-partials/21-after-standalone-admin-receipt.png",
+        "2026-10-06-partials/21-downloaded-admin-payment-9.pdf",
+        "2026-10-06-partials/21-before-admin-style-phone.png",
+        "2026-10-06-partials/21-before-admin-style-phone-actions.png",
+        "2026-10-06-partials/21-final-web-receipt.txt",
+        "2026-10-06-partials/21-final-web-receipt.png",
+        "2026-10-06-partials/21-final-admin-phone.json",
+        "2026-10-06-partials/21-final-admin-phone.png",
+        "2026-10-06-partials/21-final-admin-phone-actions.png",
+        "2026-10-06-partials/21-final-admin-receipt.txt",
+        "2026-10-06-partials/21-final-admin-receipt.png"
+      ],
+      "followupEvidence": [
+        "2026-10-06-partials/21-after-live-receipt.txt",
+        "2026-10-06-partials/21-after-live-receipt.png",
+        "2026-10-06-partials/21-downloaded-payment-9.pdf",
+        "2026-10-06-partials/21-downloaded-pdf-text.txt",
+        "2026-10-06-partials/21-downloaded-pdf-render.png",
+        "2026-10-06-partials/21-after-wrong-company.txt",
+        "2026-10-06-partials/21-before-standalone-admin-receipt.txt",
+        "2026-10-06-partials/partials-live-api.json",
+        "2026-10-06-partials/21-after-standalone-admin-receipt.txt",
+        "2026-10-06-partials/21-after-standalone-admin-receipt.png",
+        "2026-10-06-partials/21-downloaded-admin-payment-9.pdf",
+        "2026-10-06-partials/21-before-admin-style-phone.png",
+        "2026-10-06-partials/21-before-admin-style-phone-actions.png",
+        "2026-10-06-partials/21-final-web-receipt.txt",
+        "2026-10-06-partials/21-final-web-receipt.png",
+        "2026-10-06-partials/21-final-admin-phone.json",
+        "2026-10-06-partials/21-final-admin-phone.png",
+        "2026-10-06-partials/21-final-admin-phone-actions.png",
+        "2026-10-06-partials/21-final-admin-receipt.txt",
+        "2026-10-06-partials/21-final-admin-receipt.png"
       ]
     },
     {
@@ -597,13 +697,31 @@
       "owner": "public frontend",
       "backendOwner": "backend agent",
       "before": "Reproduced /seller/rfq 404 with available demo seller. Existing inline Respond opens a quote form; row itself is not a link. Evidence browser/26-before-rfq404.png and 26-before-response.txt.",
-      "implementation": "Added seller RFQ route and matching published-listing response UI; buyer validation improved.",
-      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
-      "liveRetest": "Seller Buyer requests loads instead of404. Form errors verified. End-to-end quote acceptance is a separate remaining story requiring a valid matching seller listing.",
-      "finalStatus": "Partial — seller response acceptance",
+      "implementation": "Seller RFQ route/respond form now match unit/units and tonne/tonnes/t without treating recorded tons as metric tonnes; buyer can select real Used products category. MOQ/stock/currency/ownership/expiry guards retained.",
+      "localRetest": "Follow-up55e378c: backend73/73 and web109/109 tests, types/builds and all touched/new lint passed; adapter422949a web/admin types, touched lint and builds passed. See follow-up report for diagnostic limits.",
+      "liveRetest": "Live QA buyer42 request2 quantity50unit; seller3 responded with owned listing14 quantity50units at15000USD/unit. Quantity49 rejectedMOQ. Buyer accepted quote4, persisted after reload. Checkout correctly refused missing authentic SDS; no order/payment created. QA request2 was closed through normal API after acceptance, quote history retained.",
+      "finalStatus": "Resolved",
       "evidence": [
         "26-after-seller-rfq.txt",
-        "rfq-after-invalid-country.txt"
+        "rfq-after-invalid-country.txt",
+        "2026-10-06-partials/26-after-buyer-request.txt",
+        "2026-10-06-partials/26-after-moq-rejection.txt",
+        "2026-10-06-partials/26-after-seller-response.txt",
+        "2026-10-06-partials/26-after-seller-response.png",
+        "2026-10-06-partials/26-after-buyer-accepted.txt",
+        "2026-10-06-partials/26-after-buyer-accepted.png",
+        "2026-10-06-partials/26-after-sds-guard.txt",
+        "2026-10-06-partials/26-live-qa-rfq-result.json"
+      ],
+      "followupEvidence": [
+        "2026-10-06-partials/26-after-buyer-request.txt",
+        "2026-10-06-partials/26-after-moq-rejection.txt",
+        "2026-10-06-partials/26-after-seller-response.txt",
+        "2026-10-06-partials/26-after-seller-response.png",
+        "2026-10-06-partials/26-after-buyer-accepted.txt",
+        "2026-10-06-partials/26-after-buyer-accepted.png",
+        "2026-10-06-partials/26-after-sds-guard.txt",
+        "2026-10-06-partials/26-live-qa-rfq-result.json"
       ]
     },
     {
@@ -643,14 +761,18 @@
       "owner": "public frontend",
       "backendOwner": "backend agent",
       "before": "See saved browser baseline and QA read-only SQL/API evidence; exact workbook users were unavailable and user authorized available test users.",
-      "implementation": "Full facility editor validates country/postal and paired coordinates; explicit missing-coordinate preview.",
-      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
-      "liveRetest": "Invalid country and lone coordinate rejected. Existing owned QA facility edit persisted and was restored. Pending/Riverside need correct supplied values.",
+      "implementation": "Existing validated facility editor retained; no invented country/postal/geocoding.",
+      "localRetest": "Follow-up55e378c: backend73/73 and web109/109 tests, types/builds and all touched/new lint passed; adapter422949a web/admin types, touched lint and builds passed. See follow-up report for diagnostic limits.",
+      "liveRetest": "Facilities22PVC and25Rice Hull Ash still need approved country/state/ZIP, actual address and paired coordinates. SELECT-only audit found no recoverable prior location values. Owner input requested and pending.",
       "finalStatus": "Partial — owner data",
       "evidence": [
         "28-after-country-validation.txt",
         "28-after-coordinates-validation.txt",
-        "28-after-facility-roundtrip.txt"
+        "28-after-facility-roundtrip.txt",
+        "2026-10-06-partials/06-after-public-overview.txt"
+      ],
+      "followupEvidence": [
+        "2026-10-06-partials/06-after-public-overview.txt"
       ]
     },
     {
@@ -778,7 +900,7 @@
       "row": 7,
       "item": "Buyer: request quote, accept quote, cancel unpaid order (inventory restored)",
       "before": "Additional acceptance story, not a confirmed workbook defect.",
-      "liveRetest": "Negative RFQ validation passes; unpaid listing-checkout cancellation restored stock. Positive quote response/acceptance needs a matching valid published listing owned by an available seller; legacy tons/units do not automatically equal tonne/unit.",
+      "liveRetest": "Live buyer request2, seller response/quote4 and buyer acceptance persisted; MOQ49 rejected against50, unit/units aliases preserved. Missing authentic SDS correctly blocks this quoted checkout. Prior unpaid listing-checkout cancellation restored inventory; no quoted order/payment was manufactured.",
       "status": "Partial"
     },
     {
@@ -810,7 +932,7 @@
       "row": 11,
       "item": "Retest everything after dev team deploys today's changes",
       "before": "Additional acceptance story, not a confirmed workbook defect.",
-      "liveRetest": "32 rows individually accounted for after two development releases. See partial/data/export cases; no blanket100% claim.",
+      "liveRetest": "32 rows accounted for after development releases; current counts25Resolved/1Alreadycorrected/5Partial/1Blocked. Six of the11 original partials closed; no blanket100percent claim.",
       "status": "Partial"
     }
   ],
@@ -828,13 +950,21 @@
     "pickupRequestedAt": null
   },
   "release": {
-    "sourceCommit": "12d7df64227d4a1c1770e9b0b7e821f381a37444",
+    "sourceCommit": "a0453cbbe38670572c1c80803f0b0bbf3f55eb04",
+    "backendSourceCommit": "55e378c489e1022ff4a712b3aa1f4d3922f6657d",
     "branch": "rthomas98/ecoglobe-mvp-backend",
-    "webDeployment": "dpl_7GWUquVXYQKGVdk1TCTHaUpa43cv",
+    "webDeployment": "dpl_9X8xSx9NZF59sGSYjcKA1BP3cKHH",
     "webUrl": "https://eco-globe-dev-web.vercel.app",
-    "backendRevision": "ecoglobe-backend-dev--0000033",
-    "backendImage": "acrecoglobe7c180adf.azurecr.io/ecoglobe-backend:workbook-2eca48d",
-    "scope": "shared development; provider test mode"
+    "adminDeployment": "dpl_AefEbfgSSpCcN3xQf69QKquVX5oH",
+    "adminUrl": "https://eco-globe-dev-admin.vercel.app",
+    "frontendStatus": "Ready; aliases verified",
+    "backendRevision": "ecoglobe-backend-dev--0000034",
+    "backendImage": "acrecoglobe7c180adf.azurecr.io/ecoglobe-backend@sha256:3e0c470e0edc1f1a27e2e692beb41c7a828fcfdfcb3f94fbff5624fbcdb1a0ce",
+    "backendTraffic": "100% latest; SQL connected",
+    "scope": "shared development; provider modes unchanged",
+    "webSourceCommit": "422949a11e7a303d1a0d5692d637f672a4d36ac4",
+    "adminSourceCommit": "a0453cbbe38670572c1c80803f0b0bbf3f55eb04",
+    "supersededAdminDeployment": "dpl_BKfrJh2GhxnbwAUSW5C9B9DFMkBM"
   },
   "qaAcceptance": {
     "declinedOrder": 27,
@@ -845,11 +975,11 @@
     "completedOrderPersisted": true,
     "sellerPayoutForOrder28": false,
     "testOnlyNoPhysicalPickup": true,
-    "receiptFileDownload": "unverified"
+    "receiptFileDownload": "verified actual live-browser PDF download, parsed/rendered"
   },
   "summaryCounts": {
-    "Resolved": 19,
-    "Partial": 11,
+    "Resolved": 25,
+    "Partial": 5,
     "Already corrected": 1,
     "Blocked": 1
   },
@@ -857,5 +987,315 @@
   "independentReportAudit": {
     "completed": true,
     "changes": "Downgraded issues12,16,26 to partial; corrected workbook hash and removed encoded ephemeral checkout/session URLs."
+  },
+  "previousRelease": {
+    "sourceCommit": "12d7df64227d4a1c1770e9b0b7e821f381a37444",
+    "branch": "rthomas98/ecoglobe-mvp-backend",
+    "webDeployment": "dpl_7GWUquVXYQKGVdk1TCTHaUpa43cv",
+    "webUrl": "https://eco-globe-dev-web.vercel.app",
+    "backendRevision": "ecoglobe-backend-dev--0000033",
+    "backendImage": "acrecoglobe7c180adf.azurecr.io/ecoglobe-backend:workbook-2eca48d",
+    "scope": "shared development; provider test mode"
+  },
+  "partialFollowupBaseline": {
+    "2": {
+      "issue": 2,
+      "sheet": "Issues",
+      "row": 6,
+      "severity": "High",
+      "area": "Listings",
+      "description": "Test data visible to the public: Guard Test Bagasse, Phase 1 Smoke Feedstock, White Label, Dark Viscous Liquid Tonnels (typo).",
+      "url": "https://eco-globe-dev-web.vercel.app/browse",
+      "account": "Public (logged out)",
+      "sourceConfirmed": "Yes",
+      "sourceNotes": "So far the features listing shows correctly total of 8 list shows",
+      "owner": "public frontend",
+      "backendOwner": "backend agent",
+      "before": "Reproduced: public catalogue shows test-named listings and Tonnels typo.",
+      "implementation": "Reversibly paused confirmed QA listings 2 and 21; preserved orders.",
+      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
+      "liveRetest": "Public catalogue has 20 listings and excludes both QA records. Owner must confirm White Label and Tonnels names.",
+      "finalStatus": "Partial — owner data",
+      "evidence": [
+        "02-after-smoke-paused.txt",
+        "02-04-07-after-public-browse.txt"
+      ]
+    },
+    "4": {
+      "issue": 4,
+      "sheet": "Issues",
+      "row": 8,
+      "severity": "Medium",
+      "area": "Map",
+      "description": "No listing pins on browse map; listing says seller facility has no saved coordinates.",
+      "url": "https://eco-globe-dev-web.vercel.app/browse",
+      "account": "Public (logged out)",
+      "sourceConfirmed": "Yes",
+      "sourceNotes": null,
+      "owner": "public frontend",
+      "backendOwner": "backend agent",
+      "before": "Reproduced: anonymous map lackspins; exactcoords intentionally private. Buyer has18pins. Genuine listing22 coords also missing.",
+      "implementation": "Explained public map privacy and missing saved member coordinates.",
+      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
+      "liveRetest": "Signed-in map works for located listings. Missing actual facility coordinates still prevent pins for affected listings.",
+      "finalStatus": "Partial — owner data",
+      "evidence": [
+        "02-04-07-after-public-browse.txt",
+        "15-after-radius.png"
+      ]
+    },
+    "5": {
+      "issue": 5,
+      "sheet": "Issues",
+      "row": 9,
+      "severity": "Medium",
+      "area": "Listing data",
+      "description": "Location shows 'LA, 70' (ZIP cut off).",
+      "url": "https://eco-globe-dev-web.vercel.app/browse/22",
+      "account": "Public (logged out)",
+      "sourceConfirmed": "Yes",
+      "sourceNotes": null,
+      "owner": "public frontend",
+      "backendOwner": "backend agent",
+      "before": "Reproduced: detail22 shows LA,70. Read-only SQL confirms stored CountryCode=70; it is invalid country data, not a truncated ZIP.",
+      "implementation": "Invalid country codes are omitted; facility editing validates country and ZIP.",
+      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
+      "liveRetest": "LA,70 no longer appears publicly. Stored Riverside country/postal/coordinates need verified owner values.",
+      "finalStatus": "Partial — owner data",
+      "evidence": [
+        "03-05-06-10-after-public-detail.txt",
+        "28-after-country-validation.txt"
+      ]
+    },
+    "6": {
+      "issue": 6,
+      "sheet": "Issues",
+      "row": 10,
+      "severity": "Medium",
+      "area": "Listing detail",
+      "description": "Seller shows as '?' logged out; overview empty.",
+      "url": "https://eco-globe-dev-web.vercel.app/browse/22",
+      "account": "Public (logged out)",
+      "sourceConfirmed": "Yes",
+      "sourceNotes": null,
+      "owner": "public frontend",
+      "backendOwner": "backend agent",
+      "before": "Reproduced: seller identity privatebut ?placeholder; description honestly absent.",
+      "implementation": "Replaced anonymous question-mark avatar with privacy explanation; honest empty overview.",
+      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
+      "liveRetest": "Privacy placeholder fixed. Commercial description still needs seller content.",
+      "finalStatus": "Partial — owner data",
+      "evidence": [
+        "03-05-06-10-after-public-detail.txt"
+      ]
+    },
+    "7": {
+      "issue": 7,
+      "sheet": "Issues",
+      "row": 11,
+      "severity": "Low",
+      "area": "Listings",
+      "description": "PVC Scrap and Phase 1 Smoke Feedstock have no photo when logged out.",
+      "url": "https://eco-globe-dev-web.vercel.app/browse",
+      "account": "Public (logged out)",
+      "sourceConfirmed": "Yes",
+      "sourceNotes": "Confirmed PVC in new listing no photo shown",
+      "owner": "public frontend",
+      "backendOwner": "backend agent",
+      "before": "Reproduced: PVC public No material photo available; realphoto exists privately.",
+      "implementation": "Exposed validated actual listing image URL independently of private documents.",
+      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
+      "liveRetest": "PVC actual photo renders. Phase 1 has no authentic stored image bytes; reserved example.com URL is not a usable photo.",
+      "finalStatus": "Partial — owner data",
+      "evidence": [
+        "07-after-pvc-photo.png",
+        "02-04-07-after-public-browse.txt"
+      ]
+    },
+    "12": {
+      "issue": 12,
+      "sheet": "Issues",
+      "row": 16,
+      "severity": "High",
+      "area": "My Orders",
+      "description": "Order status mismatch: Tracker shows Order-12 Delivered, My Orders shows EG-12 Processing with $0.00. Real orders sit below demo orders.",
+      "url": "https://eco-globe-dev-web.vercel.app/buyer/orders",
+      "account": "Buyer (bianca.buyer)",
+      "sourceConfirmed": "Yes",
+      "sourceNotes": "I think due to the listing is QA Seller list",
+      "owner": "transaction frontend",
+      "backendOwner": "backend agent",
+      "before": "Reproduced partial: demo panel above realorders, staffviews EG22/23; exactBiancaEG12 requiresexistinglogin.",
+      "implementation": "Removed demo order panel; order and tracker retain distinct saved order/shipment states.",
+      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
+      "liveRetest": "Fresh QA EG28 completed/SHP16 delivered agree across buyer, tracker, admin and SQL. Historic EG12 stays in_progress; no payment/history fabricated.",
+      "finalStatus": "Partial — exact-record acceptance",
+      "evidence": [
+        "24-after-pickup-refresh.txt",
+        "12-18-29-after-buyer-tracker.txt",
+        "admin-after-order-statuses.txt"
+      ]
+    },
+    "13": {
+      "issue": 13,
+      "sheet": "Issues",
+      "row": 17,
+      "severity": "Medium",
+      "area": "Samples",
+      "description": "Samples page says 'No sample shipments yet' but My Orders shows 2 received samples.",
+      "url": "https://eco-globe-dev-web.vercel.app/buyer/samples",
+      "account": "Buyer (bianca.buyer)",
+      "sourceConfirmed": "Yes",
+      "sourceNotes": "confirmed and PVC listing no Sample request event the product sample request is \" ON \" ",
+      "owner": "transaction frontend",
+      "backendOwner": "backend agent",
+      "before": "Reproduced partial: samplepage shows no shipments and shippingunconfigured on demo buyer; exactBianca requireslogin.",
+      "implementation": "Merge legacy sample requests with prepaid sample shipments; no placeholder samples.",
+      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
+      "liveRetest": "Available buyer has no saved sample requests and correctly shows empty state; seller Tar legacy request appears consistently. Exact workbook buyer received-sample comparison and PVC online sample request remain unverified/unconfigured.",
+      "finalStatus": "Partial — acceptance/data",
+      "evidence": [
+        "13-after-available-buyer-samples.txt",
+        "30-after-samples.txt",
+        "30-after-sales.txt"
+      ]
+    },
+    "16": {
+      "issue": 16,
+      "sheet": "Issues",
+      "row": 20,
+      "severity": "Medium",
+      "area": "Checkout",
+      "description": "Pickup location shows placeholder 'Facility name'; address 'St Gabriel, Baton rouge, 93264 LA' wrong; Shipping shows '0' not '$0.00'; no way back to listing.",
+      "url": "https://eco-globe-dev-web.vercel.app/buyer/browse/27",
+      "account": "Buyer (bianca.buyer)",
+      "sourceConfirmed": "Yes",
+      "sourceNotes": null,
+      "owner": "transaction frontend",
+      "backendOwner": "backend agent",
+      "before": "See saved browser baseline and QA read-only SQL/API evidence; exact workbook users were unavailable and user authorized available test users.",
+      "implementation": "Checkout back-link and truthful pickup/material totals; saved buyer identity only.",
+      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
+      "liveRetest": "PVC checkout shows Back, actual $30 for 10 units, pickup details and no invented zero delivery quote. Pending facility address remains a data blocker in issue28.",
+      "finalStatus": "Partial — owner data",
+      "evidence": [
+        "16-17-22-23-25-after-checkout.txt"
+      ]
+    },
+    "21": {
+      "issue": 21,
+      "sheet": "Issues",
+      "row": 25,
+      "severity": "High",
+      "area": "Payment",
+      "description": "No payment recorded: Transaction ID 'Not recorded', Escrow 'Not available', no receipt. Order still goes to Processing.",
+      "url": "https://eco-globe-dev-web.vercel.app/buyer/orders",
+      "account": "Buyer (bianca.buyer)",
+      "sourceConfirmed": "Yes",
+      "sourceNotes": null,
+      "owner": "transaction frontend",
+      "backendOwner": "backend agent",
+      "before": "QA EG26 decline truthfully remains Awaiting payment with no payment record. Historic EG19/20 have no payment rows; EG20 is completed despite no payment, confirmed by SQL.",
+      "implementation": "Display actual provider transaction reference, captured record and printable receipt content.",
+      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
+      "liveRetest": "Stripe sandbox captured TX9 for EG28; dialog/reference render. Actual printable-file download could not be observed (IAB download event timed out); export delivery remains unverified. Historic unpaid EG19/20 were not rewritten.",
+      "finalStatus": "Partial — printable export acceptance",
+      "evidence": [
+        "21-after-receipt-dialog.txt",
+        "21-after-printable-receipt-notice.txt",
+        "21-23-24-after-funded-order.txt"
+      ]
+    },
+    "26": {
+      "issue": 26,
+      "sheet": "Issues",
+      "row": 30,
+      "severity": "High",
+      "area": "Quotes",
+      "description": "Seller cannot respond to buyer RFQs: 'Buyers are looking for' row not clickable; /seller/rfq is 404.",
+      "url": "https://eco-globe-dev-web.vercel.app/seller/listings",
+      "account": "Seller (sasha.seller)",
+      "sourceConfirmed": "Yes",
+      "sourceNotes": null,
+      "owner": "public frontend",
+      "backendOwner": "backend agent",
+      "before": "Reproduced /seller/rfq 404 with available demo seller. Existing inline Respond opens a quote form; row itself is not a link. Evidence browser/26-before-rfq404.png and 26-before-response.txt.",
+      "implementation": "Added seller RFQ route and matching published-listing response UI; buyer validation improved.",
+      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
+      "liveRetest": "Seller Buyer requests loads instead of404. Form errors verified. End-to-end quote acceptance is a separate remaining story requiring a valid matching seller listing.",
+      "finalStatus": "Partial — seller response acceptance",
+      "evidence": [
+        "26-after-seller-rfq.txt",
+        "rfq-after-invalid-country.txt"
+      ]
+    },
+    "28": {
+      "issue": 28,
+      "sheet": "Issues",
+      "row": 32,
+      "severity": "Medium",
+      "area": "Facility data",
+      "description": "Pickup site saved as '4801 Riverside Dr, Baton Rouge, LA, 70' with no coordinates (root cause of issues 4 and 5).",
+      "url": "https://eco-globe-dev-web.vercel.app/seller/listings/add",
+      "account": "Seller (sasha.seller)",
+      "sourceConfirmed": "Yes",
+      "sourceNotes": null,
+      "owner": "public frontend",
+      "backendOwner": "backend agent",
+      "before": "See saved browser baseline and QA read-only SQL/API evidence; exact workbook users were unavailable and user authorized available test users.",
+      "implementation": "Full facility editor validates country/postal and paired coordinates; explicit missing-coordinate preview.",
+      "localRetest": "Combined reviewed release: backend67 tests, web95 tests, types/builds; see report for lint/runtime limitations.",
+      "liveRetest": "Invalid country and lone coordinate rejected. Existing owned QA facility edit persisted and was restored. Pending/Riverside need correct supplied values.",
+      "finalStatus": "Partial — owner data",
+      "evidence": [
+        "28-after-country-validation.txt",
+        "28-after-coordinates-validation.txt",
+        "28-after-facility-roundtrip.txt"
+      ]
+    }
+  },
+  "partialFollowup": {
+    "date": "2026-10-06",
+    "baselineCommit": "68621f1",
+    "implementationCommit": "55e378c489e1022ff4a712b3aa1f4d3922f6657d",
+    "applicationCommit": "a0453cbbe38670572c1c80803f0b0bbf3f55eb04",
+    "closed": [
+      2,
+      6,
+      7,
+      12,
+      21,
+      26
+    ],
+    "remaining": [
+      4,
+      5,
+      13,
+      16,
+      28
+    ],
+    "allElevenResolved": false,
+    "evidenceDirectory": "2026-10-06-partials",
+    "independentScopeReview": "completed; full sample row kept partial including PVC shipping sourceNotes",
+    "report": "2026-10-06-partial-issues-followup.md",
+    "phoneReceipt": {
+      "width": 390,
+      "height": 844,
+      "noHorizontalDocumentOverflow": true,
+      "adminDownloadButtonContrastVerified": true,
+      "temporaryViewportReset": true
+    },
+    "adminStyleSourceCommit": "a0453cbbe38670572c1c80803f0b0bbf3f55eb04",
+    "evidenceManifest": "2026-10-06-partials/manifest.json",
+    "independentReportAudit": {
+      "completed": true,
+      "scopeCountsAndSourceReviewed": true,
+      "cssPathsReviewed": true,
+      "evidenceFilesValidated": 58,
+      "allManifestHashesAndBytesMatch": true,
+      "allRowEvidenceLinksExist": true,
+      "noUnsupportedFullAcceptanceClaim": true,
+      "noCredentialSessionPatternsFound": true
+    }
   }
 }

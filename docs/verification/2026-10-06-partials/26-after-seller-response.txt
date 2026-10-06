@@ -1,0 +1,88 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - link "Home":
+      - /url: /
+      - text: Home
+    - link "Listings":
+      - /url: /seller/listings
+      - text: Listings
+    - link "Buyer requests":
+      - /url: /seller/rfq
+      - text: Buyer requests
+    - link "Sales":
+      - /url: /seller/sales
+      - text: Sales
+    - link "Tracker":
+      - /url: /seller/tracker
+      - text: Tracker
+    - link "Sample dispatch":
+      - /url: /seller/samples
+      - text: Sample dispatch
+    - link "Pilot interest":
+      - /url: /seller/pilots
+      - text: Pilot interest
+    - link "Feedstock IQ Soon":
+      - /url: /feedstock-iq
+      - text: Feedstock IQ
+      - generic: Soon
+    - link "Logistics":
+      - /url: /seller/logistics
+      - text: Logistics
+    - link "Contracts":
+      - /url: /seller/contracts
+      - text: Contracts
+    - link "E-signatures":
+      - /url: /seller/e-signatures
+      - text: E-signatures
+    - link "Verification":
+      - /url: /seller/verification
+      - text: Verification
+    - link "Delivery Tracking":
+      - /url: /seller/delivery-tracking
+      - text: Delivery Tracking
+    - link "Partner Network":
+      - /url: /seller/partners
+      - text: Partner Network
+    - link "Carbon Calculator":
+      - /url: /seller/carbon-calculator
+      - text: Carbon Calculator
+    - button "Accounting":
+      - generic: Accounting
+    - button "Reports":
+      - generic: Reports
+    - link "Disputes":
+      - /url: /seller/disputes
+      - text: Disputes
+    - link "Documents":
+      - /url: /seller/documents
+      - text: Documents
+  - button "16 unread notifications Notifications":
+    - generic "16 unread notifications": 9+
+    - text: Notifications
+  - button "SR Sam R":
+    - generic: SR
+    - generic: Sam R
+- banner:
+  - heading "Buyer requests" [level=1]
+  - button "Search":
+- main:
+  - heading "Buyer requests" [level=1]
+  - paragraph: Open requests for quote from buyers. Respond with a quote from a matching published listing; buyers see your response in their Requests for quote.
+  - generic: QA OCT06 — Used dry transformer quote — TEST ONLY
+  - generic: 50 unit · Used product · TX, US
+  - paragraph: Nonbinding development QA only. Verify response for the existing Used Dry Transformer listing; no shipment, purchase or settlement. — Need by 2026-10-15 — One-time
+  - status:
+    - text: Response sent to the buyer.
+    - button "Close"
+  - generic: Seeking food-grade rice husk
+  - generic: 500 tons · Industrial byproduct · NL · target $30.00
+  - button "Respond with a quote"
+  - paragraph: Monthly recurring demand for bioplastics feed.
+  - paragraph:
+    - text: Need a matching listing first?
+    - link "Add a listing":
+      - /url: /seller/listings/add

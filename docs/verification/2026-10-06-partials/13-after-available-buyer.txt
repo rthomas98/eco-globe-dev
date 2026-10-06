@@ -1,0 +1,60 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Home":
+      - /url: /
+      - generic: Home
+    - link "Search":
+      - /url: /buyer/browse
+      - generic: Search
+    - link "My Orders":
+      - /url: /buyer/orders
+      - generic: My Orders
+    - button "Marketplace" [expanded]:
+      - generic: Marketplace
+    - link "Partners":
+      - /url: /buyer/partners
+      - generic: Partners
+    - link "Saved":
+      - /url: /buyer/favorites
+      - generic: Saved
+    - link "Requests for quote":
+      - /url: /buyer/rfq
+      - generic: Requests for quote
+    - link "Tracker":
+      - /url: /buyer/tracker
+      - generic: Tracker
+    - link "Samples":
+      - /url: /buyer/samples
+      - generic: Samples
+    - link "Pilots":
+      - /url: /buyer/pilots
+      - generic: Pilots
+    - link "Feedstock IQ Soon":
+      - /url: /feedstock-iq
+      - text: Feedstock IQ
+      - generic: Soon
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Support":
+      - generic: Finance & Support
+  - button "Notifications":
+    - generic "14 unread notifications": 9+
+    - text: Notifications
+  - button "E EcoGlobe Sandbox Tester":
+    - generic: E
+    - generic: EcoGlobe Sandbox Tester
+- main:
+  - main:
+    - paragraph: BUYER VIEW
+    - heading "My sample requests" [level=1]
+    - paragraph: Online sample shipping is not configured yet. Contact EcoGlobe for help arranging a sample.
+    - button "Refresh requests"
+    - paragraph: No prepaid sample shipments yet. Sample requests arranged directly with the seller appear above when there are any.

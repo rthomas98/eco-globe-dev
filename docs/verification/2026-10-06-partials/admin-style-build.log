@@ -1,0 +1,35 @@
+
+> @eco-globe/admin@0.0.0 build /Users/robthomas/Development/eco-globe/apps/admin
+> next build
+
+   ▲ Next.js 15.5.14
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 4.7s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/7) ...
+   Generating static pages (1/7) 
+   Generating static pages (3/7) 
+   Generating static pages (5/7) 
+ ✓ Generating static pages (7/7)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                      127 B         101 kB
+├ ○ /_not-found                            997 B         102 kB
+├ ƒ /admin/[[...slug]]                    391 kB         519 kB
+├ ƒ /api/backend/[...path]                 127 B         101 kB
+├ ○ /forgot-password                       166 B         124 kB
+├ ○ /login                                 165 B         124 kB
+└ ○ /reset-password                        165 B         124 kB
++ First Load JS shared by all             101 kB
+  ├ chunks/381-066e39c5d5d477a9.js       45.2 kB
+  ├ chunks/fa5f5c94-7fc89c8fed0640b0.js  54.2 kB
+  └ other shared chunks (total)          1.87 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

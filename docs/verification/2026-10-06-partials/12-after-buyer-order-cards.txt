@@ -1,0 +1,83 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Home":
+      - /url: /
+      - generic: Home
+    - link "Search":
+      - /url: /buyer/browse
+      - generic: Search
+    - link "My Orders":
+      - /url: /buyer/orders
+      - generic: My Orders
+    - button "Marketplace":
+      - generic: Marketplace
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Support":
+      - generic: Finance & Support
+  - button "Notifications":
+    - generic "3 unread notifications": "3"
+    - text: Notifications
+  - button "J Joanna Bell":
+    - generic: J
+    - generic: Joanna Bell
+- main:
+  - heading "My Orders" [level=1]
+  - textbox "Search"
+  - button "Filters":
+    - text: Filters
+  - button "All Order": All Order
+  - button "Action needed"
+  - button "Processing"
+  - button "Shipped"
+  - button "Completed"
+  - button "Cancelled"
+  - generic: Order ID
+  - generic: EG-2
+  - generic: Order Placed
+  - generic: Jul 30, 2026
+  - generic: Shipping
+  - generic: Delivery
+  - generic: Qty
+  - generic: —
+  - generic: Total
+  - generic: $950.00
+  - 'button "Status: Processing"':
+    - generic: "Status:"
+    - generic: Processing
+  - text: GulfStar Chemicals
+  - img "No photo available for Phase 1 Smoke Feedstock":
+    - generic: No photo
+  - paragraph: Phase 1 Smoke Feedstock
+  - paragraph: —
+  - button "Order Details"
+  - button "More":
+  - generic: Order ID
+  - generic: EG-1
+  - generic: Order Placed
+  - generic: Jul 30, 2026
+  - generic: Shipping
+  - generic: Delivery
+  - generic: Qty
+  - generic: —
+  - generic: Total
+  - generic: $1,300.00
+  - 'button "Status: Awaiting payment"':
+    - generic: "Status:"
+    - generic: Awaiting payment
+  - paragraph: "Shipment: in transit"
+  - text: GulfStar Chemicals
+  - img "No photo available for Phase 1 Smoke Feedstock":
+    - generic: No photo
+  - paragraph: Phase 1 Smoke Feedstock
+  - paragraph: —
+  - button "Order Details"
+  - button "More":

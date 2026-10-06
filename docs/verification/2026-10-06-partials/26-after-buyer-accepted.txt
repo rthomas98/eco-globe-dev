@@ -1,0 +1,103 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Home":
+      - /url: /
+      - generic: Home
+    - link "Search":
+      - /url: /buyer/browse
+      - generic: Search
+    - link "My Orders":
+      - /url: /buyer/orders
+      - generic: My Orders
+    - button "Marketplace" [expanded]:
+      - generic: Marketplace
+    - link "Partners":
+      - /url: /buyer/partners
+      - generic: Partners
+    - link "Saved":
+      - /url: /buyer/favorites
+      - generic: Saved
+    - link "Requests for quote":
+      - /url: /buyer/rfq
+      - generic: Requests for quote
+    - link "Tracker":
+      - /url: /buyer/tracker
+      - generic: Tracker
+    - link "Samples":
+      - /url: /buyer/samples
+      - generic: Samples
+    - link "Pilots":
+      - /url: /buyer/pilots
+      - generic: Pilots
+    - link "Feedstock IQ Soon":
+      - /url: /feedstock-iq
+      - text: Feedstock IQ
+      - generic: Soon
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Support":
+      - generic: Finance & Support
+  - button "Notifications":
+    - generic "13 unread notifications": 9+
+    - text: Notifications
+  - button "E EcoGlobe Sandbox Tester":
+    - generic: E
+    - generic: EcoGlobe Sandbox Tester
+- main:
+  - heading "Requests for quote" [level=1]
+  - paragraph: Submit a spec when you can't find a listing that fits. Your open requests are visible to sellers on EcoGlobe.
+  - link "New request for quote":
+    - /url: /buyer/rfq/new
+    - button "New request for quote":
+      - text: New request for quote
+  - button "All"
+  - button "Open"
+  - button "Closed"
+  - button "RFQ-2 Open · Used product QA OCT06 — Used dry transformer quote — TEST ONLY 50 unit · submitted 2026-10-06 1 response" [expanded]:
+    - generic: RFQ-2
+    - generic: Open
+    - generic: ·
+    - generic: Used product
+    - paragraph: QA OCT06 — Used dry transformer quote — TEST ONLY
+    - paragraph: 50 unit · submitted 2026-10-06
+    - generic: 1 response
+  - region "RFQ-2 details":
+    - heading "Request details" [level=2]
+    - term: Material
+    - definition: QA OCT06 — Used dry transformer quote — TEST ONLY
+    - term: Category
+    - definition: Used product
+    - term: Quantity
+    - definition: 50 unit
+    - term: Submitted
+    - definition: 2026-10-06
+    - term: Status
+    - definition: Open
+    - term: Delivery region
+    - definition: TX, US
+    - term: Target unit price
+    - definition: Not specified
+    - heading "Requirements and notes" [level=3]
+    - paragraph: Nonbinding development QA only. Verify response for the existing Used Dry Transformer listing; no shipment, purchase or settlement. — Need by 2026-10-15 — One-time
+    - heading "Seller responses" [level=3]
+    - paragraph: GulfStar Chemicals
+    - paragraph: Used Dry Transformer · responded Oct 6, 2026
+    - generic: accepted
+    - paragraph:
+      - text: 50 units at $15,000.00 per units ·
+      - generic: $750,000.00 total
+    - paragraph: "Delivery: TEST ONLY — nonbinding QA response at the listing’s recorded price. No commercial order, shipping or settlement."
+    - paragraph: Pay for this accepted quote
+    - radio "Pickup" [checked]
+    - text: Pickup
+    - radio "Delivery"
+    - text: Delivery
+    - button "Continue to secure payment"
