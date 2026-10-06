@@ -1,0 +1,56 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/seller/rfq".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/rfq
+	2 container
+		3 container
+			4 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+			5 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			6 link Description: Listings, Value: eco-globe-dev-web.vercel.app/seller/listings
+			7 link Description: Buyer requests, Value: eco-globe-dev-web.vercel.app/seller/rfq
+			8 link Description: Sales, Value: eco-globe-dev-web.vercel.app/seller/sales
+			9 link Description: Tracker, Value: eco-globe-dev-web.vercel.app/seller/tracker
+			10 link Description: Sample dispatch, Value: eco-globe-dev-web.vercel.app/seller/samples
+			11 link Description: Pilot interest, Value: eco-globe-dev-web.vercel.app/seller/pilots
+			12 link Description: Feedstock IQ SOON, Value: eco-globe-dev-web.vercel.app/feedstock-iq
+			13 link Description: Logistics, Value: eco-globe-dev-web.vercel.app/seller/logistics
+			14 link Description: Contracts, Value: eco-globe-dev-web.vercel.app/seller/contracts
+			15 link Description: E-signatures, Value: eco-globe-dev-web.vercel.app/seller/e-signatures
+			16 link Description: Verification, Value: eco-globe-dev-web.vercel.app/seller/verification
+			17 link Description: Delivery Tracking, Value: eco-globe-dev-web.vercel.app/seller/delivery-tracking
+			18 link Description: Partner Network, Value: eco-globe-dev-web.vercel.app/seller/partners
+			19 link Description: Carbon Calculator, Value: eco-globe-dev-web.vercel.app/seller/carbon-calculator
+			20 button Accounting
+				21 image
+				22 text Accounting
+				23 image
+			24 button Reports
+				25 image
+				26 text Reports
+				27 image
+			28 link Description: Disputes, Value: eco-globe-dev-web.vercel.app/seller/disputes
+			29 link Description: Documents, Value: eco-globe-dev-web.vercel.app/seller/documents
+			30 button 16 unread notifications Notifications
+				31 container
+					32 image
+					33 container 16 unread notifications
+						34 text 9+
+				35 text Notifications
+			36 button SR Sam R
+				37 text SR
+				38 text Sam R
+				39 image
+		40 heading Buyer requests, Value: 1
+			41 text Buyer requests
+		42 button Search
+			43 image
+		44 image
+		45 heading Buyer requests, Value: 1
+			46 text Buyer requests
+		47 text Open requests for quote from buyers. Respond with a quote from a matching published listing; buyers see your response in their Requests for quote.
+		48 text Seeking food-grade rice husk 500 tons  ·  Industrial byproduct  · NL  · target $30.00
+		49 button Respond with a quote
+		50 text Monthly recurring demand for bioplastics feed.
+		51 container
+			52 text Need a matching listing first?
+			53 link Description: Add a listing, Value: eco-globe-dev-web.vercel.app/seller/listings/add
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/rfq

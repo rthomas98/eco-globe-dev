@@ -1,0 +1,52 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/checkout?listing=27".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/checkout?listing=27
+	2 container
+		3 text EcoGlobe - Feedstock Marketplace
+		4 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/buyer/browse
+		5 image
+		6 text Secure
+		7 link Description: ← Back to listing, Value: eco-globe-dev-web.vercel.app/buyer/browse/27
+		8 image
+		9 text PRODUCT PVC Scrap 10 units  ×  $3.00 /unit  ·  MKDK Shop MOQ  10 units  · 990 units available  ·  USD
+		10 image
+		11 text SHIPPING
+		12 button Pickup
+		13 button Delivery
+		19 image
+		20 heading Pickup Location, Value: 3
+			21 text Pickup Location
+		22 text Pending The seller confirms the exact facility and hours after payment.
+		23 image
+		24 heading Requested pickup date, Value: 3
+			25 text Requested pickup date
+		26 text Select date  (Optional)
+		27 date field (settable) Select date (Optional), Value: 2026-10-07, ID: pu-date
+			28 container
+				50 stepper
+				51 stepper
+				52 stepper
+			32 pop up button Show date picker Show date picker
+		33 text Preferred start time
+		34 pop up button (collapsed, settable) Preferred start time, Value: Morning (from 9:00 AM), ID: pu-time-range, Secondary Actions: Expand
+			35 menu
+				36 -- Choose --
+				37 (selected) Morning (from 9:00 AM)
+				38 Midday (from 12:00 PM)
+				39 Afternoon (from 3:00 PM)
+		40 image
+		41 heading Pickup contact (optional), Value: 3
+			42 text Pickup contact (optional)
+		43 text Contact name
+		44 text field (settable) Contact name, Value: EcoGlobe Sandbox QA Pickup, ID: pu-contact-name
+		45 text Contact phone
+		46 text field (settable) Contact phone, Value: <redacted>
+		47 text Vehicle details
+		48 text field (settable) Vehicle details, Value: QA test van — TEST-ONLY, ID: pu-vehicle
+		49 text For example truck type and plate number, if known.
+		14 container
+			15 heading Summary, Value: 2
+				16 text Summary
+			17 text 1 product Item subtotal $30.00 Shipping None (pickup) Material charge $30.00 Charged online for the material only. Freight and any fees are not included and are arranged separately.
+			18 button Continue to payment
+
+The focused UI element is 48 text field (settable) Vehicle details, Value: QA test van — TEST-ONLY, ID: pu-vehicle

@@ -1,0 +1,13 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/".
+The following is a diff from the previous accessibility tree with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 47
+~			30 text 22 feedstocks  match  right now Popular Searches
++		123 link Description: No material photo available PVC Scrap US MOQ: Sign in to see MOQ Sign in to see price, Value: eco-globe-dev-web.vercel.app/browse/27
++		124 link Value: eco-globe-dev-web.vercel.app/browse/22, Description: Illustrative image of Premium Rice Hull Ash Illustrative image Premium Rice Hull Ash LA, 70 MOQ: Sign in to see MOQ Sign in to see price
++		125 link Value: eco-globe-dev-web.vercel.app/browse/21, Description: Illustrative image of Guard Test Bagasse Illustrative image Guard Test Bagasse LA, 70 MOQ: Sign in to see MOQ Sign in to see price
++		126 link Value: eco-globe-dev-web.vercel.app/browse/20, Description: Illustrative image of Dark Viscous Liquid Tonnels Illustrative image Dark Viscous Liquid Tonnels SA MOQ: Sign in to see MOQ Sign in to see price
++		127 link Description: Illustrative image of Tar Illustrative image Tar TX, US MOQ: Sign in to see MOQ Sign in to see price, Value: eco-globe-dev-web.vercel.app/browse/19
++		128 link Value: eco-globe-dev-web.vercel.app/browse/18, Description: Illustrative image of White Label Illustrative image White Label SA MOQ: Sign in to see MOQ Sign in to see price
++		129 link Value: eco-globe-dev-web.vercel.app/browse/17, Description: Illustrative image of Biochar Illustrative image Biochar JAL, MX MOQ: Sign in to see MOQ Sign in to see price
++		130 link Value: eco-globe-dev-web.vercel.app/browse/16, Description: Illustrative image of Used Pallets Illustrative image Used Pallets LA, US MOQ: Sign in to see MOQ Sign in to see price
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/

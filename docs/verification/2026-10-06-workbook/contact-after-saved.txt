@@ -1,0 +1,87 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/contact".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/contact
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			6 link Description: Services, Value: eco-globe-dev-web.vercel.app/services
+			7 link Description: Sellers, Value: eco-globe-dev-web.vercel.app/sellers
+			8 link Description: Buyers, Value: eco-globe-dev-web.vercel.app/buyers
+			9 link Description: Feedstock IQ SOON, Value: eco-globe-dev-web.vercel.app/feedstock-iq
+			10 link Description: About, Value: eco-globe-dev-web.vercel.app/about
+			11 link Description: Contact Us, Value: eco-globe-dev-web.vercel.app/contact
+		12 pop up button (collapsed) J Joanna, Secondary Actions: Expand
+			13 text J
+			14 text Joanna
+			15 image
+		16 heading Get in Touch, Value: 1
+			17 text Get in Touch
+		18 text Have a question about us? Our team is here to help and will get back to you as soon as possible.
+		19 image
+		20 heading Email Address, Value: 3
+			21 text Email Address
+		22 text info@ecoglobeworld.com
+		23 image
+		24 heading Phone, Value: 3
+			25 text Phone
+		26 text Available by appointment after inquiry
+		27 image
+		28 heading Location, Value: 3
+			29 text Location
+		30 text 9634 Airline Hwy Suite F3, Baton
+Rouge, LA 70815, USA
+		93 image
+		94 heading Message received, Value: 2
+			95 text Message received
+		96 text Thanks — your message was saved and the EcoGlobe team will reply to the email address you provided.
+		97 button Send another message
+		45 heading One Platform. Every Step of the Trade., Value: 2
+			46 text One Platform. Every Step of the Trade.
+		47 text From finding verified partners to completing transactions — EcoGlobe handles the complexity so you can focus on the deal.
+		48 link Description: Explore Listings, Value: eco-globe-dev-web.vercel.app/browse
+		49 link Description: Join as a Seller, Value: eco-globe-dev-web.vercel.app/register
+		50 link Description: Join as a Buyer, Value: eco-globe-dev-web.vercel.app/register
+		51 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		52 link Description: LinkedIn, Value: linkedin.com/company/ecoglobeworld
+		53 link Description: Instagram, Value: instagram.com/ecoglobeworld/
+		54 link Description: Facebook, Value: facebook.com/ecoglobeworld/
+		55 heading Buyers, Value: 4
+			56 text Buyers
+		57 link Description: Browse feedstocks, Value: eco-globe-dev-web.vercel.app/browse
+		58 link Description: Search by specs, volume, distance & Carbon footprint, Value: eco-globe-dev-web.vercel.app/browse
+		59 link Description: Request quotes, Value: eco-globe-dev-web.vercel.app/register
+		60 link Description: Track orders & delivery, Value: eco-globe-dev-web.vercel.app/buyer/orders
+		61 link Description: Sustainability reports, Value: eco-globe-dev-web.vercel.app/sustainability-reports
+		62 heading Company, Value: 4
+			63 text Company
+		64 link Description: About us, Value: eco-globe-dev-web.vercel.app/about
+		65 link Description: Contact us, Value: eco-globe-dev-web.vercel.app/contact
+		66 link Description: Careers, Value: eco-globe-dev-web.vercel.app/careers
+		67 link Description: FAQs, Value: eco-globe-dev-web.vercel.app/faqs
+		68 link Description: Help Center, Value: eco-globe-dev-web.vercel.app/help
+		69 link Description: Newsletter, Value: eco-globe-dev-web.vercel.app/newsletter
+		70 heading Other services, Value: 4
+			71 text Other services
+		72 link Description: Hands-on Services, Value: eco-globe-dev-web.vercel.app/services
+		73 link Description: Feedstocks certifications, Value: eco-globe-dev-web.vercel.app/certifications
+		74 link Description: Other digital Products, Value: eco-globe-dev-web.vercel.app/digital-products
+		75 link Description: Logistics, Value: eco-globe-dev-web.vercel.app/logistics
+		76 heading Sellers, Value: 4
+			77 text Sellers
+		78 link Description: List your feedstock, Value: eco-globe-dev-web.vercel.app/register
+		79 link Description: Manage availability & pricing, Value: eco-globe-dev-web.vercel.app/seller/listings
+		80 link Description: Reach verified buyers, Value: eco-globe-dev-web.vercel.app/register
+		81 link Description: Product passports, Value: eco-globe-dev-web.vercel.app/product-passports
+		82 link Description: Get paid securely, Value: eco-globe-dev-web.vercel.app/secure-payments
+		83 heading Legal, Value: 4
+			84 text Legal
+		85 link Description: Terms of service, Value: eco-globe-dev-web.vercel.app/terms
+		86 link Description: Privacy policy, Value: eco-globe-dev-web.vercel.app/privacy
+		87 link Description: Cookie policy, Value: eco-globe-dev-web.vercel.app/cookie-policy
+		88 link Description: Data protection, Value: eco-globe-dev-web.vercel.app/data-protection
+		89 link Description: Feedstock policy and protection, Value: eco-globe-dev-web.vercel.app/feedstock-policy
+		90 link Description: Logistics policy, Value: eco-globe-dev-web.vercel.app/logistics-policy
+		91 text © 2026 EcoGlobe All rights reserved.
+		92 text From Louisiana to the World
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/contact

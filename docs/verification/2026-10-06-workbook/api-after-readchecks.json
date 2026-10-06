@@ -1,0 +1,45 @@
+{
+  "stage": "after",
+  "passed": true,
+  "checks": [
+    {
+      "check": "buyer tracker",
+      "status": "passed"
+    },
+    {
+      "check": "buyer opposite-role rejection",
+      "status": "passed"
+    },
+    {
+      "check": "buyer saved orders",
+      "status": "passed"
+    },
+    {
+      "check": "owned cancelled QA order",
+      "status": "passed",
+      "orderId": 26
+    },
+    {
+      "check": "radius query real saved location",
+      "status": "passed",
+      "listingId": 20,
+      "anonymousRadius": "denied"
+    },
+    {
+      "check": "seller tracker",
+      "status": "passed"
+    },
+    {
+      "check": "seller opposite-role rejection",
+      "status": "passed"
+    },
+    {
+      "check": "seller saved orders",
+      "status": "passed"
+    },
+    {
+      "check": "other company order denial",
+      "status": "passed"
+    }
+  ]
+}

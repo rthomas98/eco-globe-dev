@@ -1,0 +1,83 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/seller/samples".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/samples
+	2 container
+		3 container
+			4 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+			5 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			6 link Description: Listings, Value: eco-globe-dev-web.vercel.app/seller/listings
+			7 link Description: Sales, Value: eco-globe-dev-web.vercel.app/seller/sales
+			8 link Description: Tracker, Value: eco-globe-dev-web.vercel.app/seller/tracker
+			9 link Description: Sample dispatch, Value: eco-globe-dev-web.vercel.app/seller/samples
+			10 link Description: Pilot interest, Value: eco-globe-dev-web.vercel.app/seller/pilots
+			11 link Description: Logistics, Value: eco-globe-dev-web.vercel.app/seller/logistics
+			12 link Description: Contracts, Value: eco-globe-dev-web.vercel.app/seller/contracts
+			13 link Description: E-signatures, Value: eco-globe-dev-web.vercel.app/seller/e-signatures
+			14 link Description: Verification, Value: eco-globe-dev-web.vercel.app/seller/verification
+			15 link Description: Delivery Tracking, Value: eco-globe-dev-web.vercel.app/seller/delivery-tracking
+			16 link Description: Partner Network, Value: eco-globe-dev-web.vercel.app/seller/partners
+			17 link Description: Carbon Calculator, Value: eco-globe-dev-web.vercel.app/seller/carbon-calculator
+			18 button Accounting
+				19 image
+				20 text Accounting
+				21 image
+			22 button Reports
+				23 image
+				24 text Reports
+				25 image
+			26 link Description: Disputes, Value: eco-globe-dev-web.vercel.app/seller/disputes
+			27 link Description: Documents, Value: eco-globe-dev-web.vercel.app/seller/documents
+			28 button 16 unread notifications Notifications
+				29 container
+					30 image
+					31 container 16 unread notifications
+						32 text 9+
+				33 text Notifications
+			34 button SR Sam R
+				35 text SR
+				36 text Sam R
+				37 image
+		38 heading Sample dispatch, Value: 1
+			39 text Sample dispatch
+		40 button Search
+			41 image
+		42 image
+		43 container
+			44 container
+				45 text SELLER  VIEW
+			46 heading Sample dispatch, Value: 1
+				47 text Sample dispatch
+			48 text Online sample shipping is not configured yet. Contact EcoGlobe for help arranging a sample.
+			49 button Refresh requests
+			50 text No sample shipments yet.
+			51 heading Sample availability, Value: 2
+				52 text Sample availability
+			53 container
+				54 text # 19 Tar  ·  unreviewed
+			55 button Enable sample requests
+			56 text 0
+			57 container
+				58 text # 14 Used Dry Transformer  ·  unreviewed
+			59 button Enable sample requests
+			60 text 0
+			61 container
+				62 text # 7 Black Gypsum  ·  unreviewed
+			63 button Enable sample requests
+			64 text 0
+			65 container
+				66 text # 6 Scrap Polymer Blend with Impurities  ·  unreviewed
+			67 button Enable sample requests
+			68 text 0
+			69 container
+				70 text # 4 Epoxy Off-Spec  ·  unreviewed
+			71 button Enable sample requests
+			72 text 0
+			73 container
+				74 text # 3 Pyrolysis Pitch  ·  unreviewed
+			75 button Enable sample requests
+			76 text 0
+			77 container
+				78 text # 2 Phase 1 Smoke Feedstock  ·  unreviewed
+			79 button Enable sample requests
+			80 text 0
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/samples

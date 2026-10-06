@@ -1,0 +1,136 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/browse/7".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/browse/7
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			9 link Description: Search, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			10 link Description: My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			11 button (collapsed) MARKETPLACE, Secondary Actions: Expand
+				12 text MARKETPLACE
+				13 image
+			14 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				15 text LOGISTICS
+				16 image
+			17 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				18 text CONTRACTS & DOCS
+				19 image
+			20 button (collapsed) FINANCE & SUPPORT, Secondary Actions: Expand
+				21 text FINANCE & SUPPORT
+				22 image
+		23 button Notifications
+			24 container
+				25 image
+				26 container 3 unread notifications
+					27 text 3
+			28 text Notifications
+		29 button J Joanna Bell
+			30 text J
+			31 text Joanna Bell
+			32 image
+		33 container
+			34 link Description: Browse, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			35 image
+			36 text Product details
+			37 heading Black Gypsum, Value: 1
+				38 text Black Gypsum
+			39 text Houston, TX · 103 t (metric tonnes) available MOQ:  3 t (metric tonnes)
+			40 image Illustrative image of Black Gypsum
+			41 text Illustrative image
+			42 button Share
+				43 image
+			44 button Save
+				45 image
+			46 heading Map, Value: 2
+				47 text Map
+			48 container
+				49 container Map
+				50 container Seller location
+				51 container
+					52 button Zoom in
+					53 button Zoom out
+					54 button Drag to rotate map, click to reset north
+				55 container
+					56 button (expanded) Description: Toggle attribution, Secondary Actions: Collapse
+					57 link Description: MapLibre, Value: maplibre.org/
+					58 text  | ©
+					59 link Description: OpenStreetMap, Value: openstreetmap.org/copyright
+					60 text  contributors
+			61 text Enable location to show where you are browsing from
+			62 heading Specifications, Value: 2
+				63 text Specifications
+			64 text Category Industrial Byproducts Feedstock state Solid Minimum Order Quantity (MOQ) 3 t (metric tonnes) Available quantity 103 t (metric tonnes) Carbon profile 240 kg CO₂e per tons Pickup location Houston, TX
+			65 container Independent analysis
+				66 heading Independent analysis, Value: 2, ID: listing-analysis-heading
+					67 text Independent analysis
+				68 text No independent analysis on this listing yet.
+				69 button Request lab testing
+				70 text Arranged by EcoGlobe · you decide who sees it · nothing is charged now.
+			71 heading Overview, Value: 2
+				72 text Overview
+			73 text Black gypsum byproduct suitable for cement retarders and soil amendment applications.
+			74 button Read More
+			75 heading Seller, Value: 2
+				76 text Seller
+			77 text G GulfStar Chemicals VERIFIED
+			78 image
+			79 text Houston, TX  ·  Industrial Byproducts
+			80 heading Carbon Analytics Tool, Value: 2
+				81 text Carbon Analytics Tool
+			82 text Estimate transportation footprint, compare scenarios, and estimate your savings for  Black Gypsum .
+			83 button Open Carbon Calculator
+				84 image
+				85 text Open Carbon Calculator
+			86 button Estimate savings
+				87 image
+				88 text Estimate savings
+			89 text Was this tool helpful, give us your feedback here
+			90 button
+				91 image
+			92 button
+				93 image
+			94 container
+				95 text $45.00 /t
+			96 container
+				97 text Minimum Order Quantity (MOQ):  3 t (metric tonnes)
+			98 text Quantity ( metric tonnes )
+			99 button Decrease quantity
+				100 image
+			101 stepper (settable, integer) Description: Quantity, Value: 3
+			102 button Increase quantity
+				103 image
+			104 text 103 t (metric tonnes) available
+			105 text Item subtotal $135.00 Shipping Quoted per order Subtotal (excl. shipping) $135.00
+			106 button (disabled) Buy Now
+			107 text The seller has switched off samples for this listing.
+			108 link Description: Request a pilot (plant-scale trial), Value: eco-globe-dev-web.vercel.app/buyer/pilots/new?listing=7
+			109 image
+			110 text Seller hasn't uploaded the SDS yet — purchase blocked.
+			111 container Demo buy and sell
+				112 heading Full Buy / Sell demo, Value: 2
+					113 text Full Buy / Sell demo
+				114 text Saved demo orders appear in Buyer, Seller and Admin. SDS, stock, payment and shipping steps are simulated. No real money or shipment; live verification is unchanged.
+				115 checkbox Seller Demo, Value: 0
+				116 checkbox Buyer Demo, Value: 1
+				117 link Description: Demo document — not a valid SDS, Value: eco-globe-dev-web.vercel.app/demo/sds-demo-only.txt
+				118 container
+					119 text Demo quantity
+					120 stepper (settable, integer) Demo quantity, Value: 1
+					121 text Demo delivery address
+					122 text field (settable) Demo delivery address, Value: Demo receiving site — no shipment
+					123 button Create saved demo order
+					124 link Description: Open My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			125 button Open Carbon Calculator
+				126 image
+				127 text Open Carbon Calculator
+			128 button Estimate savings
+				129 image
+				130 text Estimate savings
+			131 text Do you want to know more? Here is how it works
+			132 button Learn more
+				133 image
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/browse/7

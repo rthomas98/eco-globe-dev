@@ -1,0 +1,223 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/seller/listings".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/listings
+	2 container
+		3 container
+			4 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+			5 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			6 link Description: Listings, Value: eco-globe-dev-web.vercel.app/seller/listings
+			7 link Description: Sales, Value: eco-globe-dev-web.vercel.app/seller/sales
+			8 link Description: Tracker, Value: eco-globe-dev-web.vercel.app/seller/tracker
+			9 link Description: Sample dispatch, Value: eco-globe-dev-web.vercel.app/seller/samples
+			10 link Description: Pilot interest, Value: eco-globe-dev-web.vercel.app/seller/pilots
+			11 link Description: Logistics, Value: eco-globe-dev-web.vercel.app/seller/logistics
+			12 link Description: Contracts, Value: eco-globe-dev-web.vercel.app/seller/contracts
+			13 link Description: E-signatures, Value: eco-globe-dev-web.vercel.app/seller/e-signatures
+			14 link Description: Verification, Value: eco-globe-dev-web.vercel.app/seller/verification
+			15 link Description: Delivery Tracking, Value: eco-globe-dev-web.vercel.app/seller/delivery-tracking
+			16 link Description: Partner Network, Value: eco-globe-dev-web.vercel.app/seller/partners
+			17 link Description: Carbon Calculator, Value: eco-globe-dev-web.vercel.app/seller/carbon-calculator
+			18 button Accounting
+				19 image
+				20 text Accounting
+				21 image
+			22 button Reports
+				23 image
+				24 text Reports
+				25 image
+			26 link Description: Disputes, Value: eco-globe-dev-web.vercel.app/seller/disputes
+			27 link Description: Documents, Value: eco-globe-dev-web.vercel.app/seller/documents
+			28 button 16 unread notifications Notifications
+				29 container
+					30 image
+					31 container 16 unread notifications
+						32 text 9+
+				33 text Notifications
+			34 button SR Sam R
+				35 text SR
+				36 text Sam R
+				37 image
+		38 heading Listings, Value: 1
+			39 text Listings
+		40 button Search
+			41 image
+		42 image
+		43 heading Buyer interest, Value: 2
+			44 text Buyer interest
+		45 text Aggregate activity on your listings. Buyer identities stay private until they reach out.
+		46 container
+			47 text Tar 35  views ·  6  cart adds · 6 companies  interested
+		48 container
+			49 text Pyrolysis Pitch 31  views ·  1  cart adds · 3 companies  interested
+		50 container
+			51 text Black Gypsum 5  views ·  0  cart adds · 4 companies  interested
+		52 container
+			53 text Scrap Polymer Blend with Impurities 2  views ·  1  cart adds · 1 company  interested
+		54 container
+			55 text Used Dry Transformer 2  views ·  0  cart adds · 1 company  interested
+		56 container
+			57 text Epoxy Off-Spec 1  views ·  0  cart adds · 0 companies  interested
+		58 container
+			59 text Phase 1 Smoke Feedstock 1  views ·  0  cart adds · 1 company  interested
+		60 heading Buyers are looking for, Value: 2
+			61 text Buyers are looking for
+		62 text Open requests from buyers. Respond with a quote from a matching published listing.
+		63 text Seeking food-grade rice husk 500 tons  ·  Industrial byproduct  · NL  · target $30.00
+		194 container
+			195 text Listing
+			196 pop up button (collapsed, settable) Listing, Value: Choose…, Secondary Actions: Expand
+				197 menu
+					198 (selected) Choose…
+					199 Tar
+					200 Black Gypsum
+					201 Scrap Polymer Blend with Impurities
+					202 Epoxy Off-Spec
+					203 Pyrolysis Pitch
+					204 Phase 1 Smoke Feedstock
+		205 container
+			206 text Quantity ( tons )
+			207 stepper (settable, integer) Quantity (tons), Value: 500
+		208 container
+			209 text Unit price ( USD )
+			210 stepper (settable) Unit price (USD)
+		211 container
+			212 text Valid until (optional)
+			213 date field (settable) Valid until (optional)
+				214 container
+					215 stepper
+					216 stepper
+					217 stepper
+				218 pop up button Show date picker Show date picker
+		219 container
+			220 text Delivery terms (optional)
+			221 text field (settable) Delivery terms (optional)
+		193 button Cancel
+		222 button Send response
+		65 heading Listings, Value: 1
+			66 text Listings
+		67 image
+		68 text field (settable) Search listings
+		69 button Card View
+			70 image
+			71 text Card View
+		72 link Description: Add Listing, Value: eco-globe-dev-web.vercel.app/seller/listings/add
+		73 table
+			74 row
+				75 cell
+					76 text Listing Name
+				77 cell
+					78 text Category
+				79 cell
+					80 text Available
+				81 cell
+					82 text Price
+				83 cell
+					84 text SDS
+				85 cell
+					86 text Status
+			87 row
+				88 cell
+					89 text Tar
+					90 container
+						91 text # 19  ·  tar
+				92 cell
+					93 text Industrial Byproducts
+				94 cell
+					95 text 105 t
+				96 cell
+					97 text $225.00 /t
+				98 cell
+					99 text SDS missing
+				100 cell
+					101 text Published
+			102 row
+				103 cell
+					104 text Used Dry Transformer
+					105 container
+						106 text # 14  ·  used-dry-transformer
+				107 cell
+					108 text Used products
+				109 cell
+					110 text 250 unit
+				111 cell
+					112 text $15,000.00 /unit
+				113 cell
+					114 text SDS missing
+				115 cell
+					116 text Published
+			117 row
+				118 cell
+					119 text Black Gypsum
+					120 container
+						121 text # 7  ·  black-gypsum
+				122 cell
+					123 text Industrial Byproducts
+				124 cell
+					125 text 103 t
+				126 cell
+					127 text $45.00 /t
+				128 cell
+					129 text SDS missing
+				130 cell
+					131 text Published
+			132 row
+				133 cell
+					134 text Scrap Polymer Blend with Impurities
+					135 container
+						136 text # 6  ·  polymer
+				137 cell
+					138 text Industrial Byproducts
+				139 cell
+					140 text 5,000 t
+				141 cell
+					142 text $225.00 /t
+				143 cell
+					144 text SDS missing
+				145 cell
+					146 text Published
+			147 row
+				148 cell
+					149 text Epoxy Off-Spec
+					150 container
+						151 text # 4  ·  epoxy-offspec
+				152 cell
+					153 text Industrial Byproducts
+				154 cell
+					155 text 102 t
+				156 cell
+					157 text $1,900.00 /t
+				158 cell
+					159 text SDS missing
+				160 cell
+					161 text Published
+			162 row
+				163 cell
+					164 text Pyrolysis Pitch
+					165 container
+						166 text # 3  ·  pyrolysis
+				167 cell
+					168 text Industrial Byproducts
+				169 cell
+					170 text 5,000 t
+				171 cell
+					172 text $350.00 /t
+				173 cell
+					174 text SDS missing
+				175 cell
+					176 text Published
+			177 row
+				178 cell
+					179 text Phase 1 Smoke Feedstock
+					180 container
+						181 text # 2  ·  phase-1-smoke-feedstock-1785421158055
+				182 cell
+					183 text Industrial Byproducts
+				184 cell
+					185 text 2,500 t
+				186 cell
+					187 text $52.00 /t
+				188 cell
+					189 text SDS missing
+				190 cell
+					191 text Published
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/listings

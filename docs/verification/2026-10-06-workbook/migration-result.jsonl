@@ -1,0 +1,3 @@
+{"migration":"20261006_pickup_contact.sql","sha256":"9da6dd7b33eaf089ab862bd97f89978a07fe3c2df273c0e337546e4629eba5c5","applied":true}
+{"migration":"20261006_portal_profiles.sql","sha256":"07e8f9c57f27d048078086930fdb44766d8e91597d20eab56f1ffa56394f6aa0","applied":true}
+{"verifiedPickupColumns":["PickupContactName","PickupContactPhone","PickupVehicleDetails"],"existingProfilesUnchanged":true,"newBuyerProfiles":3,"newSellerProfiles":11}

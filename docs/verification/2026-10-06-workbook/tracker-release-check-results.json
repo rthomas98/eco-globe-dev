@@ -1,0 +1,14 @@
+[
+  {
+    "name": "web-types",
+    "exitCode": 0
+  },
+  {
+    "name": "web-test-types",
+    "exitCode": 0
+  },
+  {
+    "name": "web-build",
+    "exitCode": 0
+  }
+]

@@ -1,0 +1,73 @@
+Browser tab: 1, Title: "EcoGlobe Admin", URL: "https://eco-globe-dev-admin.vercel.app/admin/contact-requests".
+1 AXWebArea EcoGlobe Admin, URL: eco-globe-dev-admin.vercel.app/admin/contact-requests
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-admin.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Dashboard, Value: eco-globe-dev-admin.vercel.app/admin/dashboard
+			9 link Description: Sales, Value: eco-globe-dev-admin.vercel.app/admin/sales
+			10 link Description: Listings, Value: eco-globe-dev-admin.vercel.app/admin/listings
+			11 link Description: Sample shipping, Value: eco-globe-dev-admin.vercel.app/admin/samples
+			12 link Description: Lab testing, Value: eco-globe-dev-admin.vercel.app/admin/lab-testing
+			13 link Description: Pilot desk, Value: eco-globe-dev-admin.vercel.app/admin/pilots
+			14 button (collapsed) MARKETPLACE, Secondary Actions: Expand
+				15 text MARKETPLACE
+				16 image
+			17 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				18 text LOGISTICS
+				19 image
+			20 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				21 text CONTRACTS & DOCS
+				22 image
+			23 button (collapsed) FINANCE & REPORTS, Secondary Actions: Expand
+				24 text FINANCE & REPORTS
+				25 image
+			26 button (expanded) GOVERNANCE, Secondary Actions: Collapse
+				27 text GOVERNANCE
+				28 image
+			29 button (expanded) Operations, Secondary Actions: Collapse
+				30 image
+				31 text Operations
+				32 image
+			33 link Description: Moderation, Value: eco-globe-dev-admin.vercel.app/admin/moderation
+			34 link Description: Document review, Value: eco-globe-dev-admin.vercel.app/admin/document-review
+			35 link Description: KYC, Value: eco-globe-dev-admin.vercel.app/admin/kyc
+			36 link Description: Disputes, Value: eco-globe-dev-admin.vercel.app/admin/disputes
+			37 link Description: Audit log, Value: eco-globe-dev-admin.vercel.app/admin/audit
+			38 link Description: Contact requests, Value: eco-globe-dev-admin.vercel.app/admin/contact-requests
+			39 button (collapsed) SYSTEM, Secondary Actions: Expand
+				40 text SYSTEM
+				41 image
+		42 container
+			43 button Notifications 69 unread notifications
+				44 image
+				45 text Notifications
+				66 container 69 unread notifications
+					67 text 9+
+			46 button E EcoGlobe
+				47 text E
+				48 text EcoGlobe
+				49 image
+		50 container Breadcrumb
+			51 text Admin
+			52 image
+			53 text Contact Requests
+		54 button (collapsed) Search admin ⌘ K, Secondary Actions: Expand
+			55 image
+			56 text Search admin
+			57 text ⌘ K
+		58 link Description: Notifications, Value: eco-globe-dev-admin.vercel.app/admin/notifications
+		59 link Description: Admin settings, Value: eco-globe-dev-admin.vercel.app/admin/settings/system/users
+		60 link Description: Help and account, Value: eco-globe-dev-admin.vercel.app/admin/account
+		61 heading Contact requests, Value: 1
+			62 text Contact requests
+		63 text Messages sent from the public contact page. Reply from your email client; EcoGlobe does not send an automatic reply.
+		64 image
+		65 search text field (settable) Description: Search contact requests, Value: QA OCT06
+		68 container
+			69 text QA OCT06 contact persistence ·  EcoGlobe QA OCT06 , TEST ONLY 10/6/2026, 10:23:53 AM TEST ONLY — workbook acceptance. Verify this appears in the staff contact inbox. No response or email needed.
+			70 link Description: qa.checkout@ecoglobe.test, Value: mailto:qa.checkout@ecoglobe.test?subject=Re%3A%20QA%20OCT06%20contact%20persistence
+
+The focused UI element is 65 search text field (settable) Description: Search contact requests, Value: QA OCT06

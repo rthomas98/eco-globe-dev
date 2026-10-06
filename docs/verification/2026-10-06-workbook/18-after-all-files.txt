@@ -1,0 +1,98 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/tracker".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/tracker
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			9 link Description: Search, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			10 link Description: My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			11 button (expanded) MARKETPLACE, Secondary Actions: Collapse
+				12 text MARKETPLACE
+				13 image
+			14 link Description: Partners, Value: eco-globe-dev-web.vercel.app/buyer/partners
+			15 link Description: Saved, Value: eco-globe-dev-web.vercel.app/buyer/favorites
+			16 link Description: Requests for quote, Value: eco-globe-dev-web.vercel.app/buyer/rfq
+			17 link Description: Tracker, Value: eco-globe-dev-web.vercel.app/buyer/tracker
+			18 link Description: Samples, Value: eco-globe-dev-web.vercel.app/buyer/samples
+			19 link Description: Pilots, Value: eco-globe-dev-web.vercel.app/buyer/pilots
+			20 link Description: Feedstock IQ SOON, Value: eco-globe-dev-web.vercel.app/feedstock-iq
+			21 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				22 text LOGISTICS
+				23 image
+			24 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				25 text CONTRACTS & DOCS
+				26 image
+			27 button (collapsed) FINANCE & SUPPORT, Secondary Actions: Expand
+				28 text FINANCE & SUPPORT
+				29 image
+		30 button Notifications
+			31 container
+				32 image
+				33 container 13 unread notifications
+					34 text 9+
+			35 text Notifications
+		36 button E EcoGlobe Sandbox Tester
+			37 text E
+			38 text EcoGlobe Sandbox Tester
+			39 image
+		40 container
+			41 text BUYER  TRACKER
+			42 heading Where everything stands, Value: 1
+				43 text Where everything stands
+			44 text QA DocuSign Buyer 2026-09-28  ·  1  materials
+			45 button Refresh
+			46 text Up to date · Last checked 10:21:44 AM YOUR ACCOUNT Company status (set by EcoGlobe staff) — pending verification Receiving sites — To be provided Purchase authority — enabled; limit not recorded Free — buyers never pay a licence
+			47 button (expanded) PVC Scrap MKDK Shop Pending · $3.00 / unit EG-28 — ORDER COMPLETED · SHIPMENT DELIVERED 2 files, Secondary Actions: Collapse
+				48 heading PVC Scrap MKDK Shop, Value: 2
+					49 text PVC Scrap MKDK Shop
+				50 container
+					51 text Pending  · $3.00 / unit
+				52 text EG-28 — ORDER COMPLETED · SHIPMENT DELIVERED
+				53 text 2
+				54 text  files
+				55 image
+			56 checkbox Description: Interested — Recorded, Value: 0
+				57 image
+				58 text Interested
+				59 text Recorded
+			60 checkbox Description: Sample — No activity, Value: 0
+				61 text Sample
+				62 text No activity
+			63 checkbox Description: Testing — No activity, Value: 0
+				64 text Testing
+				65 text No activity
+			66 checkbox Description: Pilot — No activity, Value: 0
+				67 text Pilot
+				68 text No activity
+			69 checkbox Description: Order — EG-28 order completed · shipment delivered, EG-27 order cancelled, EG-26 order cancelled, Value: 0
+				70 image
+				71 text Order
+				72 text Recorded
+			73 checkbox Description: In transit — EG-28 shipment SHP-16 delivered, Value: 0
+				74 image
+				75 text In transit
+				76 text Recorded
+			77 checkbox Description: Delivered — EG-28 shipment SHP-16 delivered (current stage), Value: 1
+				78 image
+				79 text Delivered
+				80 text Recorded
+			81 container
+				82 heading Delivered, Value: 3
+					83 text Delivered
+				84 text EG - 28  ·  shipment SHP-16 delivered
+				85 link Description: View order, Value: eco-globe-dev-web.vercel.app/buyer/orders/28
+				86 button Request lab testing
+				87 link Description: View material, Value: eco-globe-dev-web.vercel.app/buyer/browse/27
+				88 link Description: Request a pilot, Value: eco-globe-dev-web.vercel.app/buyer/pilots/new?listing=27
+			89 container
+				90 heading DOCUMENTS AT THIS STEP, Value: 3
+					91 text DOCUMENTS AT THIS STEP
+				92 button Step files
+				93 link Description: SDS044_PSK_PVC.pdf, Value: eco-globe-dev-web.vercel.app/api/backend/api/listing-documents/7/download
+				94 link Description: 图层-2.jpg, Value: eco-globe-dev-web.vercel.app/api/backend/api/listing-documents/8/download
+				95 text Only available files are shown. Lab reports and shipping documents appear when recorded and shared with your company.
+
+The focused UI element is 92 button Step files

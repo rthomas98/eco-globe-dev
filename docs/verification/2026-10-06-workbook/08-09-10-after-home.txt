@@ -1,0 +1,243 @@
+- alert
+- main:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - link "Home":
+      - /url: /
+    - link "Services":
+      - /url: /services
+    - link "Sellers":
+      - /url: /sellers
+    - link "Buyers":
+      - /url: /buyers
+    - link "Feedstock IQ Soon":
+      - /url: /feedstock-iq
+      - text: Feedstock IQ
+      - generic: Soon
+    - link "About":
+      - /url: /about
+    - link "Contact Us":
+      - /url: /contact
+  - link "Login":
+    - /url: /login
+  - link "Sign Up":
+    - /url: /register
+    - button "Sign Up"
+  - img "EcoGlobe industrial facility"
+  - heading "Buy verified feedstocks, sourced close to you." [level=1]:
+    - text: Buy verified feedstocks,
+    - text: sourced close to you.
+  - generic: Feedstocks
+  - textbox "Try 'biochar' or 'low CO₂'"
+  - generic: Location / Country
+  - textbox "City, state, country"
+  - generic: Distance
+  - button "100 mi"
+  - button "Search"
+  - generic: 20 feedstocks match right now
+  - generic: Popular Searches
+  - link "Industrial Byproducts":
+    - /url: /browse?category=Industrial+Byproducts
+  - link "Low CO₂ feedstocks":
+    - /url: /browse?tag=Low+CO%E2%82%82+feedstocks
+  - link "Certified Feedstocks":
+    - /url: /browse?tag=Certified+Feedstocks
+  - link "Used products":
+    - /url: /browse?category=Used+products
+  - paragraph:
+    - text: Are you both a seller and a buyer?
+    - link "Click here":
+      - /url: /register
+    - text: .
+  - heading "Find materials by category" [level=2]
+  - link "Industrial Byproducts Industrial Byproducts":
+    - /url: /browse?category=Industrial+Byproducts
+    - img "Industrial Byproducts"
+    - heading "Industrial Byproducts" [level=3]
+  - link "Low CO₂ feedstocks Low CO₂ feedstocks":
+    - /url: /browse?tag=Low+CO%E2%82%82+feedstocks
+    - img "Low CO₂ feedstocks"
+    - heading "Low CO₂ feedstocks" [level=3]
+  - link "Certified Feedstocks Certified Feedstocks":
+    - /url: /browse?tag=Certified+Feedstocks
+    - img "Certified Feedstocks"
+    - heading "Certified Feedstocks" [level=3]
+  - link "Used products Used products":
+    - /url: /browse?category=Used+products
+    - img "Used products"
+    - heading "Used products" [level=3]
+  - heading "Featured Listings" [level=2]
+  - link "View All Listings":
+    - /url: /browse
+    - button "View All Listings"
+  - 'link "PVC Scrap PVC Scrap US MOQ: Sign in to see MOQ Sign in to see price"':
+    - /url: /browse/27
+    - img "PVC Scrap"
+    - paragraph: PVC Scrap
+    - paragraph: US
+    - generic: "MOQ: Sign in to see MOQ"
+    - generic: Sign in to see price
+  - 'link "Illustrative image of Premium Rice Hull Ash Illustrative image Premium Rice Hull Ash LA MOQ: Sign in to see MOQ Sign in to see price"':
+    - /url: /browse/22
+    - img "Illustrative image of Premium Rice Hull Ash"
+    - generic: Illustrative image
+    - paragraph: Premium Rice Hull Ash
+    - paragraph: LA
+    - generic: "MOQ: Sign in to see MOQ"
+    - generic: Sign in to see price
+  - 'link "Illustrative image of Dark Viscous Liquid Tonnels Illustrative image Dark Viscous Liquid Tonnels SA MOQ: Sign in to see MOQ Sign in to see price"':
+    - /url: /browse/20
+    - img "Illustrative image of Dark Viscous Liquid Tonnels"
+    - generic: Illustrative image
+    - paragraph: Dark Viscous Liquid Tonnels
+    - paragraph: SA
+    - generic: "MOQ: Sign in to see MOQ"
+    - generic: Sign in to see price
+  - 'link "Illustrative image of Tar Illustrative image Tar TX, US MOQ: Sign in to see MOQ Sign in to see price"':
+    - /url: /browse/19
+    - img "Illustrative image of Tar"
+    - generic: Illustrative image
+    - paragraph: Tar
+    - paragraph: TX, US
+    - generic: "MOQ: Sign in to see MOQ"
+    - generic: Sign in to see price
+  - 'link "Illustrative image of White Label Illustrative image White Label SA MOQ: Sign in to see MOQ Sign in to see price"':
+    - /url: /browse/18
+    - img "Illustrative image of White Label"
+    - generic: Illustrative image
+    - paragraph: White Label
+    - paragraph: SA
+    - generic: "MOQ: Sign in to see MOQ"
+    - generic: Sign in to see price
+  - 'link "Illustrative image of Biochar Illustrative image Biochar JAL, MX MOQ: Sign in to see MOQ Sign in to see price"':
+    - /url: /browse/17
+    - img "Illustrative image of Biochar"
+    - generic: Illustrative image
+    - paragraph: Biochar
+    - paragraph: JAL, MX
+    - generic: "MOQ: Sign in to see MOQ"
+    - generic: Sign in to see price
+  - 'link "Illustrative image of Used Pallets Illustrative image Used Pallets LA, US MOQ: Sign in to see MOQ Sign in to see price"':
+    - /url: /browse/16
+    - img "Illustrative image of Used Pallets"
+    - generic: Illustrative image
+    - paragraph: Used Pallets
+    - paragraph: LA, US
+    - generic: "MOQ: Sign in to see MOQ"
+    - generic: Sign in to see price
+  - 'link "Illustrative image of Hydrochar Illustrative image Hydrochar NL MOQ: Sign in to see MOQ Sign in to see price"':
+    - /url: /browse/15
+    - img "Illustrative image of Hydrochar"
+    - generic: Illustrative image
+    - paragraph: Hydrochar
+    - paragraph: NL
+    - generic: "MOQ: Sign in to see MOQ"
+    - generic: Sign in to see price
+  - heading "For Buyers" [level=2]
+  - paragraph: EcoGlobe enables cheaper and more sustainable feedstock in a reliable way.
+  - paragraph:
+    - text: Are you both a seller and a buyer?
+    - link "Click here":
+      - /url: /register
+    - text: .
+  - link "Become a Buyer":
+    - /url: /register
+    - button "Become a Buyer"
+  - img "Buyer-side feedstock sourcing review"
+  - heading "For Sellers" [level=2]
+  - paragraph: Unlock the potential of your surplus materials and transform them into a reliable source of revenue by connecting with industries in need.
+  - link "Become a Seller":
+    - /url: /register
+    - button "Become a Seller"
+  - img "Seller-side industrial materials yard"
+  - heading "A simple flow built for heavy industry" [level=2]
+  - generic: "1"
+  - heading "Define your need" [level=3]
+  - paragraph: Search by feedstock type, specs, volume, and location.
+  - generic: "2"
+  - heading "Match with compatible feedstocks" [level=3]
+  - paragraph: Our matching engine surfaces the feedstocks that fit your process — with distance, delivery time, and carbon impact shown side by side.
+  - generic: "3"
+  - heading "Execute with confidence" [level=3]
+  - paragraph: Logistics, tracking, and reporting are handled in one place.
+  - heading "One Platform. Every Step of the Trade." [level=2]
+  - paragraph: From finding verified partners to completing transactions — EcoGlobe handles the complexity so you can focus on the deal.
+  - link "Explore Listings":
+    - /url: /browse
+    - button "Explore Listings"
+  - link "Join as a Seller":
+    - /url: /register
+    - button "Join as a Seller"
+  - link "Join as a Buyer":
+    - /url: /register
+    - button "Join as a Buyer"
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - link "LinkedIn":
+    - /url: https://www.linkedin.com/company/ecoglobeworld
+  - link "Instagram":
+    - /url: https://www.instagram.com/ecoglobeworld/
+  - link "Facebook":
+    - /url: https://www.facebook.com/ecoglobeworld/
+  - heading "Buyers" [level=4]
+  - link "Browse feedstocks":
+    - /url: /browse
+  - link "Search by specs, volume, distance & Carbon footprint":
+    - /url: /browse
+  - link "Request quotes":
+    - /url: /register
+  - link "Track orders & delivery":
+    - /url: /buyer/orders
+  - link "Sustainability reports":
+    - /url: /sustainability-reports
+  - heading "Company" [level=4]
+  - link "About us":
+    - /url: /about
+  - link "Contact us":
+    - /url: /contact
+  - link "Careers":
+    - /url: /careers
+  - link "FAQs":
+    - /url: /faqs
+  - link "Help Center":
+    - /url: /help
+  - link "Newsletter":
+    - /url: /newsletter
+  - heading "Other services" [level=4]
+  - link "Hands-on Services":
+    - /url: /services
+  - link "Feedstocks certifications":
+    - /url: /certifications
+  - link "Other digital Products":
+    - /url: /digital-products
+  - link "Logistics":
+    - /url: /logistics
+  - heading "Sellers" [level=4]
+  - link "List your feedstock":
+    - /url: /register
+  - link "Manage availability & pricing":
+    - /url: /seller/listings
+  - link "Reach verified buyers":
+    - /url: /register
+  - link "Product passports":
+    - /url: /product-passports
+  - link "Get paid securely":
+    - /url: /secure-payments
+  - heading "Legal" [level=4]
+  - link "Terms of service":
+    - /url: /terms
+  - link "Privacy policy":
+    - /url: /privacy
+  - link "Cookie policy":
+    - /url: /cookie-policy
+  - link "Data protection":
+    - /url: /data-protection
+  - link "Feedstock policy and protection":
+    - /url: /feedstock-policy
+  - link "Logistics policy":
+    - /url: /logistics-policy
+  - paragraph: © 2026 EcoGlobe All rights reserved.
+  - paragraph: From Louisiana to the World

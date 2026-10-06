@@ -1,0 +1,52 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/seller/listings/add".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/listings/add
+	2 container
+		3 heading Add Listing, Value: 2
+			4 text Add Listing
+		5 button Close
+			6 image
+		7 heading Listing information, Value: 1
+			8 text Listing information
+		9 text Listing for GulfStar Chemicals Listing name
+		10 text field (settable) Listing name, ID: name
+		11 text Listing category
+		12 pop up button (collapsed, settable) Listing category, Value: Select..., ID: cat, Secondary Actions: Expand
+			13 menu
+				14 (selected) Select...
+				15 Chemical Byproducts
+				16 Refinery Byproducts
+				17 Plastics
+				18 Rubber & Tire-Derived
+				19 Oils & Liquid Feedstocks
+				20 Biomass & Wood
+				21 Industrial Byproducts
+				22 Used products
+				23 Others
+		24 text Material type (marketplace classification)
+		25 pop up button (collapsed, settable) Material type (marketplace classification), Value: Select..., ID: material-type, Secondary Actions: Expand
+			26 menu
+				27 (selected) Select...
+				28 Industrial byproduct
+				29 Low CO₂ feedstock
+				30 Certified feedstock
+				31 Used product
+				32 Other
+		33 text Ships from
+		34 radio button (settable, integer) Description: Houston terminal 2400 Ship Channel Rd, Houston, TX, US, Value: 0
+		35 text Houston terminal
+		36 text 2400 Ship Channel Rd, Houston, TX, US
+		37 radio button (settable, integer) Value: 0, Description: Smoke pickup 1 Demo Way, Houston, TX, 77001, US No coordinates saved: this site will not appear on maps or distance estimates.
+		38 text Smoke pickup
+		39 text 1 Demo Way, Houston, TX, 77001, US
+		40 text No coordinates saved: this site will not appear on maps or distance estimates.
+		41 button Add a facility
+			42 image
+			43 text Add a facility
+		44 text Listing photos
+		45 image
+		46 text Upload Listing photo Your draft is saved automatically before uploading photos. Accepts PNG, JPEG or WebP up to 5 MB each.  Documents are stored with the saved listing.
+		47 button Back
+		48 button Next
+		49 button Save as Draft
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/listings/add

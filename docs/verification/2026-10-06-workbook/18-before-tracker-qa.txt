@@ -1,0 +1,48 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/tracker".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/tracker
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				29 text CORE
+				6 image
+			7 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			8 link Description: Search, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			9 link Description: My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			10 button (expanded) MARKETPLACE, Secondary Actions: Collapse
+				30 text MARKETPLACE
+				11 image
+			12 link Description: Partners, Value: eco-globe-dev-web.vercel.app/buyer/partners
+			13 link Description: Saved, Value: eco-globe-dev-web.vercel.app/buyer/favorites
+			14 link Description: Requests for quote, Value: eco-globe-dev-web.vercel.app/buyer/rfq
+			15 link Description: Tracker, Value: eco-globe-dev-web.vercel.app/buyer/tracker
+			16 link Description: Samples, Value: eco-globe-dev-web.vercel.app/buyer/samples
+			17 link Description: Pilots, Value: eco-globe-dev-web.vercel.app/buyer/pilots
+			18 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				31 text LOGISTICS
+				19 image
+			20 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				32 text CONTRACTS & DOCS
+				21 image
+			22 button (collapsed) FINANCE & SUPPORT, Secondary Actions: Expand
+				33 text FINANCE & SUPPORT
+				23 image
+		24 button Notifications
+			34 container
+				35 image
+				36 container 12 unread notifications
+					37 text 9+
+			38 text Notifications
+		25 button E EcoGlobe Sandbox Tester
+			39 text E
+			40 text EcoGlobe Sandbox Tester
+			26 image
+		27 container
+			41 text BUYER  TRACKER
+			28 heading Where everything stands, Value: 1
+				42 text Where everything stands
+			43 text ·  0  materials
+			44 button Refresh
+			45 text This company does not have this portal profile. Tracker unavailable. Use Refresh to retry.
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/tracker

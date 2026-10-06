@@ -1,0 +1,20 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/checkout?listing=27".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/checkout?listing=27
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/buyer/browse
+		4 image
+		14 text Secure
+		5 link Description: ← Back to listing, Value: eco-globe-dev-web.vercel.app/buyer/browse/27
+		6 image
+		7 text PRODUCT PVC Scrap 10 units  ×  $3.00 /unit  ·  MKDK Shop MOQ  10 units  · 990 units available  ·  USD
+		8 image
+		9 text SHIPPING
+		10 button Pickup
+		11 button Delivery
+		12 container
+			13 heading Summary, Value: 2
+				15 text Summary
+			16 text 1 product Item subtotal $30.00 Material charge $30.00 Charged online for the material only. Freight and any fees are not included and are arranged separately.
+			17 button (disabled) Continue to payment
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/checkout?listing=27

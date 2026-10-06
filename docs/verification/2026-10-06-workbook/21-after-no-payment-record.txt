@@ -1,0 +1,65 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Home":
+      - /url: /
+      - generic: Home
+    - link "Search":
+      - /url: /buyer/browse
+      - generic: Search
+    - link "My Orders":
+      - /url: /buyer/orders
+      - generic: My Orders
+    - button "Marketplace":
+      - generic: Marketplace
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Support" [expanded]:
+      - generic: Finance & Support
+    - button "Accounting" [expanded]:
+      - generic: Accounting
+    - link "Transactions":
+      - /url: /buyer/accounting/transactions
+    - link "Payments":
+      - /url: /buyer/accounting/payments
+    - link "Refunds":
+      - /url: /buyer/accounting/refunds
+    - link "Escrow":
+      - /url: /buyer/accounting/escrow
+    - link "Bank Account":
+      - /url: /buyer/accounting/bank-account
+    - link "Account":
+      - /url: /buyer/account
+      - generic: Account
+    - link "Help":
+      - /url: /buyer/help
+      - generic: Help
+  - button "Notifications":
+    - generic "12 unread notifications": 9+
+    - text: Notifications
+  - button "E EcoGlobe Sandbox Tester":
+    - generic: E
+    - generic: EcoGlobe Sandbox Tester
+- main:
+  - status:
+    - text: Payment for order EG-27 is not confirmed yet. Refresh this page in a moment.
+    - link "Continue with 1 remaining cart item":
+      - /url: /buyer/checkout?listing=27
+  - paragraph: PAYMENT CENTER
+  - heading "Payment records and receipts" [level=1]
+  - paragraph: Payments confirmed by Stripe for your account. Seller payouts and settlement are not automated yet; EcoGlobe staff arrange them.
+  - button "Add payment method"
+  - heading "Payment history" [level=2]
+  - button "Export" [disabled]:
+    - text: Export
+  - paragraph: No payment records yet.
+  - complementary:
+    - heading "Payment detail" [level=2]
+    - paragraph: Select a payment to see its details.

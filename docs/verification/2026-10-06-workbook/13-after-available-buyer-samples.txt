@@ -1,0 +1,50 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/samples".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/samples
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				31 text CORE
+				6 image
+			7 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			8 link Description: Search, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			9 link Description: My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			10 button (expanded) MARKETPLACE, Secondary Actions: Collapse
+				32 text MARKETPLACE
+				11 image
+			12 link Description: Partners, Value: eco-globe-dev-web.vercel.app/buyer/partners
+			13 link Description: Saved, Value: eco-globe-dev-web.vercel.app/buyer/favorites
+			14 link Description: Requests for quote, Value: eco-globe-dev-web.vercel.app/buyer/rfq
+			15 link Description: Tracker, Value: eco-globe-dev-web.vercel.app/buyer/tracker
+			16 link Description: Samples, Value: eco-globe-dev-web.vercel.app/buyer/samples
+			17 link Description: Pilots, Value: eco-globe-dev-web.vercel.app/buyer/pilots
+			18 link Description: Feedstock IQ SOON, Value: eco-globe-dev-web.vercel.app/feedstock-iq
+			19 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				33 text LOGISTICS
+				20 image
+			21 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				34 text CONTRACTS & DOCS
+				22 image
+			23 button (collapsed) FINANCE & SUPPORT, Secondary Actions: Expand
+				35 text FINANCE & SUPPORT
+				24 image
+		25 button Notifications
+			36 container
+				37 image
+				38 container 3 unread notifications
+					39 text 3
+			40 text Notifications
+		26 button J Joanna Bell
+			41 text J
+			42 text Joanna Bell
+			27 image
+		28 container
+			43 container
+				44 text BUYER  VIEW
+			29 heading My sample requests, Value: 1
+				45 text My sample requests
+			46 text Online sample shipping is not configured yet. Contact EcoGlobe for help arranging a sample.
+			30 button Refresh requests
+			47 text No prepaid sample shipments yet.  Sample requests arranged directly with the seller appear above when there are any.
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/samples

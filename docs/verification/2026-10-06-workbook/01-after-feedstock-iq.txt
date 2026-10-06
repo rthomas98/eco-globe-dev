@@ -1,0 +1,111 @@
+- alert: Feedstock IQ — Coming soon | EcoGlobe
+- main:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - link "Home":
+      - /url: /
+    - link "Services":
+      - /url: /services
+    - link "Sellers":
+      - /url: /sellers
+    - link "Buyers":
+      - /url: /buyers
+    - link "Feedstock IQ Soon":
+      - /url: /feedstock-iq
+      - text: Feedstock IQ
+      - generic: Soon
+    - link "About":
+      - /url: /about
+    - link "Contact Us":
+      - /url: /contact
+  - link "Login":
+    - /url: /login
+  - link "Sign Up":
+    - /url: /register
+    - button "Sign Up"
+  - paragraph: Coming soon
+  - heading "Feedstock IQ" [level=1]
+  - paragraph: Pricing and demand intelligence for feedstock buyers and sellers.
+  - paragraph: "Feedstock IQ is not available yet. The marketplace is open today: browse published listings or list your own feedstock."
+  - link "Browse feedstocks":
+    - /url: /browse
+    - button "Browse feedstocks"
+  - link "Ask us about Feedstock IQ":
+    - /url: /contact
+    - button "Ask us about Feedstock IQ"
+  - heading "For buyers" [level=2]
+  - paragraph: Follow availability for the feedstocks you source and see when matching supply is listed.
+  - heading "For sellers" [level=2]
+  - paragraph: Compare your listing pricing with the market before you publish.
+  - heading "Built on marketplace activity" [level=2]
+  - paragraph: Insights will come from listings and orders on EcoGlobe. Nothing is shown until there is enough data to be useful.
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - link "LinkedIn":
+    - /url: https://www.linkedin.com/company/ecoglobeworld
+  - link "Instagram":
+    - /url: https://www.instagram.com/ecoglobeworld/
+  - link "Facebook":
+    - /url: https://www.facebook.com/ecoglobeworld/
+  - heading "Buyers" [level=4]
+  - link "Browse feedstocks":
+    - /url: /browse
+  - link "Search by specs, volume, distance & Carbon footprint":
+    - /url: /browse
+  - link "Request quotes":
+    - /url: /register
+  - link "Track orders & delivery":
+    - /url: /buyer/orders
+  - link "Sustainability reports":
+    - /url: /sustainability-reports
+  - heading "Company" [level=4]
+  - link "About us":
+    - /url: /about
+  - link "Contact us":
+    - /url: /contact
+  - link "Careers":
+    - /url: /careers
+  - link "FAQs":
+    - /url: /faqs
+  - link "Help Center":
+    - /url: /help
+  - link "Newsletter":
+    - /url: /newsletter
+  - heading "Other services" [level=4]
+  - link "Hands-on Services":
+    - /url: /services
+  - link "Feedstocks certifications":
+    - /url: /certifications
+  - link "Other digital Products":
+    - /url: /digital-products
+  - link "Logistics":
+    - /url: /logistics
+  - heading "Sellers" [level=4]
+  - link "List your feedstock":
+    - /url: /register
+  - link "Manage availability & pricing":
+    - /url: /seller/listings
+  - link "Reach verified buyers":
+    - /url: /register
+  - link "Product passports":
+    - /url: /product-passports
+  - link "Get paid securely":
+    - /url: /secure-payments
+  - heading "Legal" [level=4]
+  - link "Terms of service":
+    - /url: /terms
+  - link "Privacy policy":
+    - /url: /privacy
+  - link "Cookie policy":
+    - /url: /cookie-policy
+  - link "Data protection":
+    - /url: /data-protection
+  - link "Feedstock policy and protection":
+    - /url: /feedstock-policy
+  - link "Logistics policy":
+    - /url: /logistics-policy
+  - paragraph: © 2026 EcoGlobe All rights reserved.
+  - paragraph: From Louisiana to the World

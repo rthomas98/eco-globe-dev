@@ -1,0 +1,67 @@
+- alert
+- banner:
+  - heading "Add Listing" [level=2]
+  - button "Close":
+- heading "Listing information" [level=1]
+- paragraph: Listing for GulfStar Chemicals
+- generic: Listing name
+- textbox "Listing name"
+- generic: Listing category
+- combobox "Listing category":
+  - option "Select..." [selected]
+  - option "Chemical Byproducts"
+  - option "Refinery Byproducts"
+  - option "Plastics"
+  - option "Rubber & Tire-Derived"
+  - option "Oils & Liquid Feedstocks"
+  - option "Biomass & Wood"
+  - option "Industrial Byproducts"
+  - option "Used products"
+  - option "Others"
+- generic: Material type (marketplace classification)
+- combobox "Material type (marketplace classification)":
+  - option "Select..." [selected]
+  - option "Industrial byproduct"
+  - option "Low CO₂ feedstock"
+  - option "Certified feedstock"
+  - option "Used product"
+  - option "Other"
+- paragraph: Ships from
+- radio "Houston terminal 2400 Ship Channel Rd, Houston, TX, US"
+- paragraph: Houston terminal
+- paragraph: 2400 Ship Channel Rd, Houston, TX, US
+- button "Edit facility Houston terminal":
+  - text: Edit
+- 'radio "Smoke pickup 1 Demo Way, Houston, TX, 77001, US No coordinates saved: this site will not appear on maps or distance estimates."'
+- paragraph: Smoke pickup
+- paragraph: 1 Demo Way, Houston, TX, 77001, US
+- paragraph: "No coordinates saved: this site will not appear on maps or distance estimates."
+- button "Edit facility Smoke pickup":
+  - text: Edit
+- paragraph: New facility
+- generic: Facility name
+- textbox "Facility name": QA validation — do not create
+- generic: Address
+- textbox "Address": 1 Demo Way
+- generic: City
+- textbox "City": Houston
+- generic: State / province
+- textbox "State / province": TX
+- generic: Postal / ZIP code
+- textbox "Postal / ZIP code": "77001"
+- generic: Country (2-letter code, e.g. US)
+- textbox "Country (2-letter code, e.g. US)": US
+- generic: Latitude (optional)
+- textbox "Latitude (optional)": "29"
+- generic: Longitude (optional)
+- textbox "Longitude (optional)"
+- paragraph: Coordinates place this site on buyer maps and distance filters. Copy them from your facility records or a map app; EcoGlobe does not guess them. Leave both blank to clear them.
+- alert: Enter both latitude and longitude, or leave both blank.
+- button "Save facility" [active]
+- button "Cancel"
+- paragraph: Listing photos
+- text: Upload Listing photo
+- paragraph: Your draft is saved automatically before uploading photos. Accepts PNG, JPEG or WebP up to 5 MB each. Documents are stored with the saved listing.
+- button "Back"
+- button "Next"
+- button "Save as Draft"

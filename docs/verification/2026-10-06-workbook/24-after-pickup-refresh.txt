@@ -1,0 +1,141 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/orders".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/orders
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			9 link Description: Search, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			10 link Description: My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			11 button (collapsed) MARKETPLACE, Secondary Actions: Expand
+				12 text MARKETPLACE
+				13 image
+			14 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				15 text LOGISTICS
+				16 image
+			17 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				18 text CONTRACTS & DOCS
+				19 image
+			20 button (collapsed) FINANCE & SUPPORT, Secondary Actions: Expand
+				21 text FINANCE & SUPPORT
+				22 image
+		23 button Notifications
+			24 container
+				25 image
+				26 container 13 unread notifications
+					27 text 9+
+			28 text Notifications
+		29 button E EcoGlobe Sandbox Tester
+			30 text E
+			31 text EcoGlobe Sandbox Tester
+			32 image
+		33 heading My Orders, Value: 1
+			34 text My Orders
+		35 image
+		36 text field (settable)
+		37 button Filters
+			38 image
+			39 text Filters
+		40 container
+			41 button All Order
+			42 button Action needed
+			43 button Processing
+			44 button Shipped
+			45 button Completed
+			46 button Cancelled
+		47 container
+			48 text Order ID EG-28 Order Placed Oct 6, 2026 Shipping Pickup Qty 10 unit Total $30.00
+			49 pop up button (collapsed) Status: Completed, Secondary Actions: Expand
+				50 text Status:
+				51 text Completed
+				52 image
+				53 image
+			54 image
+			55 text MKDK Shop
+			56 image PVC Scrap
+			57 text PVC Scrap $3.00  /  unit
+			58 button Order Details
+			59 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				60 image
+			61 text Order ID EG-27 Order Placed Oct 6, 2026 Shipping Pickup Qty 10 unit Total $30.00
+			62 pop up button (collapsed) Status: Cancelled, Secondary Actions: Expand
+				63 text Status:
+				64 text Cancelled
+				65 image
+				66 image
+			67 image
+			68 text MKDK Shop
+			69 image PVC Scrap
+			70 text PVC Scrap $3.00  /  unit
+			71 button Order Details
+			72 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				73 image
+			74 text Order ID EG-26 Order Placed Oct 6, 2026 Shipping Pickup Qty 10 unit Total $30.00
+			75 pop up button (collapsed) Status: Cancelled, Secondary Actions: Expand
+				76 text Status:
+				77 text Cancelled
+				78 image
+				79 image
+			80 image
+			81 text MKDK Shop
+			82 image PVC Scrap
+			83 text PVC Scrap $3.00  /  unit
+			84 button Order Details
+			85 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				86 image
+			87 text Order ID EG-18 Order Placed Sep 28, 2026 Shipping Pickup Qty 1 tonnes Total $0.00
+			88 pop up button (collapsed) Status: Completed, Secondary Actions: Expand
+				89 text Status:
+				90 text Completed
+				91 image
+				92 image
+			93 image
+			94 text QA DocuSign Seller 2026-09-28
+			95 image Description: No photo available for Marketplace order, Help: No photo available
+			96 text Marketplace order $0.00  /  tonnes
+			97 button Order Details
+			98 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				99 image
+			100 text Order ID EG-17 Order Placed Sep 28, 2026 Shipping Delivery Qty 1 tonnes Total $0.00
+			101 pop up button (collapsed) Status: Completed, Secondary Actions: Expand
+				102 text Status:
+				103 text Completed
+				104 image
+				105 image
+			106 image
+			107 text QA DocuSign Seller 2026-09-28
+			108 image Description: No photo available for Marketplace order, Help: No photo available
+			109 text Marketplace order $0.00  /  tonnes
+			110 button Order Details
+			111 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				112 image
+			113 text Order ID EG-16 Order Placed Sep 28, 2026 Shipping Pickup Qty 1 tonnes Total $0.00
+			114 pop up button (collapsed) Status: Completed, Secondary Actions: Expand
+				115 text Status:
+				116 text Completed
+				117 image
+				118 image
+			119 image
+			120 text QA DocuSign Seller 2026-09-28
+			121 image Description: No photo available for Marketplace order, Help: No photo available
+			122 text Marketplace order $0.00  /  tonnes
+			123 button Order Details
+			124 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				125 image
+			126 text Order ID EG-15 Order Placed Sep 28, 2026 Shipping Delivery Qty 1 tonnes Total $0.00
+			127 pop up button (collapsed) Status: Completed, Secondary Actions: Expand
+				128 text Status:
+				129 text Completed
+				130 image
+				131 image
+			132 image
+			133 text QA DocuSign Seller 2026-09-28
+			134 image Description: No photo available for Marketplace order, Help: No photo available
+			135 text Marketplace order $0.00  /  tonnes
+			136 button Order Details
+			137 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				138 image
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/orders

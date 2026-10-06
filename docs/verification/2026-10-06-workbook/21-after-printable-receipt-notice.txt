@@ -1,0 +1,87 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Home":
+      - /url: /
+      - generic: Home
+    - link "Search":
+      - /url: /buyer/browse
+      - generic: Search
+    - link "My Orders":
+      - /url: /buyer/orders
+      - generic: My Orders
+    - button "Marketplace":
+      - generic: Marketplace
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Support" [expanded]:
+      - generic: Finance & Support
+    - button "Accounting" [expanded]:
+      - generic: Accounting
+    - link "Transactions":
+      - /url: /buyer/accounting/transactions
+    - link "Payments":
+      - /url: /buyer/accounting/payments
+    - link "Refunds":
+      - /url: /buyer/accounting/refunds
+    - link "Escrow":
+      - /url: /buyer/accounting/escrow
+    - link "Bank Account":
+      - /url: /buyer/accounting/bank-account
+    - link "Account":
+      - /url: /buyer/account
+      - generic: Account
+    - link "Help":
+      - /url: /buyer/help
+      - generic: Help
+  - button "Notifications":
+    - generic "12 unread notifications": 9+
+    - text: Notifications
+  - button "E EcoGlobe Sandbox Tester":
+    - generic: E
+    - generic: EcoGlobe Sandbox Tester
+- main:
+  - status: Payment for order EG-28 is confirmed.
+  - paragraph: PAYMENT CENTER
+  - heading "Payment records and receipts" [level=1]
+  - paragraph: Payments confirmed by Stripe for your account. Seller payouts and settlement are not automated yet; EcoGlobe staff arrange them.
+  - button "Add payment method"
+  - status: TX-9 downloaded. Open the document to print or save as PDF.
+  - heading "Payment history" [level=2]
+  - button "Export":
+    - text: Export
+  - button "TX-9 PVC Scrap to MKDK Shop $30.00 captured" [pressed]:
+    - generic: TX-9
+    - strong: PVC Scrap
+    - text: to MKDK Shop
+    - text: $30.00
+    - generic: captured
+  - complementary:
+    - heading "Payment detail" [level=2]
+    - term: Payment
+    - definition: TX-9
+    - term: Order
+    - definition: EG-28
+    - term: Material
+    - definition: PVC Scrap
+    - term: Amount
+    - definition: $30.00
+    - term: Status
+    - definition: captured
+    - term: Type
+    - definition: buyer funding
+    - term: Date
+    - definition: Oct 6, 2026
+    - term: Escrow
+    - definition: None recorded
+    - button "Receipt":
+      - text: Receipt
+    - button "Review":
+      - text: Review

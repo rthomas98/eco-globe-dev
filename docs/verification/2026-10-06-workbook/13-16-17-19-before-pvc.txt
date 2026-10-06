@@ -1,0 +1,127 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/browse/27".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/browse/27
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			9 link Description: Search, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			10 link Description: My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			11 button (collapsed) MARKETPLACE, Secondary Actions: Expand
+				12 text MARKETPLACE
+				13 image
+			14 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				15 text LOGISTICS
+				16 image
+			17 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				18 text CONTRACTS & DOCS
+				19 image
+			20 button (collapsed) FINANCE & SUPPORT, Secondary Actions: Expand
+				21 text FINANCE & SUPPORT
+				22 image
+		23 button Notifications
+			29 container
+				30 image
+				31 container 12 unread notifications
+					32 text 9+
+			24 text Notifications
+		25 button E EcoGlobe Sandbox Tester
+			26 text E
+			27 text EcoGlobe Sandbox Tester
+			28 image
+		33 container
+			34 link Description: Browse, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			35 image
+			36 text Product details
+			37 heading PVC Scrap, Value: 1
+				38 text PVC Scrap
+			39 text Pending · 990 units available MOQ:  10 units
+			40 image PVC Scrap
+			41 button Share
+				42 image
+			43 button Save
+				44 image
+			45 heading Map, Value: 2
+				46 text Map
+			47 text The seller's facility has no saved coordinates, so it cannot be shown on the map.
+			48 heading Documents, Value: 2
+				49 text Documents
+			50 image
+			51 text Safety Data Sheet (SDS) SDS044_PSK_PVC.pdf
+			52 link Description: Download, Value: eco-globe-dev-web.vercel.app/api/backend/api/listing-documents/7/download
+			53 heading Specifications, Value: 2
+				54 text Specifications
+			55 text Category Used products Composition PVC panels are made mainly from polyvinyl chloride (PVC) resin. Manufacturers typically add stabilizers for durability, fillers such as calcium carbonate for stiffness, and pigments for color. Some panels also contain additives that affect flexibility or fire performance. The exact composition varies by manufacturer and by whether the panel is solid, hollow, or foamed. Quality Give your walls or ceilings a clean, modern finish with PVC panels. Lightweight and easy to install, they offer a smooth surface that’s simple to wipe clean. Their moisture-resistant material makes them a practical choice for kitchens, bathrooms, and other busy spaces. Available in a range of colors and finishes, PVC panels make it easy to refresh a room with a look that suits your style. Feedstock state Solid Frequency Weekly Availability window 2026-09-27 → 2026-10-03 Minimum Order Quantity (MOQ) 10 units Available quantity 990 units Carbon profile Not provided by seller Sustainability claims Recycled Content Pickup location Pending
+			56 container Independent analysis
+				57 heading Independent analysis, Value: 2, ID: listing-analysis-heading
+					58 text Independent analysis
+				59 text No independent analysis on this listing yet.
+				60 button Request lab testing
+				61 text Arranged by EcoGlobe · you decide who sees it · nothing is charged now.
+			62 heading Overview, Value: 2
+				63 text Overview
+			64 text Refresh your space with a PVC panel that combines a clean finish with everyday practicality. Made primarily from polyvinyl chloride (PVC) resin, it is lightweight, moisture resistant, and easy to wipe clean. Use it on walls or ceilings in bathrooms, kitchens, and other indoor spaces.
+
+Available in a range of colors and finishes, this panel can suit both modern and classic interiors. Installation requirements and suitability for wet areas depend on the specific product and how it is fitted.
+			65 button Read More
+			66 heading Seller, Value: 2
+				67 text Seller
+			68 text M MKDK Shop Pending  ·  Used products
+			69 heading Carbon Analytics Tool, Value: 2
+				70 text Carbon Analytics Tool
+			71 text Estimate transportation footprint, compare scenarios, and estimate your savings for  PVC Scrap .
+			72 button Open Carbon Calculator
+				73 image
+				74 text Open Carbon Calculator
+			75 button Estimate savings
+				76 image
+				77 text Estimate savings
+			78 text Was this tool helpful, give us your feedback here
+			79 button
+				80 image
+			81 button
+				82 image
+			83 container
+				84 text $3.00 /unit
+			85 container
+				86 text Minimum Order Quantity (MOQ):  10 units
+			87 text Quantity ( units )
+			88 button Decrease quantity
+				89 image
+			90 stepper (settable, integer) Description: Quantity, Value: 10
+			91 button Increase quantity
+				92 image
+			93 text 990 units available
+			94 text Item subtotal $30.00 Shipping Quoted per order Subtotal (excl. shipping) $30.00
+			95 button Buy Now
+			96 button Ask EcoGlobe about a sample
+			97 text This material needs EcoGlobe review before shipping. No payment or parcel label will be created.
+			98 link Description: Request a pilot (plant-scale trial), Value: eco-globe-dev-web.vercel.app/buyer/pilots/new?listing=27
+			99 container Demo buy and sell
+				100 heading Full Buy / Sell demo, Value: 2
+					101 text Full Buy / Sell demo
+				102 text Saved demo orders appear in Buyer, Seller and Admin. SDS, stock, payment and shipping steps are simulated. No real money or shipment; live verification is unchanged.
+				103 checkbox Seller Demo, Value: 0
+				104 checkbox Buyer Demo, Value: 1
+				105 link Description: Demo document — not a valid SDS, Value: eco-globe-dev-web.vercel.app/demo/sds-demo-only.txt
+				106 container
+					107 text Demo quantity
+					108 stepper (settable, integer) Demo quantity, Value: 1
+					109 text Demo delivery address
+					110 text field (settable) Demo delivery address, Value: Demo receiving site — no shipment
+					111 button Create saved demo order
+					112 link Description: Open My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			113 button Open Carbon Calculator
+				114 image
+				115 text Open Carbon Calculator
+			116 button Estimate savings
+				117 image
+				118 text Estimate savings
+			119 link Description: Download SDS, Value: eco-globe-dev-web.vercel.app/api/backend/api/listing-documents/7/download
+			120 text Do you want to know more? Here is how it works
+			121 button Learn more
+				122 image
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/browse/27

@@ -1,0 +1,123 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/browse/22".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/browse/22
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			9 link Description: Search, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			10 link Description: My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			11 button (collapsed) MARKETPLACE, Secondary Actions: Expand
+				12 text MARKETPLACE
+				13 image
+			14 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				15 text LOGISTICS
+				16 image
+			17 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				18 text CONTRACTS & DOCS
+				19 image
+			20 button (collapsed) FINANCE & SUPPORT, Secondary Actions: Expand
+				21 text FINANCE & SUPPORT
+				22 image
+		23 button Notifications
+			24 container
+				25 image
+				26 container 3 unread notifications
+					27 text 3
+			28 text Notifications
+		29 button J Joanna Bell
+			30 text J
+			31 text Joanna Bell
+			32 image
+		33 container
+			34 link Description: Browse, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			35 image
+			36 text Product details
+			37 heading Premium Rice Hull Ash, Value: 1
+				38 text Premium Rice Hull Ash
+			39 text Baton Rouge, LA · 800 t (metric tonnes) available MOQ:  20 t (metric tonnes)
+			40 image Illustrative image of Premium Rice Hull Ash
+			41 text Illustrative image
+			42 button Share
+				43 image
+			44 button Save
+				45 image
+			46 heading Map, Value: 2
+				47 text Map
+			48 text The seller's facility has no saved coordinates, so it cannot be shown on the map.
+			49 heading Specifications, Value: 2
+				50 text Specifications
+			51 text Category Industrial Byproducts Feedstock state Solid Minimum Order Quantity (MOQ) 20 t (metric tonnes) Available quantity 800 t (metric tonnes) Carbon profile Not provided by seller Pickup location Baton Rouge, LA
+			52 container Independent analysis
+				53 heading Independent analysis, Value: 2, ID: listing-analysis-heading
+					54 text Independent analysis
+				55 text No independent analysis on this listing yet.
+				56 button Request lab testing
+				57 text Arranged by EcoGlobe · you decide who sees it · nothing is charged now.
+			58 heading Overview, Value: 2
+				59 text Overview
+			60 text The seller has not added a description yet.
+			61 heading Seller, Value: 2
+				62 text Seller
+			63 text G Greenfield Biomass LLC VERIFIED
+			64 image
+			65 text Baton Rouge, LA  ·  Industrial Byproducts
+			66 heading Carbon Analytics Tool, Value: 2
+				67 text Carbon Analytics Tool
+			68 text Estimate transportation footprint, compare scenarios, and estimate your savings for  Premium Rice Hull Ash .
+			69 button Open Carbon Calculator
+				70 image
+				71 text Open Carbon Calculator
+			72 button Estimate savings
+				73 image
+				74 text Estimate savings
+			75 text Was this tool helpful, give us your feedback here
+			76 button
+				77 image
+			78 button
+				79 image
+			80 container
+				81 text $250.00 /t
+			82 container
+				83 text Minimum Order Quantity (MOQ):  20 t (metric tonnes)
+			84 text Quantity ( metric tonnes )
+			85 button Decrease quantity
+				86 image
+			87 stepper (settable, integer) Description: Quantity, Value: 20
+			88 button Increase quantity
+				89 image
+			90 text 800 t (metric tonnes) available
+			91 text Item subtotal $5,000.00 Shipping Quoted per order Subtotal (excl. shipping) $5,000.00
+			92 button (disabled) Buy Now
+			93 button Ask EcoGlobe about a sample
+			94 text This material needs EcoGlobe review before shipping. No payment or parcel label will be created.
+			95 link Description: Request a pilot (plant-scale trial), Value: eco-globe-dev-web.vercel.app/buyer/pilots/new?listing=22
+			96 image
+			97 text Seller hasn't uploaded the SDS yet — purchase blocked.
+			98 container Demo buy and sell
+				99 heading Full Buy / Sell demo, Value: 2
+					100 text Full Buy / Sell demo
+				101 text Saved demo orders appear in Buyer, Seller and Admin. SDS, stock, payment and shipping steps are simulated. No real money or shipment; live verification is unchanged.
+				102 checkbox Seller Demo, Value: 0
+				103 checkbox Buyer Demo, Value: 1
+				104 link Description: Demo document — not a valid SDS, Value: eco-globe-dev-web.vercel.app/demo/sds-demo-only.txt
+				105 container
+					106 text Demo quantity
+					107 stepper (settable, integer) Demo quantity, Value: 1
+					108 text Demo delivery address
+					109 text field (settable) Demo delivery address, Value: Demo receiving site — no shipment
+					110 button Create saved demo order
+					111 link Description: Open My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			112 button Open Carbon Calculator
+				113 image
+				114 text Open Carbon Calculator
+			115 button Estimate savings
+				116 image
+				117 text Estimate savings
+			118 text Do you want to know more? Here is how it works
+			119 button Learn more
+				120 image
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/browse/22

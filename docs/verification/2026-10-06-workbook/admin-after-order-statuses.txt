@@ -1,0 +1,490 @@
+Browser tab: 1, Title: "EcoGlobe Admin", URL: "https://eco-globe-dev-admin.vercel.app/admin/sales".
+1 AXWebArea EcoGlobe Admin, URL: eco-globe-dev-admin.vercel.app/admin/sales
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-admin.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Dashboard, Value: eco-globe-dev-admin.vercel.app/admin/dashboard
+			9 link Description: Sales, Value: eco-globe-dev-admin.vercel.app/admin/sales
+			10 link Description: Listings, Value: eco-globe-dev-admin.vercel.app/admin/listings
+			11 link Description: Sample shipping, Value: eco-globe-dev-admin.vercel.app/admin/samples
+			12 link Description: Lab testing, Value: eco-globe-dev-admin.vercel.app/admin/lab-testing
+			13 link Description: Pilot desk, Value: eco-globe-dev-admin.vercel.app/admin/pilots
+			14 button (collapsed) MARKETPLACE, Secondary Actions: Expand
+				15 text MARKETPLACE
+				16 image
+			17 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				18 text LOGISTICS
+				19 image
+			20 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				21 text CONTRACTS & DOCS
+				22 image
+			23 button (collapsed) FINANCE & REPORTS, Secondary Actions: Expand
+				24 text FINANCE & REPORTS
+				25 image
+			26 button (collapsed) GOVERNANCE, Secondary Actions: Expand
+				27 text GOVERNANCE
+				28 image
+			29 button (collapsed) SYSTEM, Secondary Actions: Expand
+				30 text SYSTEM
+				31 image
+		32 container
+			33 button Notifications 69 unread notifications
+				34 image
+				35 text Notifications
+				36 container 69 unread notifications
+					37 text 9+
+			38 button E EcoGlobe
+				39 text E
+				40 text EcoGlobe
+				41 image
+		42 container Breadcrumb
+			43 text Admin
+			44 image
+			45 text Sales
+		46 button (collapsed) Search admin ⌘ K, Secondary Actions: Expand
+			47 image
+			48 text Search admin
+			49 text ⌘ K
+		50 link Description: Notifications, Value: eco-globe-dev-admin.vercel.app/admin/notifications
+		51 link Description: Admin settings, Value: eco-globe-dev-admin.vercel.app/admin/settings/system/users
+		52 link Description: Help and account, Value: eco-globe-dev-admin.vercel.app/admin/account
+		53 heading Sales, Value: 1
+			54 text Sales
+		55 image
+		56 search text field (settable) Search orders
+		57 button All time
+			58 text All time
+			59 image
+		60 button Export
+		61 text Orders 28 Completed 12 Cancelled 3 Order value (excl. cancelled) $183,995.00
+		62 heading Order value by month (USD only, excluding cancelled), Value: 3
+			63 text Order value by month (USD only, excluding cancelled)
+		64 image
+			65 text $0
+			66 text $26,000
+			67 text $52,000
+			68 text $79,000
+			69 text $105,000
+			70 text Nov
+			71 text Dec
+			72 text Jan
+			73 text Feb
+			74 text Mar
+			75 text Apr
+			76 text May
+			77 text Jun
+			78 text Jul
+			79 text Aug
+			80 text Sep
+			81 text Oct
+		82 table
+			83 row
+				84 cell
+					85 text Order
+				86 cell
+					87 text Buyer
+				88 cell
+					89 text Seller
+				90 cell
+					91 text Product
+				92 cell
+					93 text Qty
+				94 cell
+					95 text Fulfilment
+				96 cell
+					97 text Amount
+				98 cell
+					99 text Created
+				100 cell
+					101 text Status
+			102 row
+				103 cell
+					104 text EG- 28
+				105 cell
+					106 text QA DocuSign Buyer 2026-09-28
+				107 cell
+					108 text MKDK Shop
+				109 cell
+					110 text PVC Scrap
+				111 cell
+					112 text 10 unit
+				113 cell
+					114 text Pickup
+				115 cell
+					116 text $30.00
+				117 cell
+					118 text Oct 6, 2026
+				119 cell
+					120 text Completed
+			121 row
+				122 cell
+					123 text EG- 27
+				124 cell
+					125 text QA DocuSign Buyer 2026-09-28
+				126 cell
+					127 text MKDK Shop
+				128 cell
+					129 text PVC Scrap
+				130 cell
+					131 text 10 unit
+				132 cell
+					133 text Pickup
+				134 cell
+					135 text $30.00
+				136 cell
+					137 text Oct 6, 2026
+				138 cell
+					139 text Cancelled
+			140 row
+				141 cell
+					142 text EG- 26
+				143 cell
+					144 text QA DocuSign Buyer 2026-09-28
+				145 cell
+					146 text MKDK Shop
+				147 cell
+					148 text PVC Scrap
+				149 cell
+					150 text 10 unit
+				151 cell
+					152 text Pickup
+				153 cell
+					154 text $30.00
+				155 cell
+					156 text Oct 6, 2026
+				157 cell
+					158 text Cancelled
+			159 row
+				160 cell
+					161 text EG- 25
+				162 cell
+					163 text Marsh Materials BV
+				164 cell
+					165 text Greenfield Biomass LLC
+				166 cell
+					167 text Guard Test Bagasse
+				168 cell
+					169 text 20 tons
+				170 cell
+					171 text Delivery
+				172 cell
+					173 text $1,200.00
+				174 cell
+					175 text Oct 1, 2026
+				176 cell
+					177 text In progress
+			178 row
+				179 cell
+					180 text EG- 24
+				181 cell
+					182 text Marsh Materials BV
+				183 cell
+					184 text MKDK Shop
+				185 cell
+					186 text PVC Scrap
+				187 cell
+					188 text 10 unit
+				189 cell
+					190 text Delivery
+				191 cell
+					192 text $30.00
+				193 cell
+					194 text Sep 30, 2026
+				195 cell
+					196 text In progress
+			197 row
+				198 cell
+					199 text EG- 23
+				200 cell
+					201 text EcoGlobe Operations
+				202 cell
+					203 text Greenfield Biomass LLC
+				204 cell
+					205 text QA Seller Upload 2026-09-22 — draft only
+				206 cell
+					207 text —
+				208 cell
+					209 text Pickup
+				210 cell
+					211 text $0.00
+				212 cell
+					213 text Sep 30, 2026
+				214 cell
+					215 text Draft
+			216 row
+				217 cell
+					218 text EG- 22
+				219 cell
+					220 text EcoGlobe Operations
+				221 cell
+					222 text Greenfield Biomass LLC
+				223 cell
+					224 text Guard Test Bagasse
+				225 cell
+					226 text 10 tons
+				227 cell
+					228 text Pickup
+				229 cell
+					230 text $600.00
+				231 cell
+					232 text Sep 30, 2026
+				233 cell
+					234 text In progress
+			235 row
+				236 cell
+					237 text EG- 21
+				238 cell
+					239 text Marsh Materials BV
+				240 cell
+					241 text MKDK Shop
+				242 cell
+					243 text PVC Scrap
+				244 cell
+					245 text 43 unit
+				246 cell
+					247 text Pickup
+				248 cell
+					249 text $129.00
+				250 cell
+					251 text Sep 30, 2026
+				252 cell
+					253 text Cancelled
+			254 row
+				255 cell
+					256 text EG- 20
+				257 cell
+					258 text Marsh Materials BV
+				259 cell
+					260 text MKDK Shop
+				261 cell
+					262 text PVC Scrap
+				263 cell
+					264 text 10 unit
+				265 cell
+					266 text Pickup
+				267 cell
+					268 text $30.00
+				269 cell
+					270 text Sep 29, 2026
+				271 cell
+					272 text Completed
+			273 row
+				274 cell
+					275 text EG- 19
+				276 cell
+					277 text Marsh Materials BV
+				278 cell
+					279 text MKDK Shop
+				280 cell
+					281 text PVC Scrap
+				282 cell
+					283 text 10 unit
+				284 cell
+					285 text Pickup
+				286 cell
+					287 text $30.00
+				288 cell
+					289 text Sep 29, 2026
+				290 cell
+					291 text In progress
+			292 row
+				293 cell
+					294 text EG- 18
+				295 cell
+					296 text QA DocuSign Buyer 2026-09-28
+				297 cell
+					298 text QA DocuSign Seller 2026-09-28
+				299 cell
+					300 text —
+				301 cell
+					302 text 1 tonnes
+				303 cell
+					304 text Pickup
+				305 cell
+					306 text $0.00
+				307 cell
+					308 text Sep 28, 2026
+				309 cell
+					310 text Completed
+			311 row
+				312 cell
+					313 text EG- 17
+				314 cell
+					315 text QA DocuSign Buyer 2026-09-28
+				316 cell
+					317 text QA DocuSign Seller 2026-09-28
+				318 cell
+					319 text —
+				320 cell
+					321 text 1 tonnes
+				322 cell
+					323 text Delivery
+				324 cell
+					325 text $0.00
+				326 cell
+					327 text Sep 28, 2026
+				328 cell
+					329 text Completed
+			330 row
+				331 cell
+					332 text EG- 16
+				333 cell
+					334 text QA DocuSign Buyer 2026-09-28
+				335 cell
+					336 text QA DocuSign Seller 2026-09-28
+				337 cell
+					338 text —
+				339 cell
+					340 text 1 tonnes
+				341 cell
+					342 text Pickup
+				343 cell
+					344 text $0.00
+				345 cell
+					346 text Sep 28, 2026
+				347 cell
+					348 text Completed
+			349 row
+				350 cell
+					351 text EG- 15
+				352 cell
+					353 text QA DocuSign Buyer 2026-09-28
+				354 cell
+					355 text QA DocuSign Seller 2026-09-28
+				356 cell
+					357 text —
+				358 cell
+					359 text 1 tonnes
+				360 cell
+					361 text Delivery
+				362 cell
+					363 text $0.00
+				364 cell
+					365 text Sep 28, 2026
+				366 cell
+					367 text Completed
+			368 row
+				369 cell
+					370 text EG- 14
+				371 cell
+					372 text MKDK Shop
+				373 cell
+					374 text MKDK Shop
+				375 cell
+					376 text PVC Scrap
+				377 cell
+					378 text 15 unit
+				379 cell
+					380 text Delivery
+				381 cell
+					382 text $45.00
+				383 cell
+					384 text Sep 24, 2026
+				385 cell
+					386 text In progress
+			387 row
+				388 cell
+					389 text EG- 13
+				390 cell
+					391 text MKDK Shop
+				392 cell
+					393 text MKDK Shop
+				394 cell
+					395 text PVC Scrap
+				396 cell
+					397 text 10 unit
+				398 cell
+					399 text Pickup
+				400 cell
+					401 text $30.00
+				402 cell
+					403 text Sep 23, 2026
+				404 cell
+					405 text Completed
+			406 row
+				407 cell
+					408 text EG- 12
+				409 cell
+					410 text Marsh Materials BV
+				411 cell
+					412 text Greenfield Biomass LLC
+				413 cell
+					414 text QA Seller Upload 2026-09-22 — draft only
+				415 cell
+					416 text —
+				417 cell
+					418 text Delivery
+				419 cell
+					420 text $0.00
+				421 cell
+					422 text Sep 22, 2026
+				423 cell
+					424 text In progress
+			425 row
+				426 cell
+					427 text EG- 11
+				428 cell
+					429 text MKDK Shop
+				430 cell
+					431 text Greenfield Biomass LLC
+				432 cell
+					433 text Guard Test Bagasse
+				434 cell
+					435 text 400 tons
+				436 cell
+					437 text Delivery
+				438 cell
+					439 text $24,000.00
+				440 cell
+					441 text Sep 11, 2026
+				442 cell
+					443 text Completed
+			444 row
+				445 cell
+					446 text EG- 10
+				447 cell
+					448 text MKDK Shop
+				449 cell
+					450 text Greenfield Biomass LLC
+				451 cell
+					452 text Guard Test Bagasse
+				453 cell
+					454 text 10 tons
+				455 cell
+					456 text Pickup
+				457 cell
+					458 text $600.00
+				459 cell
+					460 text Sep 11, 2026
+				461 cell
+					462 text Completed
+			463 row
+				464 cell
+					465 text EG- 9
+				466 cell
+					467 text ana.sanz@ecoglobeworld.com
+				468 cell
+					469 text GulfStar Chemicals
+				470 cell
+					471 text Tar
+				472 cell
+					473 text 1,005 tons
+				474 cell
+					475 text Delivery
+				476 cell
+					477 text $50,250.00
+				478 cell
+					479 text Sep 2, 2026
+				480 cell
+					481 text In progress
+		482 button Previous page
+			483 image
+		484 text Page  1  of  2
+		485 button Next page
+			486 image
+		487 text 28  records
+
+The focused UI element is 1 AXWebArea EcoGlobe Admin, URL: eco-globe-dev-admin.vercel.app/admin/sales

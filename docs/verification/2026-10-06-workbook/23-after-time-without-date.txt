@@ -1,0 +1,48 @@
+- alert
+- banner:
+  - link "EcoGlobe":
+    - /url: /buyer/browse
+    - img "EcoGlobe"
+  - text: Secure
+- link "← Back to listing":
+  - /url: /buyer/browse/27
+- text: Product
+- paragraph: PVC Scrap
+- paragraph: 10 units × $3.00/unit · MKDK Shop
+- paragraph: MOQ 10 units · 990 units available · USD
+- text: Shipping
+- button "Pickup": Pickup
+- button "Delivery": Delivery
+- heading "Pickup Location" [level=3]
+- paragraph: Pending
+- paragraph: The seller confirms the exact facility and hours after payment.
+- heading "Requested pickup date" [level=3]
+- generic: Select date (Optional)
+- textbox "Select date (Optional)"
+- generic: Preferred start time
+- combobox "Preferred start time":
+  - option "-- Choose --"
+  - option "Morning (from 9:00 AM)"
+  - option "Midday (from 12:00 PM)" [selected]
+  - option "Afternoon (from 3:00 PM)"
+- heading "Pickup contact (optional)" [level=3]
+- generic: Contact name
+- textbox "Contact name": EcoGlobe Sandbox Tester
+- generic: Contact phone
+- textbox "Contact phone"
+- generic: Vehicle details
+- textbox "Vehicle details"
+- paragraph: For example truck type and plate number, if known.
+- alert: Choose a pickup date for the preferred start time, or clear the time.
+- complementary:
+  - heading "Summary" [level=2]
+  - paragraph: 1 product
+  - generic: Item subtotal
+  - generic: $30.00
+  - generic: Shipping
+  - generic: None (pickup)
+  - generic: Material charge
+  - generic: $30.00
+  - paragraph: Charged online for the material only. Freight and any fees are not included and are arranged separately.
+  - button "Continue to payment" [active]
+  - paragraph: Choose a pickup date for the preferred start time, or clear the time.

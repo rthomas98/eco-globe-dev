@@ -1,0 +1,74 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/e-signatures".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/e-signatures
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			9 link Description: Search, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			10 link Description: My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			11 button (collapsed) MARKETPLACE, Secondary Actions: Expand
+				12 text MARKETPLACE
+				13 image
+			14 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				15 text LOGISTICS
+				16 image
+			17 button (expanded) CONTRACTS & DOCS, Secondary Actions: Collapse
+				18 text CONTRACTS & DOCS
+				19 image
+			20 link Description: Contracts, Value: eco-globe-dev-web.vercel.app/buyer/contracts
+			21 link Description: E-signatures, Value: eco-globe-dev-web.vercel.app/buyer/e-signatures
+			22 link Description: Documents, Value: eco-globe-dev-web.vercel.app/buyer/documents
+			23 link Description: Verification, Value: eco-globe-dev-web.vercel.app/buyer/verification
+			24 button (collapsed) FINANCE & SUPPORT, Secondary Actions: Expand
+				25 text FINANCE & SUPPORT
+				26 image
+		27 button Notifications
+			28 container
+				29 image
+				30 container 3 unread notifications
+					31 text 3
+			32 text Notifications
+		33 button J Joanna Bell
+			34 text J
+			35 text Joanna Bell
+			36 image
+		37 text DOCUSIGN ESIGNATURE
+		38 heading Send, sign, and track agreements securely., Value: 1
+			39 text Send, sign, and track agreements securely.
+		40 text DocuSign handles the signing ceremony. EcoGlobe updates the contract only after a verified DocuSign event and retains the completed agreement and certificate.
+		41 text Contracts
+		42 image
+		43 text 1
+		44 text Waiting on signatures
+		45 image
+		46 text 0
+		47 text Completed signatures
+		48 image
+		49 text 1
+		50 container
+			51 heading Contracts, Value: 2
+				52 text Contracts
+			53 button Refresh
+				54 image
+				55 text Refresh
+			56 button Codex recurring bulk feedstock supply AgriCorp Solutions ↔ GulfStar Chemicals ACTIVE
+				57 text Codex recurring bulk feedstock supply
+				58 container
+					59 text AgriCorp Solutions  ↔  GulfStar Chemicals
+				60 text ACTIVE
+		61 container
+			62 text CONTRACT # 1
+			63 heading Codex recurring bulk feedstock supply, Value: 2
+				64 text Codex recurring bulk feedstock supply
+			65 text Active Joanna Bell AgriCorp Solutions Signed This contract is not in a sendable state. Only draft or signature-pending contracts can start a DocuSign envelope. Your signature is complete.
+			66 button (disabled) Not ready to send
+				67 image
+				68 text Not ready to send
+			69 button (disabled) Signature complete
+				70 image
+				71 text Signature complete
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/e-signatures

@@ -1,0 +1,72 @@
+- alert: EcoGlobe - Feedstock Marketplace
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Home":
+      - /url: /
+      - generic: Home
+    - link "Search":
+      - /url: /buyer/browse
+      - generic: Search
+    - link "My Orders":
+      - /url: /buyer/orders
+      - generic: My Orders
+    - button "Marketplace":
+      - generic: Marketplace
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Support":
+      - generic: Finance & Support
+  - button "Notifications":
+    - generic "12 unread notifications": 9+
+    - text: Notifications
+  - button "E EcoGlobe Sandbox Tester":
+    - generic: E
+    - generic: EcoGlobe Sandbox Tester
+- main:
+  - heading "Browse" [level=1]
+  - textbox "Search"
+  - generic: "Search radius: 2 mi"
+  - combobox "Search radius":
+    - option "Any distance"
+    - option "2 mi" [selected]
+    - option "10 mi"
+    - option "50 mi"
+    - option "100 mi"
+    - option "500 mi"
+  - button "Filters":
+    - text: Filters
+  - link "Feedstock IQ Soon Market pricing and demand signals for the feedstocks you buy and sell.":
+    - /url: /feedstock-iq
+    - text: Feedstock IQ
+    - generic: Soon
+    - generic: Market pricing and demand signals for the feedstocks you buy and sell.
+  - paragraph: 0 listings
+  - status:
+    - text: Within 2 mi of Selected map center. 18 outside the radius hidden. 2 without a saved facility location hidden.
+    - button "Show any distance"
+  - paragraph: No matches found
+  - paragraph: Try a different keyword, loosen the filters, or clear everything to see all listings.
+  - paragraph:
+    - text: Feedstock IQ
+    - generic: Soon
+  - paragraph: Can't find this feedstock? Feedstock IQ will help you track supply and demand for hard-to-find materials.
+  - link "Learn about Feedstock IQ":
+    - /url: /feedstock-iq
+  - button "Clear all"
+  - region "Map"
+  - button "Zoom in"
+  - button "Zoom out"
+  - button "Drag to rotate map, click to reset north"
+  - text: ©
+  - link "OpenStreetMap":
+    - /url: https://www.openstreetmap.org/copyright
+  - text: contributors
+  - generic: 2 mi radius · Selected map center
+  - button "Expand map":

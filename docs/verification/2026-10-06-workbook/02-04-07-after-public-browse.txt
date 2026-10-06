@@ -1,0 +1,281 @@
+- alert: EcoGlobe - Feedstock Marketplace
+- banner:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - textbox "What"
+  - textbox "Where"
+  - button "Search listings":
+  - button "Filters":
+    - text: Filters
+  - button "10":
+    - generic: "10"
+  - link "Login":
+    - /url: /login
+  - link "Sign Up":
+    - /url: /register
+    - button "Sign Up"
+- paragraph: 20 listings
+- button "PVC Scrap":
+  - img "PVC Scrap"
+- button "PVC Scrap 1,000 unit available":
+  - heading "PVC Scrap" [level=3]
+  - paragraph: 1,000 unit available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for PVC Scrap":
+  - /url: /browse/27
+  - text: View details
+- button "Illustrative image of Premium Rice Hull Ash Illustrative image":
+  - img "Illustrative image of Premium Rice Hull Ash"
+  - generic: Illustrative image
+- button "Premium Rice Hull Ash 800 ton available":
+  - heading "Premium Rice Hull Ash" [level=3]
+  - paragraph: 800 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Premium Rice Hull Ash":
+  - /url: /browse/22
+  - text: View details
+- button "Illustrative image of Dark Viscous Liquid Tonnels Illustrative image":
+  - img "Illustrative image of Dark Viscous Liquid Tonnels"
+  - generic: Illustrative image
+- button "Dark Viscous Liquid Tonnels 100 ton available":
+  - heading "Dark Viscous Liquid Tonnels" [level=3]
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Dark Viscous Liquid Tonnels":
+  - /url: /browse/20
+  - text: View details
+- button "Illustrative image of Tar Illustrative image":
+  - img "Illustrative image of Tar"
+  - generic: Illustrative image
+- button "Tar 100 ton available":
+  - heading "Tar" [level=3]
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Tar":
+  - /url: /browse/19
+  - text: View details
+- button "Illustrative image of White Label Illustrative image":
+  - img "Illustrative image of White Label"
+  - generic: Illustrative image
+- button "White Label 100 ton available":
+  - heading "White Label" [level=3]
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for White Label":
+  - /url: /browse/18
+  - text: View details
+- button "Illustrative image of Biochar Illustrative image":
+  - img "Illustrative image of Biochar"
+  - generic: Illustrative image
+- button "Biochar 100 ton available":
+  - heading "Biochar" [level=3]
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Biochar":
+  - /url: /browse/17
+  - text: View details
+- button "Illustrative image of Used Pallets Illustrative image":
+  - img "Illustrative image of Used Pallets"
+  - generic: Illustrative image
+- button "Used Pallets 500 ton available":
+  - heading "Used Pallets" [level=3]
+  - paragraph: 500 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Used Pallets":
+  - /url: /browse/16
+  - text: View details
+- button "Illustrative image of Hydrochar Illustrative image":
+  - img "Illustrative image of Hydrochar"
+  - generic: Illustrative image
+- button "Hydrochar 1,000 ton available":
+  - heading "Hydrochar" [level=3]
+  - paragraph: 1,000 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Hydrochar":
+  - /url: /browse/15
+  - text: View details
+- button "Illustrative image of Used Dry Transformer Illustrative image":
+  - img "Illustrative image of Used Dry Transformer"
+  - generic: Illustrative image
+- button "Used Dry Transformer 300 unit available":
+  - heading "Used Dry Transformer" [level=3]
+  - paragraph: 300 unit available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Used Dry Transformer":
+  - /url: /browse/14
+  - text: View details
+- button "Illustrative image of Refined Used Cooking Oil (UCO) Illustrative image":
+  - img "Illustrative image of Refined Used Cooking Oil (UCO)"
+  - generic: Illustrative image
+- button "Refined Used Cooking Oil (UCO) 100 ton available":
+  - heading "Refined Used Cooking Oil (UCO)" [level=3]
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Refined Used Cooking Oil (UCO)":
+  - /url: /browse/13
+  - text: View details
+- button "Illustrative image of Recycled Tire Crumb Rubber Illustrative image":
+  - img "Illustrative image of Recycled Tire Crumb Rubber"
+  - generic: Illustrative image
+- button "Recycled Tire Crumb Rubber 100 ton available":
+  - heading "Recycled Tire Crumb Rubber" [level=3]
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Recycled Tire Crumb Rubber":
+  - /url: /browse/12
+  - text: View details
+- button "Illustrative image of Certified Organic Wood Chips Illustrative image":
+  - img "Illustrative image of Certified Organic Wood Chips"
+  - generic: Illustrative image
+- button "Certified Organic Wood Chips 100 ton available":
+  - heading "Certified Organic Wood Chips" [level=3]
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Certified Organic Wood Chips":
+  - /url: /browse/11
+  - text: View details
+- 'button "Illustrative image of Industrial By-Product: Rice Husk Illustrative image"':
+  - 'img "Illustrative image of Industrial By-Product: Rice Husk"'
+  - generic: Illustrative image
+- 'button "Industrial By-Product: Rice Husk 100 ton available"':
+  - 'heading "Industrial By-Product: Rice Husk" [level=3]'
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- 'link "View details for Industrial By-Product: Rice Husk"':
+  - /url: /browse/10
+  - text: View details
+- button "Illustrative image of Biomass Wood Pellets, Grade A Illustrative image":
+  - img "Illustrative image of Biomass Wood Pellets, Grade A"
+  - generic: Illustrative image
+- button "Biomass Wood Pellets, Grade A 100 ton available":
+  - heading "Biomass Wood Pellets, Grade A" [level=3]
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Biomass Wood Pellets, Grade A":
+  - /url: /browse/9
+  - text: View details
+- button "Illustrative image of Harvested and Baled Corn Stover Illustrative image":
+  - img "Illustrative image of Harvested and Baled Corn Stover"
+  - generic: Illustrative image
+- button "Harvested and Baled Corn Stover 100 ton available":
+  - heading "Harvested and Baled Corn Stover" [level=3]
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Harvested and Baled Corn Stover":
+  - /url: /browse/8
+  - text: View details
+- button "Illustrative image of Black Gypsum Illustrative image":
+  - img "Illustrative image of Black Gypsum"
+  - generic: Illustrative image
+- button "Black Gypsum 100 ton available":
+  - heading "Black Gypsum" [level=3]
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Black Gypsum":
+  - /url: /browse/7
+  - text: View details
+- button "Illustrative image of Scrap Polymer Blend with Impurities Illustrative image":
+  - img "Illustrative image of Scrap Polymer Blend with Impurities"
+  - generic: Illustrative image
+- button "Scrap Polymer Blend with Impurities 5,000 ton available":
+  - heading "Scrap Polymer Blend with Impurities" [level=3]
+  - paragraph: 5,000 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Scrap Polymer Blend with Impurities":
+  - /url: /browse/6
+  - text: View details
+- button "Illustrative image of Shredded, Refined Sugar Bagasse Illustrative image":
+  - img "Illustrative image of Shredded, Refined Sugar Bagasse"
+  - generic: Illustrative image
+- button "Shredded, Refined Sugar Bagasse 1,000 ton available":
+  - heading "Shredded, Refined Sugar Bagasse" [level=3]
+  - paragraph: 1,000 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Shredded, Refined Sugar Bagasse":
+  - /url: /browse/5
+  - text: View details
+- button "Illustrative image of Epoxy Off-Spec Illustrative image":
+  - img "Illustrative image of Epoxy Off-Spec"
+  - generic: Illustrative image
+- button "Epoxy Off-Spec 100 ton available":
+  - heading "Epoxy Off-Spec" [level=3]
+  - paragraph: 100 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Epoxy Off-Spec":
+  - /url: /browse/4
+  - text: View details
+- button "Illustrative image of Pyrolysis Pitch Illustrative image":
+  - img "Illustrative image of Pyrolysis Pitch"
+  - generic: Illustrative image
+- button "Pyrolysis Pitch 5,000 ton available":
+  - heading "Pyrolysis Pitch" [level=3]
+  - paragraph: 5,000 ton available
+- link "Sign in to see pricing":
+  - /url: /login
+  - text: Sign in to see pricing
+- link "View details for Pyrolysis Pitch":
+  - /url: /browse/3
+  - text: View details
+- generic: Search radius
+- combobox "Map search radius":
+  - option "Off" [selected]
+  - option "2 mi"
+  - option "5 mi"
+  - option "10 mi"
+  - option "25 mi"
+  - option "50 mi"
+  - option "100 mi"
+  - option "250 mi"
+- button "Use map center for search radius"
+- region "Map"
+- button "Zoom in"
+- button "Zoom out"
+- button "Drag to rotate map, click to reset north"
+- text: ©
+- link "OpenStreetMap":
+  - /url: https://www.openstreetmap.org/copyright
+- text: contributors
+- status:
+  - text: Facility locations are shown to signed-in members.
+  - link "Sign in":
+    - /url: /login
+- generic: Enable location to show where you are browsing from

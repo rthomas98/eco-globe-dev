@@ -1,0 +1,272 @@
+Browser tab: 1, Title: "EcoGlobe Admin", URL: "https://eco-globe-dev-admin.vercel.app/admin/kyc".
+1 AXWebArea EcoGlobe Admin, URL: eco-globe-dev-admin.vercel.app/admin/kyc
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-admin.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Dashboard, Value: eco-globe-dev-admin.vercel.app/admin/dashboard
+			9 link Description: Sales, Value: eco-globe-dev-admin.vercel.app/admin/sales
+			10 link Description: Listings, Value: eco-globe-dev-admin.vercel.app/admin/listings
+			11 link Description: Sample shipping, Value: eco-globe-dev-admin.vercel.app/admin/samples
+			12 link Description: Lab testing, Value: eco-globe-dev-admin.vercel.app/admin/lab-testing
+			13 link Description: Pilot desk, Value: eco-globe-dev-admin.vercel.app/admin/pilots
+			14 button (collapsed) MARKETPLACE, Secondary Actions: Expand
+				15 text MARKETPLACE
+				16 image
+			17 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				18 text LOGISTICS
+				19 image
+			20 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				21 text CONTRACTS & DOCS
+				22 image
+			23 button (collapsed) FINANCE & REPORTS, Secondary Actions: Expand
+				24 text FINANCE & REPORTS
+				25 image
+			26 button (expanded) GOVERNANCE, Secondary Actions: Collapse
+				27 text GOVERNANCE
+				28 image
+			29 button (expanded) Operations, Secondary Actions: Collapse
+				30 image
+				31 text Operations
+				32 image
+			33 link Description: Moderation, Value: eco-globe-dev-admin.vercel.app/admin/moderation
+			34 link Description: Document review, Value: eco-globe-dev-admin.vercel.app/admin/document-review
+			35 link Description: KYC, Value: eco-globe-dev-admin.vercel.app/admin/kyc
+			36 link Description: Disputes, Value: eco-globe-dev-admin.vercel.app/admin/disputes
+			37 link Description: Audit log, Value: eco-globe-dev-admin.vercel.app/admin/audit
+			38 link Description: Contact requests, Value: eco-globe-dev-admin.vercel.app/admin/contact-requests
+			39 button (collapsed) SYSTEM, Secondary Actions: Expand
+				40 text SYSTEM
+				41 image
+		42 container
+			43 button Notifications 69 unread notifications
+				44 image
+				45 text Notifications
+				168 container 69 unread notifications
+					169 text 9+
+			46 button E EcoGlobe
+				47 text E
+				48 text EcoGlobe
+				49 image
+		50 container Breadcrumb
+			51 text Admin
+			52 image
+			53 text Kyc
+		54 button (collapsed) Search admin ⌘ K, Secondary Actions: Expand
+			55 image
+			56 text Search admin
+			57 text ⌘ K
+		58 link Description: Notifications, Value: eco-globe-dev-admin.vercel.app/admin/notifications
+		59 link Description: Admin settings, Value: eco-globe-dev-admin.vercel.app/admin/settings/system/users
+		60 link Description: Help and account, Value: eco-globe-dev-admin.vercel.app/admin/account
+		61 heading KYC verifications, Value: 1
+			62 text KYC verifications
+		63 text Review submitted company evidence. Approval requires uploaded evidence and a review note; decisions are saved before they appear here.
+		64 image
+		65 button All
+		66 button Pending (30)
+			67 text Pending
+			68 text  (30)
+		69 button Verified (10)
+			70 text Verified
+			71 text  (10)
+		72 button Suspended (0)
+			73 text Suspended
+			74 text  (0)
+		75 button Other (0)
+			76 text Other
+			77 text  (0)
+		78 image
+		79 text CO- 43 PENDING VERIFICATION
+		170 text QA DocuSign Seller 2026-09-28
+		171 container
+			172 text 0  evidence document s
+		80 button (collapsed) Review, Secondary Actions: Expand
+		81 image
+		82 text CO- 42 PENDING VERIFICATION
+		173 text QA DocuSign Buyer 2026-09-28
+		174 container
+			175 text 0  evidence document s
+		83 button (expanded) Close review, Secondary Actions: Collapse
+		176 heading Submitted evidence, Value: 3
+			177 text Submitted evidence
+		178 text No evidence has been uploaded. Approval is not possible yet.
+		179 container
+			180 text Review note (required)
+			181 text entry area (settable) Review note (required)
+		182 button Request information
+		183 button Reject
+		184 button (disabled) Approve
+		185 link Description: Company record, Value: eco-globe-dev-admin.vercel.app/admin/sellers/42
+		84 image
+		85 text CO- 41 PENDING VERIFICATION
+		186 text Urban Edge Tech
+		187 container
+			188 text 0  evidence document s
+		86 button (collapsed) Review, Secondary Actions: Expand
+		87 image
+		88 text CO- 40 PENDING VERIFICATION
+		189 text UrbanEdge
+		190 container
+			191 text 0  evidence document s
+		89 button (collapsed) Review, Secondary Actions: Expand
+		90 image
+		91 text CO- 39 PENDING VERIFICATION
+		192 text asas
+		193 container
+			194 text 0  evidence document s
+		92 button (collapsed) Review, Secondary Actions: Expand
+		93 image
+		94 text CO- 38 PENDING VERIFICATION
+		195 text ana.sanz@ecoglobeworld.com
+		196 container
+			197 text 0  evidence document s
+		95 button (collapsed) Review, Secondary Actions: Expand
+		96 image
+		97 text CO- 31 PENDING VERIFICATION
+		198 text Live Deploy Check Co
+		199 container
+			200 text 0  evidence document s
+		98 button (collapsed) Review, Secondary Actions: Expand
+		99 image
+		100 text CO- 30 PENDING VERIFICATION
+		201 text Marsh Materials BV
+		202 container
+			203 text 0  evidence document s
+		101 button (collapsed) Review, Secondary Actions: Expand
+		102 image
+		103 text CO- 28 PENDING VERIFICATION
+		204 text Smoke Seller Co
+		205 container
+			206 text 0  evidence document s
+		104 button (collapsed) Review, Secondary Actions: Expand
+		105 image
+		106 text CO- 27 PENDING VERIFICATION
+		207 text Smoke Seller Co
+		208 container
+			209 text 0  evidence document s
+		107 button (collapsed) Review, Secondary Actions: Expand
+		108 image
+		109 text CO- 26 PENDING VERIFICATION
+		210 text MKDK Shop
+		211 container
+			212 text 0  evidence document s
+		110 button (collapsed) Review, Secondary Actions: Expand
+		111 image
+		112 text CO- 25 PENDING VERIFICATION
+		213 text RBAC bob Company 1786976357415-b733c327
+		214 container
+			215 text 0  evidence document s
+		113 button (collapsed) Review, Secondary Actions: Expand
+		114 image
+		115 text CO- 24 PENDING VERIFICATION
+		216 text RBAC alice Company 1786976354549-27a9248b
+		217 container
+			218 text 0  evidence document s
+		116 button (collapsed) Review, Secondary Actions: Expand
+		117 image
+		118 text CO- 23 PENDING VERIFICATION
+		219 text RBAC bob Company 1786976310496-c5c2f39c
+		220 container
+			221 text 0  evidence document s
+		119 button (collapsed) Review, Secondary Actions: Expand
+		120 image
+		121 text CO- 22 PENDING VERIFICATION
+		222 text RBAC alice Company 1786976308444-c63b4288
+		223 container
+			224 text 0  evidence document s
+		122 button (collapsed) Review, Secondary Actions: Expand
+		123 image
+		124 text CO- 21 PENDING VERIFICATION
+		225 text Browser Seller Materials 1786973376064
+		226 container
+			227 text 0  evidence document s
+		125 button (collapsed) Review, Secondary Actions: Expand
+		126 image
+		127 text CO- 20 PENDING VERIFICATION
+		228 text Browser Both Circular Materials 1786973366874
+		229 container
+			230 text 0  evidence document s
+		128 button (collapsed) Review, Secondary Actions: Expand
+		129 image
+		130 text CO- 19 PENDING VERIFICATION
+		231 text Browser Seller Materials 1786972924988
+		232 container
+			233 text 0  evidence document s
+		131 button (collapsed) Review, Secondary Actions: Expand
+		132 image
+		133 text CO- 18 PENDING VERIFICATION
+		234 text Browser Both Circular Materials 1786972918753
+		235 container
+			236 text 0  evidence document s
+		134 button (collapsed) Review, Secondary Actions: Expand
+		135 image
+		136 text CO- 17 PENDING VERIFICATION
+		237 text Browser Seller Materials 1786972883708
+		238 container
+			239 text 0  evidence document s
+		137 button (collapsed) Review, Secondary Actions: Expand
+		138 image
+		139 text CO- 16 PENDING VERIFICATION
+		240 text Browser Both Circular Materials 1786972871935
+		241 container
+			242 text 0  evidence document s
+		140 button (collapsed) Review, Secondary Actions: Expand
+		141 image
+		142 text CO- 15 PENDING VERIFICATION
+		243 text Browser Seller Materials 1786972834317
+		244 container
+			245 text 0  evidence document s
+		143 button (collapsed) Review, Secondary Actions: Expand
+		144 image
+		145 text CO- 14 PENDING VERIFICATION
+		246 text Browser Both Circular Materials 1786972825430
+		247 container
+			248 text 0  evidence document s
+		146 button (collapsed) Review, Secondary Actions: Expand
+		147 image
+		148 text CO- 13 PENDING VERIFICATION
+		249 text Stripe Connect Test Materials 1784755674893
+		250 container
+			251 text 0  evidence document s
+		149 button (collapsed) Review, Secondary Actions: Expand
+		150 image
+		151 text CO- 12 PENDING VERIFICATION
+		252 text Stripe Seller Materials 1784748157762
+		253 container
+			254 text 0  evidence document s
+		152 button (collapsed) Review, Secondary Actions: Expand
+		153 image
+		154 text CO- 11 PENDING VERIFICATION
+		255 text Browser Seller Materials 1784744652808
+		256 container
+			257 text 0  evidence document s
+		155 button (collapsed) Review, Secondary Actions: Expand
+		156 image
+		157 text CO- 10 PENDING VERIFICATION
+		258 text Browser Both Circular Materials 1784744648519
+		259 container
+			260 text 0  evidence document s
+		158 button (collapsed) Review, Secondary Actions: Expand
+		159 image
+		160 text CO- 9 PENDING VERIFICATION
+		261 text Browser Seller Materials
+		262 container
+			263 text 0  evidence document s
+		161 button (collapsed) Review, Secondary Actions: Expand
+		162 image
+		163 text CO- 8 PENDING VERIFICATION
+		264 text Browser Both Circular Materials
+		265 container
+			266 text 0  evidence document s
+		164 button (collapsed) Review, Secondary Actions: Expand
+		165 image
+		166 text CO- 7 PENDING VERIFICATION
+		267 text Smoke Circular Materials
+		268 container
+			269 text 0  evidence document s
+		167 button (collapsed) Review, Secondary Actions: Expand
+
+The focused UI element is 83 button (expanded) Close review, Secondary Actions: Collapse

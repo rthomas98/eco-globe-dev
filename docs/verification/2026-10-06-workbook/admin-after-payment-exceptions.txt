@@ -1,0 +1,81 @@
+Browser tab: 1, Title: "EcoGlobe Admin", URL: "https://eco-globe-dev-admin.vercel.app/admin/payment-exceptions".
+1 AXWebArea EcoGlobe Admin, URL: eco-globe-dev-admin.vercel.app/admin/payment-exceptions
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-admin.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Dashboard, Value: eco-globe-dev-admin.vercel.app/admin/dashboard
+			9 link Description: Sales, Value: eco-globe-dev-admin.vercel.app/admin/sales
+			10 link Description: Listings, Value: eco-globe-dev-admin.vercel.app/admin/listings
+			11 link Description: Sample shipping, Value: eco-globe-dev-admin.vercel.app/admin/samples
+			12 link Description: Lab testing, Value: eco-globe-dev-admin.vercel.app/admin/lab-testing
+			13 link Description: Pilot desk, Value: eco-globe-dev-admin.vercel.app/admin/pilots
+			14 button (collapsed) MARKETPLACE, Secondary Actions: Expand
+				15 text MARKETPLACE
+				16 image
+			17 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				18 text LOGISTICS
+				19 image
+			20 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				21 text CONTRACTS & DOCS
+				22 image
+			23 button (expanded) FINANCE & REPORTS, Secondary Actions: Collapse
+				24 text FINANCE & REPORTS
+				25 image
+			26 button (expanded) Accounting, Secondary Actions: Collapse
+				27 image
+				28 text Accounting
+				29 image
+			30 link Description: Transactions, Value: eco-globe-dev-admin.vercel.app/admin/accounting/transactions
+			31 link Description: Payments, Value: eco-globe-dev-admin.vercel.app/admin/accounting/payments
+			32 link Description: Payment exceptions, Value: eco-globe-dev-admin.vercel.app/admin/payment-exceptions
+			33 link Description: Refunds, Value: eco-globe-dev-admin.vercel.app/admin/refunds
+			34 link Description: Escrow, Value: eco-globe-dev-admin.vercel.app/admin/accounting/escrow
+			35 button (collapsed) Reports, Secondary Actions: Expand
+				36 image
+				37 text Reports
+				38 image
+			39 button (collapsed) GOVERNANCE, Secondary Actions: Expand
+				40 text GOVERNANCE
+				41 image
+			42 button (collapsed) SYSTEM, Secondary Actions: Expand
+				43 text SYSTEM
+				44 image
+		45 container
+			46 button Notifications 69 unread notifications
+				47 image
+				48 text Notifications
+				75 container 69 unread notifications
+					76 text 9+
+			49 button E EcoGlobe
+				50 text E
+				51 text EcoGlobe
+				52 image
+		53 container Breadcrumb
+			54 text Admin
+			55 image
+			56 text Payment Exceptions
+		57 button (collapsed) Search admin ⌘ K, Secondary Actions: Expand
+			58 image
+			59 text Search admin
+			60 text ⌘ K
+		61 link Description: Notifications, Value: eco-globe-dev-admin.vercel.app/admin/notifications
+		62 link Description: Admin settings, Value: eco-globe-dev-admin.vercel.app/admin/settings/system/users
+		63 link Description: Help and account, Value: eco-globe-dev-admin.vercel.app/admin/account
+		64 heading Payment exceptions, Value: 1
+			65 text Payment exceptions
+		66 text Checkout payments the backend could not reconcile automatically, such as a payment confirmed after the order reservation was released.
+		67 container Exception status
+			68 checkbox Open, Value: 1
+			69 checkbox All, Value: 0
+		70 image
+		71 container
+			72 text Investigate in Stripe using the Checkout session ID. Any refund must be handled through the approved finance process and tracked as a
+			73 link Description: refund case, Value: eco-globe-dev-admin.vercel.app/admin/refunds
+			74 text . This page is read-only; completing a refund does not automatically close this exception.
+		77 image
+		78 text No open payment exceptions
+
+The focused UI element is 1 AXWebArea EcoGlobe Admin, URL: eco-globe-dev-admin.vercel.app/admin/payment-exceptions

@@ -1,0 +1,99 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/accounting/payments".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/accounting/payments
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			9 link Description: Search, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			10 link Description: My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			11 button (collapsed) MARKETPLACE, Secondary Actions: Expand
+				12 text MARKETPLACE
+				13 image
+			14 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				15 text LOGISTICS
+				16 image
+			17 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				18 text CONTRACTS & DOCS
+				19 image
+			20 button (expanded) FINANCE & SUPPORT, Secondary Actions: Collapse
+				21 text FINANCE & SUPPORT
+				22 image
+			23 button (expanded) Accounting, Secondary Actions: Collapse
+				24 image
+				25 text Accounting
+				26 image
+			27 link Description: Transactions, Value: eco-globe-dev-web.vercel.app/buyer/accounting/transactions
+			28 link Description: Payments, Value: eco-globe-dev-web.vercel.app/buyer/accounting/payments
+			29 link Description: Refunds, Value: eco-globe-dev-web.vercel.app/buyer/accounting/refunds
+			30 link Description: Escrow, Value: eco-globe-dev-web.vercel.app/buyer/accounting/escrow
+			31 link Description: Bank Account, Value: eco-globe-dev-web.vercel.app/buyer/accounting/bank-account
+			32 link Description: Account, Value: eco-globe-dev-web.vercel.app/buyer/account
+			33 link Description: Help, Value: eco-globe-dev-web.vercel.app/buyer/help
+		34 button Notifications
+			35 container
+				36 image
+				37 container 12 unread notifications
+					38 text 9+
+			39 text Notifications
+		40 button E EcoGlobe Sandbox Tester
+			41 text E
+			42 text EcoGlobe Sandbox Tester
+			43 image
+		44 text Payment for order EG-28 is confirmed.
+		45 text PAYMENT CENTER
+		46 heading Payment records and receipts, Value: 1
+			47 text Payment records and receipts
+		48 text Payments confirmed by Stripe for your account. Seller payouts and settlement are not automated yet; EcoGlobe staff arrange them.
+		49 button Add payment method
+		50 container
+			51 heading Payment history, Value: 2
+				52 text Payment history
+			53 button Export
+				54 image
+				55 text Export
+			56 checkbox TX-9 PVC Scrap to MKDK Shop $30.00 captured, Value: 1
+				57 text TX-
+				58 text 9
+				59 text PVC Scrap
+				60 text to MKDK Shop
+				61 text $30.00
+				62 text captured
+		63 container
+			64 heading Payment detail, Value: 2
+				65 text Payment detail
+			66 definition list
+				67 container Payment
+					68 text Payment
+				69 text TX-9
+				70 container Order
+					71 text Order
+				72 text EG-28
+				73 container Material
+					74 text Material
+				75 text PVC Scrap
+				76 container Amount
+					77 text Amount
+				78 text $30.00
+				79 container Status
+					80 text Status
+				81 text captured
+				82 container Type
+					83 text Type
+				84 text buyer funding
+				85 container Date
+					86 text Date
+				87 text Oct 6, 2026
+				88 container Escrow
+					89 text Escrow
+				90 text None recorded
+			91 button Receipt
+				92 image
+				93 text Receipt
+			94 button Review
+				95 image
+				96 text Review
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/accounting/payments

@@ -1,0 +1,128 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/rfq/new".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/rfq/new
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			9 link Description: Search, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			10 link Description: My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			11 button (expanded) MARKETPLACE, Secondary Actions: Collapse
+				12 text MARKETPLACE
+				13 image
+			14 link Description: Partners, Value: eco-globe-dev-web.vercel.app/buyer/partners
+			15 link Description: Saved, Value: eco-globe-dev-web.vercel.app/buyer/favorites
+			16 link Description: Requests for quote, Value: eco-globe-dev-web.vercel.app/buyer/rfq
+			17 link Description: Tracker, Value: eco-globe-dev-web.vercel.app/buyer/tracker
+			18 link Description: Samples, Value: eco-globe-dev-web.vercel.app/buyer/samples
+			19 link Description: Pilots, Value: eco-globe-dev-web.vercel.app/buyer/pilots
+			20 link Description: Feedstock IQ SOON, Value: eco-globe-dev-web.vercel.app/feedstock-iq
+			21 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				22 text LOGISTICS
+				23 image
+			24 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				25 text CONTRACTS & DOCS
+				26 image
+			27 button (collapsed) FINANCE & SUPPORT, Secondary Actions: Expand
+				28 text FINANCE & SUPPORT
+				29 image
+		30 button Notifications
+			31 container
+				32 image
+				33 container 3 unread notifications
+					34 text 3
+			35 text Notifications
+		36 button J Joanna Bell
+			37 text J
+			38 text Joanna Bell
+			39 image
+		40 link Description: Back to requests for quote, Value: eco-globe-dev-web.vercel.app/buyer/rfq
+		41 heading New request for quote, Value: 1
+			42 text New request for quote
+		43 text Sellers on EcoGlobe can respond with a quote from a matching listing. Responses appear under Requests for quote.
+		44 container
+			45 heading Feedstock, Value: 2
+				46 text Feedstock
+			47 text Title
+			48 text field (settable) Value: QA OCT06 — quote workflow test only, ID: rfq-title
+			49 text Category
+			50 pop up button (collapsed, settable) Value: Biomass & wood, Secondary Actions: Expand
+				51 menu
+					52 (selected) Biomass & wood
+					53 Plastics
+					54 Oils & liquids
+					55 Rubber
+					56 Refinery byproducts
+					57 Chemicals
+					58 Industrial byproducts
+					59 Other
+			60 text Need by
+			61 date field (settable) Value: 2026-10-20, ID: rfq-needby
+				62 container
+					125 stepper
+					126 stepper
+					127 stepper
+				66 pop up button Show date picker
+			67 text Specifications / description
+			68 text entry area (settable)
+		69 container
+			70 heading Quantity, Value: 2
+				71 text Quantity
+			72 text Quantity
+			73 text field (settable) Value: 10, ID: rfq-qty
+			74 text Unit
+			75 pop up button (collapsed, settable) Value: t (metric tonne, 1,000 kg), Secondary Actions: Expand
+				76 menu
+					77 (selected) t (metric tonne, 1,000 kg)
+					78 kg (kilogram)
+					79 lb (pound)
+					80 unit (per item)
+			81 text Recurrence
+			82 pop up button (collapsed, settable) Value: One-time, Secondary Actions: Expand
+				83 menu
+					84 (selected) One-time
+					85 Weekly
+					86 Bi-weekly
+					87 Monthly
+					88 Bi-monthly
+					89 Quarterly
+					90 Semi-annually
+		91 container
+			92 heading Logistics, Value: 2
+				93 text Logistics
+			94 text Deliver to
+			95 pop up button (collapsed, settable) Description: Delivery facility, Value: Enter delivery country and region, Secondary Actions: Expand
+				96 menu
+					97 (selected) Enter delivery country and region
+			98 text Delivery country (2-letter code)
+			99 text field (settable) Value: US, ID: rfq-country
+			100 text State / region (optional)
+			101 text field (settable) rfq-region
+			102 text Target price per metric tonne (optional)
+			103 text field (settable) Value: -5, ID: rfq-budget
+			104 text Notes
+			105 text entry area (settable)
+		106 container
+			107 heading Submission, Value: 2
+				108 text Submission
+			109 text Your request is posted to the marketplace, where sellers can respond with a quote. Response times depend on the sellers.
+			128 text Target price must be a number (no ranges or currency symbols), or left blank.
+			110 button Submit request for quote
+				111 image
+				112 text Submit request for quote
+			113 heading Tips for clearer requests, Value: 2
+				114 text Tips for clearer requests
+			115 content list
+				116 container
+					117 AXListMarker •
+					118 text Be specific about grade, purity, and any required certifications.
+				119 container
+					120 AXListMarker •
+					121 text List documents you need from the seller, such as an SDS, in the notes.
+				122 container
+					123 AXListMarker •
+					124 text State your delivery cadence.
+
+The focused UI element is 110 button Submit request for quote

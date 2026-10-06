@@ -1,0 +1,320 @@
+Browser tab: 1, Title: "Ecoglobe World sandbox", URL: "[sandbox checkout session redacted]
+[Ephemeral checkout/session URL omitted; visible result retained below.]
+	2 container
+		3 link Description: Back to Ecoglobe World sandbox, Help: Ecoglobe World sandbox, Value: eco-globe-dev-web.vercel.app/buyer/accounting/payments?checkoutOrder=27
+		4 image
+		5 text Sandbox
+		6 heading EcoGlobe order 27, Value: 2
+			7 text EcoGlobe order 27
+		8 text $30.00
+		9 container
+			10 container Secure express checkout frame
+[Ephemeral checkout/session URL omitted; visible result retained below.]
+					12 container
+						13 AXWebArea b.stripecdn.com/stripethirdparty-srv/assets/v35.1/ApplePay.html?id=03590522-5ab6-40be-8d24-12e9fa779291&origin=https%3A%2F%2Fjs.stripe.com
+							14 button Apple Pay
+								15 image svg-logo
+									16 container Description: Apple Logo, ID: svg-logo
+						17 button Pay securely with Link
+							18 text Pay with
+							19 image
+							20 image
+			21 text OR
+			22 heading Contact information, Value: 2
+				23 text Contact information
+		24 container payment-form
+			25 container
+				26 text Email
+			27 container email-fieldset
+				28 container
+					29 text field (settable) Email, Value: <redacted>
+			30 heading Payment method, Value: 2
+				31 text Payment method
+			32 container
+				33 container
+					34 text Card
+					35 button Pay with card
+				36 container
+					37 text Card information
+					38 container cardForm-fieldset
+						39 container
+							40 text field (settable) Description: Card number, Value: 4000 0000 0000 0002, ID: cardNumber
+							41 text field (settable) Description: Expiration, Value: 12 / 34, ID: cardExpiry
+							42 text field (settable) Description: Credit or debit card CVC/CVV, Value: 123, ID: cardCvc
+							43 image Credit or debit card CVC/CVV
+							593 text Your credit card was declined. Try paying with a debit card instead.
+					594 container Billing address
+						595 container
+							596 text Cardholder name
+						597 container billingName-fieldset
+							598 container
+								599 text field (settable) Cardholder name, Value: EcoGlobe Sandbox QA, ID: billingName
+						600 container
+							601 text Country or region
+						602 container countryWithOptionalPostalCodeInput-fieldset
+							603 container
+								604 container
+									605 pop up button (collapsed, settable) Description: Country or region, Value: United States, ID: billingCountry, Secondary Actions: Expand
+										606 menu
+											607 Afghanistan
+											608 Åland Islands
+											609 Albania
+											610 Algeria
+											611 Andorra
+											612 Angola
+											613 Anguilla
+											614 Antarctica
+											615 Antigua & Barbuda
+											616 Argentina
+											617 Armenia
+											618 Aruba
+											619 Ascension Island
+											620 Australia
+											621 Austria
+											622 Azerbaijan
+											623 Bahamas
+											624 Bahrain
+											625 Bangladesh
+											626 Barbados
+											627 Belarus
+											628 Belgium
+											629 Belize
+											630 Benin
+											631 Bermuda
+											632 Bhutan
+											633 Bolivia
+											634 Bosnia & Herzegovina
+											635 Botswana
+											636 Bouvet Island
+											637 Brazil
+											638 British Indian Ocean Territory
+											639 British Virgin Islands
+											640 Brunei
+											641 Bulgaria
+											642 Burkina Faso
+											643 Burundi
+											644 Cambodia
+											645 Cameroon
+											646 Canada
+											647 Cape Verde
+											648 Caribbean Netherlands
+											649 Cayman Islands
+											650 Central African Republic
+											651 Chad
+											652 Chile
+											653 China
+											654 Colombia
+											655 Comoros
+											656 Congo - Brazzaville
+											657 Congo - Kinshasa
+											658 Cook Islands
+											659 Costa Rica
+											660 Côte d’Ivoire
+											661 Croatia
+											662 Curaçao
+											663 Cyprus
+											664 Czechia
+											665 Denmark
+											666 Djibouti
+											667 Dominica
+											668 Dominican Republic
+											669 Ecuador
+											670 Egypt
+											671 El Salvador
+											672 Equatorial Guinea
+											673 Eritrea
+											674 Estonia
+											675 Eswatini
+											676 Ethiopia
+											677 Falkland Islands
+											678 Faroe Islands
+											679 Fiji
+											680 Finland
+											681 France
+											682 French Guiana
+											683 French Polynesia
+											684 French Southern Territories
+											685 Gabon
+											686 Gambia
+											687 Georgia
+											688 Germany
+											689 Ghana
+											690 Gibraltar
+											691 Greece
+											692 Greenland
+											693 Grenada
+											694 Guadeloupe
+											695 Guam
+											696 Guatemala
+											697 Guernsey
+											698 Guinea
+											699 Guinea-Bissau
+											700 Guyana
+											701 Haiti
+											702 Honduras
+											703 Hong Kong SAR China
+											704 Hungary
+											705 Iceland
+											706 India
+											707 Indonesia
+											708 Iraq
+											709 Ireland
+											710 Isle of Man
+											711 Israel
+											712 Italy
+											713 Jamaica
+											714 Japan
+											715 Jersey
+											716 Jordan
+											717 Kazakhstan
+											718 Kenya
+											719 Kiribati
+											720 Kosovo
+											721 Kuwait
+											722 Kyrgyzstan
+											723 Laos
+											724 Latvia
+											725 Lebanon
+											726 Lesotho
+											727 Liberia
+											728 Libya
+											729 Liechtenstein
+											730 Lithuania
+											731 Luxembourg
+											732 Macao SAR China
+											733 Madagascar
+											734 Malawi
+											735 Malaysia
+											736 Maldives
+											737 Mali
+											738 Malta
+											739 Martinique
+											740 Mauritania
+											741 Mauritius
+											742 Mayotte
+											743 Mexico
+											744 Moldova
+											745 Monaco
+											746 Mongolia
+											747 Montenegro
+											748 Montserrat
+											749 Morocco
+											750 Mozambique
+											751 Myanmar (Burma)
+											752 Namibia
+											753 Nauru
+											754 Nepal
+											755 Netherlands
+											756 New Caledonia
+											757 New Zealand
+											758 Nicaragua
+											759 Niger
+											760 Nigeria
+											761 Niue
+											762 North Macedonia
+											763 Norway
+											764 Oman
+											765 Pakistan
+											766 Palestinian Territories
+											767 Panama
+											768 Papua New Guinea
+											769 Paraguay
+											770 Peru
+											771 Philippines
+											772 Pitcairn Islands
+											773 Poland
+											774 Portugal
+											775 Puerto Rico
+											776 Qatar
+											777 Réunion
+											778 Romania
+											779 Russia
+											780 Rwanda
+											781 Samoa
+											782 San Marino
+											783 São Tomé & Príncipe
+											784 Saudi Arabia
+											785 Senegal
+											786 Serbia
+											787 Seychelles
+											788 Sierra Leone
+											789 Singapore
+											790 Sint Maarten
+											791 Slovakia
+											792 Slovenia
+											793 Solomon Islands
+											794 Somalia
+											795 South Africa
+											796 South Georgia & South Sandwich Islands
+											797 South Korea
+											798 South Sudan
+											799 Spain
+											800 Sri Lanka
+											801 St. Barthélemy
+											802 St. Helena
+											803 St. Kitts & Nevis
+											804 St. Lucia
+											805 St. Martin
+											806 St. Pierre & Miquelon
+											807 St. Vincent & Grenadines
+											808 Sudan
+											809 Suriname
+											810 Svalbard & Jan Mayen
+											811 Sweden
+											812 Switzerland
+											813 Taiwan
+											814 Tajikistan
+											815 Tanzania
+											816 Thailand
+											817 Timor-Leste
+											818 Togo
+											819 Tokelau
+											820 Tonga
+											821 Trinidad & Tobago
+											822 Tristan da Cunha
+											823 Tunisia
+											824 Turkey
+											825 Turkmenistan
+											826 Turks & Caicos Islands
+											827 Tuvalu
+											828 Uganda
+											829 Ukraine
+											830 United Arab Emirates
+											831 United Kingdom
+											832 (selected) United States
+											833 Uruguay
+											834 Uzbekistan
+											835 Vanuatu
+											836 Vatican City
+											837 Venezuela
+											838 Vietnam
+											839 Wallis & Futuna
+											840 Western Sahara
+											841 Yemen
+											842 Zambia
+											843 Zimbabwe
+									844 image
+								845 text field (settable) Description: ZIP, Value: 30301, ID: billingPostalCode
+			296 container
+				297 text Bank
+				298 text $5 back
+				299 button Pay with Bank
+			300 container
+				301 text Klarna
+				302 text Powered by Link
+				303 button Pay with Klarna
+			304 container
+				592 checkbox (settable, integer) Description: Save my information for faster checkout, Value: 0, ID: enableStripePass
+				308 text Save my information for faster checkout
+				309 container link-registration-subheader-message
+					310 text Pay securely at Ecoglobe World sandbox and everywhere
+					311 link Link
+						312 text Link
+					313 text  is accepted.
+			580 button Pay
+				846 text Pay
+		588 link Description: Powered by Stripe, Value: stripe.com/
+		589 link Description: Terms, Value: stripe.com/legal/end-users
+		590 link Description: Privacy, Value: stripe.com/privacy
+
+[Ephemeral checkout/session URL omitted; visible result retained below.]

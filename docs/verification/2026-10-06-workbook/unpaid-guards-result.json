@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "orderId": 27,
+  "companyId": 42,
+  "pickupFieldsSaved": true,
+  "pickupRequestedAt": "2026-10-07T14:00:00.000Z",
+  "unpaidReceiptRejected": 409,
+  "genericCompletionRejected": 409,
+  "statusUnchanged": "awaiting_payment",
+  "shipmentsUnchanged": true
+}

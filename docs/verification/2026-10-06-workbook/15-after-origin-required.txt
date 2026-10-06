@@ -1,0 +1,335 @@
+- alert: EcoGlobe - Feedstock Marketplace
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Home":
+      - /url: /
+      - generic: Home
+    - link "Search":
+      - /url: /buyer/browse
+      - generic: Search
+    - link "My Orders":
+      - /url: /buyer/orders
+      - generic: My Orders
+    - button "Marketplace":
+      - generic: Marketplace
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Support":
+      - generic: Finance & Support
+  - button "Notifications":
+    - generic "12 unread notifications": 9+
+    - text: Notifications
+  - button "E EcoGlobe Sandbox Tester":
+    - generic: E
+    - generic: EcoGlobe Sandbox Tester
+- main:
+  - heading "Browse" [level=1]
+  - textbox "Search"
+  - generic: "Search radius: 2 mi"
+  - combobox "Search radius":
+    - option "Any distance"
+    - option "2 mi" [selected]
+    - option "10 mi"
+    - option "50 mi"
+    - option "100 mi"
+    - option "500 mi"
+  - button "Filters":
+    - text: Filters
+  - link "Feedstock IQ Soon Market pricing and demand signals for the feedstocks you buy and sell.":
+    - /url: /feedstock-iq
+    - text: Feedstock IQ
+    - generic: Soon
+    - generic: Market pricing and demand signals for the feedstocks you buy and sell.
+  - paragraph: 20 listings
+  - status: Allow location access or use the map center to filter by distance.
+  - 'link "PVC Scrap PVC Scrap Pending MOQ: 10 units $3.00 /unit"':
+    - /url: /buyer/browse/27
+    - img "PVC Scrap"
+    - heading "PVC Scrap" [level=3]
+    - paragraph: Pending
+    - generic: "MOQ: 10 units"
+    - generic: $3.00
+    - generic: /unit
+  - button "Show PVC Scrap on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Premium Rice Hull Ash Illustrative image Premium Rice Hull Ash Baton Rouge, LA MOQ: 20 tons $250.00 /ton"':
+    - /url: /buyer/browse/22
+    - img "Illustrative image of Premium Rice Hull Ash"
+    - generic: Illustrative image
+    - heading "Premium Rice Hull Ash" [level=3]
+    - paragraph: Baton Rouge, LA
+    - generic: "MOQ: 20 tons"
+    - generic: $250.00
+    - generic: /ton
+  - button "Show Premium Rice Hull Ash on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Dark Viscous Liquid Tonnels Illustrative image Dark Viscous Liquid Tonnels Jubail MOQ: 10 tons 410 kg CO₂e $620.00 /ton"':
+    - /url: /buyer/browse/20
+    - img "Illustrative image of Dark Viscous Liquid Tonnels"
+    - generic: Illustrative image
+    - heading "Dark Viscous Liquid Tonnels" [level=3]
+    - paragraph: Jubail
+    - generic: "MOQ: 10 tons"
+    - generic: 410 kg CO₂e
+    - generic: $620.00
+    - generic: /ton
+  - button "Show Dark Viscous Liquid Tonnels on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Tar Illustrative image Tar Houston, TX MOQ: 5 tons 360 kg CO₂e $225.00 /ton"':
+    - /url: /buyer/browse/19
+    - img "Illustrative image of Tar"
+    - generic: Illustrative image
+    - heading "Tar" [level=3]
+    - paragraph: Houston, TX
+    - generic: "MOQ: 5 tons"
+    - generic: 360 kg CO₂e
+    - generic: $225.00
+    - generic: /ton
+  - button "Show Tar on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of White Label Illustrative image White Label Jubail MOQ: 5 tons 210 kg CO₂e $120.00 /ton"':
+    - /url: /buyer/browse/18
+    - img "Illustrative image of White Label"
+    - generic: Illustrative image
+    - heading "White Label" [level=3]
+    - paragraph: Jubail
+    - generic: "MOQ: 5 tons"
+    - generic: 210 kg CO₂e
+    - generic: $120.00
+    - generic: /ton
+  - button "Show White Label on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Biochar Illustrative image Biochar Guadalajara, JAL MOQ: 3 tons 85 kg CO₂e $500.00 /ton"':
+    - /url: /buyer/browse/17
+    - img "Illustrative image of Biochar"
+    - generic: Illustrative image
+    - heading "Biochar" [level=3]
+    - paragraph: Guadalajara, JAL
+    - generic: "MOQ: 3 tons"
+    - generic: 85 kg CO₂e
+    - generic: $500.00
+    - generic: /ton
+  - button "Show Biochar on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Used Pallets Illustrative image Used Pallets Port Allen, LA MOQ: 100 tons $15.00 /ton"':
+    - /url: /buyer/browse/16
+    - img "Illustrative image of Used Pallets"
+    - generic: Illustrative image
+    - heading "Used Pallets" [level=3]
+    - paragraph: Port Allen, LA
+    - generic: "MOQ: 100 tons"
+    - generic: $15.00
+    - generic: /ton
+  - button "Show Used Pallets on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Hydrochar Illustrative image Hydrochar Rotterdam MOQ: 200 tons 120 kg CO₂e $100.00 /ton"':
+    - /url: /buyer/browse/15
+    - img "Illustrative image of Hydrochar"
+    - generic: Illustrative image
+    - heading "Hydrochar" [level=3]
+    - paragraph: Rotterdam
+    - generic: "MOQ: 200 tons"
+    - generic: 120 kg CO₂e
+    - generic: $100.00
+    - generic: /ton
+  - button "Show Hydrochar on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Used Dry Transformer Illustrative image Used Dry Transformer Houston, TX MOQ: 50 units $15,000.00 /unit"':
+    - /url: /buyer/browse/14
+    - img "Illustrative image of Used Dry Transformer"
+    - generic: Illustrative image
+    - heading "Used Dry Transformer" [level=3]
+    - paragraph: Houston, TX
+    - generic: "MOQ: 50 units"
+    - generic: $15,000.00
+    - generic: /unit
+  - button "Show Used Dry Transformer on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Refined Used Cooking Oil (UCO) Illustrative image Refined Used Cooking Oil (UCO) Rotterdam MOQ: 4 tons 540 kg CO₂e $1,300.00 /ton"':
+    - /url: /buyer/browse/13
+    - img "Illustrative image of Refined Used Cooking Oil (UCO)"
+    - generic: Illustrative image
+    - heading "Refined Used Cooking Oil (UCO)" [level=3]
+    - paragraph: Rotterdam
+    - generic: "MOQ: 4 tons"
+    - generic: 540 kg CO₂e
+    - generic: $1,300.00
+    - generic: /ton
+  - button "Show Refined Used Cooking Oil (UCO) on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Recycled Tire Crumb Rubber Illustrative image Recycled Tire Crumb Rubber Nagoya MOQ: 6 tons 420 kg CO₂e $180.00 /ton"':
+    - /url: /buyer/browse/12
+    - img "Illustrative image of Recycled Tire Crumb Rubber"
+    - generic: Illustrative image
+    - heading "Recycled Tire Crumb Rubber" [level=3]
+    - paragraph: Nagoya
+    - generic: "MOQ: 6 tons"
+    - generic: 420 kg CO₂e
+    - generic: $180.00
+    - generic: /ton
+  - button "Show Recycled Tire Crumb Rubber on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Certified Organic Wood Chips Illustrative image Certified Organic Wood Chips Port Allen, LA MOQ: 2 tons 150 kg CO₂e $45.00 /ton"':
+    - /url: /buyer/browse/11
+    - img "Illustrative image of Certified Organic Wood Chips"
+    - generic: Illustrative image
+    - heading "Certified Organic Wood Chips" [level=3]
+    - paragraph: Port Allen, LA
+    - generic: "MOQ: 2 tons"
+    - generic: 150 kg CO₂e
+    - generic: $45.00
+    - generic: /ton
+  - button "Show Certified Organic Wood Chips on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Industrial By-Product: Rice Husk Illustrative image Industrial By-Product: Rice Husk Sao Paulo, SP MOQ: 10 tons 180 kg CO₂e $30.00 /ton"':
+    - /url: /buyer/browse/10
+    - 'img "Illustrative image of Industrial By-Product: Rice Husk"'
+    - generic: Illustrative image
+    - 'heading "Industrial By-Product: Rice Husk" [level=3]'
+    - paragraph: Sao Paulo, SP
+    - generic: "MOQ: 10 tons"
+    - generic: 180 kg CO₂e
+    - generic: $30.00
+    - generic: /ton
+  - 'button "Show Industrial By-Product: Rice Husk on map"'
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Biomass Wood Pellets, Grade A Illustrative image Biomass Wood Pellets, Grade A Guadalajara, JAL MOQ: 5 tons 210 kg CO₂e $230.00 /ton"':
+    - /url: /buyer/browse/9
+    - img "Illustrative image of Biomass Wood Pellets, Grade A"
+    - generic: Illustrative image
+    - heading "Biomass Wood Pellets, Grade A" [level=3]
+    - paragraph: Guadalajara, JAL
+    - generic: "MOQ: 5 tons"
+    - generic: 210 kg CO₂e
+    - generic: $230.00
+    - generic: /ton
+  - button "Show Biomass Wood Pellets, Grade A on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Harvested and Baled Corn Stover Illustrative image Harvested and Baled Corn Stover Rotterdam MOQ: 3 tons 300 kg CO₂e $70.00 /ton"':
+    - /url: /buyer/browse/8
+    - img "Illustrative image of Harvested and Baled Corn Stover"
+    - generic: Illustrative image
+    - heading "Harvested and Baled Corn Stover" [level=3]
+    - paragraph: Rotterdam
+    - generic: "MOQ: 3 tons"
+    - generic: 300 kg CO₂e
+    - generic: $70.00
+    - generic: /ton
+  - button "Show Harvested and Baled Corn Stover on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Black Gypsum Illustrative image Black Gypsum Houston, TX MOQ: 3 tons 240 kg CO₂e $45.00 /ton"':
+    - /url: /buyer/browse/7
+    - img "Illustrative image of Black Gypsum"
+    - generic: Illustrative image
+    - heading "Black Gypsum" [level=3]
+    - paragraph: Houston, TX
+    - generic: "MOQ: 3 tons"
+    - generic: 240 kg CO₂e
+    - generic: $45.00
+    - generic: /ton
+  - button "Show Black Gypsum on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Scrap Polymer Blend with Impurities Illustrative image Scrap Polymer Blend with Impurities Houston, TX MOQ: 1,000 tons 300 kg CO₂e $225.00 /ton"':
+    - /url: /buyer/browse/6
+    - img "Illustrative image of Scrap Polymer Blend with Impurities"
+    - generic: Illustrative image
+    - heading "Scrap Polymer Blend with Impurities" [level=3]
+    - paragraph: Houston, TX
+    - generic: "MOQ: 1,000 tons"
+    - generic: 300 kg CO₂e
+    - generic: $225.00
+    - generic: /ton
+  - button "Show Scrap Polymer Blend with Impurities on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Shredded, Refined Sugar Bagasse Illustrative image Shredded, Refined Sugar Bagasse Port Allen, LA MOQ: 200 tons 300 kg CO₂e $80.00 /ton"':
+    - /url: /buyer/browse/5
+    - img "Illustrative image of Shredded, Refined Sugar Bagasse"
+    - generic: Illustrative image
+    - heading "Shredded, Refined Sugar Bagasse" [level=3]
+    - paragraph: Port Allen, LA
+    - generic: "MOQ: 200 tons"
+    - generic: 300 kg CO₂e
+    - generic: $80.00
+    - generic: /ton
+  - button "Show Shredded, Refined Sugar Bagasse on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Epoxy Off-Spec Illustrative image Epoxy Off-Spec Houston, TX MOQ: 2 tons 280 kg CO₂e $1,900.00 /ton"':
+    - /url: /buyer/browse/4
+    - img "Illustrative image of Epoxy Off-Spec"
+    - generic: Illustrative image
+    - heading "Epoxy Off-Spec" [level=3]
+    - paragraph: Houston, TX
+    - generic: "MOQ: 2 tons"
+    - generic: 280 kg CO₂e
+    - generic: $1,900.00
+    - generic: /ton
+  - button "Show Epoxy Off-Spec on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - 'link "Illustrative image of Pyrolysis Pitch Illustrative image Pyrolysis Pitch Houston, TX MOQ: 1,000 tons 300 kg CO₂e $350.00 /ton"':
+    - /url: /buyer/browse/3
+    - img "Illustrative image of Pyrolysis Pitch"
+    - generic: Illustrative image
+    - heading "Pyrolysis Pitch" [level=3]
+    - paragraph: Houston, TX
+    - generic: "MOQ: 1,000 tons"
+    - generic: 300 kg CO₂e
+    - generic: $350.00
+    - generic: /ton
+  - button "Show Pyrolysis Pitch on map"
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - button "Use map center for search radius"
+  - region "Map"
+  - button "Dark Viscous Liquid Tonnels — Jubail"
+  - button "Tar — Houston, TX"
+  - button "White Label — Jubail"
+  - button "Biochar — Guadalajara, JAL"
+  - button "Used Pallets — Port Allen, LA"
+  - button "Hydrochar — Rotterdam"
+  - button "Used Dry Transformer — Houston, TX"
+  - button "Refined Used Cooking Oil (UCO) — Rotterdam"
+  - button "Recycled Tire Crumb Rubber — Nagoya"
+  - button "Certified Organic Wood Chips — Port Allen, LA"
+  - 'button "Industrial By-Product: Rice Husk — Sao Paulo, SP"'
+  - button "Biomass Wood Pellets, Grade A — Guadalajara, JAL"
+  - button "Harvested and Baled Corn Stover — Rotterdam"
+  - button "Black Gypsum — Houston, TX"
+  - button "Scrap Polymer Blend with Impurities — Houston, TX"
+  - button "Shredded, Refined Sugar Bagasse — Port Allen, LA"
+  - button "Epoxy Off-Spec — Houston, TX"
+  - button "Pyrolysis Pitch — Houston, TX"
+  - button "Zoom in"
+  - button "Zoom out"
+  - button "Drag to rotate map, click to reset north"
+  - text: ©
+  - link "OpenStreetMap":
+    - /url: https://www.openstreetmap.org/copyright
+  - text: contributors
+  - generic: Enable location to show where you are browsing from
+  - button "Expand map":

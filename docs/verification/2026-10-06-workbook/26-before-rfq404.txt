@@ -1,0 +1,9 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/seller/rfq".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/rfq
+	2 container
+		3 heading 404, Value: 1
+			4 text 404
+		5 heading This page could not be found., Value: 2
+			6 text This page could not be found.
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/rfq

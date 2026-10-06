@@ -1,0 +1,102 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/seller/listings/2".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/listings/2
+	2 container
+		3 container
+			4 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+			5 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			6 link Description: Listings, Value: eco-globe-dev-web.vercel.app/seller/listings
+			7 link Description: Sales, Value: eco-globe-dev-web.vercel.app/seller/sales
+			8 link Description: Tracker, Value: eco-globe-dev-web.vercel.app/seller/tracker
+			9 link Description: Sample dispatch, Value: eco-globe-dev-web.vercel.app/seller/samples
+			10 link Description: Pilot interest, Value: eco-globe-dev-web.vercel.app/seller/pilots
+			11 link Description: Logistics, Value: eco-globe-dev-web.vercel.app/seller/logistics
+			12 link Description: Contracts, Value: eco-globe-dev-web.vercel.app/seller/contracts
+			13 link Description: E-signatures, Value: eco-globe-dev-web.vercel.app/seller/e-signatures
+			14 link Description: Verification, Value: eco-globe-dev-web.vercel.app/seller/verification
+			15 link Description: Delivery Tracking, Value: eco-globe-dev-web.vercel.app/seller/delivery-tracking
+			16 link Description: Partner Network, Value: eco-globe-dev-web.vercel.app/seller/partners
+			17 link Description: Carbon Calculator, Value: eco-globe-dev-web.vercel.app/seller/carbon-calculator
+			18 button Accounting
+				19 image
+				20 text Accounting
+				21 image
+			22 button Reports
+				23 image
+				24 text Reports
+				25 image
+			26 link Description: Disputes, Value: eco-globe-dev-web.vercel.app/seller/disputes
+			27 link Description: Documents, Value: eco-globe-dev-web.vercel.app/seller/documents
+			28 button 16 unread notifications Notifications
+				29 container
+					30 image
+					31 container 16 unread notifications
+						32 text 9+
+				33 text Notifications
+			34 button SR Sam R
+				35 text SR
+				36 text Sam R
+				37 image
+		38 heading Listing detail, Value: 1
+			39 text Listing detail
+		40 button Search
+			41 image
+		42 image
+		43 link Description: Back to listings, Value: eco-globe-dev-web.vercel.app/seller/listings
+		100 button Resubmit
+		45 link Description: Edit listing, Value: eco-globe-dev-web.vercel.app/seller/listings/2/edit
+		46 container
+			47 image Phase 1 Smoke Feedstock
+			48 heading Phase 1 Smoke Feedstock, Value: 1
+				49 text Phase 1 Smoke Feedstock
+			50 text Paused Houston, TX · 2,500 t  available · $52.00 /t · # 2  ·  phase-1-smoke-feedstock-1785421158055
+			51 image
+			52 text No SDS uploaded. Buyers cannot purchase and the listing cannot be submitted for review.
+		53 button Overview
+		54 button Documents
+		55 button Activity Log
+		56 container
+			57 heading Listing info, Value: 3
+				58 text Listing info
+			59 text Listing category Industrial Byproducts Listing price $52.00  /t  ( USD ) Minimum Order Quantity (MOQ) 200 t (metric tonnes) Available quantity 2,500 t (metric tonnes)
+		60 container
+			61 heading Specifications, Value: 3
+				62 text Specifications
+			63 text Feedstock state Solid
+		64 container
+			65 heading Description, Value: 3
+				66 text Description
+			67 text Smoke test listing for Phase 1 backend endpoints.
+		68 container
+			69 heading Location, Value: 3
+				70 text Location
+			71 text Smoke pickup — 1 Demo Way, Houston, TX, 77001, US
+			72 button Use map center for search radius
+			73 container
+				74 container Map
+				75 container Your location
+				76 container
+					77 button Zoom in
+					78 button Zoom out
+					79 button Drag to rotate map, click to reset north
+					80 container
+						81 text ©
+						82 link Description: OpenStreetMap, Value: openstreetmap.org/copyright
+						83 text  contributors
+			84 text Showing saved company location: Houston terminal
+			85 text This facility has no saved coordinates, so it cannot be pinned on the map.
+		86 container
+			87 heading Carbon analytics, Value: 3
+				88 text Carbon analytics
+			89 text Carbon intensity Not provided Sustainability claims None recorded Certifications None uploaded
+			90 button Open Carbon Calculator
+				91 image
+				92 text Open Carbon Calculator
+			93 button Estimate value recovery
+				94 image
+				95 text Estimate value recovery
+		96 container
+			97 heading Seller, Value: 3
+				98 text Seller
+			99 text GulfStar Chemicals Verified account
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/listings/2

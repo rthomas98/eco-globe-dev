@@ -1,0 +1,124 @@
+- alert: EcoGlobe - Feedstock Marketplace
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - button "Core" [expanded]:
+      - generic: Core
+    - link "Home":
+      - /url: /
+      - generic: Home
+    - link "Search":
+      - /url: /buyer/browse
+      - generic: Search
+    - link "My Orders":
+      - /url: /buyer/orders
+      - generic: My Orders
+    - button "Marketplace":
+      - generic: Marketplace
+    - button "Logistics":
+      - generic: Logistics
+    - button "Contracts & Docs":
+      - generic: Contracts & Docs
+    - button "Finance & Support":
+      - generic: Finance & Support
+  - button "Notifications":
+    - generic "12 unread notifications": 9+
+    - text: Notifications
+  - button "E EcoGlobe Sandbox Tester":
+    - generic: E
+    - generic: EcoGlobe Sandbox Tester
+- main:
+  - link "Browse":
+    - /url: /buyer/browse
+  - generic: Product details
+  - heading "PVC Scrap" [level=1]
+  - generic: Pending
+  - generic: ·
+  - generic: 990 units available
+  - generic: "MOQ: 10 units"
+  - img "PVC Scrap"
+  - button "Share":
+  - button "Save":
+  - heading "Map" [level=2]
+  - paragraph: The seller's facility has no saved coordinates, so it cannot be shown on the map.
+  - heading "Documents" [level=2]
+  - paragraph:
+    - generic: Safety Data Sheet (SDS)
+  - paragraph: SDS044_PSK_PVC.pdf
+  - link "Download":
+    - /url: /api/backend/api/listing-documents/7/download
+  - heading "Specifications" [level=2]
+  - generic: Category
+  - generic: Used products
+  - generic: Composition
+  - generic: PVC panels are made mainly from polyvinyl chloride (PVC) resin. Manufacturers typically add stabilizers for durability, fillers such as calcium carbonate for stiffness, and pigments for color. Some panels also contain additives that affect flexibility or fire performance. The exact composition varies by manufacturer and by whether the panel is solid, hollow, or foamed.
+  - generic: Quality
+  - generic: Give your walls or ceilings a clean, modern finish with PVC panels. Lightweight and easy to install, they offer a smooth surface that’s simple to wipe clean. Their moisture-resistant material makes them a practical choice for kitchens, bathrooms, and other busy spaces. Available in a range of colors and finishes, PVC panels make it easy to refresh a room with a look that suits your style.
+  - generic: Feedstock state
+  - generic: Solid
+  - generic: Frequency
+  - generic: Weekly
+  - generic: Availability window
+  - generic: 2026-09-27 → 2026-10-03
+  - generic: Minimum Order Quantity (MOQ)
+  - generic: 10 units
+  - generic: Available quantity
+  - generic: 990 units
+  - generic: Carbon profile
+  - generic: Not provided by seller
+  - generic: Sustainability claims
+  - generic: Recycled Content
+  - generic: Pickup location
+  - generic: Pending
+  - region "Independent analysis":
+    - heading "Independent analysis" [level=2]
+    - paragraph: No independent analysis on this listing yet.
+    - button "Request lab testing":
+      - text: Request lab testing
+    - paragraph: Arranged by EcoGlobe · you decide who sees it · nothing is charged now.
+  - heading "Overview" [level=2]
+  - paragraph: Refresh your space with a PVC panel that combines a clean finish with everyday practicality. Made primarily from polyvinyl chloride (PVC) resin, it is lightweight, moisture resistant, and easy to wipe clean. Use it on walls or ceilings in bathrooms, kitchens, and other indoor spaces. Available in a range of colors and finishes, this panel can suit both modern and classic interiors. Installation requirements and suitability for wet areas depend on the specific product and how it is fitted.
+  - button "Read More"
+  - heading "Seller" [level=2]
+  - generic: M
+  - generic: MKDK Shop
+  - paragraph: Pending · Used products
+  - heading "Carbon Analytics Tool" [level=2]
+  - paragraph: Estimate transportation footprint, compare scenarios, and estimate your savings for PVC Scrap.
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - button "Estimate savings":
+    - text: Estimate savings
+  - paragraph: Was this tool helpful, give us your feedback here
+  - button:
+  - button:
+  - paragraph: $3.00/unit
+  - paragraph: "Minimum Order Quantity (MOQ): 10 units"
+  - generic: Quantity (units)
+  - button "Decrease quantity":
+  - spinbutton "Quantity": "10"
+  - button "Increase quantity":
+  - paragraph: 990 units available
+  - generic: Item subtotal
+  - generic: $30.00
+  - generic: Shipping
+  - generic: Quoted per order
+  - generic: Subtotal (excl. shipping)
+  - generic: $30.00
+  - button "Buy Now"
+  - button "Ask EcoGlobe about a sample"
+  - paragraph: This material needs EcoGlobe review before shipping. No payment or parcel label will be created.
+  - link "Request a pilot (plant-scale trial)":
+    - /url: /buyer/pilots/new?listing=27
+  - button "Open Carbon Calculator":
+    - text: Open Carbon Calculator
+  - button "Estimate savings":
+    - text: Estimate savings
+  - link "Download SDS":
+    - /url: /api/backend/api/listing-documents/7/download
+    - text: Download SDS
+  - paragraph: Do you want to know more?
+  - paragraph: Here is how it works
+  - button "Learn more":

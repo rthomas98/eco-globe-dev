@@ -1,0 +1,213 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/seller/tracker".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/tracker
+	2 container
+		3 container
+			4 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+			5 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			6 link Description: Listings, Value: eco-globe-dev-web.vercel.app/seller/listings
+			7 link Description: Buyer requests, Value: eco-globe-dev-web.vercel.app/seller/rfq
+			8 link Description: Sales, Value: eco-globe-dev-web.vercel.app/seller/sales
+			9 link Description: Tracker, Value: eco-globe-dev-web.vercel.app/seller/tracker
+			10 link Description: Sample dispatch, Value: eco-globe-dev-web.vercel.app/seller/samples
+			11 link Description: Pilot interest, Value: eco-globe-dev-web.vercel.app/seller/pilots
+			12 link Description: Feedstock IQ SOON, Value: eco-globe-dev-web.vercel.app/feedstock-iq
+			13 link Description: Logistics, Value: eco-globe-dev-web.vercel.app/seller/logistics
+			14 link Description: Contracts, Value: eco-globe-dev-web.vercel.app/seller/contracts
+			15 link Description: E-signatures, Value: eco-globe-dev-web.vercel.app/seller/e-signatures
+			16 link Description: Verification, Value: eco-globe-dev-web.vercel.app/seller/verification
+			17 link Description: Delivery Tracking, Value: eco-globe-dev-web.vercel.app/seller/delivery-tracking
+			18 link Description: Partner Network, Value: eco-globe-dev-web.vercel.app/seller/partners
+			19 link Description: Carbon Calculator, Value: eco-globe-dev-web.vercel.app/seller/carbon-calculator
+			20 button Accounting
+				21 image
+				22 text Accounting
+				23 image
+			24 button Reports
+				25 image
+				26 text Reports
+				27 image
+			28 link Description: Disputes, Value: eco-globe-dev-web.vercel.app/seller/disputes
+			29 link Description: Documents, Value: eco-globe-dev-web.vercel.app/seller/documents
+			30 button 16 unread notifications Notifications
+				31 container
+					32 image
+					33 container 16 unread notifications
+						34 text 9+
+				35 text Notifications
+			36 button SR Sam R
+				37 text SR
+				38 text Sam R
+				39 image
+		40 heading Tracker, Value: 1
+			41 text Tracker
+		42 button Search
+			43 image
+		44 image
+		45 container
+			46 text SELLER  TRACKER
+			47 heading Where everything stands, Value: 1
+				48 text Where everything stands
+			49 text GulfStar Chemicals  ·  7  materials
+			50 button Refresh
+			51 text Up to date · Last checked 10:22:10 AM YOUR ACCOUNT Company status (set by EcoGlobe staff) — verified Licence —  Free Payout status — pending
+			52 link Description: Review verification documents, Value: eco-globe-dev-web.vercel.app/seller/verification
+			53 button (expanded) Phase 1 Smoke Feedstock Listing #2 Houston, TX · $52.00 / tons EG-2 — IN PROGRESS 1 files, Secondary Actions: Collapse
+				54 heading Phase 1 Smoke Feedstock Listing #2, Value: 2
+					55 text Phase 1 Smoke Feedstock Listing #2
+				56 container
+					57 text Houston, TX  · $52.00 / tons
+				58 text EG-2 — IN PROGRESS
+				59 text 1
+				60 text  files
+				61 image
+			62 checkbox Description: Listed — Recorded, Value: 0
+				63 image
+				64 text Listed
+				65 text Recorded
+			66 checkbox Description: Approved — No activity, Value: 0
+				67 text Approved
+				68 text No activity
+			69 checkbox Description: Interest — Recorded, Value: 0
+				70 image
+				71 text Interest
+				72 text Recorded
+			73 checkbox Description: Sample — No activity, Value: 0
+				74 text Sample
+				75 text No activity
+			76 checkbox Description: Testing — No activity, Value: 0
+				77 text Testing
+				78 text No activity
+			79 checkbox Description: Pilot — No activity, Value: 0
+				80 text Pilot
+				81 text No activity
+			82 checkbox Description: Shipping — EG-1 shipment SHP-1 in transit, EG-1 shipment SHP-5 in transit, Value: 0
+				83 image
+				84 text Shipping
+				85 text Recorded
+			86 checkbox Description: Delivered — No activity, Value: 0
+				87 text Delivered
+				88 text No activity
+			89 checkbox Description: Seller paid — EG-1 seller payout paid (current stage), Value: 1
+				90 image
+				91 text Seller paid
+				92 text Recorded
+			93 container
+				94 heading Seller paid, Value: 3
+					95 text Seller paid
+				96 text EG - 1  ·  seller payout paid ·  ECO-CODEX-0730-INTRANSIT
+				97 link Description: View order, Value: eco-globe-dev-web.vercel.app/seller/sales
+			98 container
+				99 heading DOCUMENTS AT THIS STEP, Value: 3
+					100 text DOCUMENTS AT THIS STEP
+				101 button All files (1)
+				102 text No documents at this step. 1 file is recorded at other steps — use All files. Only available files are shown. Lab reports and shipping documents appear when recorded and shared with your company.
+			103 button (collapsed) Secondary Actions: Expand, Used Dry Transformer Listing #14 Houston, TX · $15,000.00 / units Listed — Recorded Approved — Recorded (current stage) Interest — No activity Sample — No activity Testing — No activity Pilot — No activity Shipping — No activity Delivered — No activity Seller paid — No activity PUBLISHED 0 files
+				104 heading Used Dry Transformer Listing #14, Value: 2
+					105 text Used Dry Transformer Listing #14
+				106 container
+					107 text Houston, TX  · $15,000.00 / units
+				108 container Listed — Recorded
+				109 container Approved — Recorded (current stage)
+				110 container Interest — No activity
+				111 container Sample — No activity
+				112 container Testing — No activity
+				113 container Pilot — No activity
+				114 container Shipping — No activity
+				115 container Delivered — No activity
+				116 container Seller paid — No activity
+				117 text PUBLISHED
+				118 text 0
+				119 text  files
+				120 image
+			121 button (collapsed) Secondary Actions: Expand, Tar Listing #19 Houston, TX · $225.00 / tons Listed — Recorded Approved — Recorded Interest — Recorded Sample — requested (current stage) Testing — No activity Pilot — No activity Shipping — No activity Delivered — No activity Seller paid — No activity EG-9 — IN PROGRESS 1 files
+				122 heading Tar Listing #19, Value: 2
+					123 text Tar Listing #19
+				124 container
+					125 text Houston, TX  · $225.00 / tons
+				126 container Listed — Recorded
+				127 container Approved — Recorded
+				128 container Interest — Recorded
+				129 container Sample — requested (current stage)
+				130 container Testing — No activity
+				131 container Pilot — No activity
+				132 container Shipping — No activity
+				133 container Delivered — No activity
+				134 container Seller paid — No activity
+				135 text EG-9 — IN PROGRESS
+				136 text 1
+				137 text  files
+				138 image
+			139 button (collapsed) Secondary Actions: Expand, Pyrolysis Pitch Listing #3 Houston, TX · $350.00 / tons Listed — Recorded Approved — Recorded Interest — Recorded Sample — No activity Testing — No activity Pilot — No activity Shipping — EG-7 shipment SHP-6 delivered Delivered — EG-7 shipment SHP-6 delivered (current stage) Seller paid — No activity EG-7 — ORDER COMPLETED · SHIPMENT DELIVERED 0 files
+				140 heading Pyrolysis Pitch Listing #3, Value: 2
+					141 text Pyrolysis Pitch Listing #3
+				142 container
+					143 text Houston, TX  · $350.00 / tons
+				144 container Listed — Recorded
+				145 container Approved — Recorded
+				146 container Interest — Recorded
+				147 container Sample — No activity
+				148 container Testing — No activity
+				149 container Pilot — No activity
+				150 container Shipping — EG-7 shipment SHP-6 delivered
+				151 container Delivered — EG-7 shipment SHP-6 delivered (current stage)
+				152 container Seller paid — No activity
+				153 text EG-7 — ORDER COMPLETED · SHIPMENT DELIVERED
+				154 text 0
+				155 text  files
+				156 image
+			157 button (collapsed) Secondary Actions: Expand, Scrap Polymer Blend with Impurities Listing #6 Houston, TX · $225.00 / tons Listed — Recorded Approved — Recorded (current stage) Interest — No activity Sample — No activity Testing — No activity Pilot — No activity Shipping — No activity Delivered — No activity Seller paid — No activity PUBLISHED 0 files
+				158 heading Scrap Polymer Blend with Impurities Listing #6, Value: 2
+					159 text Scrap Polymer Blend with Impurities Listing #6
+				160 container
+					161 text Houston, TX  · $225.00 / tons
+				162 container Listed — Recorded
+				163 container Approved — Recorded (current stage)
+				164 container Interest — No activity
+				165 container Sample — No activity
+				166 container Testing — No activity
+				167 container Pilot — No activity
+				168 container Shipping — No activity
+				169 container Delivered — No activity
+				170 container Seller paid — No activity
+				171 text PUBLISHED
+				172 text 0
+				173 text  files
+				174 image
+			175 button (collapsed) Secondary Actions: Expand, Epoxy Off-Spec Listing #4 Houston, TX · $1,900.00 / tons Listed — Recorded Approved — Recorded (current stage) Interest — No activity Sample — No activity Testing — No activity Pilot — No activity Shipping — No activity Delivered — No activity Seller paid — No activity PUBLISHED 0 files
+				176 heading Epoxy Off-Spec Listing #4, Value: 2
+					177 text Epoxy Off-Spec Listing #4
+				178 container
+					179 text Houston, TX  · $1,900.00 / tons
+				180 container Listed — Recorded
+				181 container Approved — Recorded (current stage)
+				182 container Interest — No activity
+				183 container Sample — No activity
+				184 container Testing — No activity
+				185 container Pilot — No activity
+				186 container Shipping — No activity
+				187 container Delivered — No activity
+				188 container Seller paid — No activity
+				189 text PUBLISHED
+				190 text 0
+				191 text  files
+				192 image
+			193 button (collapsed) Secondary Actions: Expand, Black Gypsum Listing #7 Houston, TX · $45.00 / tons Listed — Recorded Approved — Recorded (current stage) Interest — No activity Sample — No activity Testing — No activity Pilot — No activity Shipping — No activity Delivered — No activity Seller paid — No activity PUBLISHED 0 files
+				194 heading Black Gypsum Listing #7, Value: 2
+					195 text Black Gypsum Listing #7
+				196 container
+					197 text Houston, TX  · $45.00 / tons
+				198 container Listed — Recorded
+				199 container Approved — Recorded (current stage)
+				200 container Interest — No activity
+				201 container Sample — No activity
+				202 container Testing — No activity
+				203 container Pilot — No activity
+				204 container Shipping — No activity
+				205 container Delivered — No activity
+				206 container Seller paid — No activity
+				207 text PUBLISHED
+				208 text 0
+				209 text  files
+				210 image
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/tracker

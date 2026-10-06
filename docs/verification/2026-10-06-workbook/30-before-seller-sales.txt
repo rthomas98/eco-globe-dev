@@ -1,0 +1,190 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/seller/sales".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/sales
+	2 container
+		3 container
+			4 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+			5 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			6 link Description: Listings, Value: eco-globe-dev-web.vercel.app/seller/listings
+			7 link Description: Sales, Value: eco-globe-dev-web.vercel.app/seller/sales
+			8 link Description: Tracker, Value: eco-globe-dev-web.vercel.app/seller/tracker
+			9 link Description: Sample dispatch, Value: eco-globe-dev-web.vercel.app/seller/samples
+			10 link Description: Pilot interest, Value: eco-globe-dev-web.vercel.app/seller/pilots
+			11 link Description: Logistics, Value: eco-globe-dev-web.vercel.app/seller/logistics
+			12 link Description: Contracts, Value: eco-globe-dev-web.vercel.app/seller/contracts
+			13 link Description: E-signatures, Value: eco-globe-dev-web.vercel.app/seller/e-signatures
+			14 link Description: Verification, Value: eco-globe-dev-web.vercel.app/seller/verification
+			15 link Description: Delivery Tracking, Value: eco-globe-dev-web.vercel.app/seller/delivery-tracking
+			16 link Description: Partner Network, Value: eco-globe-dev-web.vercel.app/seller/partners
+			17 link Description: Carbon Calculator, Value: eco-globe-dev-web.vercel.app/seller/carbon-calculator
+			18 button Accounting
+				19 image
+				20 text Accounting
+				21 image
+			22 button Reports
+				23 image
+				24 text Reports
+				25 image
+			26 link Description: Disputes, Value: eco-globe-dev-web.vercel.app/seller/disputes
+			27 link Description: Documents, Value: eco-globe-dev-web.vercel.app/seller/documents
+			28 button 16 unread notifications Notifications
+				29 container
+					30 image
+					31 container 16 unread notifications
+						32 text 9+
+				33 text Notifications
+			34 button SR Sam R
+				35 text SR
+				36 text Sam R
+				37 image
+		38 heading Sales, Value: 1
+			39 text Sales
+		40 button Search
+			41 image
+		42 image
+		43 heading Sales, Value: 1
+			44 text Sales
+		45 text field (settable) Search sales
+		46 button Filters
+		47 button Refresh
+		48 container Saved demo orders
+			49 heading Saved demo orders, Value: 2
+				50 text Saved demo orders
+			51 button Refresh demo orders
+			52 text DEMO ONLY — stored separately from real orders. Payment, SDS review, shipping and settlement are simulated. Either participant can demonstrate both roles.
+			53 container
+				54 heading DEMO-2 · Tar, Value: 3
+					55 text DEMO- 2  ·  Tar
+				56 text Buyer:  Marsh Materials BV  · Seller:  GulfStar Chemicals Quantity  1  ·  USD 225.00  simulated total ·  Demo receiving site — no shipment
+				57 content list
+					58 text Buyer order submitted
+					59 text Seller accepted
+					60 text Demo payment funded
+					61 text Seller dispatched
+					62 text Buyer received
+					63 text Seller paid (simulated)
+				64 text Status:  cancelled  — simulated refund; no real funds moved.
+		65 container Sample requests
+			66 heading Sample requests, Value: 2
+				67 text Sample requests
+			68 text Small test batches buyers want before committing to a bulk order.
+			69 content list
+				70 container
+					71 text # 3  ·  5  lb ·  Tar For ana.sanz@ecoglobeworld.com  · Baton Rouge REQUESTED
+					72 button Decline
+					73 button Accept
+		74 checkbox All orders, Value: 1
+		75 checkbox Action needed, Value: 0
+		76 checkbox Processing, Value: 0
+		77 checkbox Completed, Value: 0
+		78 container
+			79 text 5  of  5  saved orders
+		80 table
+			81 row
+				82 cell
+					83 text Order
+				84 cell
+					85 text Buyer
+				86 cell
+					87 text Material
+				88 cell
+					89 text Quantity
+				90 cell
+					91 text Shipping
+				92 cell
+					93 text Status
+				94 cell
+					95 text Action
+			96 row
+				97 cell
+					98 button EG-9
+						99 text EG-
+						100 text 9
+				101 cell
+					102 text ana.sanz@ecoglobeworld.com
+				103 cell
+					104 text Tar
+					105 text $50,250.00
+				106 cell
+					107 text 1005 tons
+				108 cell
+					109 text delivery
+				110 cell
+					111 text in progress
+				112 cell
+					113 button Send quote
+			114 row
+				115 cell
+					116 button EG-7
+						117 text EG-
+						118 text 7
+				119 cell
+					120 text Marsh Materials BV
+				121 cell
+					122 text Pyrolysis Pitch
+					123 text $50,000.00
+				124 cell
+					125 text 1000 tons
+				126 cell
+					127 text delivery
+				128 cell
+					129 text completed
+					130 text Delivered
+				131 cell
+					132 button View details
+			133 row
+				134 cell
+					135 button EG-5
+						136 text EG-
+						137 text 5
+				138 cell
+					139 text Marsh Materials BV
+				140 cell
+					141 text Pyrolysis Pitch
+					142 text $50,000.00
+				143 cell
+					144 text Not recorded
+				145 cell
+					146 text Not recorded
+				147 cell
+					148 text in progress
+				149 cell
+					150 button Send quote
+			151 row
+				152 cell
+					153 button EG-2
+						154 text EG-
+						155 text 2
+				156 cell
+					157 text AgriCorp Solutions
+				158 cell
+					159 text Phase 1 Smoke Feedstock
+					160 text $950.00
+				161 cell
+					162 text Not recorded
+				163 cell
+					164 text Not recorded
+				165 cell
+					166 text in progress
+				167 cell
+					168 button Send quote
+			169 row
+				170 cell
+					171 button EG-1
+						172 text EG-
+						173 text 1
+				174 cell
+					175 text AgriCorp Solutions
+				176 cell
+					177 text Phase 1 Smoke Feedstock
+					178 text $1,300.00
+				179 cell
+					180 text Not recorded
+				181 cell
+					182 text Not recorded
+				183 cell
+					184 text escrow required
+					185 text Order not yet in progress
+				186 cell
+					187 button View details
+
+The focused UI element is 1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/seller/sales

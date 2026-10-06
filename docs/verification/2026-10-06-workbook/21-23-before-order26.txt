@@ -1,0 +1,161 @@
+Browser tab: 1, Title: "EcoGlobe - Feedstock Marketplace", URL: "https://eco-globe-dev-web.vercel.app/buyer/orders".
+1 AXWebArea EcoGlobe - Feedstock Marketplace, URL: eco-globe-dev-web.vercel.app/buyer/orders
+	2 container
+		3 link Description: EcoGlobe, Value: eco-globe-dev-web.vercel.app/
+		4 container
+			5 button (expanded) CORE, Secondary Actions: Collapse
+				6 text CORE
+				7 image
+			8 link Description: Home, Value: eco-globe-dev-web.vercel.app/
+			9 link Description: Search, Value: eco-globe-dev-web.vercel.app/buyer/browse
+			10 link Description: My Orders, Value: eco-globe-dev-web.vercel.app/buyer/orders
+			11 button (collapsed) MARKETPLACE, Secondary Actions: Expand
+				12 text MARKETPLACE
+				13 image
+			14 button (collapsed) LOGISTICS, Secondary Actions: Expand
+				15 text LOGISTICS
+				16 image
+			17 button (collapsed) CONTRACTS & DOCS, Secondary Actions: Expand
+				18 text CONTRACTS & DOCS
+				19 image
+			20 button (collapsed) FINANCE & SUPPORT, Secondary Actions: Expand
+				21 text FINANCE & SUPPORT
+				22 image
+		23 button Notifications
+			24 container
+				25 image
+				26 container 12 unread notifications
+					27 text 9+
+			28 text Notifications
+		29 button E EcoGlobe Sandbox Tester
+			30 text E
+			31 text EcoGlobe Sandbox Tester
+			32 image
+		33 container Saved demo orders
+			34 heading Saved demo orders, Value: 2
+				35 text Saved demo orders
+			36 button Refresh demo orders
+			37 text DEMO ONLY — stored separately from real orders. Payment, SDS review, shipping and settlement are simulated. Either participant can demonstrate both roles.
+			38 text No demo orders yet. Create one from any listing.
+		39 heading My Orders, Value: 1
+			40 text My Orders
+		41 image
+		42 text field (settable)
+		43 button Filters
+			44 image
+			45 text Filters
+		46 container
+			47 button All Order
+			48 button Action needed
+			49 button Processing
+			50 button Shipped
+			51 button Completed
+			52 button Cancelled
+		53 container
+			54 text Order ID EG-26 Order Placed Oct 6, 2026 Shipping Pickup Qty 10 unit Total $30.00
+			55 pop up button (collapsed) Status: Awaiting payment, Secondary Actions: Expand
+				56 text Status:
+				57 text Awaiting payment
+				58 image
+				59 image
+			60 image
+			61 text MKDK Shop
+			62 image PVC Scrap
+			63 text PVC Scrap $3.00  /  unit
+			64 button Order Details
+			65 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				66 image
+			67 text Order ID EG-18 Order Placed Sep 28, 2026 Shipping Pickup Qty 1 tonnes Total $0.00
+			68 pop up button (collapsed) Status: Completed, Secondary Actions: Expand
+				69 text Status:
+				70 text Completed
+				71 image
+				72 image
+			73 image
+			74 text QA DocuSign Seller 2026-09-28
+			75 image Description: No photo available for Marketplace order, Help: No photo available
+			76 text Marketplace order $0.00  /  tonnes
+			77 button Order Details
+			78 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				79 image
+			80 text Order ID EG-17 Order Placed Sep 28, 2026 Shipping Delivery Qty 1 tonnes Total $0.00
+			81 pop up button (collapsed) Status: Completed, Secondary Actions: Expand
+				82 text Status:
+				83 text Completed
+				84 image
+				85 image
+			86 image
+			87 text QA DocuSign Seller 2026-09-28
+			88 image Description: No photo available for Marketplace order, Help: No photo available
+			89 text Marketplace order $0.00  /  tonnes
+			90 button Order Details
+			91 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				92 image
+			93 text Order ID EG-16 Order Placed Sep 28, 2026 Shipping Pickup Qty 1 tonnes Total $0.00
+			94 pop up button (collapsed) Status: Completed, Secondary Actions: Expand
+				95 text Status:
+				96 text Completed
+				97 image
+				98 image
+			99 image
+			100 text QA DocuSign Seller 2026-09-28
+			101 image Description: No photo available for Marketplace order, Help: No photo available
+			102 text Marketplace order $0.00  /  tonnes
+			103 button Order Details
+			104 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				105 image
+			106 text Order ID EG-15 Order Placed Sep 28, 2026 Shipping Delivery Qty 1 tonnes Total $0.00
+			107 pop up button (collapsed) Status: Completed, Secondary Actions: Expand
+				108 text Status:
+				109 text Completed
+				110 image
+				111 image
+			112 image
+			113 text QA DocuSign Seller 2026-09-28
+			114 image Description: No photo available for Marketplace order, Help: No photo available
+			115 text Marketplace order $0.00  /  tonnes
+			116 button Order Details
+			117 pop up button (collapsed) Description: More, Secondary Actions: Expand
+				118 image
+		119 container Order EG-26 details
+			120 container
+				121 heading Order ID: EG-26, Value: 1
+					122 text Order ID:  EG-26
+				123 text Pickup • Awaiting payment
+				124 image
+				125 button Payment status
+				126 pop up button (collapsed) Description: More actions, Secondary Actions: Expand
+					127 image
+				128 button Close order details
+					129 image
+			130 container
+				131 heading Order info, Value: 2
+					132 text Order info
+				133 text Order ID EG-26 Order Placed 10/6/2026, 8:50:01 AM Seller MKDK Shop Status Awaiting payment Shipping Pickup Quantity 10 unit
+			134 container
+				135 heading Products, Value: 2
+					136 text Products
+				137 image PVC Scrap
+				138 text PVC Scrap $3.00 / unit
+			139 container
+				140 heading Payment Details, Value: 2
+					141 text Payment Details
+				142 text Transaction ID Not recorded Escrow amount Not available Escrow status See payment records Release date Not recorded
+			143 container
+				144 heading Refunds, Value: 2
+					145 text Refunds
+				146 text No confirmed Stripe checkout payment is linked to this order.
+			147 heading Documents, Value: 2
+				148 text Documents
+			149 container
+				150 heading Activity Log, Value: 2
+					151 text Activity Log
+				152 content list
+					153 container
+						154 text Order placed Oct 6, 2026
+			155 container
+				156 heading Summary, Value: 2
+					157 text Summary
+				158 text 1  product Item subtotal Not recorded Fees Not recorded Total $30.00
+
+The focused UI element is 64 button Order Details

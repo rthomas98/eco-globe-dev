@@ -1,0 +1,593 @@
+Browser tab: 1, Title: "Ecoglobe World sandbox", URL: "[STRIPE_CHECKOUT_URL_REDACTED]".
+[Ephemeral checkout/session URL omitted; visible result retained below.]
+	2 container
+		3 link Description: Back to Ecoglobe World sandbox, Help: Ecoglobe World sandbox, Value: eco-globe-dev-web.vercel.app/buyer/accounting/payments?checkoutOrder=26
+		4 image
+		5 text Sandbox
+		6 heading EcoGlobe order 26, Value: 2
+			7 text EcoGlobe order 26
+		8 text $30.00
+		9 container
+			10 container Secure express checkout frame
+[Ephemeral checkout/session URL omitted; visible result retained below.]
+					12 container
+						13 AXWebArea b.stripecdn.com/stripethirdparty-srv/assets/v35.1/ApplePay.html?id=a15661c0-d5f3-41a3-9d13-a60ae8240066&origin=https%3A%2F%2Fjs.stripe.com
+							14 button Apple Pay
+								15 image svg-logo
+									16 container Description: Apple Logo, ID: svg-logo
+						17 button Pay securely with Link
+							18 text Pay with
+							19 image
+							20 image
+			21 text OR
+			22 heading Contact information, Value: 2
+				23 text Contact information
+		24 container payment-form
+			25 container
+				26 text Email
+			27 container email-fieldset
+				28 container
+					29 text field (settable) Email
+			30 heading Payment method, Value: 2
+				31 text Payment method
+			32 container
+				33 container
+					34 text Card
+					35 button Pay with card
+				36 container
+					37 text Card information
+					38 container cardForm-fieldset
+						39 container
+							40 text field (settable) Description: Card number, ID: cardNumber
+							41 text field (settable) Description: Expiration, ID: cardExpiry
+							42 text field (settable) Description: Credit or debit card CVC/CVV, ID: cardCvc
+							43 image Credit or debit card CVC/CVV
+					44 container Billing address
+						45 container
+							46 text Cardholder name
+						47 container billingName-fieldset
+							48 container
+								49 text field (settable) Cardholder name, ID: billingName
+						50 container
+							51 text Country or region
+						52 container countryWithOptionalPostalCodeInput-fieldset
+							53 container
+								54 container
+									55 pop up button (collapsed, settable) Description: Country or region, Value: United States, ID: billingCountry, Secondary Actions: Expand
+										56 menu
+											57 Afghanistan
+											58 Åland Islands
+											59 Albania
+											60 Algeria
+											61 Andorra
+											62 Angola
+											63 Anguilla
+											64 Antarctica
+											65 Antigua & Barbuda
+											66 Argentina
+											67 Armenia
+											68 Aruba
+											69 Ascension Island
+											70 Australia
+											71 Austria
+											72 Azerbaijan
+											73 Bahamas
+											74 Bahrain
+											75 Bangladesh
+											76 Barbados
+											77 Belarus
+											78 Belgium
+											79 Belize
+											80 Benin
+											81 Bermuda
+											82 Bhutan
+											83 Bolivia
+											84 Bosnia & Herzegovina
+											85 Botswana
+											86 Bouvet Island
+											87 Brazil
+											88 British Indian Ocean Territory
+											89 British Virgin Islands
+											90 Brunei
+											91 Bulgaria
+											92 Burkina Faso
+											93 Burundi
+											94 Cambodia
+											95 Cameroon
+											96 Canada
+											97 Cape Verde
+											98 Caribbean Netherlands
+											99 Cayman Islands
+											100 Central African Republic
+											101 Chad
+											102 Chile
+											103 China
+											104 Colombia
+											105 Comoros
+											106 Congo - Brazzaville
+											107 Congo - Kinshasa
+											108 Cook Islands
+											109 Costa Rica
+											110 Côte d’Ivoire
+											111 Croatia
+											112 Curaçao
+											113 Cyprus
+											114 Czechia
+											115 Denmark
+											116 Djibouti
+											117 Dominica
+											118 Dominican Republic
+											119 Ecuador
+											120 Egypt
+											121 El Salvador
+											122 Equatorial Guinea
+											123 Eritrea
+											124 Estonia
+											125 Eswatini
+											126 Ethiopia
+											127 Falkland Islands
+											128 Faroe Islands
+											129 Fiji
+											130 Finland
+											131 France
+											132 French Guiana
+											133 French Polynesia
+											134 French Southern Territories
+											135 Gabon
+											136 Gambia
+											137 Georgia
+											138 Germany
+											139 Ghana
+											140 Gibraltar
+											141 Greece
+											142 Greenland
+											143 Grenada
+											144 Guadeloupe
+											145 Guam
+											146 Guatemala
+											147 Guernsey
+											148 Guinea
+											149 Guinea-Bissau
+											150 Guyana
+											151 Haiti
+											152 Honduras
+											153 Hong Kong SAR China
+											154 Hungary
+											155 Iceland
+											156 India
+											157 Indonesia
+											158 Iraq
+											159 Ireland
+											160 Isle of Man
+											161 Israel
+											162 Italy
+											163 Jamaica
+											164 Japan
+											165 Jersey
+											166 Jordan
+											167 Kazakhstan
+											168 Kenya
+											169 Kiribati
+											170 Kosovo
+											171 Kuwait
+											172 Kyrgyzstan
+											173 Laos
+											174 Latvia
+											175 Lebanon
+											176 Lesotho
+											177 Liberia
+											178 Libya
+											179 Liechtenstein
+											180 Lithuania
+											181 Luxembourg
+											182 Macao SAR China
+											183 Madagascar
+											184 Malawi
+											185 Malaysia
+											186 Maldives
+											187 Mali
+											188 Malta
+											189 Martinique
+											190 Mauritania
+											191 Mauritius
+											192 Mayotte
+											193 Mexico
+											194 Moldova
+											195 Monaco
+											196 Mongolia
+											197 Montenegro
+											198 Montserrat
+											199 Morocco
+											200 Mozambique
+											201 Myanmar (Burma)
+											202 Namibia
+											203 Nauru
+											204 Nepal
+											205 Netherlands
+											206 New Caledonia
+											207 New Zealand
+											208 Nicaragua
+											209 Niger
+											210 Nigeria
+											211 Niue
+											212 North Macedonia
+											213 Norway
+											214 Oman
+											215 Pakistan
+											216 Palestinian Territories
+											217 Panama
+											218 Papua New Guinea
+											219 Paraguay
+											220 Peru
+											221 Philippines
+											222 Pitcairn Islands
+											223 Poland
+											224 Portugal
+											225 Puerto Rico
+											226 Qatar
+											227 Réunion
+											228 Romania
+											229 Russia
+											230 Rwanda
+											231 Samoa
+											232 San Marino
+											233 São Tomé & Príncipe
+											234 Saudi Arabia
+											235 Senegal
+											236 Serbia
+											237 Seychelles
+											238 Sierra Leone
+											239 Singapore
+											240 Sint Maarten
+											241 Slovakia
+											242 Slovenia
+											243 Solomon Islands
+											244 Somalia
+											245 South Africa
+											246 South Georgia & South Sandwich Islands
+											247 South Korea
+											248 South Sudan
+											249 Spain
+											250 Sri Lanka
+											251 St. Barthélemy
+											252 St. Helena
+											253 St. Kitts & Nevis
+											254 St. Lucia
+											255 St. Martin
+											256 St. Pierre & Miquelon
+											257 St. Vincent & Grenadines
+											258 Sudan
+											259 Suriname
+											260 Svalbard & Jan Mayen
+											261 Sweden
+											262 Switzerland
+											263 Taiwan
+											264 Tajikistan
+											265 Tanzania
+											266 Thailand
+											267 Timor-Leste
+											268 Togo
+											269 Tokelau
+											270 Tonga
+											271 Trinidad & Tobago
+											272 Tristan da Cunha
+											273 Tunisia
+											274 Turkey
+											275 Turkmenistan
+											276 Turks & Caicos Islands
+											277 Tuvalu
+											278 Uganda
+											279 Ukraine
+											280 United Arab Emirates
+											281 United Kingdom
+											282 (selected) United States
+											283 Uruguay
+											284 Uzbekistan
+											285 Vanuatu
+											286 Vatican City
+											287 Venezuela
+											288 Vietnam
+											289 Wallis & Futuna
+											290 Western Sahara
+											291 Yemen
+											292 Zambia
+											293 Zimbabwe
+									294 image
+								295 text field (settable) Description: ZIP, ID: billingPostalCode
+			296 container
+				297 text Bank
+				298 text $5 back
+				299 button Pay with Bank
+			300 container
+				301 text Klarna
+				302 text Powered by Link
+				303 button Pay with Klarna
+			304 container
+				305 container
+					306 checkbox (settable, integer) Description: Save my information for faster checkout, Value: 1, ID: enableStripePass
+					307 image
+				308 text Save my information for faster checkout
+				309 container link-registration-subheader-message
+					310 text Pay securely at Ecoglobe World sandbox and everywhere
+					311 link Link
+						312 text Link
+					313 text  is accepted.
+				314 text Phone number
+				315 container
+					316 container
+						317 image US
+						318 pop up button (collapsed, settable) Description: Phone number country code, Value: United States (+1), Secondary Actions: Expand
+							319 menu
+								320 container A
+									321 Afghanistan (+93)
+									322 Albania (+355)
+									323 Algeria (+213)
+									324 Andorra (+376)
+									325 Angola (+244)
+									326 Anguilla (+1)
+									327 Antigua & Barbuda (+1)
+									328 Argentina (+54)
+									329 Armenia (+374)
+									330 Aruba (+297)
+									331 Ascension Island (+247)
+									332 Australia (+61)
+									333 Austria (+43)
+									334 Azerbaijan (+994)
+								335 container Å
+									336 Åland Islands (+358)
+								337 container B
+									338 Bahamas (+1)
+									339 Bahrain (+973)
+									340 Bangladesh (+880)
+									341 Barbados (+1)
+									342 Belarus (+375)
+									343 Belgium (+32)
+									344 Belize (+501)
+									345 Benin (+229)
+									346 Bermuda (+1)
+									347 Bhutan (+975)
+									348 Bolivia (+591)
+									349 Bosnia & Herzegovina (+387)
+									350 Botswana (+267)
+									351 Brazil (+55)
+									352 British Indian Ocean Territory (+246)
+									353 British Virgin Islands (+1)
+									354 Brunei (+673)
+									355 Bulgaria (+359)
+									356 Burkina Faso (+226)
+									357 Burundi (+257)
+								358 container C
+									359 Cambodia (+855)
+									360 Cameroon (+237)
+									361 Canada (+1)
+									362 Cape Verde (+238)
+									363 Caribbean Netherlands (+599)
+									364 Cayman Islands (+1)
+									365 Central African Republic (+236)
+									366 Chad (+235)
+									367 Chile (+56)
+									368 China (+86)
+									369 Colombia (+57)
+									370 Comoros (+269)
+									371 Congo - Brazzaville (+242)
+									372 Congo - Kinshasa (+243)
+									373 Cook Islands (+682)
+									374 Costa Rica (+506)
+									375 Côte d’Ivoire (+225)
+									376 Croatia (+385)
+									377 Curaçao (+599)
+									378 Cyprus (+357)
+									379 Czechia (+420)
+								380 container D
+									381 Denmark (+45)
+									382 Djibouti (+253)
+									383 Dominica (+1)
+									384 Dominican Republic (+1)
+								385 container E
+									386 Ecuador (+593)
+									387 Egypt (+20)
+									388 El Salvador (+503)
+									389 Equatorial Guinea (+240)
+									390 Eritrea (+291)
+									391 Estonia (+372)
+									392 Eswatini (+268)
+									393 Ethiopia (+251)
+								394 container F
+									395 Falkland Islands (+500)
+									396 Faroe Islands (+298)
+									397 Fiji (+679)
+									398 Finland (+358)
+									399 France (+33)
+									400 French Guiana (+594)
+									401 French Polynesia (+689)
+								402 container G
+									403 Gabon (+241)
+									404 Gambia (+220)
+									405 Georgia (+995)
+									406 Germany (+49)
+									407 Ghana (+233)
+									408 Gibraltar (+350)
+									409 Greece (+30)
+									410 Greenland (+299)
+									411 Grenada (+1)
+									412 Guadeloupe (+590)
+									413 Guam (+1)
+									414 Guatemala (+502)
+									415 Guernsey (+44)
+									416 Guinea (+224)
+									417 Guinea-Bissau (+245)
+									418 Guyana (+592)
+								419 container H
+									420 Haiti (+509)
+									421 Honduras (+504)
+									422 Hong Kong SAR China (+852)
+									423 Hungary (+36)
+								424 container I
+									425 Iceland (+354)
+									426 India (+91)
+									427 Indonesia (+62)
+									428 Iraq (+964)
+									429 Ireland (+353)
+									430 Isle of Man (+44)
+									431 Israel (+972)
+									432 Italy (+39)
+								433 container J
+									434 Jamaica (+1)
+									435 Japan (+81)
+									436 Jersey (+44)
+									437 Jordan (+962)
+								438 container K
+									439 Kazakhstan (+7)
+									440 Kenya (+254)
+									441 Kiribati (+686)
+									442 Kosovo (+383)
+									443 Kuwait (+965)
+									444 Kyrgyzstan (+996)
+								445 container L
+									446 Laos (+856)
+									447 Latvia (+371)
+									448 Lebanon (+961)
+									449 Lesotho (+266)
+									450 Liberia (+231)
+									451 Libya (+218)
+									452 Liechtenstein (+423)
+									453 Lithuania (+370)
+									454 Luxembourg (+352)
+								455 container M
+									456 Macao SAR China (+853)
+									457 Madagascar (+261)
+									458 Malawi (+265)
+									459 Malaysia (+60)
+									460 Maldives (+960)
+									461 Mali (+223)
+									462 Malta (+356)
+									463 Martinique (+596)
+									464 Mauritania (+222)
+									465 Mauritius (+230)
+									466 Mayotte (+262)
+									467 Mexico (+52)
+									468 Moldova (+373)
+									469 Monaco (+377)
+									470 Mongolia (+976)
+									471 Montenegro (+382)
+									472 Montserrat (+1)
+									473 Morocco (+212)
+									474 Mozambique (+258)
+									475 Myanmar (Burma) (+95)
+								476 container N
+									477 Namibia (+264)
+									478 Nauru (+674)
+									479 Nepal (+977)
+									480 Netherlands (+31)
+									481 New Caledonia (+687)
+									482 New Zealand (+64)
+									483 Nicaragua (+505)
+									484 Niger (+227)
+									485 Nigeria (+234)
+									486 Niue (+683)
+									487 North Macedonia (+389)
+									488 Norway (+47)
+								489 container O
+									490 Oman (+968)
+								491 container P
+									492 Pakistan (+92)
+									493 Palestinian Territories (+970)
+									494 Panama (+507)
+									495 Papua New Guinea (+675)
+									496 Paraguay (+595)
+									497 Peru (+51)
+									498 Philippines (+63)
+									499 Poland (+48)
+									500 Portugal (+351)
+									501 Puerto Rico (+1)
+								502 container Q
+									503 Qatar (+974)
+								504 container R
+									505 Réunion (+262)
+									506 Romania (+40)
+									507 Russia (+7)
+									508 Rwanda (+250)
+								509 container S
+									510 Samoa (+685)
+									511 San Marino (+378)
+									512 São Tomé & Príncipe (+239)
+									513 Saudi Arabia (+966)
+									514 Senegal (+221)
+									515 Serbia (+381)
+									516 Seychelles (+248)
+									517 Sierra Leone (+232)
+									518 Singapore (+65)
+									519 Sint Maarten (+1)
+									520 Slovakia (+421)
+									521 Slovenia (+386)
+									522 Solomon Islands (+677)
+									523 Somalia (+252)
+									524 South Africa (+27)
+									525 South Korea (+82)
+									526 South Sudan (+211)
+									527 Spain (+34)
+									528 Sri Lanka (+94)
+									529 St. Barthélemy (+590)
+									530 St. Helena (+290)
+									531 St. Kitts & Nevis (+1)
+									532 St. Lucia (+1)
+									533 St. Martin (+590)
+									534 St. Pierre & Miquelon (+508)
+									535 St. Vincent & Grenadines (+1)
+									536 Sudan (+249)
+									537 Suriname (+597)
+									538 Svalbard & Jan Mayen (+47)
+									539 Sweden (+46)
+									540 Switzerland (+41)
+								541 container T
+									542 Taiwan (+886)
+									543 Tajikistan (+992)
+									544 Tanzania (+255)
+									545 Thailand (+66)
+									546 Timor-Leste (+670)
+									547 Togo (+228)
+									548 Tokelau (+690)
+									549 Tonga (+676)
+									550 Trinidad & Tobago (+1)
+									551 Tristan da Cunha (+290)
+									552 Tunisia (+216)
+									553 Turkey (+90)
+									554 Turkmenistan (+993)
+									555 Turks & Caicos Islands (+1)
+									556 Tuvalu (+688)
+								557 container U
+									558 Uganda (+256)
+									559 Ukraine (+380)
+									560 United Arab Emirates (+971)
+									561 United Kingdom (+44)
+									562 (selected) United States (+1)
+									563 Uruguay (+598)
+									564 Uzbekistan (+998)
+								565 container V
+									566 Vanuatu (+678)
+									567 Vatican City (+39)
+									568 Venezuela (+58)
+									569 Vietnam (+84)
+								570 container W
+									571 Wallis & Futuna (+681)
+									572 Western Sahara (+212)
+								573 container Y
+									574 Yemen (+967)
+								575 container Z
+									576 Zambia (+260)
+									577 Zimbabwe (+263)
+						578 image
+					579 text field (settable) Phone number
+			580 button Pay
+				581 text Pay
+			582 container
+				583 text By paying, you agree to Link’s
+				584 link Description: Terms, Value: link.com/terms
+				585 text  and
+				586 link Description: Privacy, Value: link.com/privacy
+				587 text .
+		588 link Description: Powered by Stripe, Value: stripe.com/
+		589 link Description: Terms, Value: stripe.com/legal/end-users
+		590 link Description: Privacy, Value: stripe.com/privacy
+
+[Ephemeral checkout/session URL omitted; visible result retained below.]

@@ -1,0 +1,103 @@
+- alert
+- complementary:
+  - link "EcoGlobe":
+    - /url: /
+    - img "EcoGlobe"
+  - navigation:
+    - link "Home":
+      - /url: /
+      - text: Home
+    - link "Listings":
+      - /url: /seller/listings
+      - text: Listings
+    - link "Buyer requests":
+      - /url: /seller/rfq
+      - text: Buyer requests
+    - link "Sales":
+      - /url: /seller/sales
+      - text: Sales
+    - link "Tracker":
+      - /url: /seller/tracker
+      - text: Tracker
+    - link "Sample dispatch":
+      - /url: /seller/samples
+      - text: Sample dispatch
+    - link "Pilot interest":
+      - /url: /seller/pilots
+      - text: Pilot interest
+    - link "Feedstock IQ Soon":
+      - /url: /feedstock-iq
+      - text: Feedstock IQ
+      - generic: Soon
+    - link "Logistics":
+      - /url: /seller/logistics
+      - text: Logistics
+    - link "Contracts":
+      - /url: /seller/contracts
+      - text: Contracts
+    - link "E-signatures":
+      - /url: /seller/e-signatures
+      - text: E-signatures
+    - link "Verification":
+      - /url: /seller/verification
+      - text: Verification
+    - link "Delivery Tracking":
+      - /url: /seller/delivery-tracking
+      - text: Delivery Tracking
+    - link "Partner Network":
+      - /url: /seller/partners
+      - text: Partner Network
+    - link "Carbon Calculator":
+      - /url: /seller/carbon-calculator
+      - text: Carbon Calculator
+    - button "Accounting":
+      - generic: Accounting
+    - button "Reports":
+      - generic: Reports
+    - link "Disputes":
+      - /url: /seller/disputes
+      - text: Disputes
+    - link "Documents":
+      - /url: /seller/documents
+      - text: Documents
+  - button "16 unread notifications Notifications":
+    - generic "16 unread notifications": 9+
+    - text: Notifications
+  - button "SR Sam R":
+    - generic: SR
+    - generic: Sam R
+- banner:
+  - heading "Verification" [level=1]
+  - button "Search":
+- main:
+  - button "Verification document upload"
+  - paragraph: VERIFICATION
+  - heading "Seller verification" [level=1]
+  - paragraph: Submit company documents so EcoGlobe staff can verify your seller account.
+  - paragraph: "Company status: Verified"
+  - paragraph: 0 of 4 document sections approved
+  - paragraph: Company status is set by EcoGlobe staff. Document sections track the supporting files saved for review and are counted separately.
+  - heading "Business verification" [level=2]
+  - paragraph: Company registration, tax ID, and authorized representative.
+  - text: Needed
+  - button "Submit document for Business verification":
+    - text: Submit document
+  - button "View requirements for Business verification": View requirements
+  - heading "Sustainability documents" [level=2]
+  - paragraph: Certifications, COAs, SDS sheets, or ESG evidence tied to feedstocks.
+  - text: Needed
+  - button "Submit document for Sustainability documents":
+    - text: Submit document
+  - button "View requirements for Sustainability documents": View requirements
+  - heading "Financial verification" [level=2]
+  - paragraph: Payment method, bank details, escrow eligibility, and payout readiness.
+  - text: Needed
+  - button "Submit document for Financial verification":
+    - text: Submit document
+  - button "View requirements for Financial verification": View requirements
+  - heading "Ongoing compliance" [level=2]
+  - paragraph: Expiration monitoring, renewal reminders, and admin spot checks.
+  - text: Needed
+  - button "Submit document for Ongoing compliance":
+    - text: Submit document
+  - button "View requirements for Ongoing compliance": View requirements
