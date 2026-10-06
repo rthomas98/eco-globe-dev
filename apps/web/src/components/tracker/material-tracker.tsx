@@ -9,6 +9,9 @@ import {
   buyerStages,
   sellerStages,
   stageEvidence,
+  stageRecordLabel,
+  stageRecords,
+  stageSummary,
   type TrackerData,
   type TrackerListing,
 } from "@/lib/api-tracker";
@@ -232,32 +235,16 @@ function MaterialCard({
     [allFiles, setAllFiles] = useState(false);
   const stage = selected ?? stages[current];
   const statusLabel = (index: number) => {
-    const name = stages[index];
-    if (!evidence[index]) return `${name} — No activity`;
-    const source =
-      name === "Sample"
-        ? records.samples
-        : name === "Testing"
-          ? records.labs
-          : name === "Pilot"
-            ? records.pilots
-            : ["Order", "Shipping", "In transit", "Delivered", "Seller paid"].includes(
-                  name ?? "",
-                )
-              ? records.orders
-              : [];
-    const statuses = [
-      ...new Set(
-        source.map((record) =>
-          nice(
-            ["Shipping", "In transit", "Delivered"].includes(name ?? "")
-              ? (record.shippingStatus ?? record.status)
-              : record.status,
-          ),
-        ),
-      ),
-    ];
-    return `${name} — ${statuses.join(", ") || "Recorded"}${index === current ? " (current stage)" : ""}`;
+    const name = stages[index] ?? "";
+    const rows = stageRecords(name, l.id, data);
+    // Listing-level stages (Listed, Approved, Interest) have no records of
+    // their own; their evidence is the listing itself.
+    const text = !evidence[index]
+      ? `${name} — No activity`
+      : rows.length
+        ? stageSummary(name, rows)
+        : `${name} — Recorded`;
+    return `${text}${index === current ? " (current stage)" : ""}`;
   };
   const files = [
     ...records.samples.map((s) => ({
@@ -306,18 +293,8 @@ function MaterialCard({
   const visibleFiles = allFiles
     ? files
     : files.filter((f) => f.stage === stage);
-  const activeRecords =
-    stage === "Sample"
-      ? records.samples
-      : stage === "Testing"
-        ? records.labs
-        : stage === "Pilot"
-          ? records.pilots
-          : ["Order", "Shipping", "In transit", "Delivered", "Seller paid"].includes(
-                stage ?? "",
-              )
-            ? records.orders
-            : [];
+  // Only the records that are evidence for the selected stage.
+  const activeRecords = stageRecords(stage ?? "", l.id, data);
   const headline = attention
     ? `Sample — ${nice(attention.status)}`
     : records.orders[0]
@@ -457,10 +434,7 @@ function MaterialCard({
                             : stage === "Testing"
                               ? "LAB"
                               : "EG"}
-                        -{r.id} ·{" "}
-                        {["Sample", "Pilot", "Testing"].includes(stage ?? "")
-                          ? nice(r.shippingStatus ?? r.status)
-                          : orderStatusText(r)}
+                        -{r.id} · {stageRecordLabel(stage ?? "", r)}
                       </p>
                       {r.mode === "simulation" && (
                         <p className="mt-1 text-xs text-amber-700">
