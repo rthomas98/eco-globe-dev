@@ -7,10 +7,14 @@ import { SellerLayout } from "@/components/seller/seller-layout";
 import {
   getTracker,
   buyerStages,
+  orderHeadline,
   sellerStages,
   stageEvidence,
+  stageOrderScope,
   stageRecordLabel,
+  stageRecordRef,
   stageRecords,
+  stageRefs,
   stageSummary,
   type TrackerData,
   type TrackerListing,
@@ -19,11 +23,13 @@ import { LabTestingDialog } from "@/components/lab-testing/lab-testing-dialog";
 import { sampleApi } from "@/lib/api-sample-shipping";
 import { trackerPriceLabel } from "@/lib/order-truth";
 const nice = (s: string) => s.replaceAll("_", " ");
-/** Order status first; the shipment status is added only when it differs. */
-const orderStatusText = (r: { status: string; shippingStatus?: string | null }) =>
-  r.shippingStatus && r.shippingStatus !== r.status
-    ? `order ${nice(r.status)} · shipment ${nice(r.shippingStatus)}`
-    : nice(r.status);
+/** Step caption naming the records behind it, e.g. "Recorded · EG-20". */
+const stepRefsLabel = (refs: string[]) =>
+  !refs.length
+    ? "Recorded"
+    : refs.length <= 2
+      ? `Recorded · ${refs.join(", ")}`
+      : `Recorded · ${refs[0]} +${refs.length - 1}`;
 const date = (s: string) =>
   new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
@@ -295,10 +301,13 @@ function MaterialCard({
     : files.filter((f) => f.stage === stage);
   // Only the records that are evidence for the selected stage.
   const activeRecords = stageRecords(stage ?? "", l.id, data);
+  // Which of this material's orders recorded the selected step, and which have not.
+  const scope = stageOrderScope(stage ?? "", l.id, data);
+  const ordersHeadline = orderHeadline(l.id, data);
   const headline = attention
     ? `Sample — ${nice(attention.status)}`
-    : records.orders[0]
-      ? `EG-${records.orders[0].id} — ${orderStatusText(records.orders[0])}`
+    : ordersHeadline
+      ? ordersHeadline
       : records.pilots[0]
         ? `Pilot — ${nice(records.pilots[0].status)}`
         : records.labs[0]
@@ -351,8 +360,11 @@ function MaterialCard({
             ))}
           </span>
         )}
-        <div className="flex items-center gap-4">
-          <span className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-emerald-800">
+        <div className="flex min-w-0 max-w-full items-center gap-4">
+          <span
+            className="min-w-0 break-words rounded-2xl bg-emerald-50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-emerald-800"
+            title={ordersHeadline && !attention ? "Latest order on this material; each step below names the orders that recorded it." : undefined}
+          >
             {headline}
           </span>
           <span className="text-xs text-neutral-500">{files.length} files</span>
@@ -396,8 +408,8 @@ function MaterialCard({
                   >
                     {name}
                   </strong>
-                  <span className="text-[10px] text-neutral-400">
-                    {evidence[i] ? "Recorded" : "No activity"}
+                  <span className="px-1 text-center text-[10px] text-neutral-400">
+                    {evidence[i] ? stepRefsLabel(stageRefs(name, l.id, data)) : "No activity"}
                   </span>
                 </button>
               ))}
@@ -406,6 +418,13 @@ function MaterialCard({
           <div className="grid gap-6 border-t border-neutral-200 bg-[#f5f6f6] p-6 lg:grid-cols-[1.2fr_1fr]">
             <section>
               <h3 className="mb-3 text-xl font-bold">{stage}</h3>
+              {scope && scope.recorded.length > 0 && scope.notReached.length > 0 && (
+                <p className="mb-3 text-sm leading-6 text-neutral-600">
+                  This material has more than one order. {stage} is recorded
+                  for {scope.recorded.join(", ")} only; not recorded for{" "}
+                  {scope.notReached.join("; ")}.
+                </p>
+              )}
               {!activeRecords.length && (
                 <p className="text-sm leading-6 text-neutral-500">
                   {stage === "Interest"
@@ -427,14 +446,8 @@ function MaterialCard({
                       className="rounded-xl border border-neutral-200 bg-white p-4"
                     >
                       <p className="font-semibold">
-                        {stage === "Sample"
-                          ? "SR"
-                          : stage === "Pilot"
-                            ? "PR"
-                            : stage === "Testing"
-                              ? "LAB"
-                              : "EG"}
-                        -{r.id} · {stageRecordLabel(stage ?? "", r)}
+                        {stageRecordRef(stage ?? "", r.id)} ·{" "}
+                        {stageRecordLabel(stage ?? "", r)}
                       </p>
                       {r.mode === "simulation" && (
                         <p className="mt-1 text-xs text-amber-700">

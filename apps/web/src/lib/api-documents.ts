@@ -1,6 +1,7 @@
 "use client";
 
 import { apiFetch, apiFetchBlob, BackendApiError } from "./backend-client";
+import { handBlobToBrowser } from "./browser-download";
 import { MAX_DOCUMENT_BYTES, readFileAsBase64 } from "./listings-api";
 
 /**
@@ -86,12 +87,8 @@ export async function downloadVaultDocument(document: Pick<VaultDocument, "id" |
   const { blob, fileName } = await apiFetchBlob(`/api/documents/${document.id}/download`, {
     deadlineMs: 60_000,
   });
-  const url = URL.createObjectURL(blob);
-  const link = window.document.createElement("a");
-  link.href = url;
-  link.download = fileName ?? document.fileName;
-  link.click();
-  URL.revokeObjectURL(url);
+  // Revoking the URL right after click() can cancel the save in some browsers.
+  handBlobToBrowser(blob, fileName ?? document.fileName);
 }
 
 /** True when the backend has no document vault endpoint in this environment. */

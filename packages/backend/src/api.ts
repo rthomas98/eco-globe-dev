@@ -1,3 +1,6 @@
+import { requireListingSds } from "./listing-safety.js";
+import { sameQuantityUnit } from "./quantity-units.js";
+import { orderInvoicePdf, type InvoiceOrder, type InvoicePayment } from "./order-invoice.js";
 import { initializeCompanyProfilesSql } from "./company-profiles.js";
 import { validateLocationFields } from "./location-validation.js";
 import { handleFedExSandboxRoute } from "./fedex-sandbox-routes.js";
@@ -3255,38 +3258,82 @@ async function createQuote(
   const listingId = getBodyInt(body, "listingId");
   const buyerCompanyId = getBodyInt(body, "buyerCompanyId");
   requireCompanyAccess(auth, buyerCompanyId);
-  const listingRows = await queryRowsWithParams<{
-    sellerCompanyId: number;
-    quantityUnit: string;
-    pricePerUnit: number;
-    currencyCode: string;
-  }>(
-    `
-      SELECT SellerCompanyId AS sellerCompanyId, QuantityUnit AS quantityUnit,
-        PricePerUnit AS pricePerUnit, CurrencyCode AS currencyCode
-      FROM dbo.Listings
-      WHERE Id = @listingId;
+  if ("wantedListingId" in body)
+    throw new ApiError(
+      400,
+      "Use the wanted-listing responses endpoint for RFQ quotes.",
+    );
+  const { rows, listing, quantity } = await runInTransaction(async (tx) => {
+    const query = <T extends Record<string, unknown>>(
+      text: string,
+      params: Parameters<typeof queryRowsWithParams>[1],
+    ) => queryRowsWithParamsInTransaction<T>(tx, text, params);
+    const listingRows = await query<{
+      sellerCompanyId: number;
+      quantityUnit: string;
+      pricePerUnit: number;
+      currencyCode: string;
+      quantity: number;
+      minimum: number;
+    }>(
+      `
+      SELECT l.SellerCompanyId AS sellerCompanyId,l.QuantityUnit AS quantityUnit,
+        l.PricePerUnit AS pricePerUnit,l.CurrencyCode AS currencyCode,l.Quantity AS quantity,l.MinimumOrderQuantity AS minimum
+      FROM dbo.Listings l WITH(UPDLOCK,HOLDLOCK) JOIN dbo.ListingStatuses s ON s.Id=l.ListingStatusId
+      JOIN dbo.Companies c ON c.Id=l.SellerCompanyId JOIN dbo.AccountStatuses cs ON cs.Id=c.VerificationStatusId
+      WHERE l.Id=@listingId AND s.Code='published' AND cs.Code NOT IN ('inactive','suspended');
     `,
-    [intParam("listingId", listingId)],
-  );
-  const listing = listingRows[0];
-  if (!listing) throw new ApiError(404, "Listing not found.");
-  if (getOptionalInt(body, "sellerCompanyId") !== undefined && getOptionalInt(body, "sellerCompanyId") !== listing.sellerCompanyId) {
-    throw new ApiError(403, "The quote seller company must match the listing.");
-  }
+      [intParam("listingId", listingId)],
+    );
+    const listing = listingRows[0];
+    if (!listing) throw new ApiError(404, "Listing not found.");
+    if (
+      getOptionalInt(body, "sellerCompanyId") !== undefined &&
+      getOptionalInt(body, "sellerCompanyId") !== listing.sellerCompanyId
+    ) {
+      throw new ApiError(
+        403,
+        "The quote seller company must match the listing.",
+      );
+    }
 
-  const requestedStatusCode =
-    getOptionalString(body, "quoteStatusCode", 80) ?? "requested";
-  if (!auth.isAdmin && normalizeCode(requestedStatusCode) !== "requested") {
-    throw new ApiError(400, "New quotes must start in the requested status.");
-  }
-  const quoteStatusId = await lookupId("QuoteStatuses", requestedStatusCode);
-  const quantity = getOptionalNumber(body, "quantity");
-  if (quantity === undefined) throw new ApiError(400, "quantity is required.");
-  await requirePurchasableListing(listingId,quantity,getOptionalString(body,"quantityUnit",40),getOptionalString(body,"currencyCode",3));
+    const requestedStatusCode =
+      getOptionalString(body, "quoteStatusCode", 80) ?? "requested";
+    if (!auth.isAdmin && normalizeCode(requestedStatusCode) !== "requested") {
+      throw new ApiError(400, "New quotes must start in the requested status.");
+    }
+    const quoteStatusId = await lookupIdTx(
+      tx,
+      "QuoteStatuses",
+      requestedStatusCode,
+    );
+    const quantity = getOptionalNumber(body, "quantity");
+    if (quantity === undefined)
+      throw new ApiError(400, "quantity is required.");
+    if (
+      buyerCompanyId === listing.sellerCompanyId ||
+      !Number.isFinite(quantity) ||
+      quantity <= 0 ||
+      quantity < Number(listing.minimum) ||
+      quantity > Number(listing.quantity) ||
+      !sameQuantityUnit(
+        getOptionalString(body, "quantityUnit", 40) ?? listing.quantityUnit,
+        listing.quantityUnit,
+      ) ||
+      (getOptionalString(body, "currencyCode", 3)?.toUpperCase() ??
+        listing.currencyCode) !== listing.currencyCode
+    )
+      throw new ApiError(
+        400,
+        "Quote must match listing MOQ, stock, unit and currency and another company.",
+      );
+    const expires = getOptionalDate(body, "expiresAt");
+    if (expires && expires.getTime() <= Date.now())
+      throw new ApiError(400, "Expiry must be in the future.");
+    await requireListingSds(tx, listingId);
 
-  const rows = await queryRowsWithParams(
-    `
+    const rows = await query(
+      `
       INSERT INTO dbo.Quotes (
         ListingId, BuyerCompanyId, SellerCompanyId, Quantity, QuantityUnit,
         UnitPrice, CurrencyCode, DeliveryTerms, QuoteStatusId, ExpiresAt,
@@ -3299,21 +3346,43 @@ async function createQuote(
         @createdByUserId, @updatedByUserId
       );
     `,
-    [
-      intParam("listingId", listingId),
-      intParam("buyerCompanyId", buyerCompanyId),
-      intParam("sellerCompanyId", getOptionalInt(body, "sellerCompanyId") ?? listing.sellerCompanyId),
-      decimalParam("quantity", quantity),
-      varcharParam("quantityUnit", getOptionalString(body, "quantityUnit", 40) ?? listing.quantityUnit, 40),
-      moneyParam("unitPrice", getOptionalNumber(body, "unitPrice") ?? Number(listing.pricePerUnit)),
-      varcharParam("currencyCode", getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? listing.currencyCode, 3),
-      nvarcharParam("deliveryTerms", getOptionalString(body, "deliveryTerms", 500), 500),
-      intParam("quoteStatusId", quoteStatusId),
-      dateTimeParam("expiresAt", getOptionalDate(body, "expiresAt")),
-      intParam("createdByUserId", auth.userId),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
+      [
+        intParam("listingId", listingId),
+        intParam("buyerCompanyId", buyerCompanyId),
+        intParam(
+          "sellerCompanyId",
+          getOptionalInt(body, "sellerCompanyId") ?? listing.sellerCompanyId,
+        ),
+        decimalParam("quantity", quantity),
+        varcharParam(
+          "quantityUnit",
+          getOptionalString(body, "quantityUnit", 40) ?? listing.quantityUnit,
+          40,
+        ),
+        moneyParam(
+          "unitPrice",
+          getOptionalNumber(body, "unitPrice") ?? Number(listing.pricePerUnit),
+        ),
+        varcharParam(
+          "currencyCode",
+          getOptionalString(body, "currencyCode", 3)?.toUpperCase() ??
+            listing.currencyCode,
+          3,
+        ),
+        nvarcharParam(
+          "deliveryTerms",
+          getOptionalString(body, "deliveryTerms", 500),
+          500,
+        ),
+        intParam("quoteStatusId", quoteStatusId),
+        dateTimeParam("expiresAt", getOptionalDate(body, "expiresAt")),
+        intParam("createdByUserId", auth.userId),
+        intParam("updatedByUserId", auth.userId),
+      ],
+    );
+
+    return { rows, listing, quantity };
+  });
 
   await writeAuditLog({
     auth,
@@ -3344,72 +3413,244 @@ async function updateQuote(
   id: number,
   auth: AuthContext,
 ) {
-  const quote = (await queryRowsWithParams<{
-    buyerCompanyId: number;
-    sellerCompanyId: number;
-    quoteStatusCode: string;
-  }>(
-    `
-      SELECT q.BuyerCompanyId AS buyerCompanyId, q.SellerCompanyId AS sellerCompanyId, qs.Code AS quoteStatusCode
-      FROM dbo.Quotes q
+  const body = await readJsonBody<QuoteBody>(request);
+  // This relationship is immutable through the API; lock demand first so all
+  // responses and acceptances for one request serialize in the same order.
+  const identity = (
+    await queryRowsWithParams<{
+      wantedListingId: number | null;
+      listingId: number;
+    }>(
+      "SELECT WantedListingId AS wantedListingId,ListingId AS listingId FROM dbo.Quotes WHERE Id=@id AND (@admin=1 OR BuyerCompanyId=@company OR SellerCompanyId=@company)",
+      [
+        intParam("id", id),
+        bitParam("admin", auth.isAdmin),
+        intParam("company", auth.companyId),
+      ],
+    )
+  )[0];
+  if (!identity) throw new ApiError(404, "Quote not found.");
+  const result = await runInTransaction(async (tx) => {
+    const query = <T extends Record<string, unknown>>(
+      text: string,
+      params: Parameters<typeof queryRowsWithParams>[1],
+    ) => queryRowsWithParamsInTransaction<T>(tx, text, params);
+    const wanted = identity.wantedListingId
+      ? (
+          await query<{
+            buyer: number;
+            isOpen: boolean;
+            unit: string;
+            material: number;
+          }>(
+            "SELECT BuyerCompanyId AS buyer,IsOpen AS isOpen,QuantityUnit AS unit,MaterialTypeId AS material FROM dbo.WantedListings WITH(UPDLOCK,HOLDLOCK) WHERE Id=@id",
+            [intParam("id", identity.wantedListingId)],
+          )
+        )[0]
+      : undefined;
+    // Checkout also locks listing before quote. Keep that order for every edit.
+    const listing = (
+      await query<{
+        seller: number;
+        unit: string;
+        currency: string;
+        quantity: number;
+        minimum: number;
+        material: number;
+      }>(
+        `SELECT l.SellerCompanyId AS seller,l.QuantityUnit AS unit,l.CurrencyCode AS currency,l.Quantity AS quantity,l.MinimumOrderQuantity AS minimum,l.MaterialTypeId AS material FROM dbo.Listings l WITH(UPDLOCK,HOLDLOCK) JOIN dbo.ListingStatuses s ON s.Id=l.ListingStatusId JOIN dbo.Companies c ON c.Id=l.SellerCompanyId JOIN dbo.AccountStatuses cs ON cs.Id=c.VerificationStatusId WHERE l.Id=@id AND s.Code='published' AND cs.Code NOT IN ('inactive','suspended')`,
+        [intParam("id", identity.listingId)],
+      )
+    )[0];
+    const quote = (
+      await query<{
+        buyerCompanyId: number;
+        sellerCompanyId: number;
+        quoteStatusCode: string;
+        listingId: number;
+        wantedListingId: number | null;
+        quantity: number;
+        quantityUnit: string;
+        currencyCode: string;
+        unitPrice: number;
+        expiresAt: Date | null;
+      }>(
+        `
+      SELECT q.BuyerCompanyId AS buyerCompanyId, q.SellerCompanyId AS sellerCompanyId, qs.Code AS quoteStatusCode,
+        q.ListingId AS listingId,q.WantedListingId AS wantedListingId,q.Quantity AS quantity,
+        q.QuantityUnit AS quantityUnit,q.CurrencyCode AS currencyCode,q.UnitPrice AS unitPrice,q.ExpiresAt AS expiresAt
+      FROM dbo.Quotes q WITH(UPDLOCK,HOLDLOCK)
       INNER JOIN dbo.QuoteStatuses qs ON qs.Id = q.QuoteStatusId
       WHERE q.Id = @id;
     `,
-    [intParam("id", id)],
-  ))[0];
-  if (!quote) throw new ApiError(404, "Quote not found.");
-  const party = transactionParty(auth, quote);
-  if (!auth.isAdmin && !party) {
-    throw new ApiError(403, "You cannot access another company's quote.");
-  }
+        [intParam("id", id)],
+      )
+    )[0];
+    if (!quote) throw new ApiError(404, "Quote not found.");
+    const party = transactionParty(auth, quote);
+    if (!auth.isAdmin && !party) {
+      throw new ApiError(403, "You cannot access another company's quote.");
+    }
 
-  const body = await readJsonBody<QuoteBody>(request);
-  const currentQuote = (await queryRowsWithParams<{listingId:number;quantity:number;quantityUnit:string;currencyCode:string}>("SELECT ListingId AS listingId,Quantity AS quantity,QuantityUnit AS quantityUnit,CurrencyCode AS currencyCode FROM dbo.Quotes WHERE Id=@id",[intParam("id",id)]))[0];
-  if (!currentQuote) throw new ApiError(404,"Quote not found.");
-  if ("quantity" in body || "quantityUnit" in body) await requirePurchasableListing(currentQuote.listingId,getOptionalNumber(body,"quantity") ?? currentQuote.quantity,getOptionalString(body,"quantityUnit",40) ?? currentQuote.quantityUnit,currentQuote.currencyCode);
-  const quoteStatusCode = getOptionalString(body, "quoteStatusCode", 80);
-  if (quoteStatusCode) {
-    assertStatusTransition(
-      QUOTE_TRANSITIONS,
-      quote.quoteStatusCode,
-      normalizeCode(quoteStatusCode),
-      "quote",
-    );
-    assertStatusSetter(
-      QUOTE_STATUS_SETTERS,
-      normalizeCode(quoteStatusCode),
-      party,
-      auth,
-      "quote",
-    );
-  }
+    if ("quantity" in body || "quantityUnit" in body) {
+      const quantity =
+        getOptionalNumber(body, "quantity") ?? Number(quote.quantity);
+      const unit =
+        getOptionalString(body, "quantityUnit", 40) ?? quote.quantityUnit;
+      if (
+        !listing ||
+        !Number.isFinite(quantity) ||
+        quantity <= 0 ||
+        quantity < Number(listing.minimum) ||
+        quantity > Number(listing.quantity) ||
+        !sameQuantityUnit(unit, listing.unit) ||
+        quote.currencyCode !== listing.currency
+      )
+        throw new ApiError(
+          400,
+          "Quantity, unit and currency must match listing MOQ and available stock.",
+        );
+    }
+    const quoteStatusCode = getOptionalString(body, "quoteStatusCode", 80);
+    if (quoteStatusCode) {
+      assertStatusTransition(
+        QUOTE_TRANSITIONS,
+        quote.quoteStatusCode,
+        normalizeCode(quoteStatusCode),
+        "quote",
+      );
+      assertStatusSetter(
+        QUOTE_STATUS_SETTERS,
+        normalizeCode(quoteStatusCode),
+        party,
+        auth,
+        "quote",
+      );
+    }
 
-  // Terms may only change while the quote is still being negotiated.
-  const editsTerms =
-    getOptionalNumber(body, "quantity") !== undefined ||
-    getOptionalNumber(body, "unitPrice") !== undefined ||
-    getOptionalString(body, "quantityUnit", 40) !== undefined ||
-    getOptionalString(body, "deliveryTerms", 500) !== undefined;
-  if (
-    editsTerms &&
-    !auth.isAdmin &&
-    !["requested", "sent"].includes(quote.quoteStatusCode)
-  ) {
-    throw new ApiError(
-      409,
-      `Quote terms cannot change once the quote is ${quote.quoteStatusCode}.`,
-    );
-  }
+    // Terms may only change while the quote is still being negotiated.
+    const editsTerms =
+      getOptionalNumber(body, "quantity") !== undefined ||
+      getOptionalNumber(body, "unitPrice") !== undefined ||
+      getOptionalString(body, "quantityUnit", 40) !== undefined ||
+      getOptionalString(body, "deliveryTerms", 500) !== undefined;
+    if (
+      (editsTerms || "expiresAt" in body) &&
+      !["requested", "sent"].includes(quote.quoteStatusCode)
+    ) {
+      throw new ApiError(
+        409,
+        `Quote terms cannot change once the quote is ${quote.quoteStatusCode}.`,
+      );
+    }
 
-  if (editsTerms && party === "buyer" && quote.quoteStatusCode === "sent") throw new ApiError(403, "Buyers cannot rewrite seller quote terms before accepting.");
-  const proposedPrice=getOptionalNumber(body,"unitPrice");
-  if (proposedPrice !== undefined && proposedPrice <= 0) throw new ApiError(400,"Unit price must be positive.");
-  const quoteStatusId = quoteStatusCode
-    ? await lookupId("QuoteStatuses", quoteStatusCode)
-    : undefined;
+    if (
+      (editsTerms || "expiresAt" in body) &&
+      party === "buyer" &&
+      quote.quoteStatusCode === "sent"
+    )
+      throw new ApiError(
+        403,
+        "Buyers cannot rewrite seller quote terms before accepting.",
+      );
+    const proposedPrice = getOptionalNumber(body, "unitPrice");
+    if (proposedPrice !== undefined && proposedPrice <= 0)
+      throw new ApiError(400, "Unit price must be positive.");
+    const accepting = normalizeCode(quoteStatusCode ?? "") === "accepted";
+    if (accepting) {
+      if (editsTerms || "expiresAt" in body)
+        throw new ApiError(
+          400,
+          "Accept the saved quote without changing its terms.",
+        );
+      if (quote.expiresAt && new Date(quote.expiresAt).getTime() <= Date.now())
+        throw new ApiError(409, "Quote has expired.");
+      if (identity.wantedListingId) {
+        if (!wanted || !wanted.isOpen || wanted.buyer !== quote.buyerCompanyId)
+          throw new ApiError(409, "Request is no longer open.");
+        const accepted = await query(
+          "SELECT q.Id FROM dbo.Quotes q JOIN dbo.QuoteStatuses qs ON qs.Id=q.QuoteStatusId WHERE q.WantedListingId=@id AND qs.Code='accepted'",
+          [intParam("id", identity.wantedListingId)],
+        );
+        if (accepted.length)
+          throw new ApiError(409, "Request already has an accepted quote.");
+      }
+      const membership = await query(
+        `SELECT m.Id FROM dbo.CompanyMembers m JOIN dbo.MemberRoles r ON r.Id=m.MemberRoleId JOIN dbo.AccountStatuses s ON s.Id=m.MemberStatusId JOIN dbo.Companies c ON c.Id=m.CompanyId WHERE m.UserId=@user AND m.CompanyId=@company AND s.Code='active' AND c.VerificationStatusId NOT IN (SELECT Id FROM dbo.AccountStatuses WHERE Code IN ('inactive','suspended')) AND (r.Code IN ('owner','admin') OR m.CanExecuteTransactions=1)`,
+        [
+          intParam("user", auth.userId),
+          intParam("company", quote.buyerCompanyId),
+        ],
+      );
+      if (!auth.isAdmin && !membership.length)
+        throw new ApiError(403, "Transaction permission required.");
+      if (
+        !listing ||
+        listing.seller !== quote.sellerCompanyId ||
+        quote.buyerCompanyId === quote.sellerCompanyId ||
+        !Number.isFinite(Number(quote.quantity)) ||
+        Number(quote.quantity) <= 0 ||
+        Number(quote.quantity) < Number(listing.minimum) ||
+        Number(quote.quantity) > Number(listing.quantity) ||
+        !Number.isFinite(Number(quote.unitPrice)) ||
+        Number(quote.unitPrice) <= 0 ||
+        !sameQuantityUnit(quote.quantityUnit, listing.unit) ||
+        quote.currencyCode !== listing.currency ||
+        (wanted &&
+          (wanted.material !== listing.material ||
+            !sameQuantityUnit(wanted.unit, listing.unit)))
+      )
+        throw new ApiError(
+          409,
+          "Quote no longer matches the published listing, MOQ, inventory, unit or currency.",
+        );
+      await requireListingSds(tx, quote.listingId);
+    }
+    if (
+      !accepting &&
+      (normalizeCode(quoteStatusCode ?? "") === "sent" ||
+        (party === "seller" && editsTerms))
+    ) {
+      if (wanted) {
+        const accepted = await query(
+          "SELECT q.Id FROM dbo.Quotes q JOIN dbo.QuoteStatuses qs ON qs.Id=q.QuoteStatusId WHERE q.WantedListingId=@id AND qs.Code='accepted'",
+          [intParam("id", identity.wantedListingId ?? undefined)],
+        );
+        if (!wanted.isOpen || accepted.length)
+          throw new ApiError(409, "Request is no longer open.");
+      }
+      const quantity =
+        getOptionalNumber(body, "quantity") ?? Number(quote.quantity);
+      const unit =
+        getOptionalString(body, "quantityUnit", 40) ?? quote.quantityUnit;
+      const expires = getOptionalDate(body, "expiresAt") ?? quote.expiresAt;
+      if (
+        !listing ||
+        listing.seller !== quote.sellerCompanyId ||
+        quantity < Number(listing.minimum) ||
+        quantity > Number(listing.quantity) ||
+        !sameQuantityUnit(unit, listing.unit) ||
+        quote.currencyCode !== listing.currency ||
+        (wanted &&
+          (wanted.material !== listing.material ||
+            !sameQuantityUnit(wanted.unit, listing.unit))) ||
+        (expires && new Date(expires).getTime() <= Date.now())
+      )
+        throw new ApiError(
+          409,
+          "Quote no longer matches the open request and eligible listing or has expired.",
+        );
+      await requireListingSds(tx, quote.listingId);
+    }
+    const proposedExpiry = getOptionalDate(body, "expiresAt");
+    if (proposedExpiry && proposedExpiry.getTime() <= Date.now())
+      throw new ApiError(400, "Expiry must be in the future.");
+    const quoteStatusId = quoteStatusCode
+      ? await lookupIdTx(tx, "QuoteStatuses", quoteStatusCode)
+      : undefined;
 
-  const rows = await queryRowsWithParams(
-    `
+    const rows = await query(
+      `
       UPDATE dbo.Quotes
       SET
         Quantity = COALESCE(@quantity, Quantity),
@@ -3423,19 +3664,41 @@ async function updateQuote(
       OUTPUT INSERTED.Id AS id, INSERTED.ListingId AS listingId, INSERTED.BuyerCompanyId AS buyerCompanyId, INSERTED.SellerCompanyId AS sellerCompanyId, INSERTED.QuoteStatusId AS quoteStatusId
       WHERE Id = @id;
     `,
-    [
-      intParam("id", id),
-      decimalParam("quantity", getOptionalNumber(body, "quantity")),
-      varcharParam("quantityUnit", getOptionalString(body, "quantityUnit", 40), 40),
-      moneyParam("unitPrice", getOptionalNumber(body, "unitPrice")),
-      nvarcharParam("deliveryTerms", getOptionalString(body, "deliveryTerms", 500), 500),
-      intParam("quoteStatusId", quoteStatusId),
-      dateTimeParam("expiresAt", getOptionalDate(body, "expiresAt")),
-      intParam("updatedByUserId", auth.userId),
-    ],
-  );
+      [
+        intParam("id", id),
+        decimalParam("quantity", getOptionalNumber(body, "quantity")),
+        varcharParam(
+          "quantityUnit",
+          getOptionalString(body, "quantityUnit", 40),
+          40,
+        ),
+        moneyParam("unitPrice", getOptionalNumber(body, "unitPrice")),
+        nvarcharParam(
+          "deliveryTerms",
+          getOptionalString(body, "deliveryTerms", 500),
+          500,
+        ),
+        intParam("quoteStatusId", quoteStatusId),
+        dateTimeParam("expiresAt", getOptionalDate(body, "expiresAt")),
+        intParam("updatedByUserId", auth.userId),
+      ],
+    );
 
-  if (!rows[0]) throw new ApiError(404, "Quote not found.");
+    if (!rows[0]) throw new ApiError(404, "Quote not found.");
+
+    if (accepting && identity.wantedListingId) {
+      const closed = await query(
+        "UPDATE dbo.WantedListings SET IsOpen=0,UpdatedByUserId=@user,UpdatedAt=SYSUTCDATETIME() OUTPUT INSERTED.Id AS id WHERE Id=@id AND IsOpen=1",
+        [
+          intParam("id", identity.wantedListingId),
+          intParam("user", auth.userId),
+        ],
+      );
+      if (!closed.length) throw new ApiError(409, "Request is no longer open.");
+    }
+    return { rows, quote, quoteStatusCode };
+  });
+  const { rows, quote, quoteStatusCode } = result;
 
   await writeAuditLog({
     auth,
@@ -3447,7 +3710,10 @@ async function updateQuote(
     reason: "Quote updated.",
   });
 
-  if (quoteStatusCode && normalizeCode(quoteStatusCode) !== quote.quoteStatusCode) {
+  if (
+    quoteStatusCode &&
+    normalizeCode(quoteStatusCode) !== quote.quoteStatusCode
+  ) {
     await notifyCompanies({
       actorUserId: auth.userId,
       companyIds: [quote.buyerCompanyId, quote.sellerCompanyId],
@@ -3601,6 +3867,46 @@ async function getOrder(
   );
   if (!rows[0]) throw new ApiError(404, "Order not found.");
   sendJson(response, 200, { ok: true, order: rows[0] });
+}
+
+async function getOrderInvoice(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  await requireOrderAccess(auth, id);
+  const order = (
+    await queryRowsWithParams<InvoiceOrder>(
+      `SELECT o.Id AS id,bc.LegalName AS buyerCompanyName,sc.LegalName AS sellerCompanyName,
+      l.Title AS listingTitle,o.Quantity AS quantity,o.QuantityUnit AS quantityUnit,
+      o.TotalAmount AS totalAmount,o.CurrencyCode AS currencyCode,os.Code AS orderStatusCode,
+      o.CreatedAt AS createdAt,q.UnitPrice AS quotedUnitPrice
+     FROM dbo.Orders o LEFT JOIN dbo.Listings l ON l.Id=o.ListingId LEFT JOIN dbo.Quotes q ON q.Id=o.QuoteId
+     JOIN dbo.Companies bc ON bc.Id=o.BuyerCompanyId JOIN dbo.Companies sc ON sc.Id=o.SellerCompanyId
+     JOIN dbo.OrderStatuses os ON os.Id=o.OrderStatusId WHERE o.Id=@id`,
+      [intParam("id", id)],
+    )
+  )[0];
+  if (!order) throw new ApiError(404, "Order not found.");
+  const payments = await queryRowsWithParams<InvoicePayment>(
+    `SELECT p.Id AS id,p.Amount AS amount,p.CurrencyCode AS currencyCode,
+      ps.Code AS paymentStatusCode,pt.Code AS paymentTypeCode
+     FROM dbo.Payments p JOIN dbo.PaymentStatuses ps ON ps.Id=p.PaymentStatusId
+     JOIN dbo.PaymentTypes pt ON pt.Id=p.PaymentTypeId WHERE p.OrderId=@id ORDER BY p.Id`,
+    [intParam("id", id)],
+  );
+  const shipments = await queryRowsWithParams<{ id: number; status: string }>(
+    "SELECT sh.Id AS id,ss.Code AS status FROM dbo.Shipments sh JOIN dbo.ShipmentStatuses ss ON ss.Id=sh.ShipmentStatusId WHERE sh.OrderId=@id ORDER BY sh.Id",
+    [intParam("id", id)],
+  );
+  const bytes = await orderInvoicePdf(order, payments, shipments);
+  response.writeHead(200, {
+    "content-type": "application/pdf",
+    "content-disposition": `attachment; filename="ecoglobe-invoice-EG-${id}.pdf"`,
+    "cache-control": "private, no-store",
+    "x-content-type-options": "nosniff",
+  });
+  response.end(Buffer.from(bytes));
 }
 
 async function createOrder(
@@ -5989,7 +6295,9 @@ async function listWantedListings(
       INNER JOIN dbo.Companies c ON c.Id = w.BuyerCompanyId
       INNER JOIN dbo.MaterialTypes mt ON mt.Id = w.MaterialTypeId
       WHERE (@mineOnly = 0 OR w.BuyerCompanyId = @authCompanyId)
-        AND (@mineOnly = 1 OR w.IsOpen = 1)
+        AND (@mineOnly = 1 OR (w.IsOpen = 1 AND NOT EXISTS (
+          SELECT 1 FROM dbo.Quotes q JOIN dbo.QuoteStatuses qs ON qs.Id=q.QuoteStatusId
+          WHERE q.WantedListingId=w.Id AND qs.Code='accepted')))
       ORDER BY w.Id DESC;
     `,
     [
@@ -6000,7 +6308,10 @@ async function listWantedListings(
 
   // Buyer anonymity is a designed feature: the public view shows demand
   // without exposing who is asking. Owners and admins see their own names.
-  const wantedListings = rows.map((row) => {
+  const wantedListings = rows.map((saved) => {
+    const row: Record<string, unknown> = { ...saved, isOpen: Boolean(saved.isOpen) && Number(saved.acceptedCount) === 0 };
+    return row;
+  }).filter(row => mineOnly || row.isOpen).map((row) => {
     const isOwner =
       auth?.isAdmin || (auth?.companyId && auth.companyId === row.buyerCompanyId);
     return isOwner
@@ -6108,7 +6419,8 @@ async function updateWantedListing(
         UpdatedByUserId = @userId,
         UpdatedAt = SYSUTCDATETIME()
       OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.IsOpen AS isOpen
-      WHERE Id = @id;
+      WHERE Id = @id AND (@isOpen IS NULL OR @isOpen=0 OR NOT EXISTS (
+        SELECT 1 FROM dbo.Quotes q JOIN dbo.QuoteStatuses qs ON qs.Id=q.QuoteStatusId WHERE q.WantedListingId=@id AND qs.Code='accepted'));
     `,
     [
       intParam("id", id),
@@ -6120,7 +6432,7 @@ async function updateWantedListing(
       intParam("userId", auth.userId),
     ],
   );
-  if (!rows[0]) throw new ApiError(404, "Wanted listing not found.");
+  if (!rows[0]) throw new ApiError(409, "An accepted request cannot be reopened.");
   sendJson(response, 200, { ok: true, wantedListing: rows[0] });
 }
 
@@ -6876,6 +7188,13 @@ export async function handleApiRoute(
       await createOrder(request, response, await requireSessionAuth(request));
       return true;
     }
+  }
+
+  const invoiceMatch = matchPath(requestUrl.pathname,"/api/orders/:id/invoice");
+  if(invoiceMatch.matched){
+    if(method!=="GET")throw new ApiError(405,"Method not allowed.");
+    await getOrderInvoice(response,parseId(invoiceMatch.params.id,"Order ID"),await requireSessionAuth(request));
+    return true;
   }
 
   const orderMatch = matchPath(requestUrl.pathname, "/api/orders/:id");

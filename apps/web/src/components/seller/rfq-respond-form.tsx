@@ -3,12 +3,14 @@
 import { useDemoUser } from "@/lib/demo-user";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { ApiWantedListing } from "@/lib/api-portal";
 import { submitRfqResponse } from "@/lib/api-rfq";
 import { fetchListings } from "@/lib/listings-api";
 import { describeBackendError } from "@/lib/backend-client";
 import { useBackendData } from "@/components/shared/data-state";
-import { quantityUnitsMatch, quoteQuantityError } from "@/lib/quantity-units";
+import { quoteQuantityError } from "@/lib/quantity-units";
+import { rfqQuoteListingOptions } from "@/lib/rfq-quote-eligibility";
 
 /** Seller quote for a buyer's request; shown as sent only after the backend saves it. */
 export function RfqRespondForm({ wanted, onClose }: { wanted: ApiWantedListing; onClose: () => void }) {
@@ -16,12 +18,10 @@ export function RfqRespondForm({ wanted, onClose }: { wanted: ApiWantedListing; 
   const owned = useBackendData(() => fetchListings("owned"), [companyId], "Your listings could not be loaded.");
   // Same unit rule as the backend: unit/units and tonne/tonnes/t are
   // equivalent; every other unit (including ton/tons) must match exactly.
-  const eligible = (owned.data ?? []).filter(
-    (l) =>
-      l.listingStatusCode === "published" &&
-      l.materialTypeCode === wanted.materialTypeCode &&
-      quantityUnitsMatch(l.quantityUnit, wanted.quantityUnit),
-  );
+  // Matching listings without a saved SDS are shown but cannot be quoted.
+  const options = rfqQuoteListingOptions(owned.data ?? [], wanted);
+  const eligible = options.filter((o) => !o.blockedReason).map((o) => o.listing);
+  const blocked = options.filter((o) => o.blockedReason);
   const [listingId, setListingId] = useState<number | "">("");
   const chosen = eligible.find((l) => l.id === listingId) ?? null;
   // The quote is saved in the listing's own unit and currency.
@@ -87,7 +87,19 @@ export function RfqRespondForm({ wanted, onClose }: { wanted: ApiWantedListing; 
     <div className="mt-2 flex flex-col gap-2 rounded-lg bg-white p-3 ring-1 ring-neutral-200">
       {owned.status === "loading" && <p className="text-xs text-neutral-500">Loading your listings…</p>}
       {owned.status === "error" && <p className="text-xs text-red-700">{owned.error}</p>}
-      {owned.status === "ready" && eligible.length === 0 && (
+      {blocked.length > 0 && (
+        <ul className="flex flex-col gap-1 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800" aria-label="Listings that cannot be quoted yet">
+          {blocked.map(({ listing, blockedReason }) => (
+            <li key={listing.id} className="break-words">
+              <span className="font-semibold">{listing.title}</span> — {blockedReason}{" "}
+              <Link href={`/seller/listings/${listing.id}/edit`} className="font-semibold underline">
+                Add SDS
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {owned.status === "ready" && options.length === 0 && (
         <p className="text-xs text-neutral-600">
           You need a published {wanted.materialTypeName} listing sold per {wanted.quantityUnit} to respond. Listings in
           tons are not matched to tonne requests because tons may be short tons.

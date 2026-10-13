@@ -1,3 +1,4 @@
+import { usableListingDocumentSql } from "./listing-safety.js";
 import { createHash, randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { getOptionalSessionAuth, requireSessionAuth } from "./auth.js";
@@ -161,9 +162,9 @@ async function documentsForListings(listingIds: unknown[]) {
   return query(
     `SELECT d.Id AS id,d.ListingId AS listingId,dt.Code AS documentTypeCode,d.FileName AS fileName,
     d.ContentType AS contentType,d.ByteLength AS byteLength,d.Sha256 AS sha256,
-    CASE WHEN d.Content IS NOT NULL THEN CONCAT('/api/listing-documents/',d.Id,'/download') ELSE d.FileUrl END AS fileUrl,vs.Code AS verificationStatusCode
+    CASE WHEN DATALENGTH(d.Content)>0 THEN CONCAT('/api/listing-documents/',d.Id,'/download') ELSE d.FileUrl END AS fileUrl,vs.Code AS verificationStatusCode
     FROM dbo.ListingDocuments d JOIN dbo.DocumentTypes dt ON dt.Id=d.DocumentTypeId JOIN dbo.AccountStatuses vs ON vs.Id=d.VerificationStatusId
-    WHERE d.ListingId IN (SELECT value FROM OPENJSON(@listingIds)) AND d.DeletedAt IS NULL AND (d.Content IS NOT NULL OR d.FileUrl IS NOT NULL) ORDER BY CASE WHEN dt.Code='sds' THEN 0 ELSE 1 END,d.Id`,
+    WHERE d.ListingId IN (SELECT value FROM OPENJSON(@listingIds)) AND d.DeletedAt IS NULL AND ${usableListingDocumentSql} ORDER BY CASE WHEN dt.Code='sds' THEN 0 ELSE 1 END,d.Id`,
     [str("listingIds", JSON.stringify(listingIds))],
   );
 }
@@ -683,7 +684,7 @@ export async function handleListingRoute(
           );
           await queryRowsWithParamsInTransaction(
             tx,
-            "UPDATE dbo.Listings SET ListingStatusId=CASE WHEN ListingStatusId IN (SELECT Id FROM dbo.ListingStatuses WHERE Code IN ('published','pending_review')) THEN (SELECT Id FROM dbo.ListingStatuses WHERE Code=CASE WHEN EXISTS(SELECT 1 FROM dbo.ListingDocuments d JOIN dbo.DocumentTypes dt ON dt.Id=d.DocumentTypeId WHERE d.ListingId=@id AND dt.Code='sds' AND d.DeletedAt IS NULL AND d.Content IS NOT NULL) THEN 'pending_review' ELSE 'draft' END) ELSE ListingStatusId END,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id",
+            `UPDATE dbo.Listings SET ListingStatusId=CASE WHEN ListingStatusId IN (SELECT Id FROM dbo.ListingStatuses WHERE Code IN ('published','pending_review')) THEN (SELECT Id FROM dbo.ListingStatuses WHERE Code=CASE WHEN EXISTS(SELECT 1 FROM dbo.ListingDocuments d JOIN dbo.DocumentTypes dt ON dt.Id=d.DocumentTypeId WHERE d.ListingId=@id AND dt.Code='sds' AND d.DeletedAt IS NULL AND ${usableListingDocumentSql}) THEN 'pending_review' ELSE 'draft' END) ELSE ListingStatusId END,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id`,
             [int("id", doc.listingId)],
           );
         });

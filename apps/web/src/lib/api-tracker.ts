@@ -107,12 +107,63 @@ export function stageRecords(stage: string, listingId: number, data: TrackerData
 export function stageRecordLabel(stage: string, r: TrackerRecord): string {
   if (!ORDER_STAGES.includes(stage)) return nice(r.shippingStatus ?? r.status);
   if (stage === "Seller paid") return "seller payout paid";
-  if (stage === "Order")
-    return r.shippingStatus && r.shippingStatus !== r.status
-      ? `order ${nice(r.status)} · shipment ${nice(r.shippingStatus)}`
-      : `order ${nice(r.status)}`;
+  if (stage === "Order") return orderStatusText(r);
   if (stage === "Delivered" && r.shippingStatus !== "delivered") return `order ${nice(r.status)}`;
   return `shipment${r.shipmentId ? ` SHP-${r.shipmentId}` : ""} ${nice(r.shippingStatus ?? "not recorded")}`;
+}
+
+/** Order status first; the shipment status is added only when it differs. */
+export const orderStatusText = (r: Pick<TrackerRecord, "status" | "shippingStatus">) =>
+  r.shippingStatus && r.shippingStatus !== r.status
+    ? `order ${nice(r.status)} · shipment ${nice(r.shippingStatus)}`
+    : `order ${nice(r.status)}`;
+
+/** Reference for a record at a stage: SR-, LAB-, PR- or EG-. */
+export function stageRecordRef(stage: string, id: number): string {
+  const prefix = stage === "Sample" ? "SR" : stage === "Testing" ? "LAB" : stage === "Pilot" ? "PR" : "EG";
+  return `${prefix}-${id}`;
+}
+
+/** Distinct references recorded at a stage, e.g. ["EG-20"]. */
+export function stageRefs(stage: string, listingId: number, data: TrackerData): string[] {
+  return [...new Set(stageRecords(stage, listingId, data).map((r) => stageRecordRef(stage, r.id)))];
+}
+
+/** One row per order on the listing (rows repeat per shipment), newest first. */
+function listingOrders(listingId: number, data: TrackerData): TrackerRecord[] {
+  const rows = stageRecords("Order", listingId, data);
+  return [...rows].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
+}
+
+/**
+ * Card headline for the material's orders. A material can carry several
+ * orders, so the count is named and the latest order is labelled as the
+ * latest, never as the material's whole state.
+ */
+export function orderHeadline(listingId: number, data: TrackerData): string | null {
+  const orders = listingOrders(listingId, data);
+  const latest = orders[0];
+  if (!latest) return null;
+  const text = `EG-${latest.id} — ${orderStatusText(latest)}`;
+  return orders.length > 1 ? `${orders.length} orders · latest ${text}` : text;
+}
+
+/**
+ * For an order-backed stage, which of the material's orders recorded it and
+ * which have not (with their own saved status). Null for other stages.
+ */
+export function stageOrderScope(
+  stage: string,
+  listingId: number,
+  data: TrackerData,
+): { recorded: string[]; notReached: string[] } | null {
+  if (!ORDER_STAGES.includes(stage) || stage === "Order") return null;
+  const recordedIds = new Set(stageRecords(stage, listingId, data).map((r) => r.id));
+  const orders = listingOrders(listingId, data);
+  return {
+    recorded: orders.filter((r) => recordedIds.has(r.id)).map((r) => `EG-${r.id}`),
+    notReached: orders.filter((r) => !recordedIds.has(r.id)).map((r) => `EG-${r.id} ${orderStatusText(r)}`),
+  };
 }
 
 /** Tooltip/aria summary for a stage dot, naming only that stage's evidence. */

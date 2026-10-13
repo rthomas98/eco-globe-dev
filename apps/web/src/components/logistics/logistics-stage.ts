@@ -103,6 +103,48 @@ export const TONE_CLASSES: Record<Tone, string> = {
   blue: "bg-blue-50 text-blue-700",
 };
 
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  approval_required: "Awaiting buyer approval",
+  escrow_required: "Awaiting payment",
+  awaiting_payment: "Awaiting payment",
+  in_progress: "In progress",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
+/**
+ * Seller Sales status cell: the saved order status and, when a shipping quote
+ * or shipment exists, the logistics stage, each with its own label so a
+ * shipping quote is never read as the order's (or an RFQ quote's) state.
+ */
+export function salesStatusLines(
+  orderStatusCode: string,
+  record: LogisticsOrder | undefined,
+): { order: string; shipping: { label: string; tone: Tone } | null } {
+  const order = `Order: ${ORDER_STATUS_LABELS[orderStatusCode] ?? orderStatusCode.replaceAll("_", " ")}`;
+  if (!record || (!record.shipment && !record.quote)) return { order, shipping: null };
+  const stage = logisticsStage(record);
+  // A delivered shipment status alone does not say who recorded it, so it
+  // stays the plain "Delivered" stage label.
+  const { label, tone } =
+    stage.kind === "quote_offered"
+      ? { label: "Shipping quote sent · buyer has not accepted yet", tone: "blue" as const }
+      : stageLabel(stage);
+  return { order, shipping: { label: `Shipping: ${label}`, tone } };
+}
+
+/**
+ * Buyer order-card hint for a saved shipping quote the buyer has not accepted.
+ * Shown beside the order status, never in place of it; null otherwise
+ * (including while a dispute locks fulfilment).
+ */
+export function buyerShippingQuoteHint(record: LogisticsOrder | undefined): string | null {
+  if (!record || record.fulfilmentLocked || !record.quote) return null;
+  if (logisticsStage(record).kind !== "quote_offered") return null;
+  return `Shipping quote awaiting your acceptance · ${formatMoney(record.quote.amount, record.quote.currencyCode)}`;
+}
+
 /** Whether the order needs something from this portal right now. */
 export function needsActionFrom(order: LogisticsOrder, portal: LogisticsPortal) {
   const kind = logisticsStage(order).kind;

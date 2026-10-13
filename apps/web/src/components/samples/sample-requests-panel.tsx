@@ -129,7 +129,7 @@ export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" | "admi
 
       {state.status === "ready" && (
         <ul className="flex flex-col gap-2">
-          {legacySampleRows(state.samples, role).map(({ sample, ref, anchorId, status, counterparty }) => {
+          {legacySampleRows(state.samples, role).map(({ sample, ref, anchorId, status, counterparty, destination }) => {
             // Unknown legacy statuses are shown as recorded, never remapped.
             const tone = status;
             const busy = busyId === sample.id;
@@ -141,9 +141,9 @@ export function SampleRequestsPanel({ role }: { role: "buyer" | "seller" | "admi
                   </p>
                   <p className="truncate text-xs text-neutral-500">
                     {counterparty}
-                    {sample.deliveryAddress ? ` · ${sample.deliveryAddress}` : ""}
                     {sample.trackingNumber ? ` · Tracking ${sample.trackingNumber}` : ""}
                   </p>
+                  {destination && <p className="truncate text-xs text-neutral-500" title={destination}>{destination}</p>}
                   {sample.note && <p className="mt-1 truncate text-xs italic text-neutral-500">&ldquo;{sample.note}&rdquo;</p>}
                   {sample.sellerResponse && <p className="mt-1 truncate text-xs text-neutral-500">Seller: {sample.sellerResponse}</p>}
                 </div>

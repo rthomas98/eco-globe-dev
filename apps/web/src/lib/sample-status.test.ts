@@ -56,3 +56,16 @@ test("duplicate rows collapse to one per saved id and unknown statuses stay as r
   assert.equal(rows[0]?.status.label, "on hold (as recorded)");
   assert.equal(rows.filter((r) => r.status.label === "Received").length, 2);
 });
+
+test("the buyer's delivery address is a labelled destination, never shown as the seller's origin", () => {
+  const withAddress = [{ ...legacy[0]!, deliveryAddress: "  12 Buyer Rd, Lafayette, LA  " }, { ...legacy[1]!, deliveryAddress: "   " }];
+  const buyer = legacySampleRows(withAddress, "buyer");
+  // SR-2 has only whitespace saved, so no destination line is invented.
+  assert.deepEqual(buyer.map((r) => [r.ref, r.counterparty, r.destination]), [
+    ["SR-2", "From Seller 29", null],
+    ["SR-1", "From Seller 29", "Ship to 12 Buyer Rd, Lafayette, LA"],
+  ]);
+  for (const row of buyer) assert.ok(!row.counterparty.includes("Buyer Rd"));
+  assert.equal(legacySampleRows(withAddress, "seller")[1]?.destination, "Ship to 12 Buyer Rd, Lafayette, LA");
+  assert.equal(legacySampleRows(legacy, "buyer")[0]?.destination, null);
+});

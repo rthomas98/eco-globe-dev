@@ -9,6 +9,7 @@ import { Check, Download, FileText, Search, Trash2, Upload, X } from "lucide-rea
 import { LabReportsSection } from "@/components/lab-testing/lab-reports-section";
 import { ErrorState, LoadingState, useBackendData } from "@/components/shared/data-state";
 import { describeBackendError } from "@/lib/backend-client";
+import { downloadNotice } from "@/lib/browser-download";
 import { portalDate } from "@/lib/api-portal";
 import {
   VAULT_CATEGORIES,
@@ -110,10 +111,10 @@ function CompanyDocumentVault({ role, highlightId }: { role: Role; highlightId?:
 
   const unavailable = docs.status === "error" && isVaultUnavailable(docs.rawError);
 
-  const run = async (id: number, action: () => Promise<unknown>, success: string, failure: string) => {
+  const run = async (id: number, action: () => Promise<unknown>, success: string, failure: string, pending?: string) => {
     setBusyId(id);
     setActionError(null);
-    setNotice(null);
+    setNotice(pending ?? null);
     try {
       await action();
       setNotice(success);
@@ -215,7 +216,13 @@ function CompanyDocumentVault({ role, highlightId }: { role: Role; highlightId?:
                       highlighted={highlightId === String(doc.id)}
                       busy={busyId === doc.id}
                       onDownload={() =>
-                        void run(doc.id, () => downloadVaultDocument(doc), `${doc.fileName} downloaded.`, "The download failed.")
+                        void run(
+                          doc.id,
+                          () => downloadVaultDocument(doc),
+                          downloadNotice("handed", doc.fileName),
+                          "The download failed.",
+                          downloadNotice("pending", doc.fileName),
+                        )
                       }
                       onDelete={() =>
                         void run(doc.id, () => deleteVaultDocument(doc.id), `${doc.fileName} was deleted.`, "The document was not deleted.")

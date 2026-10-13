@@ -1,3 +1,4 @@
+import { requireListingSds } from "./listing-safety.js";
 import { applySampleShippingCredit } from "./sample-shipping-credit.js";
 import { createHash, randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -334,14 +335,7 @@ export async function reserveCheckout(
       )
     )[0];
     if (!listing) throw new ApiError(404, "Published listing not found.");
-    const safetyDocuments = await txQuery(tx,
-      `SELECT TOP (1) d.Id FROM dbo.ListingDocuments d JOIN dbo.DocumentTypes t ON t.Id=d.DocumentTypeId
-       WHERE d.ListingId=@listing AND t.Code='sds' AND d.DeletedAt IS NULL
-       AND (d.Content IS NOT NULL OR NULLIF(d.FileUrl,'') IS NOT NULL)`,
-      [p("listing", value.listingId, sql.Int)],
-    );
-    if (!safetyDocuments.length)
-      throw new ApiError(409, "The seller must upload the SDS before this listing can be purchased.");
+    await requireListingSds(tx, value.listingId);
     if (listing.seller === companyId)
       throw new ApiError(409, "You cannot purchase your own listing.");
     if (

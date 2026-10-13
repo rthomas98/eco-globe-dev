@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -36,6 +37,8 @@ import { takePendingCheckoutByOrder } from "@/lib/checkout-pending";
 import { readDemoUser, useDemoUser } from "@/lib/demo-user";
 import { describeBackendError } from "@/lib/backend-client";
 import { cancelOrder, fetchShipments, numericOrderId } from "@/lib/api-fulfilment";
+import { fetchLogisticsWorkspace } from "@/lib/api-logistics";
+import { buyerShippingQuoteHint } from "@/components/logistics/logistics-stage";
 
 const BUYER_STATUS_BY_CODE: Record<string, OrderStatus> = {
   draft: "Awaiting seller confirmation",
@@ -381,12 +384,15 @@ function MoreMenu({
 function OrderCard({
   order,
   shipmentStates,
+  shippingQuoteHint,
   onOpen,
   onCancel,
 }: {
   order: Order;
   /** Saved shipment states for this order (empty when none were read). */
   shipmentStates: string[];
+  /** Saved shipping quote awaiting this buyer, shown beside the order status. */
+  shippingQuoteHint: string | null;
   onOpen: () => void;
   onCancel: () => void;
 }) {
@@ -428,6 +434,18 @@ function OrderCard({
           )}
         </div>
       </div>
+      {shippingQuoteHint && (
+        <div
+          role="note"
+          className="flex flex-wrap items-center justify-between gap-2 bg-blue-50 px-6 py-3 text-sm text-blue-800"
+          style={{ borderBottom: "1px solid #F0F0F0" }}
+        >
+          <span className="min-w-0 break-words font-medium">{shippingQuoteHint}</span>
+          <Link href="/buyer/logistics" className="shrink-0 font-semibold underline">
+            Review in Logistics
+          </Link>
+        </div>
+      )}
 
       {/* Bottom row */}
       <div className="flex flex-wrap items-center gap-4 px-6 py-4">
@@ -661,6 +679,10 @@ export function BuyerOrdersPage() {
   const sameCompany = loadedCompanyId === user?.activeCompanyId;
   const orderList = sameCompany ? loadedOrders : [];
   const visibleShipmentStates = sameCompany ? shipmentStates : new Map<number, string[]>();
+  // Offered shipping quotes awaiting this buyer, by order id. Best effort: if
+  // the logistics read fails, no hint is shown.
+  const [quoteHints, setQuoteHints] = useState<Map<number, string>>(new Map());
+  const visibleQuoteHints = sameCompany ? quoteHints : new Map<number, string>();
 
   // Orders come only from the backend for the active buyer company. The list
   // is cleared only when the company changes, not on a same-company reload.
@@ -668,6 +690,7 @@ export function BuyerOrdersPage() {
     if (loadedCompanyId !== user?.activeCompanyId) {
       setOrderList([]);
       setShipmentStates(new Map());
+      setQuoteHints(new Map());
       setLoadError("");
       setLoaded(false);
       setLoadedCompanyId(user?.activeCompanyId);
@@ -691,6 +714,19 @@ export function BuyerOrdersPage() {
       })
       .catch(() => {
         if (!cancelled) setShipmentStates(new Map());
+      });
+    fetchLogisticsWorkspace()
+      .then((workspace) => {
+        if (cancelled) return;
+        const hints = new Map<number, string>();
+        for (const record of workspace.orders) {
+          const hint = buyerShippingQuoteHint(record);
+          if (hint) hints.set(record.id, hint);
+        }
+        setQuoteHints(hints);
+      })
+      .catch(() => {
+        if (!cancelled) setQuoteHints(new Map());
       });
     fetchOrders({ buyerCompanyId: user.activeCompanyId })
       .then((apiOrders) => {
@@ -852,6 +888,7 @@ export function BuyerOrdersPage() {
                   key={o.id}
                   order={o}
                   shipmentStates={o.apiOrder ? (visibleShipmentStates.get(o.apiOrder.id) ?? []) : []}
+                  shippingQuoteHint={o.apiOrder ? (visibleQuoteHints.get(o.apiOrder.id) ?? null) : null}
                   onOpen={() => setSelectedOrderId(o.id)}
                   onCancel={() => handleCancel(o.id)}
                 />

@@ -1,3 +1,4 @@
+import { requireListingSds } from "./listing-safety.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { requireSessionAuth } from "./auth.js";
 import {
@@ -92,6 +93,13 @@ export async function handleRfqRoute(
       [p("id", wantedId), p("buyer", wanted.buyer)],
     );
     if (!current.length) throw new ApiError(409, "Request is no longer open.");
+    const accepted = await txQuery(
+      tx,
+      "SELECT q.Id FROM dbo.Quotes q JOIN dbo.QuoteStatuses s ON s.Id=q.QuoteStatusId WHERE q.WantedListingId=@id AND s.Code='accepted'",
+      [p("id", wantedId)],
+    );
+    if (accepted.length)
+      throw new ApiError(409, "Request already has an accepted quote.");
     const listing = (
       await txQuery<{
         seller: number;
@@ -128,6 +136,7 @@ export async function handleRfqRoute(
         400,
         "Listing material, unit and available quantity must match the request.",
       );
+    await requireListingSds(tx, listingId);
     const rows = await txQuery(
       tx,
       `INSERT dbo.Quotes(WantedListingId,ListingId,BuyerCompanyId,SellerCompanyId,Quantity,QuantityUnit,UnitPrice,CurrencyCode,DeliveryTerms,QuoteStatusId,ExpiresAt,CreatedByUserId,UpdatedByUserId) OUTPUT INSERTED.Id AS id VALUES(@wanted,@listing,@buyer,@seller,@quantity,@unit,@price,@currency,@terms,(SELECT Id FROM dbo.QuoteStatuses WHERE Code='sent'),@expires,@user,@user)`,

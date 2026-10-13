@@ -33,7 +33,8 @@ import {
   type ApiShipment,
 } from "@/lib/api-fulfilment";
 import { BuyerPaymentMethodScreen } from "./buyer-payment-method-screen";
-import { approveOrder, fetchOrderPayments, formatOrderMoney } from "@/lib/api-orders";
+import { approveOrder, fetchOrderInvoicePdf, fetchOrderPayments, formatOrderMoney } from "@/lib/api-orders";
+import { createRequestGuard, downloadNotice, handBlobToBrowser, noticeForOpenRecord } from "@/lib/browser-download";
 import {
   checkoutFunded,
   countedFunding,
@@ -42,7 +43,7 @@ import {
   type OrderPaymentRecord,
 } from "@/lib/order-truth";
 import { describeBackendError } from "@/lib/backend-client";
-import { PanelHeaderMenu, downloadTextFile } from "./panel-header-menu";
+import { PanelHeaderMenu } from "./panel-header-menu";
 import { DocumentRow } from "./document-row";
 import { OrderRefundSection } from "@/components/refunds/order-refund-section";
 
@@ -262,10 +263,41 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState("");
   const [approvedStatus, setApprovedStatus] = useState<string | null>(null);
+  // One invoice request belongs to the order it was started for. Its notice is
+  // tagged with that order and only shown while the same order is open; the
+  // request generation is invalidated when the order changes or the panel
+  // unmounts, so a late result is neither shown nor handed to the browser.
+  const [invoiceNotice, setInvoice] = useState<{ orderId: string; ticket: number; state: "pending" | "handed" | "error"; text: string } | null>(null);
+  const [invoiceGuard] = useState(createRequestGuard);
+  const openOrderId = order?.orderId;
+  const invoice = noticeForOpenRecord(invoiceNotice, openOrderId, invoiceGuard.isCurrent);
+  useEffect(() => () => invoiceGuard.invalidate(), [openOrderId, invoiceGuard]);
 
   // Live orders (EG-<id>) run the real backend chain; demo rows keep the
   // local flow so the walkthrough still works offline.
   const liveOrderId = order ? numericOrderId(order.orderId) : null;
+
+  // The backend builds the PDF from saved facts; the page can only report that
+  // the download started, not that the save finished.
+  const runDownloadInvoice = async () => {
+    if (!liveOrderId || !order || invoice?.state === "pending") return;
+    const orderId = order.orderId;
+    const label = `${orderId} invoice PDF`;
+    const ticket = invoiceGuard.begin();
+    setInvoice({ orderId, ticket, state: "pending", text: downloadNotice("pending", label) });
+    // A dropped request clears only its own pending notice, so returning to
+    // the order later does not show a stale "Preparing…".
+    const dropStale = () => setInvoice((current) => (current?.ticket === ticket ? null : current));
+    try {
+      const { blob, fileName } = await fetchOrderInvoicePdf(liveOrderId);
+      if (!invoiceGuard.isCurrent(ticket)) return dropStale();
+      handBlobToBrowser(blob, fileName);
+      setInvoice({ orderId, ticket, state: "handed", text: downloadNotice("handed", label) });
+    } catch (e) {
+      if (!invoiceGuard.isCurrent(ticket)) return dropStale();
+      setInvoice({ orderId, ticket, state: "error", text: downloadNotice("error", label, describeBackendError(e, "Please try again.")) });
+    }
+  };
 
   // Approval is saved on the backend first; the confirmation reflects the
   // status the backend recorded.
@@ -538,15 +570,16 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                   icon: Printer,
                   onClick: () => window.print(),
                 },
-                {
-                  label: "Download invoice",
-                  icon: Download,
-                  onClick: () =>
-                    downloadTextFile(
-                      `${order.orderId}-invoice.txt`,
-                      `EcoGlobe order invoice\nOrder ID: ${order.orderId}\nStatus: ${order.status}\nSeller: ${order.seller}\nQuantity: ${order.quantity}\nProduct: ${order.product.name}\nTotal: ${order.summary.total}\n`,
-                    ),
-                },
+                // Only saved orders have a backend invoice; nothing is generated locally.
+                ...(liveOrderId
+                  ? [
+                      {
+                        label: invoice?.state === "pending" ? "Preparing invoice PDF…" : "Download invoice PDF",
+                        icon: Download,
+                        onClick: () => void runDownloadInvoice(),
+                      },
+                    ]
+                  : []),
                 {
                   label: "Contact seller",
                   icon: Mail,
@@ -575,6 +608,19 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
+          {invoice && (
+            <div
+              role={invoice.state === "error" ? "alert" : "status"}
+              className={`mb-5 flex items-start justify-between gap-3 rounded-xl px-4 py-3 text-sm ${invoice.state === "error" ? "bg-red-50 text-red-700" : "bg-neutral-100 text-neutral-800"}`}
+            >
+              <p className="min-w-0 break-words">{invoice.text}</p>
+              {invoice.state !== "pending" && (
+                <button type="button" onClick={() => setInvoice(null)} aria-label="Dismiss invoice notice" className="shrink-0 text-neutral-500 hover:text-neutral-900">
+                  <X className="size-4" />
+                </button>
+              )}
+            </div>
+          )}
           {liveOrderId && receiptStatus && !receipt.ready && (
             <p role="status" className="mb-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
               {receipt.reason}

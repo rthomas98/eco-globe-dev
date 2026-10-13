@@ -21,7 +21,8 @@ import {
 import { LogisticsQuoteForm } from "@/components/logistics/logistics-quote-form";
 import {
   logisticsStage,
-  stageLabel,
+  salesStatusLines,
+  TONE_CLASSES,
 } from "@/components/logistics/logistics-stage";
 const button =
   "rounded-full border border-neutral-300 px-5 py-2 text-sm disabled:opacity-50";
@@ -248,12 +249,19 @@ export function SellerSalesPage() {
                     {o.deliveryMethod ? nice(o.deliveryMethod) : "Not recorded"}
                   </td>
                   <td className="p-4">
-                    {nice(o.orderStatusCode)}
-                    {record && (record.shipment || record.quote) && (
-                      <p className="mt-1 font-medium text-emerald-700">
-                        {stageLabel(logisticsStage(record)).label}
-                      </p>
-                    )}
+                    {(() => {
+                      const lines = salesStatusLines(o.orderStatusCode, record);
+                      return (
+                        <>
+                          <p>{lines.order}</p>
+                          {lines.shipping && (
+                            <p className={`mt-1 inline-block rounded-md px-2 py-0.5 text-xs font-medium ${TONE_CLASSES[lines.shipping.tone]}`}>
+                              {lines.shipping.label}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </td>
                   <td className="p-4">
                     {needsQuote(o) ? (

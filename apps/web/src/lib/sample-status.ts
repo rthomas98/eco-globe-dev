@@ -36,6 +36,8 @@ export interface LegacySampleInput {
   status: string;
   buyerCompanyName: string;
   sellerCompanyName: string;
+  /** The buyer's saved delivery address: where the sample goes, never its origin. */
+  deliveryAddress?: string | null;
 }
 
 export interface LegacySampleRow<T extends LegacySampleInput> {
@@ -44,12 +46,15 @@ export interface LegacySampleRow<T extends LegacySampleInput> {
   anchorId: string;
   status: SampleStatusDisplay;
   counterparty: string;
+  /** Labelled destination ("Ship to …"), or null when no address was saved. */
+  destination: string | null;
 }
 
 /**
  * Rows for legacy sample requests as shown on Orders, Sales and Samples: one
  * row per saved request id (newest first), the tracker's SR reference and
- * anchor, the recorded status and the other party for this viewer.
+ * anchor, the recorded status, the other party for this viewer and the
+ * labelled delivery destination.
  */
 export function legacySampleRows<T extends LegacySampleInput>(samples: T[], role: "buyer" | "seller" | "admin"): LegacySampleRow<T>[] {
   const seen = new Set<number>();
@@ -67,5 +72,8 @@ export function legacySampleRows<T extends LegacySampleInput>(samples: T[], role
           : role === "seller"
             ? `For ${sample.buyerCompanyName}`
             : `From ${sample.sellerCompanyName}`,
+      // Kept apart from the counterparty so the buyer's address never reads as
+      // the seller's location next to "From <seller>".
+      destination: sample.deliveryAddress?.trim() ? `Ship to ${sample.deliveryAddress.trim()}` : null,
     }));
 }

@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  orderHeadline,
+  orderStatusText,
+  stageOrderScope,
+  stageRecordRef,
+  stageRefs,
   stageEvidence,
   stageRecordLabel,
   stageRecords,
@@ -96,4 +101,46 @@ test("stage evidence follows the same per-stage records", () => {
   const onlyUnshipped = { ...data, orders: [order({ id: 2 }), order({ id: 7, status: "cancelled" })] };
   assert.deepEqual(stageEvidence("buyer", listing, onlyUnshipped).slice(4), [true, false, false]);
   assert.deepEqual(stageEvidence("seller", listing, onlyUnshipped).slice(6), [false, false, false]);
+});
+
+// Live buyer shape (Oct 7 workbook): one material with EG-20 completed,
+// delivered and never paid, and a newer EG-24 still in progress with no shipment.
+const pvc: TrackerData = {
+  ...data,
+  orders: [
+    order({ id: 24, createdAt: "2026-10-07T15:00:00Z" }),
+    order({ id: 20, createdAt: "2026-10-01T15:00:00Z", status: "completed", shippingStatus: "delivered", shipmentId: 200 }),
+    // A second row for EG-20's shipment history must not count as another order.
+    order({ id: 20, createdAt: "2026-10-01T15:00:00Z", status: "completed", shippingStatus: "delivered", shipmentId: 200 }),
+  ],
+};
+
+test("material headline names the order count and labels the newest order as latest", () => {
+  assert.equal(orderHeadline(2, pvc), "2 orders · latest EG-24 — order in progress");
+  const single = { ...pvc, orders: pvc.orders.filter((r) => r.id === 20) };
+  assert.equal(orderHeadline(2, single), "EG-20 — order completed · shipment delivered");
+  assert.equal(orderHeadline(99, pvc), null);
+});
+
+test("Delivered names the order that recorded it and keeps the other order's own status", () => {
+  assert.deepEqual(stageRefs("Delivered", 2, pvc), ["EG-20"]);
+  assert.deepEqual(stageOrderScope("Delivered", 2, pvc), {
+    recorded: ["EG-20"],
+    notReached: ["EG-24 order in progress"],
+  });
+  // EG-20 stays completed and delivered with no payout recorded; nothing is rewritten.
+  assert.deepEqual(stageOrderScope("Seller paid", 2, pvc), {
+    recorded: [],
+    notReached: ["EG-24 order in progress", "EG-20 order completed · shipment delivered"],
+  });
+  assert.equal(stageOrderScope("Order", 2, pvc), null);
+  assert.equal(stageOrderScope("Sample", 2, pvc), null);
+});
+
+test("record references use the same prefixes as the rest of the portal", () => {
+  assert.deepEqual(
+    ["Sample", "Testing", "Pilot", "Order", "Delivered"].map((s) => stageRecordRef(s, 3)),
+    ["SR-3", "LAB-3", "PR-3", "EG-3", "EG-3"],
+  );
+  assert.equal(orderStatusText({ status: "completed", shippingStatus: "completed" }), "order completed");
 });
