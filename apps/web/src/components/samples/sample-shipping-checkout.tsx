@@ -8,6 +8,7 @@ import {
   type SampleConfig,
   type SampleRate,
 } from "@/lib/api-sample-shipping";
+import { sampleCheckoutScope } from "@/lib/sample-checkout-scope";
 const control =
   "rounded-2xl border border-neutral-200 p-5 text-left transition-colors";
 export function SampleShippingCheckout({ listingId }: { listingId: number }) {
@@ -68,7 +69,7 @@ export function SampleShippingCheckout({ listingId }: { listingId: number }) {
       <p className="mb-6 text-sm tracking-widest text-emerald-800 font-bold">
         SAMPLE CHECKOUT{" "}
         <span className="font-normal tracking-normal text-neutral-500">
-          domestic US · standard material
+          {sampleCheckoutScope(config)}
         </span>
       </p>
       <section className="rounded-3xl border border-neutral-200 bg-white p-6 md:p-10 space-y-7">

@@ -560,7 +560,7 @@ function StepDistance({ active, listing, facilities, onChange }: { active: Scena
           <span className="text-neutral-400">({listing.location || "location not provided"})</span>. Confirm the destination address below.
         </p>
         {!mapListing && (
-          <p className="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"><AlertTriangle className="mt-0.5 size-3 shrink-0" />This listing&apos;s facility has no saved coordinates, so distance from your sites cannot be computed. Enter an address manually to continue.</p>
+          <p className="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"><AlertTriangle className="mt-0.5 size-3 shrink-0" />This listing&apos;s facility has no saved coordinates, so distance from your sites cannot be computed. Enter the shipping distance manually to continue.</p>
         )}
       </div>
 
