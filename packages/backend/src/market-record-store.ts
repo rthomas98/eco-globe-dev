@@ -65,7 +65,7 @@ const canonical = (value: unknown): string | null =>
     ?.replace(/(\.\d*?)0+$/u, "$1")
     .replace(/\.$/u, "") ?? null;
 
-const select = `SELECT r.*,CONVERT(VARCHAR(16),r.Version,2) VersionHex,
+const select = `SELECT r.*,CONVERT(VARCHAR(16),CAST(r.Version AS BINARY(8)),2) VersionHex,
  CONVERT(VARCHAR(40),r.PriceValue) PriceString,CONVERT(VARCHAR(40),r.VolumeValue) VolumeString,
  creator.Name CreatedByUserName,updater.Name UpdatedByUserName,archiver.Name ArchivedByUserName,
  pr.Name PriceReviewerName,vr.Name VolumeReviewerName,ar.Name AddressReviewerName

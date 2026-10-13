@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import ExcelJS from "exceljs";
+import sql from "mssql";
 import { deflateRawSync } from "node:zlib";
 import {
   recordInput,
@@ -11,6 +12,7 @@ import {
   decimal,
   MarketRecordError,
   importDisposition,
+  version,
 } from "./market-record-domain.js";
 import {
   parseXlsx,
@@ -31,6 +33,7 @@ import {
   pagination,
   boundedPage,
   nearDuplicateRows,
+  getRecord,
 } from "./market-record-store.js";
 
 const input = () => ({
@@ -58,6 +61,53 @@ const input = () => ({
     citation: "Synthetic volume source",
   },
   sourceChecked: true,
+});
+test("SQL rowversion projection casts to binary before hex conversion and serializes a reusable wire version", async (t) => {
+  // Driver stub only: this checks the actual store query and hydration, not SQL execution.
+  // Hosted SQL confirmed direct rowversion-to-varchar ignores style 2; binary(8) honors it.
+  const transaction = new sql.Transaction();
+  const request = new sql.Request(transaction);
+  t.mock.method(transaction, "request", () => request);
+  t.mock.method(request, "query", async (statement: string) => {
+    assert.match(
+      statement,
+      /CONVERT\(VARCHAR\(16\),\s*CAST\(r\.Version AS BINARY\(8\)\),\s*2\) VersionHex/iu,
+    );
+    assert.equal(request.parameters.id?.value, 3);
+    return {
+      recordset: [
+        {
+          Id: 3,
+          Role: "seller",
+          CompanyName: "Synthetic company",
+          Feedstock: "Synthetic feedstock",
+          SourceRecordType: "prospect",
+          SourceChecked: false,
+          AddressPurpose: "unknown",
+          PriceStatus: "unknown",
+          VolumeStatus: "unknown",
+          AddressStatus: "unknown",
+          Status: "active",
+          VersionHex: Buffer.from("000000000000abe5", "hex")
+            .toString("hex")
+            .toUpperCase(),
+          CreatedAt: new Date("2026-10-13T12:00:00.000Z"),
+          UpdatedAt: new Date("2026-10-13T12:00:00.000Z"),
+          CreatedByUserId: 17,
+          UpdatedByUserId: 17,
+        },
+      ],
+    };
+  });
+  const record = await getRecord(3, transaction);
+  const wireRecord = JSON.parse(JSON.stringify(record));
+  assert.equal(wireRecord.version, "000000000000abe5");
+  assert.equal(version(wireRecord.version), record.version);
+  assert.throws(
+    () => version("\u0000\u0000\u0000\u0000\u0000\u0000\u00ab\u00e5"),
+    MarketRecordError,
+  );
+  assert.throws(() => version("abe5"), MarketRecordError);
 });
 test("research values preserve null and explicit zero, signed gate fee, annual period and source assertions", () => {
   const data = recordInput(input());
