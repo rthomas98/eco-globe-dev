@@ -11,6 +11,7 @@ COPY packages/typescript-config/package.json packages/typescript-config/package.
 RUN pnpm install --frozen-lockfile --filter=@eco-globe/backend...
 
 COPY packages/backend packages/backend
+COPY packages/shared/src/market-records-api.d.ts packages/shared/src/market-records-api.d.ts
 COPY packages/typescript-config packages/typescript-config
 
 RUN pnpm --filter=@eco-globe/backend build

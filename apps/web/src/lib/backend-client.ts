@@ -27,6 +27,8 @@ export class BackendApiError extends Error {
     message: string,
     public readonly status?: number,
     kind?: BackendErrorKind,
+    /** Parsed JSON error body, for routes that return codes or field errors. */
+    public readonly body?: unknown,
   ) {
     super(message);
     this.name = "BackendApiError";
@@ -171,6 +173,8 @@ export async function apiFetch<T>(
     throw new BackendApiError(
       extractErrorMessage(body, response.status),
       response.status,
+      undefined,
+      body,
     );
   }
 

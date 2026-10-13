@@ -27,6 +27,7 @@ import {
   FileText,
   FlaskConical,
   Handshake,
+  Library,
 } from "lucide-react";
 import {
   markLiveNotificationRead,
@@ -59,6 +60,7 @@ const coreAdminNavItems: NavItem[] = [
 const marketplaceAdminNavItems: NavItem[] = [
   { label: "Sellers", href: "/admin/sellers", icon: Users },
   { label: "Buyers", href: "/admin/buyers", icon: UserCheck },
+  { label: "Market records", href: "/admin/market-records", icon: Library },
   { label: "Partner Network", href: "/admin/partners", icon: Users },
 ];
 
@@ -122,7 +124,7 @@ const settingsAdminNavItems: NavItem[] = [
 
 const mainAdminNavGroups: NavGroup[] = [
   { label: "Core", items: coreAdminNavItems },
-  { label: "Marketplace", items: marketplaceAdminNavItems.slice(0, 2) },
+  { label: "Marketplace", items: marketplaceAdminNavItems.slice(0, 3) },
   { label: "Finance & Reports", items: financeAdminNavItems },
   { label: "Governance", items: governanceAdminNavItems },
   { label: "System", items: settingsAdminNavItems },

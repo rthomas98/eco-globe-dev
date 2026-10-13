@@ -1,5 +1,9 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import {
+  MARKET_RECORD_IMPORT_DEADLINE_MS,
+  isMarketRecordImportWrite,
+} from "@/lib/market-record-proxy";
 
 const BACKEND_URL =
   process.env.ECOGLOBE_API_BASE_URL?.replace(/\/$/, "") ??
@@ -49,6 +53,9 @@ function upstreamDeadline(pathname: string, method: string) {
   // provider call; a shorter proxy deadline would report an unknown outcome.
   if (pathname.startsWith("/api/admin/fedex-sandbox/") && method === "POST") {
     return UPLOAD_UPSTREAM_DEADLINE_MS;
+  }
+  if (isMarketRecordImportWrite(pathname, method)) {
+    return MARKET_RECORD_IMPORT_DEADLINE_MS;
   }
   return DEFAULT_UPSTREAM_DEADLINE_MS;
 }

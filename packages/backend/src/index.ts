@@ -7,7 +7,8 @@ import { handleApiRoute } from "./api.js";
 import { handleAuthRoute } from "./auth-routes.js";
 import { handleLogisticsRoute } from "./logistics-routes.js";
 import { handleDocusignRoute } from "./docusign-routes.js";
-import { getDatabaseHealth, getSchemaTables } from "./database.js";
+import { getDatabaseHealth } from "./database.js";
+import { handleSchemaRoute } from "./schema-routes.js";
 import { ApiError, corsHeaders, sendHtml, sendJson } from "./http.js";
 
 const port = Number(process.env.PORT ?? 4050);
@@ -26,7 +27,7 @@ const endpointGroups = [
       {
         method: "GET",
         path: "/schema/tables",
-        auth: "Public",
+        auth: "Admin bearer",
         description: "Current database table inventory and row counts.",
       },
       {
@@ -968,29 +969,7 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    if (request.method === "GET" && requestUrl.pathname === "/schema/tables") {
-      const database = await getDatabaseHealth();
-
-      if (!database.connected) {
-        sendJson(response, 503, {
-          ok: false,
-          error: database.configured
-            ? "Azure SQL is configured but not reachable."
-            : "Azure SQL connection string is not configured.",
-          database,
-        });
-        return;
-      }
-
-      const tables = await getSchemaTables();
-
-      sendJson(response, 200, {
-        ok: true,
-        count: tables.length,
-        tables,
-      });
-      return;
-    }
+    if (await handleSchemaRoute(request,response,requestUrl)) return;
 
     const authHandled = await handleAuthRoute(request, response, requestUrl);
 

@@ -1,5 +1,9 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import {
+  MARKET_RECORD_IMPORT_DEADLINE_MS,
+  isMarketRecordImportWrite,
+} from "@/lib/market-record-proxy";
 
 const BACKEND_URL =
   process.env.ECOGLOBE_API_BASE_URL?.replace(/\/$/, "") ??
@@ -46,15 +50,33 @@ async function proxy(request: Request, { params }: RouteContext) {
   const body = ["GET", "HEAD"].includes(request.method)
     ? undefined
     : await request.arrayBuffer();
+  // Only market record workbook preview/commit get an explicit bound; other
+  // admin calls keep their existing behaviour.
+  const signal = isMarketRecordImportWrite(pathname, request.method)
+    ? AbortSignal.timeout(MARKET_RECORD_IMPORT_DEADLINE_MS)
+    : undefined;
   let backendResponse: Response;
+  let responseBody: ArrayBuffer;
   try {
     backendResponse = await fetch(target, {
       method: request.method,
       headers,
       body,
       cache: "no-store",
+      signal,
     });
+    // The deadline covers the body read too.
+    responseBody = await backendResponse.arrayBuffer();
   } catch {
+    if (signal?.aborted) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `EcoGlobe backend did not respond within ${MARKET_RECORD_IMPORT_DEADLINE_MS / 1000} seconds.`,
+        },
+        { status: 504 },
+      );
+    }
     return NextResponse.json(
       { ok: false, error: "EcoGlobe backend is unavailable." },
       { status: 502 },
@@ -63,7 +85,6 @@ async function proxy(request: Request, { params }: RouteContext) {
   // The proxy intentionally forwards both successful and error responses, but
   // capture the status before consuming the body so auth-specific handling is safe.
   const backendOk = backendResponse.ok;
-  const responseBody = await backendResponse.arrayBuffer();
   const output = new NextResponse(responseBody, {
     status: backendResponse.status,
     headers: responseHeaders(backendResponse),
