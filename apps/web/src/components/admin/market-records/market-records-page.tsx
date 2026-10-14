@@ -3,9 +3,9 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BookOpen, Download, FileSpreadsheet, Loader2, Plus, Search } from "lucide-react";
+import { BookOpen, Download, FileSpreadsheet, FolderKanban, Loader2, Plus, Search } from "lucide-react";
 import { Button } from "@eco-globe/ui";
-import { describeBackendError } from "@/lib/backend-client";
+import { BackendApiError, describeBackendError } from "@/lib/backend-client";
 import {
   fetchMarketRecords,
   type MarketRecord,
@@ -14,6 +14,8 @@ import {
   type MarketRecordStatusFilter,
   type MarketSourceType,
 } from "@/lib/api-market-records";
+import { fetchMarketPortfolios } from "@/lib/api-market-portfolios";
+import { parsePortfolioParam } from "@/lib/market-portfolio-format";
 import {
   FIELD_STATUS_LABELS,
   SOURCE_RECORD_TYPE_LABELS,
@@ -68,6 +70,10 @@ function readParams(search: URLSearchParams): MarketRecordListParams {
     ),
     search: search.get("search")?.trim() || undefined,
     importBatchId: search.get("importBatchId") || undefined,
+    portfolioId: (() => {
+      const portfolio = parsePortfolioParam(search.get("portfolioId"));
+      return portfolio.kind === "valid" ? portfolio.id : undefined;
+    })(),
   };
 }
 
@@ -233,10 +239,16 @@ function MarketRecordsList() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const params = readParams(new URLSearchParams(searchParams.toString()));
-  const scope = JSON.stringify(params);
+  // A present but unreadable portfolio filter never falls back to all records.
+  const portfolioFilterInvalid =
+    parsePortfolioParam(searchParams.get("portfolioId")).kind === "invalid";
+  const scope = JSON.stringify({ ...params, portfolioFilterInvalid });
   const [searchText, setSearchText] = useState(params.search ?? "");
   const state = useBackendData(
-    () => fetchMarketRecords({ ...params, limit: PAGE_SIZE }),
+    () =>
+      portfolioFilterInvalid
+        ? Promise.reject(new BackendApiError("The portfolio filter in this link is not valid. Choose a portfolio or Any portfolio.", 400))
+        : fetchMarketRecords({ ...params, limit: PAGE_SIZE }),
     [scope],
     "Market records could not be loaded.",
   );
@@ -244,6 +256,11 @@ function MarketRecordsList() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<string | null>(null);
   const extra = more?.scope === scope ? more : null;
+  const portfolios = useBackendData(
+    () => fetchMarketPortfolios({ status: "all" }),
+    [],
+    "Portfolios could not be loaded.",
+  );
 
   const update = (changes: Record<string, string | undefined>) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -301,6 +318,14 @@ function MarketRecordsList() {
       actions={
         <>
           <Link
+            href="/admin/market-portfolios"
+            className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-neutral-900 hover:bg-neutral-50"
+            style={border}
+          >
+            <FolderKanban className="size-4" aria-hidden="true" />
+            Portfolios
+          </Link>
+          <Link
             href="/admin/market-records/references"
             className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-neutral-900 hover:bg-neutral-50"
             style={border}
@@ -352,7 +377,7 @@ function MarketRecordsList() {
         </Button>
       </form>
 
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
         {filter("status", "Status", params.status, [
           { value: "active", label: "Active" },
           { value: "archived", label: "Archived" },
@@ -375,6 +400,16 @@ function MarketRecordsList() {
         {filter("fieldStatus", "Field review", params.fieldStatus, [
           { value: "", label: "Any review status" },
           ...FIELD_STATUS_FILTERS,
+        ])}
+        {filter("portfolioId", "Portfolio", params.portfolioId ? String(params.portfolioId) : undefined, [
+          { value: "", label: portfolios.status === "error" ? "Any (portfolios unavailable)" : "Any portfolio" },
+          ...(portfolios.data ?? []).map((portfolio) => ({
+            value: String(portfolio.id),
+            label: `${portfolio.name}${portfolio.status === "archived" ? " (archived)" : ""}`,
+          })),
+          ...(params.portfolioId && !(portfolios.data ?? []).some((portfolio) => portfolio.id === params.portfolioId)
+            ? [{ value: String(params.portfolioId), label: `Portfolio #${params.portfolioId}` }]
+            : []),
         ])}
       </div>
 

@@ -7,7 +7,21 @@ import { materialImage, isMaterialIllustration } from "@/lib/material-images";
 import type { Listing } from "./browse-listings";
 import { useCityLocation } from "@/lib/use-city-location";
 import { STREET_STYLE } from "@/lib/street-map-style";
-import { type ViewerLocation, useViewerLocation } from "@/lib/viewer-location";
+import {
+  type ViewerLocation,
+  type ViewerLocationState,
+  useViewerLocation,
+} from "@/lib/viewer-location";
+import {
+  planCamera,
+  viewerLocationCaption,
+  viewerSourceDescription,
+  viewerSourceTitle,
+  cameraContext,
+  effectiveCameraMode,
+  type CameraPlan,
+  type CameraState,
+} from "@/lib/viewer-location-core";
 
 export interface MapListing {
   id: string;
@@ -199,22 +213,34 @@ interface ListingMapProps {
   notice?: React.ReactNode;
   /** Called when the visitor picks the map center as the radius origin. */
   onOriginChange?: (origin: { lng: number; lat: number; label: string }) => void;
+  /** Viewer location already resolved by the page; avoids a second lookup. */
+  viewer?: ViewerLocationState;
+  /**
+   * Browse maps open around the viewer (or explicit search origin) and offer
+   * Recenter / Show all controls. Other maps stay centred on their listings.
+   */
+  focusViewer?: boolean;
 }
 
-/**
- * Build the LngLatBounds we want the map to fit. Includes the listings and
- * the optional origin pin. We DO NOT extend by the radius envelope — the
- * radius circle is a reference overlay and can run past the viewport (mapbox
- * clips it). Including the envelope made the demo zoom out to continent scale.
- */
-function buildBounds(
-  data: MapListing[],
-  origin?: { lng: number; lat: number },
-): maplibregl.LngLatBounds {
+function applyCameraPlan(map: maplibregl.Map, plan: CameraPlan) {
+  if (plan.kind === "none") return;
+  if (plan.kind === "center") {
+    map.jumpTo({ center: [plan.center.lng, plan.center.lat], zoom: plan.zoom });
+    return;
+  }
+  // The radius circle is a reference overlay; only its envelope is fitted, not
+  // every listing, so a global catalogue does not zoom out to world scale.
   const bounds = new maplibregl.LngLatBounds();
-  data.forEach((l) => bounds.extend([l.lng, l.lat]));
-  if (origin) bounds.extend([origin.lng, origin.lat]);
-  return bounds;
+  plan.points.forEach((point) => bounds.extend([point.lng, point.lat]));
+  if (plan.radius) {
+    const { origin, miles } = plan.radius;
+    const dLat = miles / 69;
+    const dLng = miles / (69 * Math.max(0.1, Math.cos((origin.lat * Math.PI) / 180)));
+    bounds.extend([origin.lng - dLng, origin.lat - dLat]);
+    bounds.extend([origin.lng + dLng, origin.lat + dLat]);
+  }
+  if (!bounds.isEmpty())
+    map.fitBounds(bounds, { padding: 60, maxZoom: 11, duration: 0 });
 }
 
 /**
@@ -258,10 +284,7 @@ function circlePolygon(
 
 function buildViewerPopupContent(location: ViewerLocation): HTMLDivElement {
   const container = document.createElement("div");
-  const sourceLabel =
-    location.source === "browser"
-      ? "Approximate login location"
-      : "Saved company location";
+  const sourceLabel = viewerSourceDescription(location.source);
 
   Object.assign(container.style, {
     width: "210px",
@@ -270,7 +293,7 @@ function buildViewerPopupContent(location: ViewerLocation): HTMLDivElement {
   });
 
   const title = document.createElement("p");
-  title.textContent = "You are here";
+  title.textContent = viewerSourceTitle(location.source);
   Object.assign(title.style, {
     margin: "0 0 4px",
     fontSize: "14px",
@@ -300,23 +323,6 @@ function createViewerMarkerElement() {
   return el;
 }
 
-function extendBoundsWithMapData(
-  bounds: maplibregl.LngLatBounds,
-  data: MapListing[],
-  viewerLocation?: ViewerLocation | null,
-) {
-  data.forEach((l) => bounds.extend([l.lng, l.lat]));
-  if (viewerLocation) bounds.extend([viewerLocation.lng, viewerLocation.lat]);
-}
-
-function getViewerLocationLabel(viewerLocation?: ViewerLocation | null) {
-  if (!viewerLocation)
-    return "Enable location to show where you are browsing from";
-  return viewerLocation.source === "browser"
-    ? "Showing your approximate login location"
-    : `Showing saved company location: ${viewerLocation.label}`;
-}
-
 export function ListingMap({
   listings,
   selectedId,
@@ -331,6 +337,8 @@ export function ListingMap({
   unlocatedSelection,
   notice,
   onOriginChange,
+  viewer,
+  focusViewer = false,
 }: ListingMapProps = {}) {
   const city = useCityLocation(unlocatedSelection?.cityLocation);
   const data = useMemo(() => {
@@ -395,7 +403,14 @@ export function ListingMap({
     selectRef.current = onSelect;
     viewRef.current = onView;
   }, [onSelect, onView]);
-  const { location: viewerLocation } = useViewerLocation();
+  const ownViewer = useViewerLocation({ enabled: !viewer });
+  const { location: viewerLocation, status: viewerStatus } = viewer ?? ownViewer;
+  // "auto" follows the viewer/listings, "all" fits every listing, and "manual"
+  // means the visitor moved the map, so async updates must not move it back.
+  const [camera, setCamera] = useState<CameraState>({ mode: "auto", context: "", nonce: 0 });
+  // Read by map event listeners registered once at map creation.
+  const contextRef = useRef("");
+  const lastCameraKeyRef = useRef<string | null>(null);
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -426,9 +441,18 @@ export function ListingMap({
       attributionControl: { compact: false },
       maxZoom: 19,
       renderWorldCopies: false,
-      center: [-91.15, 30.45],
-      zoom: 8.5,
+      // Neutral world view until a listing, origin or viewer location is known.
+      center: [0, 20],
+      zoom: 1,
     });
+    const markManual = (event: { originalEvent?: unknown }) => {
+      if (event.originalEvent)
+        setCamera((current) => ({ ...current, mode: "manual", context: contextRef.current }));
+    };
+    mapInstance.on("dragstart", markManual);
+    mapInstance.on("zoomstart", markManual);
+    mapInstance.on("rotatestart", markManual);
+    mapInstance.on("pitchstart", markManual);
 
     mapInstance.addControl(new maplibregl.NavigationControl(), "bottom-right");
     mapRef.current = mapInstance;
@@ -505,40 +529,59 @@ export function ListingMap({
   }, [data, activeId]);
 
   // Keep camera fitting independent of asynchronous style/overlay loading.
+  const context = cameraContext(selectedId, radiusMiles);
+  useEffect(() => {
+    contextRef.current = context;
+  }, [context]);
+  const cameraMode = effectiveCameraMode(camera, context);
+  const cameraPlan = useMemo(
+    () =>
+      planCamera({
+        points: data.map(({ lng, lat }) => ({ lng, lat })),
+        origin: origin && { lng: origin.lng, lat: origin.lat },
+        radiusMiles,
+        radiusFitListings,
+        selectedId,
+        selectionRadius,
+        selectedPoint: selectedListing && {
+          lng: selectedListing.lng,
+          lat: selectedListing.lat,
+        },
+        viewer: viewerLocation && { lng: viewerLocation.lng, lat: viewerLocation.lat },
+        focusViewer,
+        mode: cameraMode,
+      }),
+    [
+      data,
+      origin,
+      radiusMiles,
+      radiusFitListings,
+      selectedId,
+      selectionRadius,
+      selectedListing,
+      viewerLocation,
+      focusViewer,
+      cameraMode,
+    ],
+  );
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || (selectedId && !selectionRadius)) return;
-    const hasRadius = origin && radiusMiles && radiusMiles > 0;
-    const bounds = buildBounds(
-      hasRadius && !radiusFitListings
-        ? []
-        : selectedListing
-          ? [selectedListing]
-          : data,
-      origin,
-    );
-    if (!hasRadius && !selectedListing)
-      extendBoundsWithMapData(bounds, [], viewerLocation);
-    if (hasRadius) {
-      const dLat = radiusMiles / 69;
-      const dLng =
-        radiusMiles /
-        (69 * Math.max(0.1, Math.cos((origin.lat * Math.PI) / 180)));
-      bounds.extend([origin.lng - dLng, origin.lat - dLat]);
-      bounds.extend([origin.lng + dLng, origin.lat + dLat]);
-    }
-    if (!bounds.isEmpty())
-      map.fitBounds(bounds, { padding: 60, maxZoom: 11, duration: 0 });
-  }, [
-    data,
-    origin,
-    radiusMiles,
-    radiusFitListings,
-    viewerLocation,
-    selectedId,
-    selectionRadius,
-    selectedListing,
-  ]);
+    if (!map) return;
+    // Re-applying an identical plan would undo small adjustments for nothing;
+    // the nonce lets a repeated explicit click re-apply it on purpose.
+    const key = `${camera.nonce}:${JSON.stringify(cameraPlan)}`;
+    if (key === lastCameraKeyRef.current) return;
+    lastCameraKeyRef.current = key;
+    applyCameraPlan(map, cameraPlan);
+  }, [cameraPlan, camera.nonce]);
+
+  const recenterOnViewer = () => {
+    if (!viewerLocation) return;
+    setCamera((current) => ({ mode: "viewer", context, nonce: current.nonce + 1 }));
+  };
+  const showAllListings = () => {
+    setCamera((current) => ({ mode: "all", context, nonce: current.nonce + 1 }));
+  };
 
   // Sync origin pin + radius circle (map renderer)
 
@@ -785,10 +828,34 @@ export function ListingMap({
           {notice}
         </div>
       )}
-      <div className="absolute bottom-8 left-3 max-w-[280px] rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-neutral-700 shadow-sm backdrop-blur-sm">
+      {focusViewer && (
+        <div className="absolute bottom-16 left-3 z-10 flex flex-col items-start gap-2">
+          <button
+            type="button"
+            onClick={recenterOnViewer}
+            disabled={!viewerLocation}
+            title={viewerLocation ? undefined : "Your location is not available"}
+            className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-neutral-900 shadow disabled:cursor-not-allowed disabled:text-neutral-400"
+          >
+            Recenter on my location
+          </button>
+          <button
+            type="button"
+            onClick={showAllListings}
+            disabled={data.length === 0}
+            className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-neutral-900 shadow disabled:cursor-not-allowed disabled:text-neutral-400"
+          >
+            Show all listings
+          </button>
+        </div>
+      )}
+      <div
+        role="status"
+        className="absolute bottom-8 left-3 max-w-[280px] rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-neutral-700 shadow-sm backdrop-blur-sm"
+      >
         {origin && radiusMiles
           ? `${radiusMiles} mi radius · ${origin.label ?? "Selected location"}`
-          : getViewerLocationLabel(viewerLocation)}
+          : viewerLocationCaption(viewerLocation, viewerStatus)}
       </div>
     </div>
   );

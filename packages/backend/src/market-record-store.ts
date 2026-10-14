@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { portfolioId } from "./market-portfolio-domain.js";
 import type {
   MarketRecord,
   MarketRecordData,
@@ -435,6 +436,10 @@ export async function listRecords(
   const { limit, cursor } = pagination(params);
   const where: string[] = [];
   const parameters: QueryParameter[] = [];
+  if (params.has("portfolioId")) {
+    parameters.push(int("portfolioId", portfolioId(params.get("portfolioId"))));
+    where.push("EXISTS(SELECT 1 FROM dbo.MarketPortfolioRecords pm WHERE pm.PortfolioId=@portfolioId AND pm.RecordId=r.Id)");
+  }
   const filter = (column: string, value: unknown) => {
     const name = "f" + parameters.length;
     parameters.push(str(name, value));

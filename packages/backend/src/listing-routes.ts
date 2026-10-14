@@ -1,4 +1,6 @@
 import { usableListingDocumentSql } from "./listing-safety.js";
+import { portfolioId } from "./market-portfolio-domain.js";
+import { requirePortfolioAccess } from "./market-portfolio-store.js";
 import { createHash, randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { getOptionalSessionAuth, requireSessionAuth } from "./auth.js";
@@ -554,6 +556,12 @@ export async function handleListingRoute(
         });
         return true;
       }
+      const selectedPortfolio = url.searchParams.has("portfolioId") ? portfolioId(url.searchParams.get("portfolioId")) : null;
+      if (selectedPortfolio !== null) {
+        if (owned) throw new ApiError(400, "Portfolio selection requires the public catalogue scope.");
+        await requirePortfolioAccess(selectedPortfolio, viewer);
+        response.setHeader("cache-control", "private, no-store");
+      }
       const company = url.searchParams.get("sellerCompanyId");
       if (company !== null && (!/^\d+$/.test(company) || Number(company) <= 0))
         throw new ApiError(400, "Invalid sellerCompanyId.");
@@ -573,16 +581,21 @@ export async function handleListingRoute(
       const catalogueRows = await query(
         selectListing +
           ` WHERE ` +
-          (auth
+          (auth && selectedPortfolio === null
             ? "(l.SellerCompanyId=@companyId OR @admin=1)"
             : "ls.Code='published' AND vs.Code <> 'inactive'") +
-          ` AND (@seller IS NULL OR l.SellerCompanyId=@seller) AND (@status IS NULL OR ls.Code=@status) AND (@search IS NULL OR l.Title LIKE '%'+@search+'%' OR l.Description LIKE '%'+@search+'%') ORDER BY l.Id DESC`,
+          ` AND (@seller IS NULL OR l.SellerCompanyId=@seller) AND (@status IS NULL OR ls.Code=@status) AND (@search IS NULL OR l.Title LIKE '%'+@search+'%' OR l.Description LIKE '%'+@search+'%')` +
+          (selectedPortfolio === null ? "" : ` AND EXISTS(SELECT 1 FROM dbo.MarketPortfolioListings pl JOIN dbo.MarketPortfolios p ON p.Id=pl.PortfolioId WHERE pl.PortfolioId=@portfolioId AND pl.ListingId=l.Id AND p.Status='active' AND (@portfolioAdmin=1 OR EXISTS(SELECT 1 FROM dbo.MarketPortfolioCompanies pc WHERE pc.PortfolioId=p.Id AND pc.CompanyId=@portfolioCompany)))`) +
+          ` ORDER BY l.Id DESC`,
         [
           int("companyId", auth?.companyId),
           int("admin", auth?.isAdmin ? 1 : 0),
           int("seller", company === null ? null : Number(company)),
           str("status", status),
           str("search", search),
+          int("portfolioId", selectedPortfolio),
+          int("portfolioAdmin", viewer?.isAdmin ? 1 : 0),
+          int("portfolioCompany", viewer?.companyId ?? null),
         ],
       );
       // Filter saved SQL coordinates before teaser redaction; never invent an origin.

@@ -47,6 +47,8 @@ export interface MarketRecordListParams {
   sourceChecked?: "true" | "false";
   fieldStatus?: `${MarketReviewField}:${MarketReviewStatus}`;
   importBatchId?: string;
+  /** Only records that belong to this internal demo portfolio. */
+  portfolioId?: number;
   cursor?: string;
   limit?: number;
 }

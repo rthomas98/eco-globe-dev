@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Listing } from "@/components/public/browse-listings";
 import { describeBackendError } from "./backend-client";
 import {
@@ -10,6 +10,7 @@ import {
   type ListingScope,
 } from "./listings-api";
 import { toListing } from "./listing-view";
+import { currentListingsState, listingsResultKey } from "./listings-result-key";
 import { useDemoUser, readDemoUser, clearDemoUser } from "./demo-user";
 import { refreshBackendSession } from "./backend-auth";
 import { BackendApiError } from "./backend-client";
@@ -51,15 +52,20 @@ export interface ListingsState {
  */
 export function useListings(
   scope: ListingScope,
-  options: { search?: string; enabled?: boolean } = {},
+  options: { search?: string; enabled?: boolean; portfolioId?: number } = {},
 ): ListingsState {
-  const { search, enabled = true } = options;
+  const { search, enabled = true, portfolioId } = options;
   const viewerKey = useListingViewerKey();
-  const [state, setState] = useState<Omit<ListingsState, "reload">>({
+  // Cards from one viewer/company or portfolio must never be shown while
+  // another one loads.
+  const resultKey = listingsResultKey({ viewerKey, scope, search, portfolioId });
+  const loadedKeyRef = useRef<string | null>(null);
+  const [state, setState] = useState<Omit<ListingsState, "reload"> & { key: string | null }>({
     status: "loading",
     listings: [],
     records: [],
     error: null,
+    key: null,
   });
   const [version, setVersion] = useState(0);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
@@ -71,11 +77,17 @@ export function useListings(
 
   useEffect(() => {
     if (!enabled) {
-      setState({ status: "ready", listings: [], records: [], error: null });
+      setState({ status: "ready", listings: [], records: [], error: null, key: resultKey });
       return;
     }
     let cancelled = false;
-    setState((prev) => ({ ...prev, status: "loading", error: null }));
+    const controller = new AbortController();
+    const sameResult = loadedKeyRef.current === resultKey;
+    setState((prev) =>
+      sameResult
+        ? { ...prev, status: "loading", error: null }
+        : { status: "loading", listings: [], records: [], error: null, key: null },
+    );
     (async () => {
       // Public pages must not treat a cached profile as a valid server session.
       // The listings request is authorized server-side from the same session
@@ -83,7 +95,7 @@ export function useListings(
       // after it; a 401 still clears the cached profile, which changes the
       // viewer key and refetches as a guest.
       const [records] = await Promise.all([
-        fetchListings(scope, { search }),
+        fetchListings(scope, { search, portfolioId, signal: controller.signal }),
         readDemoUser()
           ? sharedSessionRefresh().catch((error: unknown) => {
               if (error instanceof BackendApiError && error.status === 401) clearDemoUser();
@@ -95,8 +107,10 @@ export function useListings(
     })()
       .then((records) => {
         if (cancelled) return;
+        loadedKeyRef.current = resultKey;
         setState({
           status: "ready",
+          key: resultKey,
           records,
           listings: records.map((record) => {
             const listing = toListing(record);
@@ -113,19 +127,24 @@ export function useListings(
       })
       .catch((error) => {
         if (cancelled) return;
+        loadedKeyRef.current = null;
         setState({
           status: "error",
           records: [],
           listings: [],
           error: describeBackendError(error, "Listings could not be loaded."),
+          key: resultKey,
         });
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [scope, search, enabled, version, viewerKey]);
+  }, [scope, search, enabled, version, viewerKey, portfolioId, resultKey]);
 
-  return { ...state, reload };
+  // Before the effect runs for a new portfolio/search, a result that belongs to
+  // the previous one reads as loading rather than showing stale cards.
+  return { ...currentListingsState(state, resultKey, enabled), reload };
 }
 
 export interface ListingDetailState {

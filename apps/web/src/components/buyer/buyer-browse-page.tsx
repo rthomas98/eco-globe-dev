@@ -1,9 +1,9 @@
 "use client";
 import { matchesListingCategory } from "@/lib/listing-category";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   MapPin,
@@ -27,6 +27,15 @@ import { BuyerLayout } from "./buyer-layout";
 import { useViewerLocation } from "@/lib/viewer-location";
 import { filterByRadius, formatMiles } from "@/lib/radius-filter";
 import { FeedstockIqCard, FeedstockIqPrompt } from "@/components/feedstock-iq/feedstock-iq-prompt";
+import { useDemoUser } from "@/lib/demo-user";
+import { useBackendData } from "@/components/shared/data-state";
+import { fetchAssignedPortfolios } from "@/lib/api-market-portfolios";
+import {
+  PORTFOLIO_PARAM,
+  parsePortfolioParam,
+  shouldClearPortfolioAfterCompanyChange,
+  withPortfolioParam,
+} from "@/lib/market-portfolio-format";
 
 function ListingCard({
   listing,
@@ -102,9 +111,75 @@ function LocationPill({ value }: { value: string }) {
   );
 }
 
-export function BuyerBrowsePage() {
+/**
+ * Demo portfolio selection lives in `?portfolioId=` so a link reloads the same
+ * group. Groups are only offered when the company has assignments; the server
+ * enforces access and never widens a refused group to the full catalogue.
+ */
+function useDemoPortfolioSelection() {
   const router = useRouter();
-  const { location: viewerLocation } = useViewerLocation();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const user = useDemoUser();
+  const userKey = user ? String(user.id ?? user.email) : null;
+  const companyId = user?.activeCompanyId ?? null;
+  const selected = parsePortfolioParam(searchParams.get(PORTFOLIO_PARAM));
+  const assigned = useBackendData(
+    () => (userKey ? fetchAssignedPortfolios() : Promise.resolve([])),
+    [userKey, companyId],
+    "Demo portfolios could not be loaded.",
+  );
+
+  const select = (id: number | null) => {
+    router.replace(`${pathname}${withPortfolioParam(searchParams.toString(), id)}`, {
+      scroll: false,
+    });
+  };
+
+  // Switching company clears a group the new company is not assigned to.
+  const observedCompany = useRef<{ userKey: string; companyId: number | null } | null>(null);
+  const [companyChanged, setCompanyChanged] = useState(false);
+  useEffect(() => {
+    if (!userKey) return;
+    const previous = observedCompany.current;
+    if (previous && previous.userKey === userKey && previous.companyId !== companyId)
+      setCompanyChanged(true);
+    observedCompany.current = { userKey, companyId };
+  }, [userKey, companyId]);
+  const assignedIds = assigned.status === "ready" ? (assigned.data ?? []).map((item) => item.id) : null;
+  const clearSelection =
+    shouldClearPortfolioAfterCompanyChange({ companyChanged, selected, assignedIds });
+  useEffect(() => {
+    if (!companyChanged || assignedIds === null) return;
+    setCompanyChanged(false);
+    if (clearSelection) select(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyChanged, assignedIds === null, clearSelection]);
+
+  return { selected, assigned, select };
+}
+
+export function BuyerBrowsePage() {
+  return (
+    <Suspense>
+      <BuyerBrowseContent />
+    </Suspense>
+  );
+}
+
+function BuyerBrowseContent() {
+  const router = useRouter();
+  const portfolio = useDemoPortfolioSelection();
+  const selectedPortfolioId =
+    portfolio.selected.kind === "valid" ? portfolio.selected.id : undefined;
+  const assignedPortfolios = portfolio.assigned.data ?? [];
+  const selectedPortfolioName = assignedPortfolios.find(
+    (item) => item.id === selectedPortfolioId,
+  )?.name;
+  const showPortfolioSelector =
+    assignedPortfolios.length > 0 || portfolio.selected.kind !== "none";
+  const viewer = useViewerLocation();
+  const viewerLocation = viewer.location;
   const [search, setSearch] = useState("");
   // "0" = any distance; the list is filtered only when a radius is chosen.
   const [radius, setRadius] = useState("0");
@@ -132,7 +207,11 @@ export function BuyerBrowsePage() {
       return false;
     });
 
-  const published = useListings("public");
+  const published = useListings("public", {
+    // An unreadable portfolio link must not fall back to the full catalogue.
+    enabled: portfolio.selected.kind !== "invalid",
+    portfolioId: selectedPortfolioId,
+  });
   const matchingListings = published.listings.filter((l) => {
     const haystack = `${l.title} ${l.tags.join(" ")}`.toLowerCase();
     if (q && !haystack.includes(q)) return false;
@@ -245,6 +324,29 @@ export function BuyerBrowsePage() {
               />
             </div>
 
+            {showPortfolioSelector && (
+              <select
+                aria-label="Demo portfolio"
+                value={selectedPortfolioId ? String(selectedPortfolioId) : ""}
+                onChange={(e) => {
+                  setSelectedId(null);
+                  portfolio.select(e.target.value ? Number(e.target.value) : null);
+                }}
+                className="max-w-[240px] rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none"
+                style={{ border: "1px solid #E0E0E0" }}
+              >
+                <option value="">All available listings</option>
+                {assignedPortfolios.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+                {selectedPortfolioId && !selectedPortfolioName && (
+                  <option value={selectedPortfolioId}>Portfolio #{selectedPortfolioId}</option>
+                )}
+              </select>
+            )}
+
             <div className="hidden sm:block">
               <LocationPill
                 value={radiusMiles > 0 ? `Search radius: ${radiusMiles} mi` : "Any distance"}
@@ -296,6 +398,23 @@ export function BuyerBrowsePage() {
               <div className="mb-4">
                 <FeedstockIqCard />
               </div>
+              {portfolio.selected.kind !== "none" && (
+                <p role="status" className="mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-neutral-50 p-4 text-sm text-neutral-700">
+                  {portfolio.selected.kind === "invalid"
+                    ? "This demo portfolio link is not valid, so no listings are shown."
+                    : `Demo portfolio: ${selectedPortfolioName ?? `#${selectedPortfolioId}`}. Only listings you can already see are included.`}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedId(null);
+                      portfolio.select(null);
+                    }}
+                    className="font-semibold underline"
+                  >
+                    Show all available listings
+                  </button>
+                </p>
+              )}
               <p className="mb-4 text-sm text-neutral-700">
                 {visibleListings.length} listing{visibleListings.length === 1 ? "" : "s"}
               </p>
@@ -318,7 +437,7 @@ export function BuyerBrowsePage() {
                   )}
                 </p>
               )}
-              {published.status === "loading" ? (
+              {portfolio.selected.kind === "invalid" ? null : published.status === "loading" ? (
                 <p
                   className="rounded-xl bg-neutral-50 py-16 text-center text-sm text-neutral-600"
                   role="status"
@@ -343,7 +462,9 @@ export function BuyerBrowsePage() {
                 <div className="flex flex-col items-center gap-3 rounded-xl bg-neutral-50 py-16 text-center">
                   <p className="text-base font-semibold text-neutral-900">
                     {published.listings.length === 0
-                      ? "No published listings yet"
+                      ? selectedPortfolioId
+                        ? "No listings from this demo portfolio are available to you"
+                        : "No published listings yet"
                       : "No matches found"}
                   </p>
                   <p className="max-w-[360px] text-sm text-neutral-600">
@@ -403,6 +524,8 @@ export function BuyerBrowsePage() {
               radiusMiles={radiusMiles || undefined}
               notice={mapNotice}
               onOriginChange={setManualOrigin}
+              viewer={viewer}
+              focusViewer
             />
             <button
               type="button"

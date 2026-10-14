@@ -5,6 +5,7 @@ import * as maplibregl from "maplibre-gl";
 import { STREET_STYLE } from "@/lib/street-map-style";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { type ViewerLocation, useViewerLocation } from "@/lib/viewer-location";
+import { viewerSourceDescription, viewerSourceTitle } from "@/lib/viewer-location-core";
 
 interface SellerLocationMapProps {
   lng: number;
@@ -28,13 +29,6 @@ function createViewerMarkerElement() {
   return el;
 }
 
-function getViewerLocationLabel(viewerLocation?: ViewerLocation | null) {
-  if (!viewerLocation) return "Enable location to show where you are browsing from";
-  return viewerLocation.source === "browser"
-    ? "Showing your approximate login location"
-    : `Showing saved company location: ${viewerLocation.label}`;
-}
-
 function buildViewerPopupContent(location: ViewerLocation): HTMLDivElement {
   const container = document.createElement("div");
   Object.assign(container.style, {
@@ -44,7 +38,7 @@ function buildViewerPopupContent(location: ViewerLocation): HTMLDivElement {
   });
 
   const title = document.createElement("p");
-  title.textContent = "You are here";
+  title.textContent = viewerSourceTitle(location.source);
   Object.assign(title.style, {
     margin: "0 0 4px",
     fontSize: "14px",
@@ -56,8 +50,8 @@ function buildViewerPopupContent(location: ViewerLocation): HTMLDivElement {
   const detail = document.createElement("p");
   detail.textContent =
     location.source === "browser"
-      ? "Approximate login location"
-      : `Saved company location · ${location.label}`;
+      ? viewerSourceDescription("browser")
+      : `${viewerSourceDescription(location.source)} · ${location.label}`;
   Object.assign(detail.style, {
     margin: "0",
     fontSize: "12px",
@@ -128,11 +122,8 @@ export function SellerLocationMap({
       .setPopup(popup)
       .addTo(map);
 
-    const bounds = new maplibregl.LngLatBounds();
-    bounds.extend([lng, lat]);
-    bounds.extend([viewerLocation.lng, viewerLocation.lat]);
-    map.fitBounds(bounds, { padding: 80, maxZoom: 11, duration: 600 });
-
+    // The camera stays on the seller facility; the viewer pin is context only
+    // and must not pull the map towards the buyer (or an approximate IP city).
     viewerMarkerRef.current = { marker, popup };
   }, [lng, lat, retry, viewerLocation]);
 
@@ -142,7 +133,7 @@ export function SellerLocationMap({
       {mapError && <div role="status" className="absolute left-3 top-3 z-10 rounded-md bg-white p-2 text-xs shadow">Street map could not load. <button className="underline" onClick={() => { setMapError(false); setRetry((value) => value + 1); }}>Retry</button></div>}
       <div ref={mapContainer} className="h-full w-full rounded-xl" />
       <div className="absolute bottom-8 left-3 max-w-[280px] rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-neutral-700 shadow-sm backdrop-blur-sm">
-        {getViewerLocationLabel(viewerLocation)}
+        Seller facility location
       </div>
     </div>
   );

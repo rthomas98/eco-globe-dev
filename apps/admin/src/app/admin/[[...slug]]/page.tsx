@@ -16,6 +16,9 @@ import { LabPanelsPage } from "@/components/admin/lab-panels-page";
 import { LabTestingQueuePage } from "@/components/admin/lab-testing-queue-page";
 import { AdminListingDetailPage } from "@/components/admin/listing-detail-page";
 import { AdminListingsPage } from "@/components/admin/listings-page";
+import { MarketPortfolioCreatePage } from "@/components/admin/market-portfolios/market-portfolio-create-page";
+import { MarketPortfolioDetailPage } from "@/components/admin/market-portfolios/market-portfolio-detail-page";
+import { MarketPortfoliosPage } from "@/components/admin/market-portfolios/market-portfolios-page";
 import { MarketRecordCreatePage } from "@/components/admin/market-records/market-record-create-page";
 import { MarketRecordDetailPage } from "@/components/admin/market-records/market-record-detail-page";
 import { MarketRecordsImportPage } from "@/components/admin/market-records/market-records-import-page";
@@ -173,6 +176,12 @@ export default async function Page({ params }: PageProps) {
     if (second === "import") return <MarketRecordsImportPage />;
     if (second === "references") return <MarketReferencesPage />;
     return <MarketRecordDetailPage id={second} />;
+  }
+  if (section === "market-portfolios") {
+    if (third) notFound();
+    if (!second) return <MarketPortfoliosPage />;
+    if (second === "new") return <MarketPortfolioCreatePage />;
+    return <MarketPortfolioDetailPage id={second} />;
   }
   if (section === "buyers") {
     return second ? <AdminBuyerDetailPage id={second} /> : <AdminBuyersPage />;

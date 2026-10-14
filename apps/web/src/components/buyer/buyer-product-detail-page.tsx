@@ -203,6 +203,19 @@ export function BuyerProductDetailPage() {
           ))}
         </div>
 
+        <h2 className="mb-4 text-xl font-bold text-neutral-900">Carbon Analytics Tool</h2>
+        <div className="mb-6 rounded-xl bg-neutral-50 p-6">
+          <p className="mb-4 text-sm text-neutral-700">Estimate transportation footprint, compare scenarios, and estimate your savings for {product.title}.</p>
+          <div className="flex flex-wrap gap-3">
+            <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="primary" label="Open Carbon Calculator" />
+            <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="primary" label="Estimate savings" startAt="value-recovery" />
+          </div>
+        </div>
+
+        <div className="mb-10 flex items-center justify-between rounded-xl bg-neutral-50 px-6 py-4">
+          <p className="text-sm text-neutral-700">Was this tool helpful, give us your feedback here</p>
+          <div className="flex gap-3"><button className="text-neutral-500 hover:text-neutral-900"><ThumbsUp className="size-5" /></button><button className="text-neutral-500 hover:text-neutral-900"><ThumbsDown className="size-5" /></button></div>
+        </div>
         <ListingAnalysis listing={labListing} viewer={{ signedIn: !!user, canRequest, isOwner }} />
 
         <h2 className="mb-4 text-xl font-bold text-neutral-900">Overview</h2>
@@ -244,19 +257,6 @@ export function BuyerProductDetailPage() {
           </div>
         </div>
 
-        <h2 className="mb-4 text-xl font-bold text-neutral-900">Carbon Analytics Tool</h2>
-        <div className="mb-6 rounded-xl bg-neutral-50 p-6">
-          <p className="mb-4 text-sm text-neutral-700">Estimate transportation footprint, compare scenarios, and estimate your savings for {product.title}.</p>
-          <div className="flex flex-wrap gap-3">
-            <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="primary" label="Open Carbon Calculator" />
-            <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="primary" label="Estimate savings" startAt="value-recovery" />
-          </div>
-        </div>
-
-        <div className="mb-10 flex items-center justify-between rounded-xl bg-neutral-50 px-6 py-4">
-          <p className="text-sm text-neutral-700">Was this tool helpful, give us your feedback here</p>
-          <div className="flex gap-3"><button className="text-neutral-500 hover:text-neutral-900"><ThumbsUp className="size-5" /></button><button className="text-neutral-500 hover:text-neutral-900"><ThumbsDown className="size-5" /></button></div>
-        </div>
       </div>
 
       <div className="w-full shrink-0 lg:w-[380px]">
@@ -286,7 +286,10 @@ export function BuyerProductDetailPage() {
             <div className="flex items-center justify-between text-sm"><span className="text-neutral-700">Item subtotal</span><span className="font-medium text-neutral-900">{money(itemSubtotal)}</span></div>
             <div className="flex items-center justify-between text-sm"><span className="text-neutral-700">Shipping</span><span className="text-neutral-500">Quoted per order</span></div>
           </div>
-          <div className="mb-5 mt-3 flex items-center justify-between text-base font-bold"><span className="text-neutral-900">Subtotal (excl. shipping)</span><span className="text-neutral-900">{money(itemSubtotal)}</span></div>
+          <div className="mb-4 mt-3 flex items-center justify-between text-base font-bold"><span className="text-neutral-900">Subtotal (excl. shipping)</span><span className="text-neutral-900">{money(itemSubtotal)}</span></div>
+          <div className="mb-4">
+            <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="block" label="Estimate savings" startAt="value-recovery" />
+          </div>
 
           <Button variant="primary" size="lg" className="w-full" onClick={handleBuyNow} disabled={buyDisabled || openingCheckout} aria-busy={openingCheckout} style={buyDisabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}>{openingCheckout ? "Opening checkout…" : "Buy Now"}</Button>
           {canRequest && sampleConfigError && <p className="mt-3 text-sm text-amber-800">{sampleConfigError} <button className="underline" onClick={()=>setSampleConfigVersion(v=>v+1)}>Retry</button> · <Link href="/contact" className="underline">Ask EcoGlobe about a sample</Link></p>}
@@ -305,7 +308,6 @@ export function BuyerProductDetailPage() {
           {!priceKnown && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />No price recorded — request a quote from the seller.</p>}
           <div className="mt-4 flex flex-col gap-2">
             <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="ghost" label="Open Carbon Calculator" />
-            <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="ghost" label="Estimate savings" startAt="value-recovery" />
             {hasSds && <a href={product.sdsUrl ?? "#"} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-neutral-900 hover:bg-neutral-50" style={{ border: "1px solid #E0E0E0" }}><FileText className="size-3.5" />Download SDS</a>}
           </div>
         </div>

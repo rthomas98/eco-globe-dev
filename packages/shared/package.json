@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./admin-auth": "./src/admin-auth.ts",
     "./market-records-api": "./src/market-records-api.d.ts",
-    "./market-references-api": "./src/market-references-api.d.ts"
+    "./market-references-api": "./src/market-references-api.d.ts",
+    "./market-portfolios-api": "./src/market-portfolios-api.d.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",

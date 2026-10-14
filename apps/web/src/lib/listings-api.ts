@@ -199,16 +199,30 @@ export function listingRouteId(listing: Pick<BackendListing, "id" | "slug">) {
 
 export async function fetchListings(
   scope: ListingScope,
-  options: { search?: string; sellerCompanyId?: number } = {},
+  options: {
+    search?: string;
+    sellerCompanyId?: number;
+    /**
+     * Demo portfolio filter for the public catalogue. The server checks the
+     * company's assignment and refuses (never widens) an invalid group.
+     */
+    portfolioId?: number;
+    signal?: AbortSignal;
+  } = {},
 ) {
   const response = await apiFetch<{ ok: true; listings: BackendListing[] }>(
     `/api/listings${scopeQuery(scope, {
+      scope: options.portfolioId && scope === "public" ? "public" : undefined,
+      portfolioId:
+        options.portfolioId && scope === "public"
+          ? String(options.portfolioId)
+          : undefined,
       search: options.search,
       sellerCompanyId: options.sellerCompanyId
         ? String(options.sellerCompanyId)
         : undefined,
     })}`,
-    { method: "GET" },
+    { method: "GET", signal: options.signal },
   );
   return response.listings ?? [];
 }

@@ -8,6 +8,7 @@ export function MarketRecordShell({
   backHref,
   backLabel,
   actions,
+  notice,
   children,
 }: {
   title: string;
@@ -15,6 +16,8 @@ export function MarketRecordShell({
   backHref?: string;
   backLabel?: string;
   actions?: React.ReactNode;
+  /** Replaces the research-registry notice on related screens (e.g. portfolios). */
+  notice?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -36,7 +39,7 @@ export function MarketRecordShell({
           </div>
           {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
         </div>
-        <InternalRecordsNotice />
+        {notice ?? <InternalRecordsNotice />}
         {children}
       </div>
     </div>

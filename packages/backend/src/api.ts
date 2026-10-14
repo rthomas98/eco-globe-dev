@@ -1,4 +1,5 @@
 import { handleMarketRecordRoute } from "./market-record-routes.js";
+import { handleMarketPortfolioRoute } from "./market-portfolio-routes.js";
 import { requireListingSds } from "./listing-safety.js";
 import { sameQuantityUnit } from "./quantity-units.js";
 import { orderInvoicePdf, type InvoiceOrder, type InvoicePayment } from "./order-invoice.js";
@@ -6630,6 +6631,7 @@ export async function handleApiRoute(
   response: ServerResponse,
   requestUrl: URL,
 ) {
+  if (await handleMarketPortfolioRoute(request,response,requestUrl)) return true;
   if (await handleMarketRecordRoute(request,response,requestUrl)) return true;
   // The modular handlers own listing/sample CRUD. Legacy core implementations below
   // remain for reference; only explicitly forwarded marketplace/moderation paths reach them.

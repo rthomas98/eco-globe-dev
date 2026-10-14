@@ -168,7 +168,8 @@ export function BrowsePage() {
 
   // The map centers on the customer's address by default: their detected
   // browser location, falling back to a saved company facility.
-  const { location: viewerLocation } = useViewerLocation();
+  const viewer = useViewerLocation();
+  const viewerLocation = viewer.location;
   const mapOrigin = useMemo(
     () =>
       searchedLocation && hasCoordinates(searchedLocation)
@@ -630,6 +631,8 @@ export function BrowsePage() {
             radiusFitListings={false}
             notice={mapNotice}
             onOriginChange={setManualOrigin}
+            viewer={viewer}
+            focusViewer
           />
         </div>
       </div>

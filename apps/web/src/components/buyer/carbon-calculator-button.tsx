@@ -16,7 +16,8 @@ interface Props {
   initialQuantity?: number;
   /** Open directly on the value-recovery step. */
   startAt?: CalculatorStart;
-  variant?: "primary" | "ghost" | "icon";
+  /** `block` is the full-width purchase-card treatment. */
+  variant?: "primary" | "ghost" | "icon" | "block";
   label?: string;
 }
 
@@ -37,6 +38,11 @@ export function CarbonCalculatorButton({
       {variant === "icon" ? (
         <button type="button" onClick={() => setOpen(true)} aria-label={label} className="flex size-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900">
           <Icon className="size-4" />
+        </button>
+      ) : variant === "block" ? (
+        <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center justify-center gap-2 rounded-full bg-green-50 py-2.5 text-sm font-semibold text-green-900 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-700/40" style={{ border: "1px solid #86EFAC" }}>
+          <Icon className="size-4" />
+          {label}
         </button>
       ) : variant === "primary" ? (
         <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-4 py-2 text-sm font-bold text-white hover:opacity-90">

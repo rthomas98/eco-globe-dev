@@ -287,6 +287,23 @@ export function ProductDetailPage() {
             ))}
           </div>
 
+          <h2 className="mb-4 text-xl font-bold text-neutral-900">Carbon Analytics Tool</h2>
+          <div className="mb-6 rounded-xl bg-neutral-50 p-6">
+            <p className="mb-4 text-sm text-neutral-700">Estimate transportation footprint, compare scenarios, and estimate your savings for {product.title}.</p>
+            {isMember ? (
+              <div className="flex flex-wrap gap-3">
+                <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="primary" label="Open Carbon Calculator" />
+                <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="primary" label="Estimate savings" startAt="value-recovery" />
+              </div>
+            ) : (
+              <Link href="/login" className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-4 py-2 text-sm font-bold text-white hover:opacity-90"><Lock className="size-3.5" />Sign in to use the Calculator</Link>
+            )}
+          </div>
+
+          <div className="mb-10 flex items-center justify-between rounded-xl bg-neutral-50 px-6 py-4">
+            <p className="text-sm text-neutral-700">Was this tool helpful, give us your feedback here</p>
+            <div className="flex gap-3"><button className="text-neutral-500 hover:text-neutral-900"><ThumbsUp className="size-5" /></button><button className="text-neutral-500 hover:text-neutral-900"><ThumbsDown className="size-5" /></button></div>
+          </div>
           <ListingAnalysis listing={labListing} viewer={{ signedIn: isMember, canRequest, isOwner }} />
 
           <h2 className="mb-4 text-xl font-bold text-neutral-900">Overview</h2>
@@ -338,23 +355,6 @@ export function ProductDetailPage() {
             </div>
           </div>
 
-          <h2 className="mb-4 text-xl font-bold text-neutral-900">Carbon Analytics Tool</h2>
-          <div className="mb-6 rounded-xl bg-neutral-50 p-6">
-            <p className="mb-4 text-sm text-neutral-700">Estimate transportation footprint, compare scenarios, and estimate your savings for {product.title}.</p>
-            {isMember ? (
-              <div className="flex flex-wrap gap-3">
-                <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="primary" label="Open Carbon Calculator" />
-                <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="primary" label="Estimate savings" startAt="value-recovery" />
-              </div>
-            ) : (
-              <Link href="/login" className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-4 py-2 text-sm font-bold text-white hover:opacity-90"><Lock className="size-3.5" />Sign in to use the Calculator</Link>
-            )}
-          </div>
-
-          <div className="mb-10 flex items-center justify-between rounded-xl bg-neutral-50 px-6 py-4">
-            <p className="text-sm text-neutral-700">Was this tool helpful, give us your feedback here</p>
-            <div className="flex gap-3"><button className="text-neutral-500 hover:text-neutral-900"><ThumbsUp className="size-5" /></button><button className="text-neutral-500 hover:text-neutral-900"><ThumbsDown className="size-5" /></button></div>
-          </div>
         </div>
 
         <div className="order-first w-full shrink-0 lg:order-none lg:w-[300px]">
@@ -388,6 +388,11 @@ export function ProductDetailPage() {
             <div className="flex items-center justify-between py-1.5 text-sm"><span className="text-neutral-700">Item subtotal</span><span className="text-neutral-900">{money(itemSubtotal)}</span></div>
             <div className="flex items-center justify-between py-1.5 text-sm" style={{ borderBottom: "1px solid #F0F0F0" }}><span className="text-neutral-700">Shipping</span><span className="text-neutral-500">Quoted per order</span></div>
             <div className="flex items-center justify-between py-3 text-sm font-bold"><span className="text-neutral-900">Subtotal (excl. shipping)</span><span className="text-neutral-900">{money(itemSubtotal)}</span></div>
+            {isMember && (
+              <div className="mb-3">
+                <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="block" label="Estimate savings" startAt="value-recovery" />
+              </div>
+            )}
 
             <Button variant="primary" size="lg" className="w-full" onClick={handleAddToCart} disabled={purchaseDisabled} style={purchaseDisabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}>Add to Cart</Button>
             {!isMember && <p className="mt-2 flex items-center justify-center gap-1 text-xs text-neutral-500"><Lock className="size-3" /><Link href="/login" className="font-medium text-neutral-900 underline">Sign in</Link> to purchase</p>}
@@ -403,7 +408,6 @@ export function ProductDetailPage() {
           {isMember && (
             <div className="mt-4 flex flex-col gap-2 rounded-xl bg-white p-4" style={{ border: "1px solid #E0E0E0" }}>
               <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="primary" label="Open Carbon Calculator" />
-              <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="ghost" label="Estimate savings" startAt="value-recovery" />
               {product.teaser ? (
                 <p className="flex items-start gap-1.5 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-600"><Lock className="mt-0.5 size-3 shrink-0" />Documents are shown once your company onboarding is complete.</p>
               ) : hasSds ? (

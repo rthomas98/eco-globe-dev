@@ -41,6 +41,8 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   children?: { label: string; href: string }[];
+  /** Related sections that should highlight this item (e.g. Portfolios under Market records). */
+  relatedHrefs?: string[];
 }
 
 interface NavGroup {
@@ -60,7 +62,12 @@ const coreAdminNavItems: NavItem[] = [
 const marketplaceAdminNavItems: NavItem[] = [
   { label: "Sellers", href: "/admin/sellers", icon: Users },
   { label: "Buyers", href: "/admin/buyers", icon: UserCheck },
-  { label: "Market records", href: "/admin/market-records", icon: Library },
+  {
+    label: "Market records",
+    href: "/admin/market-records",
+    icon: Library,
+    relatedHrefs: ["/admin/market-portfolios"],
+  },
   { label: "Partner Network", href: "/admin/partners", icon: Users },
 ];
 
@@ -411,7 +418,9 @@ function isNavItemActive(item: NavItem, pathname: string) {
     );
   }
 
-  return pathname === item.href || pathname.startsWith(item.href + "/");
+  return [item.href, ...(item.relatedHrefs ?? [])].some(
+    (href) => pathname === href || pathname.startsWith(href + "/"),
+  );
 }
 
 function isNavGroupActive(group: NavGroup, pathname: string) {
