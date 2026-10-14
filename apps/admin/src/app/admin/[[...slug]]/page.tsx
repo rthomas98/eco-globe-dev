@@ -20,6 +20,7 @@ import { MarketRecordCreatePage } from "@/components/admin/market-records/market
 import { MarketRecordDetailPage } from "@/components/admin/market-records/market-record-detail-page";
 import { MarketRecordsImportPage } from "@/components/admin/market-records/market-records-import-page";
 import { MarketRecordsPage } from "@/components/admin/market-records/market-records-page";
+import { MarketReferencesPage } from "@/components/admin/market-records/market-references-page";
 import { AdminLogisticsPage } from "@/components/admin/logistics-page";
 import { AdminModerationPage } from "@/components/admin/moderation-page";
 import { AdminNotificationsPage } from "@/components/admin/notifications-page";
@@ -170,6 +171,7 @@ export default async function Page({ params }: PageProps) {
     if (!second) return <MarketRecordsPage />;
     if (second === "new") return <MarketRecordCreatePage />;
     if (second === "import") return <MarketRecordsImportPage />;
+    if (second === "references") return <MarketReferencesPage />;
     return <MarketRecordDetailPage id={second} />;
   }
   if (section === "buyers") {

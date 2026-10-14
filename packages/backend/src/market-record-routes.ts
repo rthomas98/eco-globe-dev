@@ -1,3 +1,7 @@
+import {
+  createReferenceHandler,
+  isReferencePath,
+} from "./market-reference-routes.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { requireSessionAuth } from "./auth.js";
 import { ApiError, type AuthContext, readJsonBody, sendJson } from "./http.js";
@@ -58,6 +62,7 @@ export function createMarketRecordHandler(
     request: IncomingMessage,
   ) => Promise<AuthContext> = requireSessionAuth,
 ) {
+  const references = createReferenceHandler(authenticate);
   return async function handler(
     request: IncomingMessage,
     response: ServerResponse,
@@ -66,6 +71,8 @@ export function createMarketRecordHandler(
     const prefix = "/api/admin/market-records";
     if (url.pathname !== prefix && !url.pathname.startsWith(prefix + "/"))
       return false;
+    if (isReferencePath(url.pathname))
+      return references(request, response, url);
     response.setHeader("cache-control", "private, no-store");
     try {
       const auth = requireMarketAdmin(await authenticate(request));

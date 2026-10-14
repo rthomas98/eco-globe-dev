@@ -1,6 +1,29 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MARKET_RECORD_IMPORT_DEADLINE_MS, isMarketRecordImportWrite } from "./market-record-proxy.ts";
+import {
+  MARKET_RECORD_IMPORT_DEADLINE_MS,
+  isLongMarketRecordWrite,
+  isMarketRecordImportWrite,
+  isMarketReferenceUpload,
+} from "./market-record-proxy.ts";
+
+test("only the reference upload POST joins the long deadline; reads and downloads do not", () => {
+  const upload = "/api/admin/market-records/references";
+  assert.equal(isMarketReferenceUpload(upload, "POST"), true);
+  assert.equal(isLongMarketRecordWrite(upload, "POST"), true);
+  assert.equal(isLongMarketRecordWrite("/api/admin/market-records/imports/preview", "POST"), true);
+  for (const [path, method] of [
+    [upload, "GET"],
+    [`${upload}/7/download`, "GET"],
+    [`${upload}/7/download`, "POST"],
+    [`${upload}/`, "POST"],
+    [`${upload}?recordId=1`, "POST"],
+    ["/api/admin/market-records", "POST"],
+    ["/api/admin/market-records/12", "POST"],
+  ] as const) {
+    assert.equal(isLongMarketRecordWrite(path, method), false, `${method} ${path}`);
+  }
+});
 
 test("only import preview and commit POSTs get the long proxy deadline", () => {
   assert.equal(MARKET_RECORD_IMPORT_DEADLINE_MS, 60_000);

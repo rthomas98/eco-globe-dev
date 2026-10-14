@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   MARKET_RECORD_IMPORT_DEADLINE_MS,
-  isMarketRecordImportWrite,
+  isLongMarketRecordWrite,
 } from "@/lib/market-record-proxy";
 
 const BACKEND_URL =
@@ -21,6 +21,8 @@ const FORWARDED_RESPONSE_HEADERS = [
   "content-length",
   "content-disposition",
   "x-content-type-options",
+  // Private PDF downloads carry a sandboxing policy that must reach the browser.
+  "content-security-policy",
   "cache-control",
   "etag",
   "last-modified",
@@ -54,7 +56,8 @@ function upstreamDeadline(pathname: string, method: string) {
   if (pathname.startsWith("/api/admin/fedex-sandbox/") && method === "POST") {
     return UPLOAD_UPSTREAM_DEADLINE_MS;
   }
-  if (isMarketRecordImportWrite(pathname, method)) {
+  // Workbook preview/commit and reference PDF uploads (base64 JSON).
+  if (isLongMarketRecordWrite(pathname, method)) {
     return MARKET_RECORD_IMPORT_DEADLINE_MS;
   }
   return DEFAULT_UPSTREAM_DEADLINE_MS;

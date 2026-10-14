@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   MARKET_RECORD_IMPORT_DEADLINE_MS,
-  isMarketRecordImportWrite,
+  isLongMarketRecordWrite,
 } from "@/lib/market-record-proxy";
 
 const BACKEND_URL =
@@ -20,6 +20,8 @@ const FORWARDED_RESPONSE_HEADERS = [
   "content-type",
   "content-disposition",
   "x-content-type-options",
+  // Private PDF downloads carry a sandboxing policy that must reach the browser.
+  "content-security-policy",
   "cache-control",
   "etag",
   "last-modified",
@@ -50,9 +52,9 @@ async function proxy(request: Request, { params }: RouteContext) {
   const body = ["GET", "HEAD"].includes(request.method)
     ? undefined
     : await request.arrayBuffer();
-  // Only market record workbook preview/commit get an explicit bound; other
-  // admin calls keep their existing behaviour.
-  const signal = isMarketRecordImportWrite(pathname, request.method)
+  // Only market record workbook preview/commit and reference PDF uploads get an
+  // explicit bound; other admin calls keep their existing behaviour.
+  const signal = isLongMarketRecordWrite(pathname, request.method)
     ? AbortSignal.timeout(MARKET_RECORD_IMPORT_DEADLINE_MS)
     : undefined;
   let backendResponse: Response;

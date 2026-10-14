@@ -1,3 +1,4 @@
+import { isReferencePath } from "./market-reference-routes.js";
 import { handleRefundRoute } from "./refund-routes.js";
 import { processRefundReminders } from "./refund-reminders.js";
 import { processPendingCheckouts } from "./checkout-routes.js";
@@ -913,6 +914,8 @@ function swaggerHtml() {
 }
 
 const server = createServer(async (request, response) => {
+  if (isReferencePath((request.url ?? "/").split("?")[0]!))
+    response.setHeader("cache-control", "private, no-store");
   try {
     if (request.method === "OPTIONS") {
       response.writeHead(204, corsHeaders());

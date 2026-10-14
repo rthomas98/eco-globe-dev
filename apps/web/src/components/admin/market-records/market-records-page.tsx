@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Download, FileSpreadsheet, Loader2, Plus, Search } from "lucide-react";
+import { BookOpen, Download, FileSpreadsheet, Loader2, Plus, Search } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { describeBackendError } from "@/lib/backend-client";
 import {
@@ -300,6 +300,14 @@ function MarketRecordsList() {
       description="Seller and buyer sources from research and workbook imports. Kept separate from accounts, listings and KYC."
       actions={
         <>
+          <Link
+            href="/admin/market-records/references"
+            className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-neutral-900 hover:bg-neutral-50"
+            style={border}
+          >
+            <BookOpen className="size-4" aria-hidden="true" />
+            Reference library
+          </Link>
           <Link
             href="/admin/market-records/import"
             className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-neutral-900 hover:bg-neutral-50"

@@ -37,6 +37,7 @@ import { diffMarketRecordInput, recordToInput } from "./market-record-draft";
 import { MarketRecordForm } from "./market-record-form";
 import { MarketRecordHistory } from "./market-record-history";
 import { MarketRecordReasonDialog } from "./market-record-reason-dialog";
+import { MarketRecordReferences } from "./market-record-references";
 import { MarketRecordReviewDialog } from "./market-record-review-dialog";
 import { MarketRecordShell } from "./market-record-shell";
 
@@ -311,6 +312,8 @@ function RecordView({ initial, onReload }: { initial: MarketRecord; onReload: ()
           </Section>
         </div>
       )}
+
+      <MarketRecordReferences recordId={record.id} />
 
       <MarketRecordHistory recordId={record.id} refreshKey={record.version} />
 
