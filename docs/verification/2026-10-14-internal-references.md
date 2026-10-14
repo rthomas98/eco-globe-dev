@@ -6,7 +6,7 @@ The user approved keeping the 29 PDFs from `SDS.zip` as internal research refere
 
 The additive library stores immutable original PDF bytes and their SHA-256 hashes separately from listing and company documents. Admin users can upload, search and download references, and link them to internal market records. The browser upload limit is 3 MiB to fit the hosted JSON proxy; the direct backend limit is 5 MiB. Duplicate content returns the existing reference ID without creating another document.
 
-The reviewed intake plan covers 29 original PDFs, 107 pages and 412,559 bytes. It proposes 94 material-context associations across 93 existing internal market records for 23 files. Six files remain unlinked because their context does not establish a reliable research-record match.
+Imported all 29 original PDFs, covering 107 pages and 412,559 bytes. Twenty-three files have 94 links based on material context across 93 existing internal market records. Six files remain unlinked because their context does not establish a reliable research-record match.
 
 `Black_Gypsum_DG_Reference.pdf` describes a gypsum/humate soil amendment and must remain separate from industrial carbon-black-plant black gypsum. The sugarcane bagasse ash reference does not cover rice hull ash. The archive contains no PVC Scrap or Premium Rice Hull Ash supplier SDS.
 
@@ -20,7 +20,26 @@ The additive development migration created the two reference tables. Before and 
 
 React Doctor completed with one pre-existing false positive on local response-header removal and ten advisory warnings; source review found no substantive new defect.
 
-Deployment and the approved PDF intake remain pending live acceptance. This checkpoint does not certify completed ingestion or browser verification.
+Live development acceptance completed on 2026-10-14:
+
+- The standalone admin browser uploaded Biochar reference #1, validated required fields and disabled all inputs during saving. Both admin surfaces downloaded the original PDF with the expected SHA-256.
+- The main web browser rejected a duplicate with existing reference #1 and kept the total at 29. Record #53 displays its linked reference; the library filter, search, unlinked Black Gypsum notes and reload persistence work.
+- At 390 × 844, the library has `scrollWidth === innerWidth === 390`.
+- Anonymous callers receive 401; buyer and seller callers receive 403 for listing, download and malformed upload requests. Both frontend proxies preserve authenticated PDF security headers and withhold bearer tokens from login JSON. Browser portal guards deny buyer and seller access.
+- All 29 backend downloads match the original bytes. Responses preserve PDF attachment filenames, CSP sandbox, nosniff and private/no-store headers.
+- Actual Azure SQL reconciliation confirms 29 references, 94 links, 93 linked records, six unlinked files, 412,559 original bytes and 29 reference audit records.
+- The existing 27 owned listings, 142 active market records and eight listing documents match the pre-intake API snapshot exactly. Biochar #17 and Rice Hull Ash #22 retain their SDS purchase blocks. PVC Scrap #27 retains its existing `SDS044_PSK_PVC.pdf` and enabled Buy Now button. Purchase-gate checks used read-only buyer views.
+
+## Development release
+
+Source commit: `231e4f87eb577d2b0408f726c0931a31728b73c3`.
+
+- API revision: `ecoglobe-backend-dev--references-231e4f8`; healthy and ready.
+- Backend image digest: `sha256:1c46f008c34a1230389d364c9b097534dea3574578ee217058a2ee6827d87499`.
+- [Web development site](https://eco-globe-dev-web.vercel.app): `dpl_7R5GUJR5Q4QEgh3DBRZKF38X21To`.
+- [Admin reference library](https://eco-globe-dev-admin.vercel.app/admin/market-records/references): `dpl_23PEkeoiPi4vW4f7wTUU1FcjMgJE`.
+
+Only application source and generated build/release artifacts used the approved external-drive directory. Intake PDFs, credentials and private verification evidence stayed in their existing internal locations. Final manifests and acceptance receipts are in the private evidence directory above.
 
 ## Retest steps
 
