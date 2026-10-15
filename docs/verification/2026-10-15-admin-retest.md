@@ -1,6 +1,6 @@
 # Admin receipt and Payments retest — October 15, 2026
 
-Status: source fixes reviewed and combined checks passed; live release acceptance pending. The October 12 workbook is test evidence, not authorization for business-data changes. The source workbook remains unchanged and private.
+Status: fixes committed, pushed, deployed and verified on the live development sites. The October 12 workbook is test evidence, not authorization for business-data changes. The source workbook remains unchanged and private.
 
 ## Reproduced findings
 
@@ -22,9 +22,33 @@ The existing backend passed 120 tests, types/build, 22 runtime-isolation checks 
 
 The exact nine-file frontend artifact passed independent review after correcting two review findings: retaining the buyer cart invariant and keeping the new tests compatible with the existing runner. The final patch SHA-256 is `1873bfd5a2c39cce3c4ee644b2d3e993a6d0f964db7cdd5d29484e729ab19c3d`. All integrated file hashes match the reviewed artifact.
 
-Coordinator checks on the combined source passed: 211 web tests, workspace types, lint (zero errors, 38 existing warnings), and both web/admin production builds. Backend source is unchanged. Extra component-render harnesses remain private verification evidence rather than adding a custom test loader to the application.
+Coordinator checks on the combined source passed: 211 web tests, workspace types, lint (zero errors, 38 existing warnings), and both web/admin production builds. Backend source is unchanged. The frontend owner's React Doctor review identified no new finding attributable to the edits; broader existing findings are not claimed resolved. Extra component-render harnesses remain private verification evidence rather than adding a custom test loader to the application.
 
-Live development browser acceptance remains pending. Private screenshots, PDFs, API fingerprints, check logs and source-workbook hash are stored in `.local/verification/2026-10-15-admin-retest/` and are excluded from Git.
+Live development browser acceptance passed:
+
+- Sales → EG-28 displays View receipt and Download PDF receipt beside its saved payment. The existing TX-9 link opens the correct receipt.
+- Transactions → TX-9 displays both actions. Its View receipt opens the numeric receipt route; its PDF download succeeds.
+- Accounting → Payments loads all nine saved staff-visible payment records without a cart provider or client exception, and survives refresh and return navigation from receipts.
+- Invalid reference links show the explicit error; Back to payments recovers. The buyer payment center still loads its company records. The unrelated buyer receives the expected access-denied message for TX-9.
+- Actual PDFs downloaded from the order, transaction and direct backend all parse as one page. Their extracted text matches the baseline saved receipt, including TX-9, EG-28, USD 30.00, captured and the seller-payout limitation. Generation metadata changes PDF hashes over time; no false byte-identity claim is made.
+- Order, transaction, receipt and fully loaded Payments views were checked at an explicitly measured 390px width, with document scroll width equal to viewport width. Screenshots were visually inspected; the viewport override was reset.
+- The staff sample region matches its pre-change text exactly. Buyer samples retain separate From and Ship to lines. SR-1/SR-2 remain Received and SR-3 remains Requested.
+- Twenty final live API checks passed, including health, receipt facts/download, anonymous and unrelated-company rejection, missing receipt and non-GET rejection. All eight pre/post API fingerprints matched: payments, orders, owned listings, samples, listing documents, internal market records, references and portfolios. No original business record was edited.
+
+Private screenshots, PDFs, API fingerprints, check logs and source-workbook hash are stored in `.local/verification/2026-10-15-admin-retest/` and are excluded from Git. One browser assertion initially matched Next.js's route-announcer alert as well as the intended error; the corrected text-scoped locator passed. This was a test-locator failure, not a hidden product failure.
+
+## Development release and collaboration
+
+| Target | Accepted release |
+| --- | --- |
+| Application source | `7e67962d428f8852bde294990f3970b0feaa2100` |
+| Development web | `dpl_6vWGFzuRjkYTds1qLhuWXFqQL2wz` |
+| Development admin | `dpl_ABuQDfrHTiEQRznbdXSpoMWE4vcF` |
+| Backend / database | Unchanged; no redeployment or migration |
+
+Both hosted builds passed before promotion. Alias inspection and the browser's loaded assets confirm these exact deployments on the existing development URLs. Vercel calls its target `production` within these development projects; no commercial production activation occurred. A URL-based promotion command reported a team mismatch; verified deployment IDs and the existing team scope succeeded without changing team access. The first GitHub push timed out; its HTTP/1.1 retry succeeded.
+
+Orca run `run_e07cc833b848` records frontend task `task_fd435c4202c5` and backend task `task_60a5e40876fc`, both succeeded. Codex reviewed the exact frontend artifact; Claude verified the unchanged backend hashes and approved the receipt/access/sample contracts. The initial backend launch inherited Fast and stopped before source work; a custom-argv Standard, Fast-disabled, Manual session completed the backend work through the documented operator-supervised fallback. Claude's initially Manual launch drifted to Auto; the coordinator restored and verified Manual before final review corrections and validation. No global permission/model configuration was changed. All dispatches settled, release decisions were recorded, and no reclaimable worker remains. Orca retained terminals because of operator takeover or absent supervised resource ownership; no process exit is claimed. Worktrees and private evidence are preserved.
 
 ## Retest after release
 
