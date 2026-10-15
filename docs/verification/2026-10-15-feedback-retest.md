@@ -4,6 +4,8 @@ This report tracks all 18 rows in `ecoglobe-test-feedback-table.pdf` against the
 
 Source PDF SHA-256: `dc9b5b789242d61c92c586a4d20c82aab97fac32de5a37e9e67437b77a39f1f6`.
 
+Follow-up on October 15: rows 6 and 7 are now closed. The buyer in-app SDS request and seller upload link passed live development tests; United States was confirmed in the signup selector. See [the SDS request follow-up](2026-10-15-sds-requests.md) for the newer deployed revision and evidence. Row 8 still needs an eligible live RFQ acceptance fixture. The release and results below describe the earlier retest.
+
 ## Release status
 
 Deployed and verified on the existing development services on October 15, 2026. All 18 rows were reviewed: 15 passed or retain the tester's earlier pass, and 3 need clarification or an eligible live test fixture. This report does not establish commercial production readiness.
