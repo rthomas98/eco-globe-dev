@@ -6,18 +6,33 @@ Source PDF SHA-256: `dc9b5b789242d61c92c586a4d20c82aab97fac32de5a37e9e67437b77a3
 
 ## Release status
 
-The two frontend repairs and backend guard are integrated at reciprocally reviewed file hashes. Local tests, type checks, lint, and web and admin builds pass. Development deployment and live release verification are in progress.
+Deployed and verified on the existing development services on October 15, 2026. All 18 rows were reviewed: 15 passed or retain the tester's earlier pass, and 3 need clarification or an eligible live test fixture. This report does not establish commercial production readiness.
 
-A backend reporting guard is included in this release. A real API-dispatch regression with stub SQL reproduced a valid buyer session without an active company receiving platform reports. The repair returns 403 before aggregate queries and preserves admin and normal company reporting. Its 123 backend tests, 22 runtime tests, and backend type check pass. Claude independently accepted the exact diff and reran its 15 focused regressions. Individual Orca terminal approvals preserved Manual mode despite the locked screen.
+The release fixes product-title search, makes saved-order invoice downloads visible in Documents, and prevents company-less non-admin sessions from retrieving platform-wide reports. Desktop and actual 390px invoice downloads pass. At 390px, the invoice description has a 212px column and the button wraps beneath it without horizontal overflow.
+
+| Artifact | Verified value |
+| --- | --- |
+| Frontend source | `58a05589e17ec4b4f39b13d089f9f5ac4f824169` |
+| Backend source | `d14bafcf3bbea30ec4b93b0357cb797ba187e393` |
+| Web deployment | `dpl_vy9w8UNQrmTdyzLz6K5Y5TaP3Yb8` |
+| Admin deployment | `dpl_xqNBNGkhKjXp8DsyoV5STpzHGqbR` |
+| Backend revision | `ecoglobe-backend-dev--feedback-d14bafc` |
+| Backend image digest | `sha256:ed8dfcfa15cb3a8692673a22fa77532f31db3235fe77ff6f9ecf0c62bedb5aef` |
+
+The stable web and admin aliases resolve to those Ready deployments, and their loaded browser scripts identify the same deployment IDs. Azure serves the expected ready revision with 100% development traffic. The Vercel target called production belongs to the existing development projects; no commercial provider activation occurred.
+
+A real API-dispatch regression with stub SQL reproduced the reporting exposure before the guard. After the repair, 123 backend tests, 22 runtime tests, and backend type checks pass. Claude accepted the exact backend diff and independently reran its 15 focused regressions. Normal company and admin reporting also pass against the live development API. The company-less case is regression evidence, not a claim that a new company-less user was created in shared development.
+
+Orca run `run_20ab20c3d737` contains completed backend, frontend, and responsive follow-up tasks. Codex used GPT 6.1 Sol, medium reasoning, Standard service. Claude used Opus 5.5, medium reasoning, Manual permissions. Effective process flags were inspected, and reciprocal review used exact file hashes. Custom terminals used the previously approved manual dispatch path. Their output was archived before closing the completed workers; all worktrees remain retained.
 
 ## Row results
 
 | Row | Area | Result and evidence |
 | --- | --- | --- |
 | 1 | Workbook import | Passed live. Selecting the original workbook enables Preview. Preview returns 142 duplicates, 0 new, 0 errors, and 2 ignored footer rows. Completing the import creates 0 records and skips 142 duplicates. |
-| 2 | Admin listing search | Reproduced. `Tar` also matched seller `GulfStar`, returning unrelated titles. The repair defaults to product-title search and adds an explicit seller-name search scope for admins. Price and category filters remain. Live release retest pending. |
+| 2 | Admin listing search | Reproduced. `Tar` also matched seller `GulfStar`, returning unrelated titles. The repair defaults to product-title search and adds an explicit seller-name search scope for admins. Price and category filters remain. Passed on the final live revision. |
 | 3 | Carbon calculator | Passed live. PVC has no saved coordinates, so the calculator explains why the profile-address route is unavailable. An address label alone cannot enable Next. Entering an explicit 100-mile distance reaches the weight step. No coordinates were invented. |
-| 4 | EG-20 invoice | Real PDF download passed live through More actions. The PDF states No payment recorded and explains that an invoice is not a payment receipt or seller payout. The repair adds a visible Documents action using the existing guarded download handler. Live release retest pending. |
+| 4 | EG-20 invoice | Real PDF download passed live through More actions. The PDF states No payment recorded and explains that an invoice is not a payment receipt or seller payout. The repair adds a visible Documents action using the existing guarded download handler. The visible Documents action downloads the actual PDF and shows Download started on desktop and 390px screens. The original More actions entry remains. |
 | 5 | Buy Now | Passed live as Bianca on another seller's PVC listing. One click opens checkout with 12 units at $3, total $36. Selecting Pickup enables Continue to payment. No order or payment was submitted. Own-company purchasing remains intentionally restricted. |
 | 6 | Missing SDS | Seller guard passed live. Rice Hull Ash shows Add SDS and cannot be quoted without the file. The separate buyer Request SDS feature awaits the user's workflow choice. |
 | 7 | Signup countries | Needs clarification. The selector contains 15 choices; the backend accepts two-letter codes. Kate's required missing country has not been identified. No unsupported shipping eligibility was implied. |
@@ -36,9 +51,9 @@ A backend reporting guard is included in this release. A real API-dispatch regre
 ## Verification and preservation
 
 - Baseline source: `d2de024acc695c78ca6f1a7edd0962f4db79c2b3`.
-- Combined frontend tests: 221 passed. Combined backend tests: 123 passed. Runtime isolation tests: 22 passed. Repository type checks passed. Lint passed with 38 existing warnings and no errors.
+- Combined frontend tests: 221 passed. Combined backend tests: 123 passed. Runtime isolation tests: 22 passed. Repository type checks passed. Lint passed with 38 existing warnings and no errors. Web and admin builds passed before deployment; both rebuilt successfully after the class-only responsive correction.
 - React Doctor pinned to this task's base reports no findings in the two changed TSX files. Its broader default comparison against main includes unrelated existing findings and is not a clean overall application audit.
-- Live authenticated API checks: 32 passed, including anonymous and wrong-role denials, normal reports, PDF headers, payment facts, and saved-data preservation.
+- Live authenticated API checks after the backend rollout: 32 passed, including anonymous and wrong-role denials, normal reports, PDF headers, payment facts, and saved-data preservation. The later responsive correction changes only one CSS class; backend source remains unchanged.
 - Fingerprints for listings, listing documents, orders, payments, sample requests, active market records, references, and portfolios match the pre-test snapshot.
 - Duplicate-only import batch: `c6f4ded0-b99e-4c17-bc5a-f8bd3e9478cb`. QA market record #161 remains recoverably archived with its audit history. No business record was rewritten.
 - Buyer checkout was stopped before payment. No new live RFQ, shipping booking, provider email, refund, settlement, account, or commercial agreement was submitted.
