@@ -14,6 +14,7 @@ COPY packages/backend packages/backend
 COPY packages/shared/src/market-records-api.d.ts packages/shared/src/market-records-api.d.ts
 COPY packages/shared/src/market-references-api.d.ts packages/shared/src/market-references-api.d.ts
 COPY packages/shared/src/market-portfolios-api.d.ts packages/shared/src/market-portfolios-api.d.ts
+COPY packages/shared/src/listing-sds-api.d.ts packages/shared/src/listing-sds-api.d.ts
 COPY packages/typescript-config packages/typescript-config
 
 RUN pnpm --filter=@eco-globe/backend build

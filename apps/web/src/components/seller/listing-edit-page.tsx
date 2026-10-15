@@ -72,6 +72,8 @@ function EditForm({ record, onSaved, onCancel }: { record: BackendListing; onSav
   const hasSds = documents.some((d) => d.documentTypeCode === "sds");
 
   useEffect(() => { setDocuments(record.documents ?? []); }, [record.documents]);
+  // SDS-request notifications link to #sds; the form mounts after the listing loads.
+  useEffect(() => { if (window.location.hash === "#sds") document.getElementById("sds")?.scrollIntoView({ block: "start" }); }, []);
 
   const setField = <K extends keyof ListingForm>(k: K, v: ListingForm[K]) => setForm((prev) => ({ ...prev, [k]: v }));
   const toggleClaim = (c: string) => setField("claims", form.claims.includes(c) ? form.claims.filter((x) => x !== c) : [...form.claims, c]);
@@ -187,7 +189,7 @@ function EditForm({ record, onSaved, onCancel }: { record: BackendListing; onSav
               </div>
             </section>
 
-            <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
+            <section id="sds" className="scroll-mt-6 rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-neutral-900"><FileText className="size-5" />Safety Data Sheet (SDS)</h2>
               <p className="mb-4 text-xs text-neutral-600">Required before the listing can be submitted for review or purchased.</p>
               <ListingDocumentUploader listingId={record.id} typeCode="sds" documents={documents} onChange={setDocuments} multiple={false} required />

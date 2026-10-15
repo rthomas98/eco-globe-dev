@@ -1,4 +1,5 @@
 import { usableListingDocumentSql } from "./listing-safety.js";
+import { handleListingSdsRequestRoute } from "./listing-sds-requests.js";
 import { portfolioId } from "./market-portfolio-domain.js";
 import { requirePortfolioAccess } from "./market-portfolio-store.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -526,6 +527,7 @@ export async function handleListingRoute(
   url: URL,
   onPublished?: (id: number, actor: number) => Promise<void>,
 ) {
+  if (await handleListingSdsRequestRoute(request, response, url)) return true;
   if (!/^\/api\/(listings|listing-documents)(\/|$)/.test(url.pathname))
     return false;
   // These live marketplace and moderation routes remain owned by the core API.

@@ -22,6 +22,7 @@ import {
   subscribeNotificationsRead,
 } from "@/lib/notification-read-events";
 import { describeBackendError } from "@/lib/backend-client";
+import { sdsRequestNotificationListingId, sellerSdsUploadHref } from "@/lib/listing-sds-request";
 import type {
   NotificationCategory,
   NotificationGroup,
@@ -62,9 +63,17 @@ const ACTION_BY_RECORD: Record<string, { label: string; buyer: string; seller: s
   },
 };
 
+function actionFor(api: ApiNotification) {
+  // A buyer's SDS request goes only to the seller company; open the existing upload editor.
+  const sdsListingId = sdsRequestNotificationListingId(api);
+  if (sdsListingId !== null)
+    return { label: "Upload SDS", buyer: "/buyer/notifications", seller: sellerSdsUploadHref(sdsListingId) };
+  return ACTION_BY_RECORD[api.relatedRecordTypeCode ?? ""];
+}
+
 export function mapApiNotification(api: ApiNotification): PortalNotification {
   const action =
-    ACTION_BY_RECORD[api.relatedRecordTypeCode ?? ""] ?? {
+    actionFor(api) ?? {
       label: "View details",
       buyer: "/buyer/notifications",
       seller: "/seller/notifications",

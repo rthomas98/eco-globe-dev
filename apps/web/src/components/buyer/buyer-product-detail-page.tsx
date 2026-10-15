@@ -20,6 +20,7 @@ import {sampleApi,type SampleConfig} from "@/lib/api-sample-shipping";
 import { describeBackendError } from "@/lib/backend-client";
 import { recordListingInterest } from "@/lib/api-listings";
 import { documentTypeLabel } from "@/components/seller/listing-documents";
+import { SdsRequestNotice } from "@/components/listings/sds-request-notice";
 
 export function BuyerProductDetailPage() {
   const params = useParams<{ id?: string }>();
@@ -304,7 +305,7 @@ export function BuyerProductDetailPage() {
               Request a pilot (plant-scale trial)
             </Link>
           )}
-          {!hasSds && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Seller hasn&apos;t uploaded the SDS yet — purchase blocked.</p>}
+          {!hasSds && !product.teaser && (canRequest && listing.backendId ? <SdsRequestNotice listingId={listing.backendId} onRefreshListing={detail.reload} /> : <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Seller hasn&apos;t uploaded the SDS yet — purchase blocked.</p>)}
           {!priceKnown && !product.teaser && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700"><AlertTriangle className="mt-0.5 size-3 shrink-0" />No price recorded — request a quote from the seller.</p>}
           <div className="mt-4 flex flex-col gap-2">
             <CarbonCalculatorButton listing={listing} portal="buyer" initialQuantity={qty} variant="ghost" label="Open Carbon Calculator" />
