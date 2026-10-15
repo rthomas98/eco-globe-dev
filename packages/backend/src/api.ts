@@ -6050,6 +6050,9 @@ async function getReportSummary(
   url: URL,
   auth: AuthContext,
 ) {
+  if (!auth.isAdmin && !auth.companyId) {
+    throw new ApiError(403, "An active company membership is required to access reports.");
+  }
   const requestedCompanyId = url.searchParams.get("companyId")
     ? Number(url.searchParams.get("companyId"))
     : undefined;

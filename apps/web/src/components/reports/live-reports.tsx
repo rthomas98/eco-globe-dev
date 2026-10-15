@@ -21,6 +21,7 @@ import {
 } from "@/lib/api-portal";
 import { fetchListings, type BackendListing } from "@/lib/listings-api";
 import { describeUnit, formatNumber } from "@/lib/listing-format";
+import { LISTING_SEARCH_FIELDS, matchesListingSearch, type ListingSearchField } from "@/lib/listing-search";
 
 /**
  * Reports calculated only from records returned by the backend for the
@@ -100,14 +101,24 @@ function ReportFrame({
   );
 }
 
-function SearchBox({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+function SearchBox({
+  value,
+  onChange,
+  label,
+  placeholder = "Search",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+  placeholder?: string;
+}) {
   return (
     <div className="flex items-center gap-2 rounded-full bg-neutral-50 px-4 py-2" style={{ border: "1px solid #F0F0F0" }}>
       <Search className="size-4 text-neutral-400" />
       <input
         type="search"
         aria-label={label}
-        placeholder="Search"
+        placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"
@@ -335,6 +346,10 @@ export function LiveProductsReport({
   );
   const orders = useOrders(scope);
   const [search, setSearch] = useState("");
+  // Search covers product titles by default. Admins can switch to seller
+  // names; a seller's own report only lists one seller, so it has no choice.
+  const [searchIn, setSearchIn] = useState<ListingSearchField>("product");
+  const searchField = LISTING_SEARCH_FIELDS.find((f) => f.value === searchIn) ?? LISTING_SEARCH_FIELDS[0]!;
   const [page, setPage] = useState(1);
   // Filters apply to the loaded listing rows (price is the listing's saved
   // price per unit in its own currency).
@@ -352,9 +367,8 @@ export function LiveProductsReport({
       if (o.listingId === null || o.orderStatusCode === "cancelled") continue;
       byListing.set(o.listingId, [...(byListing.get(o.listingId) ?? []), o]);
     }
-    const q = search.trim().toLowerCase();
     return (listings.data ?? [])
-      .filter((l) => !q || `${l.title} ${l.sellerCompanyName ?? ""}`.toLowerCase().includes(q))
+      .filter((l) => matchesListingSearch(l, search, searchIn))
       .filter((l) => !category || l.materialTypeCode === category)
       .filter((l) => {
         const min = minPrice.trim() === "" ? null : Number(minPrice);
@@ -376,7 +390,7 @@ export function LiveProductsReport({
         };
       })
       .sort((a, b) => b.orders - a.orders);
-  }, [listings.data, orders.data, search, category, minPrice, maxPrice]);
+  }, [listings.data, orders.data, search, searchIn, category, minPrice, maxPrice]);
 
   const all = listings.data ?? [];
   const filtersActive = Boolean(category || minPrice.trim() || maxPrice.trim());
@@ -387,7 +401,25 @@ export function LiveProductsReport({
       title={title}
       controls={
         <>
-          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} label="Search products" />
+          {scope.kind === "admin" && (
+            <select
+              aria-label="Search in"
+              value={searchIn}
+              onChange={(e) => { setSearchIn(e.target.value as ListingSearchField); setPage(1); }}
+              className="rounded-full bg-white px-3 py-2 text-sm"
+              style={{ border: "1px solid #F0F0F0" }}
+            >
+              {LISTING_SEARCH_FIELDS.map((f) => (
+                <option key={f.value} value={f.value}>Search in: {f.label}</option>
+              ))}
+            </select>
+          )}
+          <SearchBox
+            value={search}
+            onChange={(v) => { setSearch(v); setPage(1); }}
+            label={searchField.inputLabel}
+            placeholder={searchIn === "seller" ? "Seller name" : "Product title"}
+          />
           <select
             aria-label="Filter by category"
             value={category}

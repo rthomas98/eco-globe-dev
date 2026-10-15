@@ -11,7 +11,9 @@ process.env.AZURE_SQL_CONNECTION_STRING = "stub-driver-only";
 process.env.SQL_CONNECTION_STRING = "stub-driver-only";
 const { handleApiRoute } = await import("./api.js");
 const { ApiError } = await import("./http.js");
-let company = 10;
+let company: number | undefined = 10;
+let admin = false;
+const reportScopes: unknown[] = [];
 let wantedOpen = true;
 let hasSds = true;
 let failClose = false;
@@ -50,8 +52,8 @@ function rows(
         id: 1,
         userId: 1,
         activeCompanyId: company,
-        activeRoleCode: "buyer",
-        accountStatusCode: "active",
+        activeRoleCode: admin ? "admin" : "buyer",
+        accountStatusCode: "subscribed_buyer",
         name: "QA",
         email: "qa@example.test",
       },
@@ -60,15 +62,19 @@ function rows(
     text.includes("FROM dbo.CompanyMembers cm") &&
     text.includes("companyTypeCode")
   )
-    return [
+    return company === undefined ? [] : [
       {
         id: company,
         companyTypeCode: "both",
-        memberRoleCode: "owner",
-        permissionTierCode: "standard",
+        memberRoleCode: admin ? "admin" : "owner",
+        permissionTierCode: admin ? "admin_override" : "standard",
       },
     ];
   if (text.includes("UPDATE dbo.UserSessions")) return [];
+  if (text.includes("@companyId IS NULL")) {
+    reportScopes.push(params.companyId);
+    return [{ totalOrders: 0 }];
+  }
   if (text.includes("FROM dbo.CompanyMembers")) return [{ id: 1 }];
   if (text.includes("FROM dbo.ListingDocuments"))
     return hasSds ? [{ Id: 1 }] : [];
@@ -202,6 +208,7 @@ mock.method(
 );
 function reset() {
   company = 10;
+  admin = false;
   wantedOpen = true;
   hasSds = true;
   failClose = false;
@@ -224,6 +231,7 @@ function reset() {
     material: 1,
   };
   statements.length = 0;
+  reportScopes.length = 0;
 }
 async function route(
   path: string,
@@ -500,4 +508,33 @@ test("cross-tenant quote PATCH is rejected before tenant row locks or transactio
   assert.ok(!statements.some((statement) => statement.includes("UPDLOCK")));
   assert.equal(commits, 0);
   assert.equal(rollbacks, 0);
+});
+
+test("reports reject a valid buyer session without an active company before aggregate queries", async () => {
+  reset();
+  company = undefined;
+  await assert.rejects(route("/api/reports/summary", "GET", {}), status(403));
+  assert.deepEqual(reportScopes, []);
+});
+
+test("company reports bind every aggregate to the active company and reject another company", async () => {
+  reset();
+  const result = await route("/api/reports/summary", "GET", {});
+  assert.equal(result.response.statusCode, 200);
+  assert.deepEqual(reportScopes, [10, 10, 10, 10]);
+  reportScopes.length = 0;
+  await assert.rejects(route("/api/reports/summary?companyId=20", "GET", {}), status(403));
+  assert.deepEqual(reportScopes, []);
+});
+
+test("admin reports retain platform-wide and explicit company scopes", async () => {
+  reset();
+  admin = true;
+  const platform = await route("/api/reports/summary", "GET", {});
+  assert.equal(platform.response.statusCode, 200);
+  assert.deepEqual(reportScopes, [undefined, undefined, undefined, undefined]);
+  reportScopes.length = 0;
+  const scoped = await route("/api/reports/summary?companyId=20", "GET", {});
+  assert.equal(scoped.response.statusCode, 200);
+  assert.deepEqual(reportScopes, [20, 20, 20, 20]);
 });

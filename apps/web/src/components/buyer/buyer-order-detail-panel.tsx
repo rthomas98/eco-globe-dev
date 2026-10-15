@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Info,
   Download,
+  FileText,
   ScrollText,
   Package,
   Copy,
@@ -257,6 +258,30 @@ function SectionCard({
   );
 }
 
+function InvoiceNotice({
+  notice,
+  onDismiss,
+  className = "",
+}: {
+  notice: { state: "pending" | "handed" | "error"; text: string };
+  onDismiss: () => void;
+  className?: string;
+}) {
+  return (
+    <div
+      role={notice.state === "error" ? "alert" : "status"}
+      className={`flex items-start justify-between gap-3 rounded-xl px-4 py-3 text-sm ${notice.state === "error" ? "bg-red-50 text-red-700" : "bg-neutral-100 text-neutral-800"} ${className}`}
+    >
+      <p className="min-w-0 break-words">{notice.text}</p>
+      {notice.state !== "pending" && (
+        <button type="button" onClick={onDismiss} aria-label="Dismiss invoice notice" className="shrink-0 text-neutral-500 hover:text-neutral-900">
+          <X className="size-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props) {
   const [codeCopied, setCodeCopied] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
@@ -267,7 +292,8 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
   // tagged with that order and only shown while the same order is open; the
   // request generation is invalidated when the order changes or the panel
   // unmounts, so a late result is neither shown nor handed to the browser.
-  const [invoiceNotice, setInvoice] = useState<{ orderId: string; ticket: number; state: "pending" | "handed" | "error"; text: string } | null>(null);
+  // `origin` keeps the notice next to the control that started the request.
+  const [invoiceNotice, setInvoice] = useState<{ orderId: string; ticket: number; state: "pending" | "handed" | "error"; text: string; origin: "menu" | "documents" } | null>(null);
   const [invoiceGuard] = useState(createRequestGuard);
   const openOrderId = order?.orderId;
   const invoice = noticeForOpenRecord(invoiceNotice, openOrderId, invoiceGuard.isCurrent);
@@ -279,12 +305,12 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
 
   // The backend builds the PDF from saved facts; the page can only report that
   // the download started, not that the save finished.
-  const runDownloadInvoice = async () => {
+  const runDownloadInvoice = async (origin: "menu" | "documents") => {
     if (!liveOrderId || !order || invoice?.state === "pending") return;
     const orderId = order.orderId;
     const label = `${orderId} invoice PDF`;
     const ticket = invoiceGuard.begin();
-    setInvoice({ orderId, ticket, state: "pending", text: downloadNotice("pending", label) });
+    setInvoice({ orderId, ticket, origin, state: "pending", text: downloadNotice("pending", label) });
     // A dropped request clears only its own pending notice, so returning to
     // the order later does not show a stale "Preparing…".
     const dropStale = () => setInvoice((current) => (current?.ticket === ticket ? null : current));
@@ -292,10 +318,10 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
       const { blob, fileName } = await fetchOrderInvoicePdf(liveOrderId);
       if (!invoiceGuard.isCurrent(ticket)) return dropStale();
       handBlobToBrowser(blob, fileName);
-      setInvoice({ orderId, ticket, state: "handed", text: downloadNotice("handed", label) });
+      setInvoice({ orderId, ticket, origin, state: "handed", text: downloadNotice("handed", label) });
     } catch (e) {
       if (!invoiceGuard.isCurrent(ticket)) return dropStale();
-      setInvoice({ orderId, ticket, state: "error", text: downloadNotice("error", label, describeBackendError(e, "Please try again.")) });
+      setInvoice({ orderId, ticket, origin, state: "error", text: downloadNotice("error", label, describeBackendError(e, "Please try again.")) });
     }
   };
 
@@ -576,7 +602,7 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                       {
                         label: invoice?.state === "pending" ? "Preparing invoice PDF…" : "Download invoice PDF",
                         icon: Download,
-                        onClick: () => void runDownloadInvoice(),
+                        onClick: () => void runDownloadInvoice("menu"),
                       },
                     ]
                   : []),
@@ -608,18 +634,8 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
-          {invoice && (
-            <div
-              role={invoice.state === "error" ? "alert" : "status"}
-              className={`mb-5 flex items-start justify-between gap-3 rounded-xl px-4 py-3 text-sm ${invoice.state === "error" ? "bg-red-50 text-red-700" : "bg-neutral-100 text-neutral-800"}`}
-            >
-              <p className="min-w-0 break-words">{invoice.text}</p>
-              {invoice.state !== "pending" && (
-                <button type="button" onClick={() => setInvoice(null)} aria-label="Dismiss invoice notice" className="shrink-0 text-neutral-500 hover:text-neutral-900">
-                  <X className="size-4" />
-                </button>
-              )}
-            </div>
+          {invoice?.origin === "menu" && (
+            <InvoiceNotice notice={invoice} onDismiss={() => setInvoice(null)} className="mb-5" />
           )}
           {liveOrderId && receiptStatus && !receipt.ready && (
             <p role="status" className="mb-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -978,10 +994,35 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
 
               <SectionCard title="Documents">
                 <div className="flex flex-col gap-3">
+                  {/* Saved orders: the same backend invoice as "More actions". */}
+                  {liveOrderId && (
+                    <>
+                      <div className="flex flex-wrap items-center gap-3 rounded-lg bg-neutral-50 px-4 py-3">
+                        <FileText className="size-5 shrink-0 text-neutral-500" aria-hidden />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-neutral-900">{order.orderId} invoice PDF</p>
+                          <p className="text-xs text-neutral-500">Built by EcoGlobe from the saved order. An invoice is not a payment receipt.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void runDownloadInvoice("documents")}
+                          disabled={invoice?.state === "pending"}
+                          className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-wait disabled:opacity-60"
+                          style={{ border: "1px solid #E5E5E5" }}
+                        >
+                          <Download className="size-4" aria-hidden />
+                          {invoice?.state === "pending" ? "Preparing invoice PDF…" : "Download invoice PDF"}
+                        </button>
+                      </div>
+                      {invoice?.origin === "documents" && (
+                        <InvoiceNotice notice={invoice} onDismiss={() => setInvoice(null)} />
+                      )}
+                    </>
+                  )}
                   {order.documents.map((doc, i) => (
                     <DocumentRow key={`${doc.name}-${i}`} name={doc.name} />
                   ))}
-                  {order.documents.length === 0 && (
+                  {!liveOrderId && order.documents.length === 0 && (
                     <p className="text-sm text-neutral-500">No documents are attached to this order.</p>
                   )}
                 </div>
