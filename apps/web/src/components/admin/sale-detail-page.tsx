@@ -12,6 +12,7 @@ import {
   type ApiEscrowRecord,
   type ApiPayment,
 } from "@/lib/api-portal";
+import { PaymentReceiptLinks } from "@/components/payments/payment-receipt-links";
 import { OrderRefundSection } from "@/components/refunds/order-refund-section";
 import { AdminDetailPage, DetailCard, KeyValueGrid } from "./admin-detail-page";
 
@@ -221,6 +222,11 @@ export function AdminSaleDetailPage({ id }: { id: string }) {
                       TX-{payment.id} · {payment.paymentStatusCode} ·{" "}
                       {money(payment.amount)}
                     </Link>
+                    <PaymentReceiptLinks
+                      paymentId={payment.id}
+                      status={payment.paymentStatusCode}
+                      className="ml-3 inline-flex flex-wrap gap-3 text-sm"
+                    />
                   </p>
                 ))
               ) : (

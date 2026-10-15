@@ -129,3 +129,25 @@ export function receiptTitle(payment: Pick<PaymentDocument, "id" | "status">) {
 export function receiptPath(role: "buyer" | "seller" | "admin", paymentId: number) {
   return `/${role}/accounting/payments/${paymentId}`;
 }
+
+/** Backend-rendered PDF for one saved payment, behind the same order access check. */
+export function receiptDownloadPath(paymentId: number) {
+  return `/api/backend/api/payments/${paymentId}/receipt`;
+}
+
+/**
+ * Payment id from a receipt route segment: the plain id ("9") or the TX
+ * reference the portals display and link ("TX-9"). Anything else is null.
+ */
+export function parsePaymentReference(raw: string | undefined): number | null {
+  let value = raw ?? "";
+  try {
+    value = decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+  const match = /^(?:TX-)?([1-9]\d*)$/i.exec(value.trim());
+  if (!match) return null;
+  const id = Number(match[1]);
+  return Number.isSafeInteger(id) ? id : null;
+}

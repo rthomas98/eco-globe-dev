@@ -1,6 +1,7 @@
 "use client";
 
 import { describeBackendError } from "@/lib/backend-client";
+import { PaymentReceiptLinks } from "@/components/payments/payment-receipt-links";
 
 import Link from "next/link";
 
@@ -213,6 +214,7 @@ export function LivePaymentCard({ uiId }: { uiId: string }) {
         ["Escrow", payment.escrowId ? `ESC-${payment.escrowId}` : "—"],
         ["Created", portalDate(payment.createdAt)],
       ]}
+      actions={<PaymentReceiptLinks paymentId={payment.id} status={payment.paymentStatusCode} />}
     />
   );
 }

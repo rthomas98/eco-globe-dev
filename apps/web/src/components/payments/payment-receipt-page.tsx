@@ -11,7 +11,9 @@ import { readDemoUser, useDemoUser } from "@/lib/demo-user";
 import { portalDate, portalMoney } from "@/lib/api-portal";
 import {
   paymentDocumentFrom,
+  parsePaymentReference,
   paymentReceiptHtml,
+  receiptDownloadPath,
   receiptTitle,
   type PaymentDocument,
   type ReceiptOrderFields,
@@ -34,7 +36,8 @@ const button =
  */
 function ReceiptContent({ role, paymentId }: { role: Role; paymentId?: string }) {
   const params = useParams<{ id?: string }>();
-  const id = Number(paymentId ?? params.id);
+  // Route segments are the plain id or the displayed TX reference ("TX-9").
+  const id = parsePaymentReference(paymentId ?? params.id);
   // Results belong to one signed-in user and company; a switch drops them.
   const user = useDemoUser();
   const identity = user ? `${user.id ?? ""}:${user.activeCompanyId ?? ""}` : null;
@@ -55,7 +58,7 @@ function ReceiptContent({ role, paymentId }: { role: Role; paymentId?: string })
       if (!readDemoUser()) setState({ status: "error", message: "Sign in to view this payment." });
       return;
     }
-    if (!Number.isSafeInteger(id) || id <= 0) {
+    if (id === null) {
       setState({ status: "error", message: "This payment reference is not valid." });
       return;
     }
@@ -176,7 +179,7 @@ function ReceiptContent({ role, paymentId }: { role: Role; paymentId?: string })
         {/* Served by the backend from the saved payment, with the same order access
             check. The response names the file (attachment); no download attribute,
             so an error response is shown instead of being saved as a fake PDF. */}
-        <a href={`/api/backend/api/payments/${doc.id}/receipt`} className={`${button} bg-black text-white`}>
+        <a href={receiptDownloadPath(doc.id)} className={`${button} bg-black text-white`}>
           <FileDown className="size-4" /> Download PDF {captured ? "receipt" : "record"}
         </a>
         <button type="button" onClick={print} disabled={!frameReady} className={button}>

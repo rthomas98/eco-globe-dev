@@ -129,3 +129,8 @@ export function useCart() {
   if (!ctx) throw new Error("useCart must be used within CartProvider");
   return ctx;
 }
+
+/** The cart when a provider is mounted, or null (e.g. the standalone admin app). */
+export function useOptionalCart() {
+  return useContext(CartContext);
+}

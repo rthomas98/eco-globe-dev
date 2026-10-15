@@ -7,7 +7,8 @@ import { fetchOrders, reconcileCheckout } from "@/lib/api-orders";
 import { describeBackendError } from "@/lib/backend-client";
 import { useDemoUser } from "@/lib/demo-user";
 import Link from "next/link";
-import { useCart } from "@/components/cart/cart-context";
+import { useOptionalCart } from "@/components/cart/cart-context";
+import { paymentCenterCart } from "@/lib/payment-center-cart";
 import { takePendingCheckoutByOrder } from "@/lib/checkout-pending";
 import { startBackendStripeOnboarding, syncBackendStripeSetup } from "@/lib/backend-auth";
 import {
@@ -69,7 +70,8 @@ function PaymentDialog({
 
 export function PaymentsCenter({ role }: { role: Role }) {
   const user = useDemoUser();
-  const { items: cartItems, removeItem: removeCartItem } = useCart();
+  // The standalone admin app has no cart provider; only buyers read the cart.
+  const { items: cartItems, removeItem: removeCartItem } = paymentCenterCart(role, useOptionalCart());
   const companyId = user?.activeCompanyId;
   const userId = user?.id;
   const [rows, setRows] = useState<PaymentDocument[]>([]);
