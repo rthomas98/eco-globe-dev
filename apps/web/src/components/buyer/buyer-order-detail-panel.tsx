@@ -999,7 +999,7 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                     <>
                       <div className="flex flex-wrap items-center gap-3 rounded-lg bg-neutral-50 px-4 py-3">
                         <FileText className="size-5 shrink-0 text-neutral-500" aria-hidden />
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-[1_1_12rem]">
                           <p className="text-sm text-neutral-900">{order.orderId} invoice PDF</p>
                           <p className="text-xs text-neutral-500">Built by EcoGlobe from the saved order. An invoice is not a payment receipt.</p>
                         </div>
