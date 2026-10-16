@@ -146,10 +146,15 @@ function OverviewTab({ listing, record }: { listing: Listing; record: BackendLis
     listing.lng !== null && listing.lat !== null
       ? { id: listing.id, title: listing.title, location: listing.location, price: listing.price, unit: listing.unit, moq: listing.moq, co2: listing.co2, lng: listing.lng, lat: listing.lat, image: listing.image ?? undefined }
       : null;
+  const rawSpecs: unknown = record.specifications;
+  const savedSpecs = rawSpecs && typeof rawSpecs === "object" ? (rawSpecs as Record<string, unknown>) : {};
+  const savedState = typeof savedSpecs.state === "string" ? savedSpecs.state.trim() : "";
+  const savedComposition = typeof savedSpecs.composition === "string" ? savedSpecs.composition.trim() : "";
+  const currencyCode = typeof record.currencyCode === "string" ? record.currencyCode.trim().toUpperCase() : "";
   const extraCandidates: Array<[string, string]> = [
     ["Quality", listing.quality ?? ""],
-    ["Composition", listing.composition ?? ""],
-    ["Feedstock state", listing.state],
+    ["Composition", savedComposition],
+    ["Feedstock state", savedState],
     ["Frequency", listing.frequency ?? ""],
     ["Available from", listing.availabilityFrom ?? ""],
     ["Available to", listing.availabilityTo ?? ""],
@@ -165,7 +170,7 @@ function OverviewTab({ listing, record }: { listing: Listing; record: BackendLis
           <div className="rounded-xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
             <div className="mb-4 grid grid-cols-2 gap-y-4">
               <div><p className="text-xs font-semibold text-neutral-500">Listing category</p><p className="text-sm text-neutral-900">{listing.category}</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Listing price</p><p className="text-sm text-neutral-900">{listing.price}{listing.priceNum !== null ? ` ${listing.unit}` : ""} ({listing.currencyCode})</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Listing price</p><p className="text-sm text-neutral-900">{listing.price}{listing.priceNum !== null ? ` ${listing.unit}` : ""}{currencyCode ? ` (${currencyCode})` : ""}</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Minimum Order Quantity (MOQ)</p><p className="text-sm text-neutral-900">{formatQuantityWithUnitName(listing.moqNum, listing.quantityUnit) ?? "Not set"}</p></div>
               <div><p className="text-xs font-semibold text-neutral-500">Available quantity</p><p className="text-sm text-neutral-900">{formatQuantityWithUnitName(listing.qtyNum, listing.quantityUnit) ?? "Not set"}</p></div>
             </div>
