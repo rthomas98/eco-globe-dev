@@ -248,11 +248,13 @@ export interface ValidationIssue {
   message: string;
 }
 
-/** Minimum requirements for creating a draft. */
+/**
+ * Minimum requirements for saving a draft. A draft may have no facility yet
+ * (none is invented for it); submitting for review requires one.
+ */
 export function validateDraft(form: ListingForm): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   if (!form.name.trim()) issues.push({ field: "name", message: "Listing name is required." });
-  if (!form.locationId) issues.push({ field: "locationId", message: "Choose the facility this listing ships from." });
   // The API would otherwise classify the listing as "other" on the seller's behalf.
   if (!form.materialTypeCode) issues.push({ field: "materialTypeCode", message: "Choose the material type (marketplace classification)." });
   if (!form.category) issues.push({ field: "category", message: "Choose a listing category." });
@@ -268,6 +270,7 @@ export function validateDraft(form: ListingForm): ValidationIssue[] {
 /** Requirements for submitting a listing for review (contract rules). */
 export function validateForSubmission(form: ListingForm, hasSds: boolean): ValidationIssue[] {
   const issues = validateDraft(form);
+  if (!form.locationId) issues.push({ field: "locationId", message: "Choose the facility this listing ships from." });
   const qty = parseOptionalNumber(form.qty);
   const moq = parseOptionalNumber(form.moq);
   const price = parseOptionalNumber(form.price);

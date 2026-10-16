@@ -156,7 +156,7 @@ const selectListing = `SELECT l.Id AS id,l.SellerCompanyId AS sellerCompanyId,c.
  loc.Name AS locationName,loc.AddressLine1 AS addressLine1,loc.AddressLine2 AS addressLine2,loc.City AS city,
  loc.StateProvince AS stateProvince,loc.PostalCode AS postalCode,loc.CountryCode AS countryCode,loc.Latitude AS latitude,loc.Longitude AS longitude
  FROM dbo.Listings l JOIN dbo.Companies c ON c.Id=l.SellerCompanyId JOIN dbo.AccountStatuses vs ON vs.Id=c.VerificationStatusId
- JOIN dbo.Locations loc ON loc.Id=l.LocationId JOIN dbo.MaterialTypes mt ON mt.Id=l.MaterialTypeId JOIN dbo.ListingStatuses ls ON ls.Id=l.ListingStatusId`;
+ LEFT JOIN dbo.Locations loc ON loc.Id=l.LocationId JOIN dbo.MaterialTypes mt ON mt.Id=l.MaterialTypeId JOIN dbo.ListingStatuses ls ON ls.Id=l.ListingStatusId`;
 async function documents(listingId: unknown) {
   return documentsForListings([listingId]);
 }
@@ -317,13 +317,6 @@ async function save(
     if (previous && companyId !== previous.sellerCompanyId)
       throw new ApiError(400, "Seller company cannot change.");
     await seller(auth, companyId);
-    const locationId = id(merged.locationId);
-    const location = await query(
-      "SELECT Id FROM dbo.Locations WHERE Id=@id AND CompanyId=@companyId",
-      [int("id", locationId), int("companyId", companyId)],
-    );
-    if (!location.length)
-      throw new ApiError(403, "Location must belong to seller company.");
     const title = text(merged.title, "title", 200);
     if (!title) throw new ApiError(400, "title is required.");
     let status = text(merged.listingStatusCode, "listingStatusCode") ?? "draft";
@@ -338,16 +331,25 @@ async function save(
         throw new ApiError(403, "Only admins may publish.");
       status = "pending_review";
     }
+    const locationId = merged.locationId == null ? null : id(merged.locationId);
+    if (locationId === null && !["draft", "closed"].includes(status))
+      throw new ApiError(400, "Submission requires an owned pickup location.");
+    if (locationId !== null) {
+      const location = await queryRowsWithParamsInTransaction(transaction,
+        "SELECT Id FROM dbo.Locations WITH(HOLDLOCK) WHERE Id=@id AND CompanyId=@companyId",
+        [int("id", locationId), int("companyId", companyId)]);
+      if (!location.length) throw new ApiError(403, "Location must belong to seller company.");
+    }
     const quantity = numeric(merged.quantity, "quantity", 3),
       moq = numeric(merged.minimumOrderQuantity, "minimumOrderQuantity", 3),
       price = numeric(merged.pricePerUnit, "pricePerUnit", 2);
     if (quantity !== null && moq !== null && moq > quantity)
       throw new ApiError(400, "MOQ cannot exceed available quantity.");
-    const unit = text(merged.quantityUnit, "quantityUnit", 40) ?? "";
+    const unit = text(merged.quantityUnit, "quantityUnit", 40);
     if (unit && !["ton", "tons", "tonne", "tonnes", "kg", "lb", "unit", "units"].includes(unit))
       throw new ApiError(400, "Unsupported quantity unit.");
     const currency =
-      text(merged.currencyCode, "currencyCode", 3)?.toUpperCase() ?? "";
+      text(merged.currencyCode, "currencyCode", 3)?.toUpperCase() ?? null;
     if (currency && !/^[A-Z]{3}$/.test(currency))
       throw new ApiError(400, "currencyCode must be three letters.");
     if (["pending_review", "published"].includes(status)) {

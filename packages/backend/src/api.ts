@@ -1,3 +1,4 @@
+import { parseWantedWrite, wantedStatus, type WantedState } from "./wanted-listing-domain.js";
 import { handleMarketRecordRoute } from "./market-record-routes.js";
 import { handleMarketPortfolioRoute } from "./market-portfolio-routes.js";
 import { requireListingSds } from "./listing-safety.js";
@@ -2178,7 +2179,7 @@ async function listFavorites(response: ServerResponse, auth: AuthContext) {
       INNER JOIN dbo.Listings l ON l.Id = f.ListingId
       INNER JOIN dbo.ListingStatuses ls ON ls.Id = l.ListingStatusId
       LEFT JOIN dbo.Locations loc ON loc.Id = l.LocationId
-      WHERE f.UserId = @userId
+      WHERE f.UserId = @userId AND ls.Code<>'draft'
       ORDER BY f.Id DESC;
     `,
     [intParam("userId", auth.userId)],
@@ -2192,7 +2193,7 @@ async function setFavorite(
   auth: AuthContext,
 ) {
   const listing = (await queryRowsWithParams<{ id: number }>(
-    "SELECT Id AS id FROM dbo.Listings WHERE Id = @id;",
+    "SELECT l.Id AS id FROM dbo.Listings l JOIN dbo.ListingStatuses s ON s.Id=l.ListingStatusId WHERE l.Id=@id AND s.Code='published';",
     [intParam("id", listingId)],
   ))[0];
   if (!listing) throw new ApiError(404, "Listing not found.");
@@ -3442,14 +3443,16 @@ async function updateQuote(
           await query<{
             buyer: number;
             isOpen: boolean;
+            isDraft: boolean;
             unit: string;
             material: number;
           }>(
-            "SELECT BuyerCompanyId AS buyer,IsOpen AS isOpen,QuantityUnit AS unit,MaterialTypeId AS material FROM dbo.WantedListings WITH(UPDLOCK,HOLDLOCK) WHERE Id=@id",
+            "SELECT BuyerCompanyId AS buyer,IsOpen AS isOpen,IsDraft AS isDraft,QuantityUnit AS unit,MaterialTypeId AS material FROM dbo.WantedListings WITH(UPDLOCK,HOLDLOCK) WHERE Id=@id",
             [intParam("id", identity.wantedListingId)],
           )
         )[0]
       : undefined;
+    if (wanted?.isDraft) throw new ApiError(409, "Private drafts cannot have quote responses.");
     // Checkout also locks listing before quote. Keep that order for every edit.
     const listing = (
       await query<{
@@ -6202,7 +6205,7 @@ async function recordListingInterest(
     );
   }
   const listing = (await queryRowsWithParams<{ sellerCompanyId: number }>(
-    "SELECT SellerCompanyId AS sellerCompanyId FROM dbo.Listings WHERE Id = @id;",
+    "SELECT l.SellerCompanyId AS sellerCompanyId FROM dbo.Listings l JOIN dbo.ListingStatuses s ON s.Id=l.ListingStatusId WHERE l.Id=@id AND s.Code='published';",
     [intParam("id", listingId)],
   ))[0];
   if (!listing) throw new ApiError(404, "Listing not found.");
@@ -6272,6 +6275,7 @@ async function listWantedListings(
   auth: AuthContext | undefined,
 ) {
   const mineOnly = url.searchParams.get("mine") === "true";
+  if (mineOnly) response.setHeader("cache-control", "private, no-store");
   if (mineOnly && !auth?.companyId) {
     throw new ApiError(401, "Sign in to view your wanted listings.");
   }
@@ -6292,7 +6296,8 @@ async function listWantedListings(
         w.CountryCode AS countryCode,
         w.StateProvince AS stateProvince,
         w.Notes AS notes,
-        w.IsOpen AS isOpen,
+        w.IsOpen AS isOpen, w.IsDraft AS isDraft,
+        CONVERT(VARCHAR(10),w.NeedByDate,23) AS needByDate,
         w.CreatedAt AS createdAt,
         (SELECT COUNT(*) FROM dbo.Quotes q WHERE q.WantedListingId=w.Id) AS responseCount,
         (SELECT COUNT(*) FROM dbo.Quotes q JOIN dbo.QuoteStatuses qs ON qs.Id=q.QuoteStatusId WHERE q.WantedListingId=w.Id AND qs.Code='accepted') AS acceptedCount
@@ -6300,7 +6305,7 @@ async function listWantedListings(
       INNER JOIN dbo.Companies c ON c.Id = w.BuyerCompanyId
       INNER JOIN dbo.MaterialTypes mt ON mt.Id = w.MaterialTypeId
       WHERE (@mineOnly = 0 OR w.BuyerCompanyId = @authCompanyId)
-        AND (@mineOnly = 1 OR (w.IsOpen = 1 AND NOT EXISTS (
+        AND (@mineOnly = 1 OR (w.IsDraft = 0 AND w.IsOpen = 1 AND NOT EXISTS (
           SELECT 1 FROM dbo.Quotes q JOIN dbo.QuoteStatuses qs ON qs.Id=q.QuoteStatusId
           WHERE q.WantedListingId=w.Id AND qs.Code='accepted')))
       ORDER BY w.Id DESC;
@@ -6314,7 +6319,9 @@ async function listWantedListings(
   // Buyer anonymity is a designed feature: the public view shows demand
   // without exposing who is asking. Owners and admins see their own names.
   const wantedListings = rows.map((saved) => {
-    const row: Record<string, unknown> = { ...saved, isOpen: Boolean(saved.isOpen) && Number(saved.acceptedCount) === 0 };
+    const { isDraft, ...fields } = saved;
+    const statusCode = wantedStatus(saved);
+    const row: Record<string, unknown> = { ...fields, statusCode, isOpen: statusCode === "open" };
     return row;
   }).filter(row => mineOnly || row.isOpen).map((row) => {
     const isOwner =
@@ -6327,118 +6334,160 @@ async function listWantedListings(
   sendJson(response, 200, { ok: true, wantedListings });
 }
 
+const wantedSelect = `SELECT w.Id AS id,w.BuyerCompanyId AS buyerCompanyId,c.LegalName AS buyerCompanyName,
+ w.Title AS title,mt.Code AS materialTypeCode,mt.Name AS materialTypeName,w.Quantity AS quantity,
+ w.QuantityUnit AS quantityUnit,w.TargetPricePerUnit AS targetPricePerUnit,w.CurrencyCode AS currencyCode,
+ w.CountryCode AS countryCode,w.StateProvince AS stateProvince,w.Notes AS notes,w.IsOpen AS isOpen,w.IsDraft AS isDraft,
+ CONVERT(VARCHAR(10),w.NeedByDate,23) AS needByDate,w.CreatedAt AS createdAt,
+ (SELECT COUNT(*) FROM dbo.Quotes q WHERE q.WantedListingId=w.Id) AS responseCount,
+ (SELECT COUNT(*) FROM dbo.Quotes q JOIN dbo.QuoteStatuses qs ON qs.Id=q.QuoteStatusId WHERE q.WantedListingId=w.Id AND qs.Code='accepted') AS acceptedCount
+ FROM dbo.WantedListings w JOIN dbo.Companies c ON c.Id=w.BuyerCompanyId JOIN dbo.MaterialTypes mt ON mt.Id=w.MaterialTypeId`;
+type WantedRow = WantedState &
+  Record<string, unknown> & { id: number; buyerCompanyId: number };
+function projectWanted(row: Record<string, unknown>) {
+  const { isDraft, ...fields } = row;
+  const statusCode = wantedStatus(row);
+  return { ...fields, statusCode, isOpen: statusCode === "open" };
+}
+async function ownWanted(id: number, auth: AuthContext, tx?: sql.Transaction) {
+  const statement =
+    (tx
+      ? wantedSelect.replace(
+          "dbo.WantedListings w",
+          "dbo.WantedListings w WITH(UPDLOCK,HOLDLOCK)",
+        )
+      : wantedSelect) +
+    " WHERE w.Id=@id AND (@admin=1 OR w.BuyerCompanyId=@company)";
+  const params = [
+    intParam("id", id),
+    bitParam("admin", auth.isAdmin),
+    intParam("company", auth.companyId),
+  ];
+  const row = (
+    tx
+      ? await queryRowsWithParamsInTransaction<WantedRow>(tx, statement, params)
+      : await queryRowsWithParams<WantedRow>(statement, params)
+  )[0];
+  if (!row) throw new ApiError(404, "Wanted listing not found.");
+  return row;
+}
+function wantedParams(state: WantedState, material: number, user: number) {
+  return [
+    nvarcharParam("title", state.title, 200),
+    intParam("material", material),
+    decimalParam("quantity", state.quantity ?? undefined),
+    varcharParam("unit", state.quantityUnit ?? undefined, 40),
+    moneyParam("price", state.targetPricePerUnit ?? undefined),
+    varcharParam("currency", state.currencyCode ?? undefined, 3),
+    varcharParam("country", state.countryCode ?? undefined, 2),
+    nvarcharParam("region", state.stateProvince ?? undefined, 120),
+    nvarcharParam("notes", state.notes ?? undefined, 2000),
+    varcharParam("needed", state.needByDate ?? undefined, 10),
+    bitParam("draft", state.isDraft),
+    bitParam("open", state.isOpen),
+    intParam("user", user),
+  ];
+}
+async function requireWantedWriter(auth: AuthContext, tx: sql.Transaction) {
+  if (auth.isAdmin) return;
+  const member = await queryRowsWithParamsInTransaction(tx,
+    `SELECT m.Id AS allowedWantedWriter FROM dbo.CompanyMembers m WITH(HOLDLOCK)
+     JOIN dbo.MemberRoles r ON r.Id=m.MemberRoleId
+     JOIN dbo.PermissionTiers pt ON pt.Id=m.PermissionTierId
+     JOIN dbo.AccountStatuses ms ON ms.Id=m.MemberStatusId
+     JOIN dbo.Companies c WITH(HOLDLOCK) ON c.Id=m.CompanyId
+     JOIN dbo.CompanyTypes ct ON ct.Id=c.CompanyTypeId
+     JOIN dbo.AccountStatuses cs ON cs.Id=c.VerificationStatusId
+     WHERE m.UserId=@user AND m.CompanyId=@company AND ms.Code='active'
+     AND ct.Code IN ('buyer','both') AND cs.Code NOT IN ('inactive','suspended')
+     AND (r.Code IN ('owner','admin') OR (r.Code<>'viewer' AND pt.Code<>'view_only' AND (pt.Code IN ('requester','approver','executor') OR m.CanExecuteTransactions=1)))`,
+    [intParam("user",auth.userId),intParam("company",auth.companyId)]);
+  if (!member.length) throw new ApiError(403,"Active buyer membership with write permission required.");
+}
+async function getWantedListing(
+  response: ServerResponse,
+  id: number,
+  auth: AuthContext,
+) {
+  response.setHeader("cache-control", "private, no-store");
+  sendJson(response, 200, {
+    ok: true,
+    wantedListing: projectWanted(await ownWanted(id, auth)),
+  });
+}
 async function createWantedListing(
   request: IncomingMessage,
   response: ServerResponse,
   auth: AuthContext,
 ) {
-  if (!auth.companyId) {
+  if (!auth.companyId)
     throw new ApiError(
       403,
-      "Set up your company before posting a wanted listing.",
+      "Set up your company before saving a wanted listing.",
     );
-  }
-  const body = await readJsonBody<Record<string, unknown>>(request);
-  const materialTypeId = await lookupId(
-    "MaterialTypes",
-    getRequiredString(body, "materialTypeCode", 80),
-  );
-  const quantity = getOptionalNumber(body, "quantity");
-  if (quantity === undefined || quantity <= 0) {
-    throw new ApiError(400, "quantity must be a positive number.");
-  }
-  const countryCode = getRequiredString(body, "countryCode", 2).toUpperCase();
-
-  const rows = await queryRowsWithParams(
-    `
-      INSERT INTO dbo.WantedListings (
-        BuyerCompanyId, Title, MaterialTypeId, Quantity, QuantityUnit,
-        TargetPricePerUnit, CurrencyCode, CountryCode, StateProvince, Notes,
-        CreatedByUserId, UpdatedByUserId
-      )
-      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.IsOpen AS isOpen
-      VALUES (
-        @buyerCompanyId, @title, @materialTypeId, @quantity, @quantityUnit,
-        @targetPricePerUnit, @currencyCode, @countryCode, @stateProvince, @notes,
-        @userId, @userId
-      );
-    `,
-    [
-      intParam("buyerCompanyId", auth.companyId),
-      nvarcharParam("title", getRequiredString(body, "title", 200), 200),
-      intParam("materialTypeId", materialTypeId),
-      decimalParam("quantity", quantity),
-      varcharParam(
-        "quantityUnit",
-        getOptionalString(body, "quantityUnit", 40) ?? "tons",
-        40,
-      ),
-      moneyParam("targetPricePerUnit", getOptionalNumber(body, "targetPricePerUnit")),
-      varcharParam(
-        "currencyCode",
-        getOptionalString(body, "currencyCode", 3)?.toUpperCase() ?? "USD",
-        3,
-      ),
-      varcharParam("countryCode", countryCode, 2),
-      nvarcharParam("stateProvince", getOptionalString(body, "stateProvince", 120), 120),
-      nvarcharParam("notes", getOptionalString(body, "notes", 2000), 2000),
-      intParam("userId", auth.userId),
-    ],
-  );
-
+  const body = await readJsonBody(request);
+  const row = await runInTransaction(async (tx) => {
+    await requireWantedWriter(auth,tx);
+    const state = parseWantedWrite(body);
+    const material = await lookupIdTx(
+      tx,
+      "MaterialTypes",
+      state.materialTypeCode,
+    );
+    const rows = await queryRowsWithParamsInTransaction<{ id: number }>(
+      tx,
+      `
+      INSERT INTO dbo.WantedListings(BuyerCompanyId,Title,MaterialTypeId,Quantity,QuantityUnit,TargetPricePerUnit,CurrencyCode,CountryCode,StateProvince,Notes,NeedByDate,IsDraft,IsOpen,CreatedByUserId,UpdatedByUserId)
+      OUTPUT INSERTED.Id AS id VALUES(@company,@title,@material,@quantity,@unit,@price,@currency,@country,@region,@notes,@needed,@draft,@open,@user,@user)`,
+      [
+        intParam("company", auth.companyId),
+        ...wantedParams(state, material, auth.userId),
+      ],
+    );
+    return ownWanted(rows[0]!.id, auth, tx);
+  });
   await writeAuditLog({
     auth,
     request,
     actionTypeCode: "created",
     recordTypeCode: "listing",
-    recordId: rows[0].id as number,
-    newValue: rows[0],
-    reason: "Wanted listing posted.",
+    recordId: row.id,
+    newValue: projectWanted(row),
+    reason: row.isDraft
+      ? "Private wanted draft saved."
+      : "Wanted listing posted.",
   });
-
-  sendJson(response, 201, { ok: true, wantedListing: rows[0] });
+  response.setHeader("cache-control", "private, no-store");
+  sendJson(response, 201, { ok: true, wantedListing: projectWanted(row) });
 }
-
 async function updateWantedListing(
   request: IncomingMessage,
   response: ServerResponse,
   id: number,
   auth: AuthContext,
 ) {
-  await requireResourceCompany(
-    auth,
-    "SELECT BuyerCompanyId AS companyId FROM dbo.WantedListings WHERE Id = @id;",
-    [intParam("id", id)],
-    "Wanted listing",
-  );
-  const body = await readJsonBody<Record<string, unknown>>(request);
-  const rows = await queryRowsWithParams(
-    `
-      UPDATE dbo.WantedListings
-      SET
-        Title = COALESCE(@title, Title),
-        Quantity = COALESCE(@quantity, Quantity),
-        TargetPricePerUnit = COALESCE(@targetPricePerUnit, TargetPricePerUnit),
-        Notes = COALESCE(@notes, Notes),
-        IsOpen = COALESCE(@isOpen, IsOpen),
-        UpdatedByUserId = @userId,
-        UpdatedAt = SYSUTCDATETIME()
-      OUTPUT INSERTED.Id AS id, INSERTED.Title AS title, INSERTED.IsOpen AS isOpen
-      WHERE Id = @id AND (@isOpen IS NULL OR @isOpen=0 OR NOT EXISTS (
-        SELECT 1 FROM dbo.Quotes q JOIN dbo.QuoteStatuses qs ON qs.Id=q.QuoteStatusId WHERE q.WantedListingId=@id AND qs.Code='accepted'));
-    `,
-    [
-      intParam("id", id),
-      nvarcharParam("title", getOptionalString(body, "title", 200), 200),
-      decimalParam("quantity", getOptionalNumber(body, "quantity")),
-      moneyParam("targetPricePerUnit", getOptionalNumber(body, "targetPricePerUnit")),
-      nvarcharParam("notes", getOptionalString(body, "notes", 2000), 2000),
-      bitParam("isOpen", getOptionalBoolean(body, "isOpen")),
-      intParam("userId", auth.userId),
-    ],
-  );
-  if (!rows[0]) throw new ApiError(409, "An accepted request cannot be reopened.");
-  sendJson(response, 200, { ok: true, wantedListing: rows[0] });
+  const body = await readJsonBody(request);
+  const row = await runInTransaction(async (tx) => {
+    const previous = await ownWanted(id, auth, tx);
+    await requireWantedWriter(auth,tx);
+    const state = parseWantedWrite(body, previous);
+    const material = await lookupIdTx(
+      tx,
+      "MaterialTypes",
+      state.materialTypeCode,
+    );
+    await queryRowsWithParamsInTransaction(
+      tx,
+      `UPDATE dbo.WantedListings SET Title=@title,MaterialTypeId=@material,
+      Quantity=@quantity,QuantityUnit=@unit,TargetPricePerUnit=@price,CurrencyCode=@currency,CountryCode=@country,
+      StateProvince=@region,Notes=@notes,NeedByDate=@needed,IsDraft=@draft,IsOpen=@open,UpdatedByUserId=@user,UpdatedAt=SYSUTCDATETIME()
+      WHERE Id=@id`,
+      [intParam("id", id), ...wantedParams(state, material, auth.userId)],
+    );
+    return ownWanted(id, auth, tx);
+  });
+  response.setHeader("cache-control", "private, no-store");
+  sendJson(response, 200, { ok: true, wantedListing: projectWanted(row) });
 }
 
 async function listSavedSearches(response: ServerResponse, auth: AuthContext) {
@@ -6554,7 +6603,8 @@ async function notifySavedSearchMatches(listingId: number, actorUserId: number) 
           loc.CountryCode AS countryCode
         FROM dbo.Listings l
         LEFT JOIN dbo.Locations loc ON loc.Id = l.LocationId
-        WHERE l.Id = @id;
+        JOIN dbo.ListingStatuses ls ON ls.Id=l.ListingStatusId
+        WHERE l.Id = @id AND ls.Code='published';
       `,
       [intParam("id", listingId)],
     ))[0];
@@ -7004,6 +7054,10 @@ export async function handleApiRoute(
   }
 
   const wantedMatch = matchPath(requestUrl.pathname, "/api/wanted-listings/:id");
+  if (wantedMatch.matched && method === "GET") {
+    await getWantedListing(response,parseId(wantedMatch.params.id,"Wanted listing ID"),await requireSessionAuth(request));
+    return true;
+  }
   if (wantedMatch.matched && method === "PATCH") {
     await updateWantedListing(
       request,

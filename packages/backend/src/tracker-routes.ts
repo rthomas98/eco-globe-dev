@@ -71,11 +71,11 @@ export async function handleTrackerRoute(
     role === "seller"
       ? "l.SellerCompanyId=@company"
       : `(
-    EXISTS(SELECT 1 FROM dbo.ListingFavorites f WHERE f.ListingId=l.Id AND f.UserId=@user)
+    l.ListingStatusId NOT IN (SELECT Id FROM dbo.ListingStatuses WHERE Code='draft') AND (EXISTS(SELECT 1 FROM dbo.ListingFavorites f WHERE f.ListingId=l.Id AND f.UserId=@user)
     OR EXISTS(SELECT 1 FROM dbo.SampleRequests r WHERE r.ListingId=l.Id AND r.BuyerCompanyId=@company)
     OR EXISTS(SELECT 1 FROM dbo.LabRequests r WHERE r.ListingId=l.Id AND r.CompanyId=@company)
     OR EXISTS(SELECT 1 FROM dbo.PilotRequests r WHERE r.ListingId=l.Id AND r.BuyerCompanyId=@company)
-    OR EXISTS(SELECT 1 FROM dbo.Orders r WHERE r.ListingId=l.Id AND r.BuyerCompanyId=@company))`;
+    OR EXISTS(SELECT 1 FROM dbo.Orders r WHERE r.ListingId=l.Id AND r.BuyerCompanyId=@company)))`;
   const [
     account,
     listings,

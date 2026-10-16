@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useDemoUser } from "@/lib/demo-user";
 import { fetchWantedListings } from "@/lib/api-portal";
+import { isRespondable } from "@/lib/wanted-listing-format";
 import { DataBoundary, useBackendData } from "@/components/shared/data-state";
 import { SellerLayout } from "./seller-layout";
 import { BuyerRequestRow } from "./buyer-request-row";
@@ -11,7 +12,8 @@ import { BuyerRequestRow } from "./buyer-request-row";
 export function SellerRfqPage() {
   const companyId = useDemoUser()?.activeCompanyId;
   const requests = useBackendData(
-    async () => (await fetchWantedListings()).filter((row) => row.isOpen),
+    // Private drafts are never offered for quoting, even if one were returned.
+    async () => (await fetchWantedListings()).filter(isRespondable),
     [companyId],
     "Buyer requests could not be loaded.",
   );

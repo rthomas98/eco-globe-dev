@@ -13,6 +13,7 @@ import { useListings } from "@/lib/use-listings";
 import { removeLocalListingDraft, useLocalListingDrafts } from "@/lib/custom-listings";
 import { statusLabel } from "@/lib/listing-view";
 import { formatQuantity } from "@/lib/listing-format";
+import { isRespondable } from "@/lib/wanted-listing-format";
 import type { Listing } from "../public/browse-listings";
 import {
   fetchInterestSummary,
@@ -97,7 +98,7 @@ export function ListingsPage() {
       });
     fetchWantedListings()
       .then((rows) => {
-        if (!cancelled) setDemand(rows.filter((row) => row.isOpen));
+        if (!cancelled) setDemand(rows.filter(isRespondable));
       })
       .catch(() => {
         // Demand feed is best-effort.

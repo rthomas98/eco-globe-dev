@@ -80,13 +80,13 @@ export function SellerListingDetailPage({ id }: { id: string }) {
           <Link href="/seller/listings" className="inline-flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-neutral-900"><ArrowLeft className="size-4" />Back to listings</Link>
           <div className="flex flex-wrap items-center gap-2">
             {listing.statusCode === "draft" && (
-              <Button variant="secondary" size="md" disabled={busy || !listing.sdsDocument} onClick={() => void changeStatus("pending_review")} title={listing.sdsDocument ? undefined : "Upload the SDS before submitting"}>Submit for review</Button>
+              <Button variant="secondary" size="md" disabled={busy || !listing.sdsDocument || !record.locationId} onClick={() => void changeStatus("pending_review")} title={!record.locationId ? "Choose a facility before submitting" : listing.sdsDocument ? undefined : "Upload the SDS before submitting"}>Submit for review</Button>
             )}
             {listing.statusCode === "published" && (
               <Button variant="secondary" size="md" disabled={busy} onClick={() => void changeStatus("paused")}>Pause</Button>
             )}
             {listing.statusCode === "paused" && (
-              <Button variant="secondary" size="md" disabled={busy} onClick={() => void changeStatus("pending_review")}>Resubmit</Button>
+              <Button variant="secondary" size="md" disabled={busy || !record.locationId} onClick={() => void changeStatus("pending_review")} title={record.locationId ? undefined : "Choose a facility before resubmitting"}>Resubmit</Button>
             )}
             <Link href={`/seller/listings/${listing.id}/edit`}><Button variant="secondary" size="md"><Edit className="size-4" />Edit listing</Button></Link>
           </div>

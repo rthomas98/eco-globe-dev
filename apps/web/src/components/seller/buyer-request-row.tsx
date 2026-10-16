@@ -2,21 +2,27 @@
 
 import { useState } from "react";
 import { portalMoney, type ApiWantedListing } from "@/lib/api-portal";
+import { describeWantedQuantity, describeWantedTargetPrice } from "@/lib/wanted-listing-format";
 import { RfqRespondForm } from "./rfq-respond-form";
 
 /** One open buyer request with an inline quote response form. */
 export function BuyerRequestRow({ request }: { request: ApiWantedListing }) {
   const [responding, setResponding] = useState(false);
   const place = [request.stateProvince, request.countryCode].filter(Boolean).join(", ");
+  const target =
+    request.targetPricePerUnit != null && request.currencyCode
+      ? portalMoney(request.targetPricePerUnit, request.currencyCode)
+      : request.targetPricePerUnit != null
+        ? describeWantedTargetPrice(request)
+        : null;
   return (
     <div className="rounded-lg bg-neutral-50 px-4 py-3 text-sm" style={{ border: "1px solid #F0F0F0" }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-semibold text-neutral-900">{request.title}</span>
         <span className="text-neutral-600">
-          {request.quantity} {request.quantityUnit} · {request.materialTypeName}
+          {describeWantedQuantity(request)} · {request.materialTypeName}
           {place && ` · ${place}`}
-          {request.targetPricePerUnit != null &&
-            ` · target ${portalMoney(request.targetPricePerUnit, request.currencyCode)}`}
+          {target && ` · target ${target}`}
         </span>
         {!responding && (
           <button

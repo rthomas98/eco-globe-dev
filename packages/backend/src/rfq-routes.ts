@@ -32,14 +32,16 @@ export async function handleRfqRoute(
     await query<{
       buyer: number;
       isOpen: boolean;
+      isDraft: boolean;
       unit: string;
       material: number;
     }>(
-      `SELECT BuyerCompanyId AS buyer,IsOpen AS isOpen,QuantityUnit AS unit,MaterialTypeId AS material FROM dbo.WantedListings WHERE Id=@id`,
+      `SELECT BuyerCompanyId AS buyer,IsOpen AS isOpen,IsDraft AS isDraft,QuantityUnit AS unit,MaterialTypeId AS material FROM dbo.WantedListings WHERE Id=@id`,
       [p("id", wantedId)],
     )
   )[0];
-  if (!wanted) throw new ApiError(404, "Request not found.");
+  if (!wanted || wanted.isDraft && !auth.isAdmin && wanted.buyer !== auth.companyId) throw new ApiError(404, "Request not found.");
+  if (wanted.isDraft) throw new ApiError(409, "Private drafts cannot have quote responses.");
   if (request.method === "GET") {
     const responses = await query(
       `SELECT q.Id AS id,q.ListingId AS listingId,l.Title AS listingTitle,q.SellerCompanyId AS sellerCompanyId,c.LegalName AS sellerCompanyName,q.Quantity AS quantity,q.QuantityUnit AS quantityUnit,q.UnitPrice AS unitPrice,q.CurrencyCode AS currencyCode,q.DeliveryTerms AS deliveryTerms,q.ExpiresAt AS expiresAt,s.Code AS quoteStatusCode,q.CreatedAt AS createdAt FROM dbo.Quotes q JOIN dbo.Listings l ON l.Id=q.ListingId JOIN dbo.Companies c ON c.Id=q.SellerCompanyId JOIN dbo.QuoteStatuses s ON s.Id=q.QuoteStatusId WHERE q.WantedListingId=@id AND (@admin=1 OR q.BuyerCompanyId=@company OR q.SellerCompanyId=@company) ORDER BY q.Id DESC`,
@@ -89,10 +91,11 @@ export async function handleRfqRoute(
   const quote = await runInTransaction(async (tx) => {
     const current = await txQuery(
       tx,
-      "SELECT Id FROM dbo.WantedListings WITH(UPDLOCK,HOLDLOCK) WHERE Id=@id AND IsOpen=1 AND BuyerCompanyId=@buyer",
+      "SELECT BuyerCompanyId AS buyer,QuantityUnit AS unit,MaterialTypeId AS material FROM dbo.WantedListings WITH(UPDLOCK,HOLDLOCK) WHERE Id=@id AND IsOpen=1 AND IsDraft=0 AND BuyerCompanyId=@buyer",
       [p("id", wantedId), p("buyer", wanted.buyer)],
     );
     if (!current.length) throw new ApiError(409, "Request is no longer open.");
+    const lockedWanted = current[0]!;
     const accepted = await txQuery(
       tx,
       "SELECT q.Id FROM dbo.Quotes q JOIN dbo.QuoteStatuses s ON s.Id=q.QuoteStatusId WHERE q.WantedListingId=@id AND s.Code='accepted'",
@@ -129,8 +132,8 @@ export async function handleRfqRoute(
     if (
       quantity < Number(listing.minimum) ||
       quantity > Number(listing.quantity) ||
-      listing.material !== wanted.material ||
-      !sameQuantityUnit(listing.unit, wanted.unit)
+      listing.material !== lockedWanted.material ||
+      !sameQuantityUnit(listing.unit, String(lockedWanted.unit))
     )
       throw new ApiError(
         400,

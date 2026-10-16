@@ -15,6 +15,11 @@ let company: number | undefined = 10;
 let admin = false;
 const reportScopes: unknown[] = [];
 let wantedOpen = true;
+let wantedDraft = false;
+let wantedCanWrite = true;
+let wantedMemberRole = "owner";
+let wantedPermissionTier = "executor";
+let wantedExecute = false;
 let hasSds = true;
 let failClose = false;
 let commits = 0;
@@ -62,27 +67,51 @@ function rows(
     text.includes("FROM dbo.CompanyMembers cm") &&
     text.includes("companyTypeCode")
   )
-    return company === undefined ? [] : [
-      {
-        id: company,
-        companyTypeCode: "both",
-        memberRoleCode: admin ? "admin" : "owner",
-        permissionTierCode: admin ? "admin_override" : "standard",
-      },
-    ];
+    return company === undefined
+      ? []
+      : [
+          {
+            id: company,
+            companyTypeCode: "both",
+            memberRoleCode: admin ? "admin" : wantedMemberRole,
+            permissionTierCode: admin ? "admin_override" : wantedPermissionTier,
+          },
+        ];
   if (text.includes("UPDATE dbo.UserSessions")) return [];
   if (text.includes("@companyId IS NULL")) {
     reportScopes.push(params.companyId);
     return [{ totalOrders: 0 }];
   }
+  if (text.includes("allowedWantedWriter")) {
+    // Driver-level regression: demand the reviewed SQL grouping before simulating rows.
+    // Actual SQL execution remains the responsibility of the local smoke.
+    assert.ok(
+      text.includes(
+        "AND (r.Code IN ('owner','admin') OR (r.Code<>'viewer' AND pt.Code<>'view_only' AND (pt.Code IN ('requester','approver','executor') OR m.CanExecuteTransactions=1)))",
+      ),
+    );
+    const allowed =
+      ["owner", "admin"].includes(wantedMemberRole) ||
+      (wantedMemberRole !== "viewer" &&
+        wantedPermissionTier !== "view_only" &&
+        (["requester", "approver", "executor"].includes(wantedPermissionTier) ||
+          wantedExecute));
+    return wantedCanWrite && allowed ? [{ allowedWantedWriter: 1 }] : [];
+  }
   if (text.includes("FROM dbo.CompanyMembers")) return [{ id: 1 }];
   if (text.includes("FROM dbo.ListingDocuments"))
     return hasSds ? [{ Id: 1 }] : [];
   if (text.includes("FROM dbo.Listings l")) return [listing];
+  if (text.includes("INSERT INTO dbo.WantedListings")) {
+    wantedDraft = Boolean(params.draft);
+    wantedOpen = Boolean(params.open);
+    return [{ id: 7 }];
+  }
   if (text.includes("UPDATE dbo.WantedListings")) {
     if (failClose) throw new Error("injected close failure");
-    wantedOpen = false;
-    return [{ id: 7, isOpen: false }];
+    wantedOpen = typeof params.open === "boolean" ? params.open : false;
+    if (typeof params.draft === "boolean") wantedDraft = params.draft;
+    return [{ id: 7, isOpen: wantedOpen }];
   }
   if (
     text.includes("SELECT TOP (100)") &&
@@ -93,6 +122,7 @@ function rows(
         id: 7,
         buyerCompanyId: 10,
         isOpen: wantedOpen,
+        isDraft: wantedDraft,
         acceptedCount: quote.quoteStatusCode === "accepted" ? 1 : 0,
       },
     ];
@@ -102,7 +132,19 @@ function rows(
         id: 7,
         buyer: 10,
         buyerCompanyId: 10,
+        title: "QA wanted",
+        materialTypeCode: "other",
+        quantity: 5,
+        quantityUnit: "tons",
+        targetPricePerUnit: null,
+        currencyCode: "USD",
+        countryCode: "US",
+        stateProvince: null,
+        notes: null,
+        needByDate: null,
+        acceptedCount: 0,
         isOpen: wantedOpen,
+        isDraft: wantedDraft,
         unit: "tons",
         material: 1,
         currency: "USD",
@@ -210,6 +252,11 @@ function reset() {
   company = 10;
   admin = false;
   wantedOpen = true;
+  wantedDraft = false;
+  wantedCanWrite = true;
+  wantedMemberRole = "owner";
+  wantedPermissionTier = "executor";
+  wantedExecute = false;
   hasSds = true;
   failClose = false;
   commits = 0;
@@ -523,7 +570,10 @@ test("company reports bind every aggregate to the active company and reject anot
   assert.equal(result.response.statusCode, 200);
   assert.deepEqual(reportScopes, [10, 10, 10, 10]);
   reportScopes.length = 0;
-  await assert.rejects(route("/api/reports/summary?companyId=20", "GET", {}), status(403));
+  await assert.rejects(
+    route("/api/reports/summary?companyId=20", "GET", {}),
+    status(403),
+  );
   assert.deepEqual(reportScopes, []);
 });
 
@@ -537,4 +587,132 @@ test("admin reports retain platform-wide and explicit company scopes", async () 
   const scoped = await route("/api/reports/summary?companyId=20", "GET", {});
   assert.equal(scoped.response.statusCode, 200);
   assert.deepEqual(reportScopes, [20, 20, 20, 20]);
+});
+
+test("draft demand cannot be quoted or accepted, even with inconsistent open flag", async () => {
+  reset();
+  wantedDraft = true;
+  await assert.rejects(
+    route("/api/quotes/5"),
+    (e: unknown) => e instanceof ApiError && e.status === 409,
+  );
+  company = 20;
+  await assert.rejects(
+    route("/api/wanted-listings/7/responses", "POST", {
+      listingId: 8,
+      quantity: 5,
+      unitPrice: 10,
+    }),
+    (e: unknown) => e instanceof ApiError && e.status === 404,
+  );
+  assert.equal(quote.quoteStatusCode, "sent");
+  reset();
+});
+
+test("view-only buyer cannot create, edit or publish wanted demand through real handlers", async () => {
+  reset();
+  wantedCanWrite = false;
+  wantedDraft = true;
+  for (const [path, method, body] of [
+    [
+      "/api/wanted-listings",
+      "POST",
+      { title: "Viewer draft", materialTypeCode: "other", statusCode: "draft" },
+    ],
+    ["/api/wanted-listings/7", "PATCH", { notes: "Viewer edit" }],
+    [
+      "/api/wanted-listings/7",
+      "PATCH",
+      {
+        statusCode: "open",
+        quantity: 20,
+        quantityUnit: "tonne",
+        currencyCode: "USD",
+        countryCode: "US",
+      },
+    ],
+  ] as const) {
+    await assert.rejects(
+      route(path, method, body),
+      (e: unknown) => e instanceof ApiError && e.status === 403,
+    );
+  }
+  assert.ok(
+    !statements.some(
+      (s) =>
+        s.includes("INSERT INTO dbo.WantedListings") ||
+        s.includes("UPDATE dbo.WantedListings"),
+    ),
+  );
+  assert.equal(commits, 0);
+  assert.equal(rollbacks, 3);
+  reset();
+});
+
+test("requester buyer reaches draft create/edit/publish without execution permission", async () => {
+  reset();
+  wantedMemberRole = "buyer_operator";
+  wantedPermissionTier = "requester";
+  const created = await route("/api/wanted-listings", "POST", {
+    title: "Requester draft",
+    materialTypeCode: "other",
+    statusCode: "draft",
+  });
+  assert.equal(created.response.statusCode, 201);
+  await route("/api/wanted-listings/7", "PATCH", { notes: "Requester edit" });
+  await route("/api/wanted-listings/7", "PATCH", {
+    statusCode: "open",
+    quantity: 20,
+    quantityUnit: "tonne",
+    countryCode: "US",
+    currencyCode: "USD",
+  });
+  assert.equal(commits, 3);
+  assert.equal(wantedOpen, true);
+  assert.ok(
+    statements.some(
+      (s) =>
+        s.includes("allowedWantedWriter") &&
+        s.includes("'requester','approver','executor'"),
+    ),
+  );
+  reset();
+});
+
+test("D1 owner/admin override view-only tier; nonowners cannot bypass explicit denial with execute", async () => {
+  for (const role of ["owner", "admin"]) {
+    reset();
+    wantedMemberRole = role;
+    wantedPermissionTier = "view_only";
+    const created = await route("/api/wanted-listings", "POST", {
+      title: "Company admin draft",
+      materialTypeCode: "other",
+      statusCode: "draft",
+    });
+    assert.equal(created.response.statusCode, 201);
+    assert.equal(commits, 1);
+  }
+  for (const [role, tier] of [
+    ["viewer", "executor"],
+    ["buyer_operator", "view_only"],
+    ["viewer", "view_only"],
+  ]) {
+    reset();
+    wantedMemberRole = role!;
+    wantedPermissionTier = tier!;
+    wantedExecute = true;
+    await assert.rejects(
+      route("/api/wanted-listings", "POST", {
+        title: "Denied draft",
+        materialTypeCode: "other",
+        statusCode: "draft",
+      }),
+      (e: unknown) => e instanceof ApiError && e.status === 403,
+    );
+    assert.equal(commits, 0);
+    assert.ok(
+      !statements.some((s) => s.includes("INSERT INTO dbo.WantedListings")),
+    );
+  }
+  reset();
 });

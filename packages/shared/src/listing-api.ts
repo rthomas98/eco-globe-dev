@@ -46,14 +46,14 @@ export type ListingSpecifications = {
 };
 export type ListingWrite = {
   sellerCompanyId: number;
-  locationId: number;
+  locationId?: number | null;
   title: string;
   materialTypeCode: string;
   quantity?: number | null;
-  quantityUnit?: ListingQuantityUnit | "";
+  quantityUnit?: ListingQuantityUnit | "" | null;
   minimumOrderQuantity?: number | null;
   pricePerUnit?: number | null;
-  currencyCode?: string;
+  currencyCode?: string | null;
   listingStatusCode?: ListingStatusCode;
   carbonIntensityKgCo2e?: number | null;
   description?: string | null;
@@ -125,10 +125,10 @@ export type PersistedListing = {
   title: string;
   materialTypeCode: string;
   quantity: number | null;
-  quantityUnit: ListingQuantityUnit | "";
+  quantityUnit: ListingQuantityUnit | "" | null;
   minimumOrderQuantity: number | null;
   pricePerUnit: number | null;
-  currencyCode: string;
+  currencyCode: string | null;
   listingStatusCode: ListingStatusCode;
   carbonIntensityKgCo2e: number | null;
   description: string | null;

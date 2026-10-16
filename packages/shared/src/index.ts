@@ -4,4 +4,5 @@
 export * from "./types";
 export * from "./constants";
 export * from "./listing-api";
+export * from "./wanted-listing-api";
 export type { LabSharing, LabTurnaround, LabRequestStatus, LabOptionalTest, LabPanel, LabConfig, LabRequestWrite, LabResult, LabReport, LabRequest, LabAdminRequest, LabReview, LabPanelWrite, LabReportWrite } from './lab-api';

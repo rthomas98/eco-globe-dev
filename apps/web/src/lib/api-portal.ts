@@ -263,15 +263,20 @@ export interface ApiWantedListing {
   title: string;
   materialTypeCode: string;
   materialTypeName: string;
-  quantity: number;
-  quantityUnit: string;
+  /** Private drafts may leave quantity, unit, currency, country and need-by unset (null). */
+  quantity: number | null;
+  quantityUnit: string | null;
   targetPricePerUnit: number | null;
-  currencyCode: string;
-  countryCode: string;
+  currencyCode: string | null;
+  countryCode: string | null;
   stateProvince: string | null;
+  needByDate?: string | null;
   notes: string | null;
+  /** Older responses may omit it; isOpen is false for drafts. */
+  statusCode?: "draft" | "open" | "closed" | null;
   isOpen: boolean;
   createdAt: string;
+  updatedAt?: string | null;
   responseCount?: number;
   acceptedCount?: number;
 }
@@ -283,21 +288,50 @@ export async function fetchWantedListings(mineOnly = false) {
   return Array.isArray(body.wantedListings) ? body.wantedListings : [];
 }
 
-export async function createWantedListing(input: {
-  title: string;
-  materialTypeCode: string;
-  quantity: number;
-  quantityUnit?: string;
-  targetPricePerUnit?: number;
-  countryCode: string;
-  stateProvince?: string;
-  notes?: string;
-}) {
+/** Editable request fields; null clears a value on a draft and omission keeps it. */
+export interface WantedListingWriteBody {
+  title?: string;
+  materialTypeCode?: string;
+  quantity?: number | null;
+  quantityUnit?: string | null;
+  targetPricePerUnit?: number | null;
+  currencyCode?: string | null;
+  countryCode?: string | null;
+  stateProvince?: string | null;
+  needByDate?: string | null;
+  notes?: string | null;
+}
+
+/** Omitting statusCode posts an open request (legacy behaviour); "draft" keeps it private. */
+export async function createWantedListing(
+  input: WantedListingWriteBody & { title: string; materialTypeCode: string; statusCode?: "draft" | "open" },
+) {
   return proxySend<{ ok: boolean; wantedListing: { id: number } }>(
     "/api/wanted-listings",
     "POST",
-    input,
+    { ...input },
   );
+}
+
+/** One of the active company's own requests, including drafts. */
+export async function fetchWantedListing(id: number) {
+  const body = await proxyGet<{ ok: boolean; wantedListing: ApiWantedListing }>(
+    `/api/wanted-listings/${id}`,
+  );
+  return body.wantedListing;
+}
+
+/** Save a draft, or publish it with statusCode "open" (the API re-validates). */
+export async function updateWantedListing(
+  id: number,
+  input: WantedListingWriteBody & { statusCode?: "draft" | "open" },
+) {
+  const body = await proxySend<{ ok: boolean; wantedListing: ApiWantedListing }>(
+    `/api/wanted-listings/${id}`,
+    "PATCH",
+    { ...input },
+  );
+  return body.wantedListing;
 }
 
 /* ── Saved searches (Phase 4) ── */

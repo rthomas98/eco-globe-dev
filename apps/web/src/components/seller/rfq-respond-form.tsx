@@ -25,9 +25,9 @@ export function RfqRespondForm({ wanted, onClose }: { wanted: ApiWantedListing; 
   const [listingId, setListingId] = useState<number | "">("");
   const chosen = eligible.find((l) => l.id === listingId) ?? null;
   // The quote is saved in the listing's own unit and currency.
-  const quoteUnit = chosen?.quantityUnit ?? wanted.quantityUnit;
+  const quoteUnit = chosen?.quantityUnit ?? wanted.quantityUnit ?? "unit not specified";
   const quoteCurrency = chosen?.currencyCode ?? null;
-  const [quantity, setQuantity] = useState(String(wanted.quantity));
+  const [quantity, setQuantity] = useState(wanted.quantity == null ? "" : String(wanted.quantity));
   const [unitPrice, setUnitPrice] = useState("");
   const [terms, setTerms] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
@@ -101,7 +101,7 @@ export function RfqRespondForm({ wanted, onClose }: { wanted: ApiWantedListing; 
       )}
       {owned.status === "ready" && options.length === 0 && (
         <p className="text-xs text-neutral-600">
-          You need a published {wanted.materialTypeName} listing sold per {wanted.quantityUnit} to respond. Listings in
+          You need a published {wanted.materialTypeName} listing sold per {wanted.quantityUnit ?? "the requested unit"} to respond. Listings in
           tons are not matched to tonne requests because tons may be short tons.
         </p>
       )}
