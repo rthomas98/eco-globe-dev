@@ -13,6 +13,7 @@ import type { Facility } from "@/lib/demo-user";
 import { formatMoney, describeUnit } from "@/lib/listing-format";
 import { describeQuantitySource, type ValueRecoveryResult } from "@/lib/value-recovery";
 import { reportLogoHtml, reportLogoUrl } from "@/lib/report-branding";
+import { oneShot } from "@/lib/one-shot";
 
 export interface ReportValueRecovery {
   role: "seller" | "buyer";
@@ -73,7 +74,9 @@ export function generateCarbonReport(input: ReportInput) {
     return;
   }
   // Auto-trigger print once the window finishes loading. The user can then "Save as PDF".
-  const onLoad = () => {
+  // One-shot: print() blocks until the dialog closes, so the fallback below would
+  // otherwise see a complete document and open a second dialog.
+  const onLoad = oneShot(() => {
     try {
       win.focus();
       win.print();
@@ -82,7 +85,7 @@ export function generateCarbonReport(input: ReportInput) {
     }
     // Free the object URL after the new window has parsed the document.
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-  };
+  });
   // load may have already fired by the time we attach; cover both.
   win.addEventListener("load", onLoad, { once: true });
   setTimeout(() => {

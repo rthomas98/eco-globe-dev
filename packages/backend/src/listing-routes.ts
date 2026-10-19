@@ -311,6 +311,15 @@ async function save(
     if (previous && companyId !== previous.sellerCompanyId)
       throw new ApiError(400, "Seller company cannot change.");
     await seller(auth, companyId);
+    if (previous?.listingStatusCode === "closed" &&
+      Object.keys(body).length === 1 && body.listingStatusCode === "draft") {
+      // A restore changes lifecycle only; retain legacy blanks and raw metadata.
+      await queryRowsWithParamsInTransaction(transaction,
+        `UPDATE dbo.Listings SET ListingStatusId=(SELECT Id FROM dbo.ListingStatuses WHERE Code='draft'),UpdatedByUserId=@userId,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id`,
+        [int("userId", auth.userId), int("id", previous.id)]);
+      await auditListingLifecycle(transaction, auth, id(previous.id), "closed", "draft");
+      return previous.id;
+    }
     const title = text(merged.title, "title", 200);
     if (!title) throw new ApiError(400, "title is required.");
     let status = text(merged.listingStatusCode, "listingStatusCode") ?? "draft";

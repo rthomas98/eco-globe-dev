@@ -367,6 +367,11 @@ try {
     undefined,
     403,
   );
+  // Historical drafts may contain blank units/currency and minimally shaped JSON.
+  // A status-only restore must preserve these bytes rather than normalize fields.
+  await query("UPDATE dbo.Listings SET QuantityUnit='',CurrencyCode='   ',SpecificationsJson=N'{\"state\":\"Solid\"}' WHERE Id=@id", [int("id", listingId)]);
+  const metadataBefore = (await query<{ value: string }>(
+    "SELECT (SELECT QuantityUnit,CurrencyCode,SpecificationsJson FROM dbo.Listings WHERE Id=@id FOR JSON PATH,INCLUDE_NULL_VALUES) value", [int("id", listingId)]))[0]!.value;
   await call(`/api/listings/${listingId}`, seller.token, "DELETE");
   await call(`/api/listings/${listingId}`, seller.token, "DELETE");
   const retained = (
@@ -398,6 +403,9 @@ try {
   await call(`/api/listings/${listingId}`, seller.token, "PATCH", {
     listingStatusCode: "draft",
   });
+  assert.equal((await query<{ value: string }>(
+    "SELECT (SELECT QuantityUnit,CurrencyCode,SpecificationsJson FROM dbo.Listings WHERE Id=@id FOR JSON PATH,INCLUDE_NULL_VALUES) value", [int("id", listingId)]))[0]!.value, metadataBefore,
+    "status-only restore preserves legacy metadata exactly");
   const audit = await query<{ previous: string; next: string }>(
     "SELECT PreviousValue previous,NewValue next FROM dbo.AuditLogs WHERE RecordTypeId=(SELECT Id FROM dbo.RecordTypes WHERE Code='listing') AND RecordId=@id ORDER BY Id",
     [int("id", listingId)],

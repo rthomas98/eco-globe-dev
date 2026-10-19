@@ -1,6 +1,6 @@
 # Ana feedback verification — 19 October 2026
 
-The five-slide 15 October feedback is implemented and independently reviewed through the EcoGlobe Orca pair. The source base is `e141c4ca258edc819f09e06db47872f765e40d1e`. The reviewed manifest contains 27 files, SHA-256 `863a53cbb2e6e25501d7cb343445b80a14e260228e8a131df927052518e43cb1`. Existing fixes, FUEL/LSU accounts, private drafts, portfolios and research records are preserved.
+The five-slide 15 October feedback is implemented and independently reviewed through the EcoGlobe Orca pair. The source base is `e141c4ca258edc819f09e06db47872f765e40d1e`. The initial reviewed manifest contains 27 files, SHA-256 `863a53cbb2e6e25501d7cb343445b80a14e260228e8a131df927052518e43cb1`. Browser follow-ups produced a final 29-file source manifest, SHA-256 `d0b054b284a970571b8eaef53e5c03aa303120e8afaad727ada075dab42cb650`. Existing fixes, FUEL/LSU accounts, private drafts, portfolios and research records are preserved.
 
 ## Changes and acceptance
 
@@ -16,13 +16,13 @@ The saved PDF is private QA evidence and uses synthetic data. No commercial pric
 
 ## Checks
 
-- Runtime isolation: 22 passed; backend unit tests: 143 passed; web unit tests: 260 passed.
+- Runtime isolation: 22 passed; backend unit tests: 143 passed; web unit tests: 263 passed on the final follow-up revision.
 - All six workspace type checks passed. Lint passed with existing warnings and no errors.
 - Backend, web and standalone admin production builds passed.
 - React Doctor against the frozen source base: 87/100, no findings in the changed files.
 - Dedicated Docker SQL smoke passed using real HTTP/auth/transactions and synthetic fixtures: six staff events and six stub deliveries, migration rerun, rollback, deduplication, access denials and record preservation.
 - Final browser-to-SQL inspection retained two documents and one order; the two pilot requests were the original SQL fixture and the new browser fixture. Exactly one new queued event exists for each of the three event kinds.
-- Both implementation owners reviewed the other owner's final artifacts. Completed backend worker was released and closed. The frontend terminal was retained for user takeover; its unsent user draft was preserved.
+- Both implementation owners reviewed the other owner's final artifacts. Worker lifecycle decisions preserved retained terminals and worktrees.
 
 The aggregate checks/build manifest preceded a test-only SQL-smoke repair. Functional source files are identical; final type checks and SQL smoke cover the final manifest. Initial infrastructure failures (Docker unavailable, interrupted Orca runtimes, Corepack fetch and a development-mode production build) were resolved without resetting databases or weakening runtime ownership checks.
 
@@ -32,7 +32,7 @@ Apply `packages/backend/db/migrations/20261019_staff_alerts.sql` before starting
 
 The approved staff recipient and allowlist are `info@ecoglobeworld.com`. Use the separate development admin origin for staff links. Buyer acknowledgements remain disabled because they were not confirmed. Keep existing refund QA settings for Kate intact. Delivery defaults disabled and refuses a mismatched global redirect.
 
-At preparation time, development was still running the prior API image and web/admin deployments. Local SQL delivery was stubbed; it does not establish provider delivery or human inbox receipt. Deployment and external delivery results are recorded separately below when available.
+The initial development release is commit `21dbc3b7f3b4da40bc99a10e5302a26e4c7ce167`. The additive migration preserved fingerprints across 15 existing business tables. API revision `ecoglobe-backend-dev--ana-21dbc3b` is healthy. Both development sites were rebuilt and aliased. A real listing-review event was accepted by the email provider for the approved staff inbox, in one attempt; inbox receipt remains a separate human check. The final print/restore follow-up release and acceptance results are recorded separately when complete.
 
 ## Retest on development after release
 
@@ -47,3 +47,11 @@ Use existing QA identities or explicitly approved fixtures. Do not close Ana's e
 ## Remaining limits
 
 Human inbox receipt requires confirmation from the approved staff recipient. Buyer automatic acknowledgements remain unapproved. The in-app browser did not surface the report popup; the actual popup and saved PDF passed in Chrome. Existing calculator copy about unavailable quantity for an ambiguous ton unit remains a separate follow-up; the requested savings-unit behavior is covered above.
+
+## Browser-discovered follow-ups
+
+Chrome revealed that the load handler and its 800ms fallback could each open Print. The report now wraps automatic printing in a one-shot handler, with three regression tests for repeated, throwing and re-entrant calls. The manual Print action and supplied logo remain intact.
+
+Live QA listing 28 retained its document and both orders through close/restore. A strict fingerprint caught the general PATCH path normalizing legacy empty unit/currency fields. A status-only closed → draft request now updates only status and audit timestamps, preserving the stored metadata exactly. The regression seeds legacy blanks and minimally shaped JSON and compares the stored bytes after restore. The test's original two blank fields were restored from retained pre-test data in a guarded transaction; the complete original business fingerprint matched before commit.
+
+A second retained local SQL fixture passed without resetting the database or changing existing business records. Across the retained test history there were 15 events; nine queued jobs were delivered through the stub in this second run. Final runtime/backend/web tests, all workspace types, lint and all three production builds passed. The scoped frontend worker reviewed the final backend follow-up with no blockers; root independently reviewed its three frontend files.
