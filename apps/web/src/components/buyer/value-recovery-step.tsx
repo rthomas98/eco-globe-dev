@@ -6,7 +6,8 @@ import { describeUnit, formatMoney, formatNumber } from "@/lib/listing-format";
 import {
   computeBuyerSavings,
   computeSellerRecovery,
-  quantityFromMetricTons,
+  describeQuantitySource,
+  resolveRecoveryQuantity,
   AVOIDED_DISPOSAL_LABEL,
 } from "@/lib/value-recovery";
 import type { ReportValueRecovery } from "./carbon-report";
@@ -56,26 +57,19 @@ export function resolveValueRecovery(
     return { kind: "blocked", reason: "This listing has no recorded price, so a value estimate cannot be calculated." };
   }
   const unit = describeUnit(listing.quantityUnit);
-  let quantity: number | null = typeof inputs.quantity === "number" ? inputs.quantity : null;
-  let tonnesPerUnit: number | null = unit.tonnesPerUnit;
-  if (quantity === null) {
-    if (!unit.isMass) {
-      tonnesPerUnit = typeof inputs.tonnesPerUnit === "number" ? inputs.tonnesPerUnit : null;
-      if (tonnesPerUnit === null || tonnesPerUnit <= 0) {
-        return {
-          kind: "blocked",
-          reason: `This listing is priced per ${unit.singular}. Enter the quantity in ${unit.plural} or the weight of one ${unit.singular} in tonnes.`,
-        };
-      }
-    }
-    quantity = quantityFromMetricTons(metricTons, tonnesPerUnit);
-    if (quantity === null || quantity <= 0) {
-      return { kind: "blocked", reason: "Enter a quantity greater than zero (or set the shipment weight in the Weight step)." };
-    }
-  } else if (!unit.isMass && typeof inputs.tonnesPerUnit === "number" && inputs.tonnesPerUnit > 0) {
-    tonnesPerUnit = inputs.tonnesPerUnit;
-  }
-  if (quantity <= 0) return { kind: "blocked", reason: "Quantity must be greater than zero." };
+  const resolved = resolveRecoveryQuantity(
+    typeof inputs.quantity === "number" && !Number.isNaN(inputs.quantity) ? inputs.quantity : null,
+    unit,
+    typeof inputs.tonnesPerUnit === "number" ? inputs.tonnesPerUnit : null,
+    metricTons,
+  );
+  if (resolved.kind === "blocked") return resolved;
+  const quantity = resolved.quantity;
+  const source = {
+    quantitySource: resolved.kind,
+    tonnesPerUnit: resolved.kind === "derived" ? resolved.tonnesPerUnit : null,
+    derivedFromMetricTons: resolved.kind === "derived" ? resolved.metricTons : null,
+  };
 
   try {
     if (portal === "seller") {
@@ -95,7 +89,7 @@ export function resolveValueRecovery(
           currencyCode: listing.currencyCode,
           quantityUnit: listing.quantityUnit,
           quantity,
-          tonnesPerUnit,
+          ...source,
           listingPricePerUnit: listing.priceNum,
           inputs: { disposalRatePerUnit: disposal, transportToDisposalRatePerUnit: transport },
           result,
@@ -116,7 +110,7 @@ export function resolveValueRecovery(
         currencyCode: listing.currencyCode,
         quantityUnit: listing.quantityUnit,
         quantity,
-        tonnesPerUnit,
+        ...source,
         listingPricePerUnit: listing.priceNum,
         inputs: { baselineDeliveredRatePerUnit: baseline },
         result,
@@ -165,12 +159,18 @@ function NumberField({
 export function ValueRecoverySummary({ report }: { report: ReportValueRecovery }) {
   const unit = describeUnit(report.quantityUnit);
   const money = (n: number) => formatMoney(n, report.currencyCode) ?? "—";
+  const quantityLine = (
+    <p className="mt-1 text-xs text-neutral-500">
+      Quantity {formatNumber(report.quantity, 3)} {unit.plural} · {describeQuantitySource(report, unit)}
+    </p>
+  );
   if (report.result.role === "seller") {
     const r = report.result;
     return (
       <div className="rounded-2xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
         <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Estimated value recovered · {report.currencyCode}</p>
         <p className="mt-2 text-4xl font-bold text-neutral-900">{money(r.totalRecovery)}</p>
+        {quantityLine}
         <div className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
           <div><p className="text-xs text-neutral-500">{AVOIDED_DISPOSAL_LABEL}</p><p className="font-bold text-neutral-900">{money(r.avoidedDisposalCost)}</p><p className="text-xs text-neutral-500">{money(r.avoidedDisposalRatePerUnit)} (disposal incl. transport) × {formatNumber(r.quantity, 3)} {unit.plural}</p></div>
           <div><p className="text-xs text-neutral-500">Sale proceeds</p><p className="font-bold text-neutral-900">{money(r.saleProceeds)}</p><p className="text-xs text-neutral-500">{money(report.listingPricePerUnit)} × {formatNumber(r.quantity, 3)} {unit.plural}</p></div>
@@ -186,6 +186,7 @@ export function ValueRecoverySummary({ report }: { report: ReportValueRecovery }
     <div className="rounded-2xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
       <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{negative ? "Estimated additional cost" : "Estimated savings"} · {report.currencyCode}</p>
       <p className={`mt-2 text-4xl font-bold ${negative ? "text-red-700" : "text-neutral-900"}`}>{money(r.savings)}</p>
+      {quantityLine}
       {negative && <p className="mt-1 text-xs text-red-700">The alternative purchase costs more than your baseline before shipping.</p>}
       <div className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
         <div><p className="text-xs text-neutral-500">Baseline delivered cost</p><p className="font-bold text-neutral-900">{money(r.baselineCost)}</p><p className="text-xs text-neutral-500">{money(report.inputs.baselineDeliveredRatePerUnit ?? 0)} × {formatNumber(r.quantity, 3)} {unit.plural}</p></div>
@@ -213,14 +214,21 @@ export function StepValueRecovery({
   const unit = describeUnit(listing.quantityUnit);
   const resolution = resolveValueRecovery(inputs, listing, portal, metricTons);
   const priceLabel = listing.priceNum !== null ? `${formatMoney(listing.priceNum, listing.currencyCode)} per ${unit.singular}` : "Price unavailable";
-  const derivedQuantity =
-    typeof inputs.quantity === "number"
-      ? null
+  const hasDirectQuantity = typeof inputs.quantity === "number" && !Number.isNaN(inputs.quantity);
+  const quantityState = resolveRecoveryQuantity(
+    hasDirectQuantity ? (inputs.quantity as number) : null,
+    unit,
+    typeof inputs.tonnesPerUnit === "number" ? inputs.tonnesPerUnit : null,
+    metricTons,
+  );
+  const tons = formatNumber(metricTons, 3);
+  const quantityHint = hasDirectQuantity
+    ? `Entered directly — used as-is in ${unit.plural}. Clear it to derive the quantity from the weight step.`
+    : quantityState.kind === "derived"
+      ? `Blank — derived from the weight step: ${tons} metric tonnes ÷ ${formatNumber(quantityState.tonnesPerUnit, 6)} t per ${unit.singular} = ${formatNumber(quantityState.quantity, 3)} ${unit.plural}.`
       : unit.isMass
-        ? quantityFromMetricTons(metricTons, unit.tonnesPerUnit)
-        : typeof inputs.tonnesPerUnit === "number" && inputs.tonnesPerUnit > 0
-          ? quantityFromMetricTons(metricTons, inputs.tonnesPerUnit)
-          : null;
+        ? "Blank — will be derived from the shipment weight in the weight step."
+        : `Enter the quantity in ${unit.plural}, or leave it blank and enter the weight of one ${unit.singular} below.`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -253,22 +261,18 @@ export function StepValueRecovery({
               <NumberField
                 id="vr-quantity"
                 label={`Quantity (${unit.plural})`}
-                hint={
-                  derivedQuantity !== null
-                    ? `Blank uses the shipment weight from step 2: ${formatNumber(derivedQuantity, 3)} ${unit.plural}.`
-                    : unit.isMass
-                      ? "Blank uses the shipment weight from step 2."
-                      : `Enter the quantity in ${unit.plural}, or set the weight per ${unit.singular} below.`
-                }
+                hint={quantityHint}
                 value={inputs.quantity}
                 onChange={(v) => onChange({ quantity: v })}
                 suffix={unit.short}
               />
-              {!unit.isMass && (
+              {/* The basis only matters when deriving from the weight step; a
+                  directly entered quantity is authoritative, so hide it then. */}
+              {!unit.isMass && !hasDirectQuantity && (
                 <NumberField
                   id="vr-basis"
-                  label={`Weight of one ${unit.singular}`}
-                  hint="Explicit basis so the tonnage from step 2 can be expressed in units."
+                  label={`Metric tonnes per ${unit.singular}`}
+                  hint={`Used only to derive the quantity from the weight step (${tons} metric tonnes ÷ this value). Not a unit conversion: enter the weight of one ${unit.singular} in metric tonnes.`}
                   value={inputs.tonnesPerUnit}
                   onChange={(v) => onChange({ tonnesPerUnit: v })}
                   suffix="t"

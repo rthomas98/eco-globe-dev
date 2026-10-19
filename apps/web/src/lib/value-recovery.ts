@@ -135,5 +135,88 @@ export function quantityFromMetricTons(
   return metricTons / tonnesPerUnit;
 }
 
+export interface RecoveryQuantityUnit {
+  /** True when the pricing unit is a known metric mass unit. */
+  isMass: boolean;
+  /** Exact metric tonnes per pricing unit for mass units; null otherwise. */
+  tonnesPerUnit: number | null;
+  singular: string;
+  plural: string;
+}
+
+export type RecoveryQuantity =
+  | { kind: "direct"; quantity: number }
+  | {
+      kind: "derived";
+      quantity: number;
+      /** Scenario tonnage from the weight step. */
+      metricTons: number;
+      /** Metric tonnes per priced unit used for the derivation. */
+      tonnesPerUnit: number;
+      /** "unit-identity" for mass units, "explicit" for a user-entered basis. */
+      basisSource: "unit-identity" | "explicit";
+    }
+  | { kind: "blocked"; reason: string };
+
+/**
+ * Decide the estimator quantity in the listing's pricing unit.
+ *
+ * A quantity entered directly is authoritative and is never rescaled: any
+ * weight basis is ignored. Only a blank quantity is derived from the weight
+ * step, using the exact mass identity for metric mass units or an explicit
+ * metric-tonnes-per-unit basis otherwise. No value of the basis is treated
+ * specially (for example 1000 is not assumed to mean kilograms).
+ */
+export function resolveRecoveryQuantity(
+  directQuantity: number | null,
+  unit: RecoveryQuantityUnit,
+  basisTonnesPerUnit: number | null,
+  metricTons: number,
+): RecoveryQuantity {
+  if (directQuantity !== null) {
+    if (!Number.isFinite(directQuantity) || directQuantity <= 0) {
+      return { kind: "blocked", reason: "Quantity must be greater than zero." };
+    }
+    return { kind: "direct", quantity: directQuantity };
+  }
+  const basisSource = unit.isMass ? "unit-identity" : "explicit";
+  const tonnesPerUnit = unit.isMass ? unit.tonnesPerUnit : basisTonnesPerUnit;
+  if (tonnesPerUnit === null || !Number.isFinite(tonnesPerUnit) || tonnesPerUnit <= 0) {
+    return {
+      kind: "blocked",
+      reason: `This listing is priced per ${unit.singular}. Enter the quantity in ${unit.plural}, or enter how many metric tonnes one ${unit.singular} weighs to derive it from the weight step.`,
+    };
+  }
+  if (!Number.isFinite(metricTons) || metricTons <= 0) {
+    return { kind: "blocked", reason: "Enter a quantity greater than zero (or set the shipment weight in the Weight step)." };
+  }
+  const quantity = quantityFromMetricTons(metricTons, tonnesPerUnit);
+  if (quantity !== null && !Number.isFinite(quantity)) {
+    return { kind: "blocked", reason: "The derived quantity is too large to calculate. Check the weight and the metric tonnes per unit." };
+  }
+  if (quantity === null || quantity <= 0) {
+    return { kind: "blocked", reason: "Enter a quantity greater than zero (or set the shipment weight in the Weight step)." };
+  }
+  return { kind: "derived", quantity, metricTons, tonnesPerUnit, basisSource };
+}
+
+function plainNumber(value: number, maximumFractionDigits: number) {
+  return value.toLocaleString("en-US", { maximumFractionDigits });
+}
+
+/**
+ * Human-readable source of the estimator quantity, shared by the on-screen
+ * summary and the exported report so both state the same provenance.
+ */
+export function describeQuantitySource(
+  source: { quantitySource: "direct" | "derived"; tonnesPerUnit: number | null; derivedFromMetricTons: number | null },
+  unit: Pick<RecoveryQuantityUnit, "singular">,
+): string {
+  if (source.quantitySource === "direct" || source.tonnesPerUnit === null || source.derivedFromMetricTons === null) {
+    return "Entered directly in the listing's pricing unit";
+  }
+  return `Derived from the weight step: ${plainNumber(source.derivedFromMetricTons, 3)} metric tonnes ÷ ${plainNumber(source.tonnesPerUnit, 6)} t per ${unit.singular}`;
+}
+
 /** Label suggested for the deck's "affording costs" wording. */
 export const AVOIDED_DISPOSAL_LABEL = "Avoided disposal costs";

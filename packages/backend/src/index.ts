@@ -1,6 +1,7 @@
 import { isReferencePath } from "./market-reference-routes.js";
 import { handleRefundRoute } from "./refund-routes.js";
 import { processRefundReminders } from "./refund-reminders.js";
+import { processStaffAlerts } from "./staff-alerts.js";
 import { processPendingCheckouts } from "./checkout-routes.js";
 import { processSampleShipping } from './sample-shipping-routes.js';
 import { createServer } from "node:http";
@@ -1033,3 +1034,8 @@ checkoutTimer.unref();
 // Refund emails remain disabled unless explicitly activated with approved recipients.
 const refundTimer=setInterval(()=>{void processRefundReminders().catch(()=>{ /* Durable jobs remain pending for the next tick. */ });},60_000);
 refundTimer.unref();
+
+const staffAlertTimer = setInterval(() => {
+  void processStaffAlerts().catch(() => { /* Durable claims remain for reconciliation. */ });
+}, 60_000);
+staffAlertTimer.unref();

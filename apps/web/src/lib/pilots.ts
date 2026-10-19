@@ -387,7 +387,7 @@ export function describeBuyerStage(status: string, contactPreference: string): s
   switch (status) {
     case "new":
       return contactPreference === "email"
-        ? "We will follow up by email. No call is booked."
+        ? "Email follow-up preference recorded for EcoGlobe staff. No call is booked."
         : "Your request is with us. Pick a time to talk it through.";
     case "call_booked":
       return "Your call is booked. We will have spoken to the seller before then.";

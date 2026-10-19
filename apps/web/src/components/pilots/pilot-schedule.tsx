@@ -109,8 +109,11 @@ export function PilotSchedule({
       )}
       {emailPreferred && (
         <div className="mb-6 rounded-2xl bg-neutral-100 px-5 py-4 text-sm text-neutral-800" role="status">
-          <p className="text-base font-bold">We will follow up by email.</p>
-          <p className="mt-1">No call is booked. You can still pick a time below if one suits.</p>
+          <p className="text-base font-bold">Email follow-up preference recorded.</p>
+          <p className="mt-1">
+            EcoGlobe staff will see your preference and follow up by email. No confirmation email is sent from this page,
+            and no call is booked. You can still pick a time below if one suits.
+          </p>
         </div>
       )}
 
@@ -125,7 +128,7 @@ export function PilotSchedule({
           <div className="text-sm text-neutral-700">
             <p className="text-base font-bold text-neutral-900">No call times are open right now.</p>
             <p className="mt-1">
-              Our team adds availability as it opens up. Ask for email follow-up instead and we will come to you.
+              Our team adds availability as it opens up. Ask for email follow-up instead and your preference is recorded for EcoGlobe staff.
             </p>
           </div>
         </div>

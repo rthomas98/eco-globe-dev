@@ -15,7 +15,7 @@ function nextForBuyer(request: PilotRequest) {
   if (canBuyerSchedule(request.status)) {
     if (request.status === "call_booked" && request.callStartsAt)
       return `Call ${formatCentralDateTime(request.callStartsAt)} (${centralZoneAbbreviation(request.callStartsAt)})`;
-    return request.contactPreference === "email" ? "We will email you" : "Pick a call time";
+    return request.contactPreference === "email" ? "Email follow-up requested" : "Pick a call time";
   }
   if (canBuyerProceed(request.status)) return "Your decision";
   if (request.status === "won") return request.shipmentId ? `Shipment SHP-${request.shipmentId}` : "Handing to fulfilment";

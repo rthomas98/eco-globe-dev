@@ -1,3 +1,4 @@
+import { handleStaffAlertRoute } from './staff-alerts.js';
 import { parseWantedWrite, wantedStatus, type WantedState } from "./wanted-listing-domain.js";
 import { handleMarketRecordRoute } from "./market-record-routes.js";
 import { handleMarketPortfolioRoute } from "./market-portfolio-routes.js";
@@ -6684,6 +6685,7 @@ export async function handleApiRoute(
   response: ServerResponse,
   requestUrl: URL,
 ) {
+  if (await handleStaffAlertRoute(request,response,requestUrl)) return true;
   if (await handleMarketPortfolioRoute(request,response,requestUrl)) return true;
   if (await handleMarketRecordRoute(request,response,requestUrl)) return true;
   // The modular handlers own listing/sample CRUD. Legacy core implementations below

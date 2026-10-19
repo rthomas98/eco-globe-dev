@@ -14,6 +14,12 @@ import { removeLocalListingDraft, useLocalListingDrafts } from "@/lib/custom-lis
 import { statusLabel } from "@/lib/listing-view";
 import { formatQuantity } from "@/lib/listing-format";
 import { isRespondable } from "@/lib/wanted-listing-format";
+import {
+  LISTING_LIFECYCLE_FILTERS,
+  countListingsByLifecycle,
+  filterListingsByLifecycle,
+  type ListingLifecycleFilter,
+} from "@/lib/listing-lifecycle";
 import type { Listing } from "../public/browse-listings";
 import {
   fetchInterestSummary,
@@ -108,9 +114,14 @@ export function ListingsPage() {
     };
   }, [user?.activeCompanyId]);
 
+  const [lifecycle, setLifecycle] = useState<ListingLifecycleFilter>("active");
+  const lifecycleCounts = useMemo(() => countListingsByLifecycle(owned.listings), [owned.listings]);
   const filtered = useMemo(
-    () => owned.listings.filter((l) => !searchQuery.trim() || l.title.toLowerCase().includes(searchQuery.toLowerCase())),
-    [owned.listings, searchQuery],
+    () =>
+      filterListingsByLifecycle(owned.listings, lifecycle).filter(
+        (l) => !searchQuery.trim() || l.title.toLowerCase().includes(searchQuery.toLowerCase()),
+      ),
+    [owned.listings, lifecycle, searchQuery],
   );
   const pendingCount = owned.listings.filter((l) => l.statusCode === "pending_review").length;
   const open = (l: Listing) => router.push(`/seller/listings/${l.id}`);
@@ -201,9 +212,29 @@ export function ListingsPage() {
         </div>
       )}
 
+      {user && owned.status !== "loading" && owned.status !== "error" && owned.listings.length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center gap-2" role="group" aria-label="Filter listings by status">
+          {LISTING_LIFECYCLE_FILTERS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={lifecycle === option.value}
+              onClick={() => setLifecycle(option.value)}
+              className={`rounded-full px-3 py-1.5 text-sm font-medium ${lifecycle === option.value ? "bg-neutral-900 text-white" : "bg-white text-neutral-700"}`}
+              style={lifecycle === option.value ? undefined : { border: "1px solid #E0E0E0" }}
+            >
+              {option.label} ({lifecycleCounts[option.value]})
+            </button>
+          ))}
+          {lifecycle === "active" && lifecycleCounts.closed > 0 && (
+            <span className="text-xs text-neutral-500">Closed listings are kept on record; choose Closed to see or restore them.</span>
+          )}
+        </div>
+      )}
+
       {pendingCount > 0 && (
         <div className="mb-5 flex items-center justify-between gap-3 rounded-xl bg-blue-50 px-4 py-3 sm:px-5">
-          <div className="flex items-center gap-3"><Info className="size-5 text-blue-500" /><span className="text-sm text-neutral-700">{pendingCount} listing{pendingCount === 1 ? "" : "s"} pending approval</span></div>
+          <div className="flex items-center gap-3"><Info className="size-5 text-blue-500" /><span className="text-sm text-neutral-700">{pendingCount} listing{pendingCount === 1 ? "" : "s"} pending approval — EcoGlobe staff review {pendingCount === 1 ? "it" : "them"} before publishing; check the status here.</span></div>
           <ChevronRight className="size-4 text-neutral-400" />
         </div>
       )}
@@ -219,8 +250,8 @@ export function ListingsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl bg-white p-10 text-center">
-          <p className="text-base font-semibold text-neutral-900">{owned.listings.length === 0 ? "No listings yet" : "No listings match your search"}</p>
-          <p className="mt-1 text-sm text-neutral-500">{owned.listings.length === 0 ? "Create your first listing to start receiving buyer interest." : "Try a different keyword."}</p>
+          <p className="text-base font-semibold text-neutral-900">{owned.listings.length === 0 ? "No listings yet" : searchQuery.trim() ? "No listings match your search" : lifecycle === "closed" ? "No closed listings" : "No active listings"}</p>
+          <p className="mt-1 text-sm text-neutral-500">{owned.listings.length === 0 ? "Create your first listing to start receiving buyer interest." : searchQuery.trim() ? "Try a different keyword or status filter." : lifecycle === "closed" ? "Listings you close appear here and can be restored to draft." : "All of your listings are closed. Choose Closed to see or restore them."}</p>
           {owned.listings.length === 0 && <Link href="/seller/listings/add" className="mt-4 inline-block"><Button variant="primary" size="md">Add Listing</Button></Link>}
         </div>
       ) : view === "list" ? (

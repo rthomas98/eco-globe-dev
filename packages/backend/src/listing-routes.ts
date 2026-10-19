@@ -1,4 +1,5 @@
 import { usableListingDocumentSql } from "./listing-safety.js";
+import { enqueueListingReview, auditListingLifecycle } from "./staff-alerts.js";
 import { handleListingSdsRequestRoute } from "./listing-sds-requests.js";
 import { portfolioId } from "./market-portfolio-domain.js";
 import { requirePortfolioAccess } from "./market-portfolio-store.js";
@@ -262,13 +263,6 @@ async function readListing(
   if (!rows[0]) throw new ApiError(404, "Listing not found.");
   return rows[0];
 }
-async function lockListing(transaction: sql.Transaction, listingId: unknown) {
-  await queryRowsWithParamsInTransaction(
-    transaction,
-    "SELECT Id FROM dbo.Listings WITH (UPDLOCK,HOLDLOCK) WHERE Id=@id",
-    [int("id", listingId)],
-  );
-}
 async function seller(auth: AuthContext, companyId: number) {
   if (auth.isAdmin) return;
   if (auth.companyId !== companyId)
@@ -424,6 +418,9 @@ async function save(
         : `INSERT dbo.Listings(SellerCompanyId,LocationId,Title,Slug,MaterialTypeId,ListingStatusId,Quantity,MinimumOrderQuantity,PricePerUnit,QuantityUnit,CurrencyCode,Description,SpecificationsJson,CarbonIntensityKgCo2e,CreatedByUserId,UpdatedByUserId) OUTPUT INSERTED.Id AS id VALUES(@companyId,@locationId,@title,@slug,@materialId,@statusId,@quantity,@moq,@price,@unit,@currency,@description,@specs,@carbon,@userId,@userId)`,
       params,
     );
+    const savedId = id(rows[0]?.id);
+    await enqueueListingReview(transaction, savedId, previous?.listingStatusCode, status);
+    await auditListingLifecycle(transaction, auth, savedId, previous?.listingStatusCode, status);
     return rows[0]?.id;
   });
   if (body.listingStatusCode === "published" && onPublished) await onPublished(Number(savedId), auth.userId);
@@ -493,7 +490,7 @@ async function upload(request: IncomingMessage, response: ServerResponse) {
   await seller(auth, id(listing.sellerCompanyId));
   const file = validateUpload(body);
   const rows = await runInTransaction(async (tx) => {
-    await lockListing(tx, listingId);
+    const before = await readListing(String(listingId), auth, tx);
     const rows = await queryRowsWithParamsInTransaction(
       tx,
       `INSERT dbo.ListingDocuments(ListingId,DocumentTypeId,FileName,FileUrl,VerificationStatusId,Content,ContentType,ByteLength,Sha256,UploadedByUserId,CreatedByUserId,UpdatedByUserId)
@@ -514,6 +511,8 @@ async function upload(request: IncomingMessage, response: ServerResponse) {
       `UPDATE dbo.Listings SET ListingStatusId=CASE WHEN ListingStatusId=(SELECT Id FROM dbo.ListingStatuses WHERE Code='published') THEN (SELECT Id FROM dbo.ListingStatuses WHERE Code='pending_review') ELSE ListingStatusId END,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id`,
       [int("id", listingId)],
     );
+    const after = await readListing(String(listingId), auth, tx);
+    await enqueueListingReview(tx, listingId, before.listingStatusCode, after.listingStatusCode);
     return rows;
   });
   sendJson(response, 201, {
@@ -625,10 +624,13 @@ export async function handleListingRoute(
       const auth = await requireSessionAuth(request),
         listing = await readListing(decodeURIComponent(parts[2]!), auth);
       await seller(auth, id(listing.sellerCompanyId));
-      await query(
-        "UPDATE dbo.Listings SET ListingStatusId=(SELECT Id FROM dbo.ListingStatuses WHERE Code='closed'),UpdatedAt=SYSUTCDATETIME(),UpdatedByUserId=@userId WHERE Id=@id",
-        [int("id", listing.id), int("userId", auth.userId)],
-      );
+      await runInTransaction(async tx => {
+        const before = await readListing(String(listing.id), auth, tx);
+        await queryRowsWithParamsInTransaction(tx,
+          "UPDATE dbo.Listings SET ListingStatusId=(SELECT Id FROM dbo.ListingStatuses WHERE Code='closed'),UpdatedAt=SYSUTCDATETIME(),UpdatedByUserId=@userId WHERE Id=@id",
+          [int("id", listing.id), int("userId", auth.userId)]);
+        await auditListingLifecycle(tx, auth, id(listing.id), before.listingStatusCode, "closed");
+      });
       sendJson(response, 200, {
         ok: true,
         listing: await project(await readListing(String(listing.id), auth)),
@@ -693,7 +695,7 @@ export async function handleListingRoute(
           listing = await readListing(String(doc.listingId), auth);
         await seller(auth, id(listing.sellerCompanyId));
         await runInTransaction(async (tx) => {
-          await lockListing(tx, doc.listingId);
+          const before = await readListing(String(doc.listingId), auth, tx);
           await queryRowsWithParamsInTransaction(
             tx,
             "UPDATE dbo.ListingDocuments SET DeletedAt=SYSUTCDATETIME(),UpdatedByUserId=@userId WHERE Id=@id",
@@ -704,6 +706,8 @@ export async function handleListingRoute(
             `UPDATE dbo.Listings SET ListingStatusId=CASE WHEN ListingStatusId IN (SELECT Id FROM dbo.ListingStatuses WHERE Code IN ('published','pending_review')) THEN (SELECT Id FROM dbo.ListingStatuses WHERE Code=CASE WHEN EXISTS(SELECT 1 FROM dbo.ListingDocuments d JOIN dbo.DocumentTypes dt ON dt.Id=d.DocumentTypeId WHERE d.ListingId=@id AND dt.Code='sds' AND d.DeletedAt IS NULL AND ${usableListingDocumentSql}) THEN 'pending_review' ELSE 'draft' END) ELSE ListingStatusId END,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id`,
             [int("id", doc.listingId)],
           );
+          const after = await readListing(String(doc.listingId), auth, tx);
+          await enqueueListingReview(tx, id(doc.listingId), before.listingStatusCode, after.listingStatusCode);
         });
         sendJson(response, 200, { ok: true, document: { id: docId } });
         return true;

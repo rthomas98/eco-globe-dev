@@ -11,7 +11,8 @@ import {
 import type { Listing } from "@/components/public/browse-listings";
 import type { Facility } from "@/lib/demo-user";
 import { formatMoney, describeUnit } from "@/lib/listing-format";
-import type { ValueRecoveryResult } from "@/lib/value-recovery";
+import { describeQuantitySource, type ValueRecoveryResult } from "@/lib/value-recovery";
+import { reportLogoHtml, reportLogoUrl } from "@/lib/report-branding";
 
 export interface ReportValueRecovery {
   role: "seller" | "buyer";
@@ -19,8 +20,12 @@ export interface ReportValueRecovery {
   quantityUnit: string;
   /** Quantity in the listing's pricing unit. */
   quantity: number;
-  /** Explicit tonnes-per-unit basis when the listing is unit-priced. */
+  /** "direct" when the quantity was entered; "derived" from the weight step. */
+  quantitySource: "direct" | "derived";
+  /** Metric tonnes per priced unit used to derive the quantity; null when entered directly. */
   tonnesPerUnit: number | null;
+  /** Weight-step tonnage the quantity was derived from; null when entered directly. */
+  derivedFromMetricTons: number | null;
   listingPricePerUnit: number;
   inputs: Record<string, number>;
   result: ValueRecoveryResult;
@@ -54,7 +59,7 @@ export interface ReportInput {
 }
 
 export function generateCarbonReport(input: ReportInput) {
-  const html = renderReportHtml(input);
+  const html = renderReportHtml(input, reportLogoUrl(window.location.origin));
   // Use a Blob URL instead of document.write to avoid the XSS surface and
   // the perf issues that document.write triggers.
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
@@ -85,7 +90,7 @@ export function generateCarbonReport(input: ReportInput) {
   }, 800);
 }
 
-function renderReportHtml(input: ReportInput): string {
+function renderReportHtml(input: ReportInput, logoUrl: string): string {
   const {
     scenarios,
     bauTons,
@@ -133,27 +138,26 @@ function renderReportHtml(input: ReportInput): string {
     const vr = s.valueRecovery;
     if (!vr) return [];
     const unit = describeUnit(vr.quantityUnit);
-    const money = (n: number) => formatMoney(n, vr.currencyCode) ?? "—";
+    const money = (n: number) => escapeHtml(formatMoney(n, vr.currencyCode) ?? "—");
+    const perUnit = escapeHtml(`per ${unit.singular}`);
     const rows: string[][] = [
       [`<strong>${escapeHtml(`Scenario ${i + 1} — ${s.name}`)}</strong>`, ""],
       ["Estimate type", vr.role === "seller" ? "Seller value recovery" : "Buyer savings"],
-      ["Currency", vr.currencyCode],
-      ["Quantity", `${vr.quantity.toLocaleString("en-US", { maximumFractionDigits: 3 })} ${unit.plural}`],
+      ["Currency", escapeHtml(vr.currencyCode)],
+      ["Quantity", escapeHtml(`${vr.quantity.toLocaleString("en-US", { maximumFractionDigits: 3 })} ${unit.plural}`)],
+      ["Quantity source", escapeHtml(describeQuantitySource(vr, unit))],
     ];
-    if (vr.tonnesPerUnit !== null && !unit.isMass) {
-      rows.push(["Weight basis", `${vr.tonnesPerUnit} t per ${unit.singular}`]);
-    }
-    rows.push(["Listing price", `${money(vr.listingPricePerUnit)} per ${unit.singular}`]);
+    rows.push(["Listing price", `${money(vr.listingPricePerUnit)} ${perUnit}`]);
     if (vr.result.role === "seller") {
       rows.push(
-        ["Disposal cost rate (incl. transport to disposal)", `${money((vr.inputs.disposalRatePerUnit ?? 0) + (vr.inputs.transportToDisposalRatePerUnit ?? 0))} per ${unit.singular}`],
+        ["Disposal cost rate (incl. transport to disposal)", `${money((vr.inputs.disposalRatePerUnit ?? 0) + (vr.inputs.transportToDisposalRatePerUnit ?? 0))} ${perUnit}`],
         ["Avoided disposal costs", money(vr.result.avoidedDisposalCost)],
         ["Sale proceeds", money(vr.result.saleProceeds)],
         ["<strong>Total estimated value recovered</strong>", `<strong>${money(vr.result.totalRecovery)}</strong>`],
       );
     } else {
       rows.push(
-        ["Baseline delivered cost rate", `${money(vr.inputs.baselineDeliveredRatePerUnit ?? 0)} per ${unit.singular}`],
+        ["Baseline delivered cost rate", `${money(vr.inputs.baselineDeliveredRatePerUnit ?? 0)} ${perUnit}`],
         ["Baseline cost", money(vr.result.baselineCost)],
         ["Alternative purchase cost", money(vr.result.purchaseCost)],
         [
@@ -246,7 +250,9 @@ function renderReportHtml(input: ReportInput): string {
       font-weight: 700;
       color: #1F5F3A;
       letter-spacing: -0.01em;
+      margin-bottom: 10px;
     }
+    .brand-logo { max-width: 100%; }
     .meta {
       text-align: right;
       font-size: 11px;
@@ -346,7 +352,7 @@ function renderReportHtml(input: ReportInput): string {
 
   <header>
     <div>
-      <div class="brand">EcoGlobe</div>
+      <div class="brand">${reportLogoHtml(logoUrl)}</div>
       <h1>Carbon Calculator Report</h1>
       <p style="font-size:12px;color:#444;margin:4px 0 0;">Transportation footprint analysis &amp; recommendation</p>
     </div>

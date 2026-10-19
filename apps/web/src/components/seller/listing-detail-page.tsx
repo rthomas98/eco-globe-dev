@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Edit, RefreshCw, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Archive, Edit, Info, RefreshCw, AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { SellerLayout } from "./seller-layout";
 import { ListingMap, type MapListing } from "../public/listing-map";
@@ -11,7 +11,15 @@ import { useListing } from "@/lib/use-listings";
 import { formatLocationAddress } from "@/lib/listing-view";
 import { formatQuantity, formatQuantityWithUnitName } from "@/lib/listing-format";
 import { describeBackendError } from "@/lib/backend-client";
-import { updateListing } from "@/lib/listings-api";
+import { closeListing, updateListing } from "@/lib/listings-api";
+import {
+  CLOSE_LISTING_CONFIRMATION,
+  CLOSED_LISTING_NOTICE,
+  PENDING_REVIEW_NOTICE,
+  canCloseListing,
+  canRestoreListing,
+  isClosedListing,
+} from "@/lib/listing-lifecycle";
 import { CarbonCalculatorButton } from "@/components/buyer/carbon-calculator-button";
 import { StatusBadge } from "./listings-page";
 import { DocumentRow } from "./listing-documents";
@@ -39,6 +47,8 @@ export function SellerListingDetailPage({ id }: { id: string }) {
   const [tab, setTab] = useState<"overview" | "documents" | "activity">("overview");
   const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirmingClose, setConfirmingClose] = useState(false);
+  const inFlight = useRef(false);
 
   if (!user) {
     return <SellerLayout title="Listing detail"><p className="p-8 text-sm text-neutral-600">Sign in to view this listing.</p></SellerLayout>;
@@ -61,17 +71,28 @@ export function SellerListingDetailPage({ id }: { id: string }) {
   const listing = detail.listing;
   const record = detail.record;
 
-  const changeStatus = async (statusCode: "pending_review" | "paused" | "draft") => {
+  // One status mutation at a time: the ref blocks a second click that lands
+  // before the disabled state re-renders.
+  const runMutation = async (mutate: () => Promise<BackendListing>, failure: string) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setActionError("");
     try {
-      detail.replace(await updateListing(record.id, { listingStatusCode: statusCode }));
+      detail.replace(await mutate());
+      setConfirmingClose(false);
     } catch (error) {
-      setActionError(describeBackendError(error, "The status could not be changed."));
+      setActionError(describeBackendError(error, failure));
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
+
+  const changeStatus = (statusCode: "pending_review" | "paused" | "draft") =>
+    runMutation(() => updateListing(record.id, { listingStatusCode: statusCode }), "The status could not be changed.");
+  const confirmClose = () => runMutation(() => closeListing(record.id), "The listing could not be closed.");
+  const restoreToDraft = () => runMutation(() => updateListing(record.id, { listingStatusCode: "draft" }), "The listing could not be restored.");
 
   return (
     <SellerLayout title="Listing detail">
@@ -88,9 +109,31 @@ export function SellerListingDetailPage({ id }: { id: string }) {
             {listing.statusCode === "paused" && (
               <Button variant="secondary" size="md" disabled={busy || !record.locationId} onClick={() => void changeStatus("pending_review")} title={record.locationId ? undefined : "Choose a facility before resubmitting"}>Resubmit</Button>
             )}
+            {canRestoreListing(listing.statusCode) && (
+              <Button variant="secondary" size="md" disabled={busy} onClick={() => void restoreToDraft()}><RotateCcw className="size-4" />{busy ? "Restoring…" : "Restore to draft"}</Button>
+            )}
             <Link href={`/seller/listings/${listing.id}/edit`}><Button variant="secondary" size="md"><Edit className="size-4" />Edit listing</Button></Link>
+            {canCloseListing(listing.statusCode) && !confirmingClose && (
+              <Button variant="secondary" size="md" disabled={busy} onClick={() => { setActionError(""); setConfirmingClose(true); }}><Archive className="size-4" />Close listing</Button>
+            )}
           </div>
         </div>
+        {confirmingClose && canCloseListing(listing.statusCode) && (
+          <div className="mb-4 rounded-xl bg-amber-50 px-4 py-4 sm:px-5" style={{ border: "1px solid #FDE68A" }} role="group" aria-labelledby="close-listing-title" aria-describedby="close-listing-body">
+            <p id="close-listing-title" className="text-sm font-semibold text-neutral-900">Close “{listing.title}”?</p>
+            <p id="close-listing-body" className="mt-1 text-sm text-neutral-700">{CLOSE_LISTING_CONFIRMATION}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="primary" size="md" disabled={busy} onClick={() => void confirmClose()}>{busy ? "Closing…" : "Close listing"}</Button>
+              <Button variant="secondary" size="md" disabled={busy} onClick={() => setConfirmingClose(false)}>Keep listing open</Button>
+            </div>
+          </div>
+        )}
+        {listing.statusCode === "pending_review" && (
+          <p className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status"><Info className="mt-0.5 size-4 shrink-0" />{PENDING_REVIEW_NOTICE}</p>
+        )}
+        {isClosedListing(listing.statusCode) && (
+          <p className="mb-4 flex items-start gap-2 rounded-lg bg-neutral-100 px-4 py-3 text-sm text-neutral-700" role="status"><Archive className="mt-0.5 size-4 shrink-0" />{CLOSED_LISTING_NOTICE}</p>
+        )}
         {actionError && <p className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700" role="alert">{actionError}</p>}
 
         <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">

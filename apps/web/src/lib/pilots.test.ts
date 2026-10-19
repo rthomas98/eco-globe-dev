@@ -5,6 +5,7 @@ import {
   bucketForStatus,
   centralDayKey,
   centralWallClockToUtcIso,
+  describeBuyerStage,
   formatCentralDateTime,
   formatCentralTime,
   formatLoads,
@@ -131,4 +132,10 @@ test("place labels drop stray separators from partial addresses", () => {
   assert.equal(tidyLabel("Port Allen,  LA"), "Port Allen, LA");
   assert.equal(laneLabel("Austin, ", ""), "Austin");
   assert.equal(laneLabel("Port Allen, LA", "Geismar, LA"), "Port Allen, LA → Geismar, LA");
+});
+
+test("email preference copy records a preference without claiming an email was sent", () => {
+  const copy = describeBuyerStage("new", "email");
+  assert.match(copy, /preference recorded/i);
+  assert.doesNotMatch(copy, /\b(sent|emailed)\b/i);
 });

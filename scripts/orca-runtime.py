@@ -277,6 +277,8 @@ class Runtime:
         api = f"http://127.0.0.1:{config['ports']['api']}"
         web = f"http://127.0.0.1:{config['ports']['web']}"
         env.update({key: "" for key in EMPTY_SECRETS})
+        env.update(STAFF_ALERT_EMAIL_ENABLED="false", STAFF_ALERT_EMAIL_RECIPIENTS="",
+                   STAFF_ALERT_EMAIL_ALLOWED_RECIPIENTS="", STAFF_ALERT_ADMIN_URL="")
         env.update(ECOGLOBE_API_BASE_URL=api, NEXT_PUBLIC_API_BASE_URL=api,
                    EXPO_PUBLIC_API_BASE_URL=api, ECOGLOBE_WEB_URL=web, CORS_ORIGIN=web)
         if database and (self.directory / "sql").exists():

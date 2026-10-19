@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { enqueueStaffAlert } from "./staff-alerts.js";
 import { requireSessionAuth } from "./auth.js";
 import {
   queryRowsWithParams as query,
@@ -192,6 +193,7 @@ async function create(value: unknown, auth: AuthContext) {
         text("key", key),
       ]);
     await addNote(id, "Pilot request received.", auth, exec);
+    await enqueueStaffAlert(tx, { kind: "pilot_created", recordId: id });
     return getRequest(id, auth, exec);
   });
 }
@@ -483,6 +485,7 @@ export async function handlePilotRoute(
           if (!["new", "call_booked"].includes(String(r.status)))
             throw new ApiError(409, "Scheduling is closed at this stage.");
           if (action === "email-preference") {
+            if (r.contactPreference === "email") return r;
             await exec(
               "UPDATE dbo.PilotSlots SET RequestId=NULL WHERE RequestId=@id",
               [int("id", id)],
@@ -497,6 +500,7 @@ export async function handlePilotRoute(
               auth,
               exec,
             );
+            await enqueueStaffAlert(tx, { kind: "pilot_email_follow_up", recordId: id });
           } else {
             const slotId = positiveId(b.slotId);
             const sl = (
