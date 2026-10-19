@@ -12,6 +12,7 @@ import {
   formatLoads,
   groupSlotsByCentralDay,
 } from "@/lib/pilots";
+import { PilotAcknowledgement } from "./pilot-acknowledgement";
 
 const border = { border: "1px solid #E0E0E0" } as const;
 
@@ -96,6 +97,10 @@ export function PilotSchedule({
         </div>
       </div>
 
+      <div className="mt-6">
+        <PilotAcknowledgement request={request} />
+      </div>
+
       <div className="my-7 border-t" style={{ borderColor: "#F0F0F0" }} />
 
       {booked && (
@@ -111,8 +116,9 @@ export function PilotSchedule({
         <div className="mb-6 rounded-2xl bg-neutral-100 px-5 py-4 text-sm text-neutral-800" role="status">
           <p className="text-base font-bold">Email follow-up preference recorded.</p>
           <p className="mt-1">
-            EcoGlobe staff will see your preference and follow up by email. No confirmation email is sent from this page,
-            and no call is booked. You can still pick a time below if one suits.
+            EcoGlobe staff will see your preference and follow up personally by email. Choosing this sends nothing by itself
+            and is separate from the automatic acknowledgement above. No call is booked; you can still pick a time below if
+            one suits.
           </p>
         </div>
       )}

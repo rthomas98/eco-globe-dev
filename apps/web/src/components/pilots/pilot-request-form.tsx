@@ -310,6 +310,9 @@ export function PilotRequestForm({
           {busy ? "Saving your request…" : "Request a call with EcoGlobe"}
         </button>
         <p className="mt-3 text-center text-sm text-neutral-500">No pricing is shown online. We work every pilot out with you directly.</p>
+        <p className="mt-1 text-center text-sm text-neutral-500">
+          Saving queues one automatic acknowledgement email; your request page shows its status.
+        </p>
       </div>
     </form>
   );

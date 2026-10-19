@@ -146,7 +146,10 @@ class IsolationTests(unittest.TestCase):
                   "RESEND_API_KEY": "secret", "DOCUSIGN_PRIVATE_KEY": "secret", "AWS_PROFILE": "prod",
                   "NPM_TOKEN": "secret", "PYTHONPATH": "/bad", "ECOGLOBE_API_BASE_URL": "https://prod.invalid",
                   "STAFF_ALERT_EMAIL_ENABLED": "true", "STAFF_ALERT_EMAIL_RECIPIENTS": "live@example.com",
-                  "STAFF_ALERT_EMAIL_ALLOWED_RECIPIENTS": "live@example.com", "STAFF_ALERT_ADMIN_URL": "https://prod.invalid"}
+                  "STAFF_ALERT_EMAIL_ALLOWED_RECIPIENTS": "live@example.com", "STAFF_ALERT_ADMIN_URL": "https://prod.invalid",
+                  "PILOT_ACK_EMAIL_ENABLED": "true", "PILOT_ACK_EMAIL_MODE": "buyer",
+                  "PILOT_ACK_EMAIL_TEST_RECIPIENT": "live@example.com",
+                  "PILOT_ACK_EMAIL_ALLOWED_RECIPIENTS": "live@example.com", "PILOT_ACK_WEB_URL": "https://prod.invalid"}
         with patch.dict(os.environ, poison):
             env = self.rt.environment(config)
         for key in ("NODE_OPTIONS", "AWS_PROFILE", "NPM_TOKEN", "PYTHONPATH"):
@@ -162,6 +165,10 @@ class IsolationTests(unittest.TestCase):
         self.assertEqual(env["STAFF_ALERT_EMAIL_RECIPIENTS"], "")
         self.assertEqual(env["STAFF_ALERT_EMAIL_ALLOWED_RECIPIENTS"], "")
         self.assertEqual(env["STAFF_ALERT_ADMIN_URL"], "")
+        self.assertEqual(env["PILOT_ACK_EMAIL_ENABLED"], "false")
+        for key in ("PILOT_ACK_EMAIL_MODE", "PILOT_ACK_EMAIL_TEST_RECIPIENT",
+                    "PILOT_ACK_EMAIL_ALLOWED_RECIPIENTS", "PILOT_ACK_WEB_URL"):
+            self.assertEqual(env[key], "")
 
     def test_sql_opt_in_never_reaches_web_or_check_environment(self):
         config = self.rt.prepare()

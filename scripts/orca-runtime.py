@@ -279,6 +279,9 @@ class Runtime:
         env.update({key: "" for key in EMPTY_SECRETS})
         env.update(STAFF_ALERT_EMAIL_ENABLED="false", STAFF_ALERT_EMAIL_RECIPIENTS="",
                    STAFF_ALERT_EMAIL_ALLOWED_RECIPIENTS="", STAFF_ALERT_ADMIN_URL="")
+        env.update(PILOT_ACK_EMAIL_ENABLED="false", PILOT_ACK_EMAIL_MODE="",
+                   PILOT_ACK_EMAIL_TEST_RECIPIENT="", PILOT_ACK_EMAIL_ALLOWED_RECIPIENTS="",
+                   PILOT_ACK_WEB_URL="")
         env.update(ECOGLOBE_API_BASE_URL=api, NEXT_PUBLIC_API_BASE_URL=api,
                    EXPO_PUBLIC_API_BASE_URL=api, ECOGLOBE_WEB_URL=web, CORS_ORIGIN=web)
         if database and (self.directory / "sql").exists():

@@ -1,3 +1,4 @@
+import { processPilotAcknowledgements } from "./pilot-acknowledgements.js";
 import { isReferencePath } from "./market-reference-routes.js";
 import { handleRefundRoute } from "./refund-routes.js";
 import { processRefundReminders } from "./refund-reminders.js";
@@ -1039,3 +1040,8 @@ const staffAlertTimer = setInterval(() => {
   void processStaffAlerts().catch(() => { /* Durable claims remain for reconciliation. */ });
 }, 60_000);
 staffAlertTimer.unref();
+
+const pilotAcknowledgementTimer = setInterval(() => {
+  void processPilotAcknowledgements().catch(() => { /* Durable claims remain for reconciliation. */ });
+}, 60_000);
+pilotAcknowledgementTimer.unref();

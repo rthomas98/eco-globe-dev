@@ -382,6 +382,87 @@ export function laneLabel(origin: string, destination: string) {
   return [tidyLabel(origin), tidyLabel(destination)].filter(Boolean).join(" → ");
 }
 
+/* ── Initial acknowledgement email ── */
+
+/**
+ * State of the one automatic acknowledgement email queued when a request is
+ * created. `sent` means the email provider accepted it, not that it reached
+ * an inbox. Requests made before acknowledgements existed have no job and
+ * read as `unavailable`.
+ */
+export type PilotAcknowledgementStatus = "queued" | "sent" | "needs_review" | "unavailable";
+
+/** Unknown or missing values fall back to `unavailable` so nothing implies a send. */
+export function normalizeAcknowledgementStatus(value: unknown): PilotAcknowledgementStatus {
+  switch (value) {
+    case "queued":
+      return "queued";
+    case "sent":
+      return "sent";
+    case "needs_review":
+      return "needs_review";
+    default:
+      return "unavailable";
+  }
+}
+
+/** SQL bit columns may arrive as 1/0; anything else is not a test. */
+export function normalizeAcknowledgementIsTest(value: unknown): boolean {
+  return value === true || value === 1 || value === "1" || value === "true";
+}
+
+export interface PilotAcknowledgementCopy {
+  tone: "neutral" | "success" | "warning";
+  /** Short label for list rows. Null when there is nothing worth showing. */
+  short: string | null;
+  title: string;
+  body: string;
+}
+
+/**
+ * Buyer-facing copy for the acknowledgement. Test mode always names the
+ * configured QA inbox and never claims the buyer received anything.
+ */
+export function describePilotAcknowledgement(status: PilotAcknowledgementStatus, isTest: boolean): PilotAcknowledgementCopy {
+  const qa = "This is a test: it goes to EcoGlobe's configured QA inbox, not to your inbox.";
+  switch (status) {
+    case "queued":
+      return {
+        tone: "neutral",
+        short: isTest ? "Acknowledgement queued (QA test)" : "Acknowledgement queued",
+        title: "Acknowledgement email queued",
+        body: isTest
+          ? `An automatic acknowledgement of this request is waiting to be sent. ${qa}`
+          : "An automatic acknowledgement of this request is waiting to be sent to the registered email address of the person who made it. It has not been sent yet.",
+      };
+    case "sent":
+      return {
+        tone: "success",
+        short: isTest ? "Acknowledgement accepted (QA test)" : "Acknowledgement accepted by email provider",
+        title: "Acknowledgement accepted by our email provider",
+        body: isTest
+          ? `Our email provider accepted the automatic acknowledgement. ${qa}`
+          : "Our email provider accepted the automatic acknowledgement for the registered email address of the person who made this request. That confirms it was sent, not that it reached their inbox — check spam or filtering if it cannot be found.",
+      };
+    case "needs_review":
+      return {
+        tone: "warning",
+        short: isTest ? "Acknowledgement needs review (QA test)" : "Acknowledgement needs review",
+        title: "Acknowledgement email not confirmed",
+        body: isTest
+          ? `The automatic acknowledgement could not be confirmed as sent and is flagged for EcoGlobe staff to review. ${qa} Your request is saved either way.`
+          : "The automatic acknowledgement could not be confirmed as sent and is flagged for EcoGlobe staff to review. Your request is saved either way, and this page always shows where it stands.",
+      };
+    default:
+      return {
+        tone: "neutral",
+        short: null,
+        title: "No acknowledgement email on record",
+        body: "There is no automatic acknowledgement email recorded for this request, for example because it was made before acknowledgements started. Your request is saved, and this page shows where it stands.",
+      };
+  }
+}
+
 /** Buyer-facing progress description for a request status. */
 export function describeBuyerStage(status: string, contactPreference: string): string {
   switch (status) {

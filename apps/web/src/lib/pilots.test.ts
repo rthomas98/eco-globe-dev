@@ -6,7 +6,10 @@ import {
   centralDayKey,
   centralWallClockToUtcIso,
   describeBuyerStage,
+  describePilotAcknowledgement,
   formatCentralDateTime,
+  normalizeAcknowledgementIsTest,
+  normalizeAcknowledgementStatus,
   formatCentralTime,
   formatLoads,
   groupSlotsByCentralDay,
@@ -138,4 +141,58 @@ test("email preference copy records a preference without claiming an email was s
   const copy = describeBuyerStage("new", "email");
   assert.match(copy, /preference recorded/i);
   assert.doesNotMatch(copy, /\b(sent|emailed)\b/i);
+});
+
+test("acknowledgement status falls back to unavailable for missing or unknown values", () => {
+  for (const status of ["queued", "sent", "needs_review", "unavailable"] as const) assert.equal(normalizeAcknowledgementStatus(status), status);
+  assert.equal(normalizeAcknowledgementStatus(undefined), "unavailable");
+  assert.equal(normalizeAcknowledgementStatus(null), "unavailable");
+  assert.equal(normalizeAcknowledgementStatus("delivered"), "unavailable");
+  assert.equal(normalizeAcknowledgementIsTest(true), true);
+  assert.equal(normalizeAcknowledgementIsTest(1), true);
+  assert.equal(normalizeAcknowledgementIsTest(false), false);
+  assert.equal(normalizeAcknowledgementIsTest(0), false);
+  assert.equal(normalizeAcknowledgementIsTest(undefined), false);
+});
+
+test("sent means provider accepted, never inbox delivery", () => {
+  const copy = describePilotAcknowledgement("sent", false);
+  assert.match(copy.body, /provider accepted/);
+  assert.match(copy.body, /not that it reached their inbox/);
+  assert.doesNotMatch(`${copy.title} ${copy.body}`, /delivered|received/i);
+});
+
+test("non-test acknowledgement names the request creator, never the viewer, and no address", () => {
+  for (const status of ["queued", "sent"] as const) {
+    const copy = describePilotAcknowledgement(status, false);
+    assert.match(copy.body, /registered email address of the person who made/);
+    assert.doesNotMatch(copy.body, /\byour (registered|inbox)\b/i);
+    assert.doesNotMatch(copy.body, /@/);
+  }
+});
+
+test("test-mode acknowledgement names the QA inbox and never the buyer's inbox", () => {
+  for (const status of ["queued", "sent", "needs_review"] as const) {
+    const copy = describePilotAcknowledgement(status, true);
+    assert.match(copy.body, /configured QA inbox, not to your inbox/);
+    assert.doesNotMatch(copy.body, /registered email address/);
+    assert.match(copy.short ?? "", /QA test/);
+  }
+});
+
+test("missing historic acknowledgement makes no success claim", () => {
+  for (const isTest of [false, true]) {
+    const copy = describePilotAcknowledgement("unavailable", isTest);
+    assert.equal(copy.short, null);
+    assert.equal(copy.tone, "neutral");
+    assert.doesNotMatch(`${copy.title} ${copy.body}`, /accepted|queued|sent to|QA/i);
+  }
+});
+
+test("queued and needs_review do not claim a send", () => {
+  assert.match(describePilotAcknowledgement("queued", false).body, /has not been sent yet/);
+  const review = describePilotAcknowledgement("needs_review", false);
+  assert.equal(review.tone, "warning");
+  assert.match(review.body, /could not be confirmed as sent/);
+  assert.match(review.body, /request is saved/);
 });

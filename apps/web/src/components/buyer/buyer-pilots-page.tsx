@@ -7,7 +7,16 @@ import { BuyerLayout } from "./buyer-layout";
 import { PilotViewTag } from "@/components/pilots/pilot-copy";
 import { fetchPilotRequests, type PilotRequest } from "@/lib/api-pilots";
 import { describeBackendError } from "@/lib/backend-client";
-import { canBuyerProceed, canBuyerSchedule, centralZoneAbbreviation, formatCentralDateTime, formatLoads, laneLabel, pilotStatusLabel } from "@/lib/pilots";
+import {
+  canBuyerProceed,
+  canBuyerSchedule,
+  centralZoneAbbreviation,
+  describePilotAcknowledgement,
+  formatCentralDateTime,
+  formatLoads,
+  laneLabel,
+  pilotStatusLabel,
+} from "@/lib/pilots";
 
 type State = { status: "loading" } | { status: "ready"; requests: PilotRequest[] } | { status: "error"; message: string };
 
@@ -21,6 +30,11 @@ function nextForBuyer(request: PilotRequest) {
   if (request.status === "won") return request.shipmentId ? `Shipment SHP-${request.shipmentId}` : "Handing to fulfilment";
   if (request.status === "lost") return "Closed";
   return "With EcoGlobe";
+}
+
+/** Short acknowledgement note; requests with no acknowledgement on record show none. */
+function acknowledgementLabel(request: PilotRequest) {
+  return describePilotAcknowledgement(request.acknowledgementStatus, request.acknowledgementIsTest).short;
 }
 
 /** `/buyer/pilots` — every pilot request for the active company. */
@@ -92,6 +106,7 @@ export function BuyerPilotsPage() {
                       <p className="mt-1 truncate text-sm text-neutral-600">
                         {request.listingTitle} · {formatLoads(request.loadCount, request.approximateTonnage)} · {laneLabel(request.originLabel, request.destinationLabel)}
                       </p>
+                      {acknowledgementLabel(request) && <p className="mt-1 text-xs text-neutral-500">{acknowledgementLabel(request)}</p>}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-neutral-700">
                       <span>{nextForBuyer(request)}</span>

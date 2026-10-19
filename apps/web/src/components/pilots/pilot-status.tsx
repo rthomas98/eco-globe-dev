@@ -15,6 +15,7 @@ import {
   laneLabel,
   pilotStatusLabel,
 } from "@/lib/pilots";
+import { PilotAcknowledgement } from "./pilot-acknowledgement";
 
 const border = { border: "1px solid #E0E0E0" } as const;
 
@@ -153,6 +154,10 @@ export function PilotStatus({ request, onUpdated }: { request: PilotRequest; onU
           </div>
         </div>
       )}
+
+      <div className="mt-6">
+        <PilotAcknowledgement request={request} />
+      </div>
 
       {request.constraints.length > 0 && (
         <p className="mt-6 text-sm text-neutral-500">Receiving constraints: {request.constraints.join(" · ")}</p>

@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { enqueuePilotAcknowledgement } from "./pilot-acknowledgements.js";
 import { enqueueStaffAlert } from "./staff-alerts.js";
 import { requireSessionAuth } from "./auth.js";
 import {
@@ -42,12 +43,13 @@ const num = (name: string, value: unknown): QueryParameter => ({
   value,
 });
 const staffSql = `SELECT DISTINCT u.Id AS userId,u.Name AS name FROM dbo.Users u JOIN dbo.AccountStatuses us ON us.Id=u.AccountStatusId JOIN dbo.CompanyMembers cm ON cm.UserId=u.Id JOIN dbo.MemberRoles mr ON mr.Id=cm.MemberRoleId JOIN dbo.PermissionTiers pt ON pt.Id=cm.PermissionTierId JOIN dbo.AccountStatuses ms ON ms.Id=cm.MemberStatusId JOIN dbo.Companies c ON c.Id=cm.CompanyId JOIN dbo.AccountStatuses cs ON cs.Id=c.VerificationStatusId WHERE mr.Code='admin' AND pt.Code='admin_override' AND ms.Code='active' AND us.Code NOT IN ('inactive','suspended') AND cs.Code<>'inactive'`;
-const selectSql = `SELECT p.Id AS id,p.ListingId AS listingId,p.ListingTitle AS listingTitle,p.BuyerCompanyId AS buyerCompanyId,p.SellerCompanyId AS sellerCompanyId,b.LegalName AS buyerCompanyName,s.LegalName AS sellerCompanyName,p.OriginLabel AS originLabel,p.DestinationLabel AS destinationLabel,p.DestinationRegion AS destinationRegion,p.LoadChoice AS loadChoice,p.LoadCount AS loadCount,p.ApproximateTonnage AS approximateTonnage,p.NeededBy AS neededBy,p.ConstraintsJson AS constraintsJson,p.Objective AS objective,p.Status AS status,p.ContactPreference AS contactPreference,p.OwnerUserId AS ownerUserId,u.Name AS ownerName,p.NextAction AS nextAction,p.BuyerConsentedAt AS buyerConsentedAt,p.CreatedAt AS createdAt,p.UpdatedAt AS updatedAt,sl.StartsAt AS callStartsAt,sl.EndsAt AS callEndsAt,sh.Id AS shipmentId FROM dbo.PilotRequests p JOIN dbo.Companies b ON b.Id=p.BuyerCompanyId JOIN dbo.Companies s ON s.Id=p.SellerCompanyId LEFT JOIN dbo.Users u ON u.Id=p.OwnerUserId LEFT JOIN dbo.PilotSlots sl ON sl.RequestId=p.Id LEFT JOIN dbo.Shipments sh ON sh.PilotRequestId=p.Id`;
+const selectSql = `SELECT p.Id AS id,p.ListingId AS listingId,p.ListingTitle AS listingTitle,p.BuyerCompanyId AS buyerCompanyId,p.SellerCompanyId AS sellerCompanyId,b.LegalName AS buyerCompanyName,s.LegalName AS sellerCompanyName,p.OriginLabel AS originLabel,p.DestinationLabel AS destinationLabel,p.DestinationRegion AS destinationRegion,p.LoadChoice AS loadChoice,p.LoadCount AS loadCount,p.ApproximateTonnage AS approximateTonnage,p.NeededBy AS neededBy,p.ConstraintsJson AS constraintsJson,p.Objective AS objective,p.Status AS status,p.ContactPreference AS contactPreference,p.OwnerUserId AS ownerUserId,u.Name AS ownerName,p.NextAction AS nextAction,p.BuyerConsentedAt AS buyerConsentedAt,p.CreatedAt AS createdAt,p.UpdatedAt AS updatedAt,sl.StartsAt AS callStartsAt,sl.EndsAt AS callEndsAt,sh.Id AS shipmentId,CASE WHEN ack.State='sent' THEN 'sent' WHEN ack.State IN ('queued','retry','sending') THEN 'queued' WHEN ack.State='needs_review' THEN 'needs_review' ELSE 'unavailable' END AS acknowledgementStatus,COALESCE(ack.IsTest,CAST(0 AS BIT)) AS acknowledgementIsTest FROM dbo.PilotRequests p JOIN dbo.Companies b ON b.Id=p.BuyerCompanyId JOIN dbo.Companies s ON s.Id=p.SellerCompanyId LEFT JOIN dbo.Users u ON u.Id=p.OwnerUserId LEFT JOIN dbo.PilotSlots sl ON sl.RequestId=p.Id LEFT JOIN dbo.Shipments sh ON sh.PilotRequestId=p.Id LEFT JOIN dbo.PilotAcknowledgementOutbox ack ON ack.RequestId=p.Id`;
 function project(r: Row): Row {
   const { constraintsJson, ...rest } = r;
   return {
     ...rest,
     reference: `PR-${r.id}`,
+    acknowledgementIsTest: Boolean(r.acknowledgementIsTest),
     originLabel: String(r.originLabel ?? "").replace(/[,\s]+$/, ""),
     destinationLabel: String(r.destinationLabel ?? "").replace(/[,\s]+$/, ""),
     constraints: JSON.parse(String(constraintsJson)),
@@ -194,6 +196,7 @@ async function create(value: unknown, auth: AuthContext) {
       ]);
     await addNote(id, "Pilot request received.", auth, exec);
     await enqueueStaffAlert(tx, { kind: "pilot_created", recordId: id });
+    await enqueuePilotAcknowledgement(tx, { requestId: id, userId: auth.userId });
     return getRequest(id, auth, exec);
   });
 }

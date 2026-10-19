@@ -1,7 +1,8 @@
 "use client";
 
 import { apiFetch } from "./backend-client";
-import type { PilotLoadChoice, PilotRequestWrite, PilotStatus, PilotStepKey } from "./pilots";
+import { normalizeAcknowledgementIsTest, normalizeAcknowledgementStatus } from "./pilots";
+import type { PilotAcknowledgementStatus, PilotLoadChoice, PilotRequestWrite, PilotStatus, PilotStepKey } from "./pilots";
 
 /**
  * Client for pilot requests, call scheduling and the internal pilot desk.
@@ -66,6 +67,10 @@ export interface PilotRequest {
   callEndsAt: string | null;
   buyerConsentedAt: string | null;
   shipmentId: number | null;
+  /** Initial automatic acknowledgement email. `sent` = provider accepted, not inbox delivery. */
+  acknowledgementStatus: PilotAcknowledgementStatus;
+  /** True when the acknowledgement is routed to the configured QA inbox. */
+  acknowledgementIsTest: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -122,6 +127,15 @@ function normalizeStep(step: PilotStep): PilotStep {
   return { ...step, completed: step.completed === true || Number(step.completed) === 1 };
 }
 
+/** Older responses omit acknowledgement fields; they read as unavailable, never sent. */
+function normalizeRequest(request: PilotRequest): PilotRequest {
+  return {
+    ...request,
+    acknowledgementStatus: normalizeAcknowledgementStatus(request.acknowledgementStatus),
+    acknowledgementIsTest: normalizeAcknowledgementIsTest(request.acknowledgementIsTest),
+  };
+}
+
 /* ── Buyer ── */
 
 export async function fetchPilotConfig(listingId: number) {
@@ -143,12 +157,12 @@ export async function createPilotRequest(body: PilotRequestWrite) {
     method: "POST",
     body: JSON.stringify(body),
   });
-  return response.request;
+  return normalizeRequest(response.request);
 }
 
 export async function fetchPilotRequests() {
   const body = await apiFetch<{ ok: true; requests: PilotRequest[] }>("/api/pilots/requests", { method: "GET", ...noStore });
-  return Array.isArray(body.requests) ? body.requests : [];
+  return Array.isArray(body.requests) ? body.requests.map(normalizeRequest) : [];
 }
 
 export async function fetchPilotRequest(id: number) {
@@ -156,7 +170,7 @@ export async function fetchPilotRequest(id: number) {
     `/api/pilots/requests/${id}`,
     { method: "GET", ...noStore },
   );
-  return { request: body.request, slots: Array.isArray(body.slots) ? body.slots : [] };
+  return { request: normalizeRequest(body.request), slots: Array.isArray(body.slots) ? body.slots : [] };
 }
 
 export async function fetchPilotSlots() {
@@ -169,16 +183,19 @@ export async function schedulePilotCall(requestId: number, slotId: number) {
     method: "POST",
     body: JSON.stringify({ slotId }),
   });
-  return body.request;
+  return normalizeRequest(body.request);
 }
 
-/** Ask for email follow-up instead of a call. Queues staff work; sends nothing. */
+/**
+ * Ask for email follow-up instead of a call. Queues staff work; sends nothing
+ * and never enqueues another acknowledgement.
+ */
 export async function preferPilotEmail(requestId: number) {
   const body = await apiFetch<{ ok: true; request: PilotRequest }>(`/api/pilots/requests/${requestId}/email-preference`, {
     method: "POST",
     body: JSON.stringify({}),
   });
-  return body.request;
+  return normalizeRequest(body.request);
 }
 
 /** Buyer agrees to proceed on the off-platform terms and releases identity. */
@@ -187,7 +204,7 @@ export async function proceedWithPilot(requestId: number) {
     method: "POST",
     body: JSON.stringify({ confirm: true }),
   });
-  return body.request;
+  return normalizeRequest(body.request);
 }
 
 /* ── Seller ── */
@@ -210,7 +227,7 @@ export async function fetchAdminPilotRequests(params: { q?: string; status?: Pil
   );
   const counts = body.counts ?? {};
   return {
-    requests: Array.isArray(body.requests) ? body.requests : [],
+    requests: Array.isArray(body.requests) ? body.requests.map(normalizeRequest) : [],
     counts: {
       new: Number(counts.new ?? 0),
       call_due: Number(counts.call_due ?? 0),
@@ -228,7 +245,7 @@ export async function fetchAdminPilotRequest(id: number) {
     { method: "GET", ...noStore },
   );
   return {
-    request: body.request,
+    request: normalizeRequest(body.request),
     notes: Array.isArray(body.notes) ? body.notes : [],
     steps: Array.isArray(body.steps) ? body.steps.map(normalizeStep) : [],
   };
@@ -242,7 +259,7 @@ export async function updateAdminPilotRequest(
     method: "PATCH",
     body: JSON.stringify(patch),
   });
-  return body.request;
+  return normalizeRequest(body.request);
 }
 
 export async function addAdminPilotNote(id: number, text: string) {
@@ -267,7 +284,7 @@ export async function handoffAdminPilot(id: number) {
     `/api/admin/pilots/requests/${id}/handoff`,
     { method: "POST", body: JSON.stringify({}) },
   );
-  return { request: body.request, shipmentId: body.shipmentId ?? body.request.shipmentId };
+  return { request: normalizeRequest(body.request), shipmentId: body.shipmentId ?? body.request.shipmentId };
 }
 
 export async function fetchAdminPilotSlots() {
