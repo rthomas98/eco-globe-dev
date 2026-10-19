@@ -1,6 +1,6 @@
 # Buyer pilot acknowledgement verification — 19 October 2026
 
-Automatic buyer acknowledgements are deployed to the development site. Live PR-3 produced one acknowledgement accepted by the email provider. Inbox receipt at the approved QA address remains pending human confirmation. Development delivery is restricted to `info@ecoglobeworld.com`.
+Automatic buyer acknowledgements are deployed to the development site. Live PR-3 produced one acknowledgement accepted by the email provider, and the user confirmed inbox receipt. Development delivery is restricted to `info@ecoglobeworld.com`. The QA pilot is closed, and the approved development SQL credential rotation is complete.
 
 ## Release binding
 
@@ -10,7 +10,7 @@ Automatic buyer acknowledgements are deployed to the development site. Live PR-3
 | Reviewed 18-file manifest SHA-256 | `9ff3d422f4a0efab4496988c7d2619a575c41a6b4ba0417784cb492b1ac76ba0` |
 | Source archive SHA-256 | `4a1f5b0307059efa8631140bb113e1ffbd5a9e79dd06a01ac6d32d5cdb48a6fc` |
 | Backend image | `acrecoglobe7c180adf.azurecr.io/ecoglobe-backend@sha256:8f58607ca7d10ae5f009534bf0a385d7ece3184352ac5618190b75670bba8de9` |
-| Ready API revision | `ecoglobe-backend-dev--ack-f711c97` |
+| Ready API revision after credential rotation | `ecoglobe-backend-dev--sqlrot-f711c97-oct19` |
 | Backend release build | ACR `ca1c`, succeeded |
 | Web deployment | `dpl_F49xRRP1ts2sAhVH9JEDi4hdaxRh`, ready |
 | Development web alias | <https://eco-globe-dev-web.vercel.app> |
@@ -86,13 +86,24 @@ The live browser created explicitly labelled QA pilot **PR-3** using the existin
 
 The rolled-back SQL test can advance the outbox identity counter without committing a row. The shared API image and exact deployed database were checked before invoking the compiled enqueue function. No delivery processor was started in that diagnostic process.
 
-PR-3 has a saved QA completion note. Closing it as lost was rejected by automatic approval review because direct authorization for that persistent workflow change was absent. It remains clearly labelled and open pending the requested approval; no real pilot was closed.
+With direct user approval, PR-3 was closed as lost through the admin frontend. Its QA completion note, closure note and history remain available. No real pilot was closed.
+
+### Credential rotation and final retest
+
+During diagnostic cleanup, a connection-pool return value exposed the development SQL password in tool output. The session was closed, and the value was excluded from files and release artifacts. The user approved a scoped rotation, completed on 19 October 2026:
+
+- The replacement was generated in memory and stored in the existing `kv-ecoglobe-dev/sql-admin-password` secret before the handover, keeping recovery possible without a local password file.
+- The existing SQL administrator password and only the password portion of the API's `azure-sql-connection-string` secret were changed. Other inline secrets, Key Vault references, environment settings, scale, permissions and the immutable application image were preserved.
+- The new API revision is ready. A fresh SQL connection with the exposed password fails with `ELOGIN`; the replacement connects to the expected development database.
+- Complete acknowledgement and staff-outbox snapshots matched before and after rotation. The accepted buyer acknowledgement remains a single job with one attempt; rotation triggered no new email.
+- The final retest checks live API and web-proxy SQL health, fresh buyer login, closed PR-3 with its accepted QA acknowledgement, historical PR-2 without backfill, and anonymous/buyer rejection from the admin outbox endpoint. Buyer and admin pilot pages were also refreshed in the browser after rotation.
+
+Saved direct database connections using the old SQL administrator password must retrieve the current Key Vault version. Application login passwords were not changed. The application source and the full test/build evidence above remain unchanged.
 
 ## Evidence limits and follow-up
 
-- The provider accepted `[QA TEST ONLY] EcoGlobe PR-3: pilot request received` for `info@ecoglobeworld.com`. Human inbox receipt has been requested and remains unconfirmed. Provider acceptance is not proof of inbox delivery.
+- The user confirmed receipt of `[QA TEST ONLY] EcoGlobe PR-3: pilot request received` at `info@ecoglobeworld.com`. This is human inbox confirmation in addition to provider acceptance.
 - Buyer mode is implemented and unit-tested; the live provider test used the approved QA route only.
 - No general-recipient rollout or commercial production readiness is claimed.
-- During diagnostic cleanup, an unassigned connection-pool return value exposed the development SQL password in tool output. The session was closed. The value is excluded from release artifacts, screenshots and this report. A scoped rotation plan for the dev SQL server, its Key Vault password and the API connection secret is prepared; approval is pending. No credential has been changed at this checkpoint.
 
-Private receipts and screenshots are retained under `.local/verification/2026-10-19-pilot-acknowledgement/`. They include `combined-manifest.json`, `review-verdict.json`, `verification-gates.json`, `migration-dev.json`, deployment receipts, `live-api-checks.json`, `live-sql-function-checks.json` and `final-live-checks.json`. These files are not part of the published source archive.
+Private receipts and screenshots are retained under `.local/verification/2026-10-19-pilot-acknowledgement/`. They include `combined-manifest.json`, `review-verdict.json`, `verification-gates.json`, `migration-dev.json`, deployment receipts, `live-api-checks.json`, `live-sql-function-checks.json`, `final-live-checks.json`, `follow-up-approvals.json`, `rotation-state.json` and `post-rotation-checks.json`. The original final-check receipt records the earlier checkpoint; the follow-up receipts record the completed approvals. These files are not part of the published source archive.
