@@ -55,3 +55,25 @@ Chrome revealed that the load handler and its 800ms fallback could each open Pri
 Live QA listing 28 retained its document and both orders through close/restore. A strict fingerprint caught the general PATCH path normalizing legacy empty unit/currency fields. A status-only closed → draft request now updates only status and audit timestamps, preserving the stored metadata exactly. The regression seeds legacy blanks and minimally shaped JSON and compares the stored bytes after restore. The test's original two blank fields were restored from retained pre-test data in a guarded transaction; the complete original business fingerprint matched before commit.
 
 A second retained local SQL fixture passed without resetting the database or changing existing business records. Across the retained test history there were 15 events; nine queued jobs were delivered through the stub in this second run. Final runtime/backend/web tests, all workspace types, lint and all three production builds passed. The scoped frontend worker reviewed the final backend follow-up with no blockers; root independently reviewed its three frontend files.
+
+## Final development acceptance
+
+Application source commit: `52de9ec2010ebc832c81ccf861c19fc8388490a3` (pushed to `codex/deploy-ecoglobe-backend`). Subsequent report-only commits do not change the deployed application source.
+
+| Service | Verified release |
+| --- | --- |
+| API | Healthy ready revision `ecoglobe-backend-dev--ana-52de9ec`, immutable image digest `sha256:936193304d4b369d3c5b233473f5fd85da11c6f3189b3b66f485770337d4bade`; ACR build `ca1a` succeeded |
+| Web | Deployment `dpl_DA811vFdCNzdvN1u8RWAUcGbyfn1`, aliased to https://eco-globe-dev-web.vercel.app |
+| Admin | Deployment `dpl_DxcXEiwHFJ3vwYT5SMQsw6QJyWhC`, aliased to https://eco-globe-dev-admin.vercel.app |
+
+Final live browser → API → SQL checks passed:
+
+- Chrome on the existing Rice Hull Ash listing reproduced the direct 200-ton/−$48,800 case. Clearing quantity exposed the explicit weight basis; 100 metric tonnes ÷ 0.5 derived 200 tons and the same result. Restoring direct quantity hid the unused basis again.
+- Chrome generated and saved the final two-page PDF. Visual rendering and image extraction confirmed the supplied logo; PDF text matched the on-screen 200 tons, $1,200 baseline, $50,000 alternative and −$48,800 difference. Saving returned to the report without opening another Print dialog.
+- Seller QA listing 28 passed cancel, close, Closed filter and restore. Its final complete business fingerprint matched the pre-test fingerprint; its document and both orders remained. QA listing 21 was used to test pending review and then returned to its original Paused state with its complete business fingerprint, two documents and seven orders retained. Neither QA listing was published for this test.
+- The seeded Demo Buyer had no US site. A site explicitly named **QA ONLY — NOT A SHIPPING DESTINATION — Oct19 alerts** (ID 46) was added solely for this development test. No real facility coordinates, price, SDS or volume was invented for existing marketplace records. The live pilot PR-2 objective explicitly disclaimed any shipment, purchase, call or commercial commitment.
+- PR-2 was submitted in Chrome, its email preference was saved, and the staff desk displayed the correct request, objective and preference through the alert's admin URL. Staff then closed this QA request; it is not an open commercial lead.
+- The three actual staff jobs (listing review, new pilot, email preference) each reached `sent` with one attempt and a provider ID, addressed only to `info@ecoglobeworld.com`. The authenticated admin status endpoint returned all three jobs. Anonymous access returned 401; buyer and seller access returned 403; all denied responses were `private, no-store`. No duplicate event was created by reads or subsequent restoration.
+- Existing refund QA recipients and enabled state were retained. These staff tests do not establish buyer acknowledgement delivery, and no buyer acknowledgement was enabled.
+
+The private evidence directory contains final source/build manifests, SQL preservation results, provider IDs, screenshots and the saved PDFs. Credentials and private evidence were excluded from release artifacts and Git. Human confirmation of the three staff inbox deliveries and links remains pending; provider acceptance is confirmed.
