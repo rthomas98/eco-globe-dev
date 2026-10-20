@@ -1,3 +1,4 @@
+import { hasDemoEstimateMarker } from "../../shared/src/demo-estimates.mjs";
 import { ApiError } from "./http.js";
 import type {
   WantedListingFields,
@@ -133,6 +134,8 @@ export function parseWantedWrite(
   if (previous?.acceptedCount && status === "open")
     throw new ApiError(409, "An accepted request cannot be reopened.");
   const merged = { ...previous, ...body };
+  if (status === "open" && hasDemoEstimateMarker(merged.notes))
+    throw new ApiError(400, "Replace demo estimates and remove the demo estimate note before posting this request.");
   // Defaults are confined to the existing immediate-post creation path.
   if (!previous && status === "open") {
     if (!("quantityUnit" in body)) merged.quantityUnit = "tons";

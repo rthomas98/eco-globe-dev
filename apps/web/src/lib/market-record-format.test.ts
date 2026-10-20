@@ -11,6 +11,8 @@ import {
   formatReviewStamp,
   isDecimalString,
   parseOptionalDecimalInput,
+  researchFieldStatusLabel,
+  researchValueLabel,
   safeHttpUrl,
   sourceCheckedLabel,
   sourceRecordTypeLabel,
@@ -170,4 +172,28 @@ test("review stamps never invent a reviewer or date", () => {
   assert.equal(formatReviewStamp(null, null), "Not reviewed");
   assert.equal(formatReviewStamp(null, "2026-10-01T00:00:00Z").startsWith("Reviewer unknown · "), true);
   assert.equal(formatReviewStamp("A. Admin", null), "A. Admin · date unknown");
+});
+
+test("demo fallback citations read as unverified demo estimates; workbook estimates stay Estimate", () => {
+  assert.equal(researchFieldStatusLabel("estimated", true), "Demo estimate, not verified");
+  assert.equal(researchFieldStatusLabel("unknown", true), "Demo estimate, not verified");
+  assert.equal(researchFieldStatusLabel("estimated", false), "Estimate");
+  // A confirmed value is never downgraded by a stale citation prefix.
+  assert.equal(researchFieldStatusLabel("confirmed", true), "Confirmed");
+});
+
+test("an unknown value with a preserved workbook range shows the range, not a midpoint", () => {
+  const unknownPrice = describeResearchPrice({ status: "estimated", value: null, currencyCode: "USD", perUnit: "t" });
+  assert.equal(researchValueLabel(unknownPrice, null, "$80-$120/t"), "Workbook range $80-$120/t (unverified)");
+  assert.equal(researchValueLabel(unknownPrice, null, null), "Unknown");
+  // A numeric value always wins over a range citation.
+  const known = describeResearchPrice({ status: "estimated", value: "100", currencyCode: "USD", perUnit: "t" });
+  assert.equal(researchValueLabel(known, "100", "$80-$120/t"), "$100.00/t");
+});
+
+test("fallback volumes keep their stated period and never become annual", () => {
+  const volume = { status: "estimated" as const, value: "100", unit: "t", period: "unspecified" as const };
+  assert.equal(researchValueLabel(describeResearchVolume(volume), volume.value, null), "100 t (period not stated)");
+  const ranged = { ...volume, value: null };
+  assert.equal(researchValueLabel(describeResearchVolume(ranged), null, "500-800 t"), "Workbook range 500-800 t (unverified)");
 });

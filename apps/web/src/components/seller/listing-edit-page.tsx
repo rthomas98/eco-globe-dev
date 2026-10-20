@@ -12,6 +12,14 @@ import { describeBackendError } from "@/lib/backend-client";
 import { updateListing, type BackendListing, type ListingDocument } from "@/lib/listings-api";
 import { describeUnit, parseOptionalNumber } from "@/lib/listing-format";
 import {
+  DEMO_LISTING_SUBMIT_BLOCKED,
+  DEMO_PRICE_ESTIMATE_LABEL,
+  DEMO_VOLUME_ESTIMATE_LABEL,
+  listingStatusAllowedWithDemo,
+  readDemoEstimates,
+} from "@/lib/demo-estimates";
+import { DemoEstimateBadge } from "@/components/shared/demo-estimate-badges";
+import {
   CATEGORY_OPTIONS,
   CLAIM_OPTIONS,
   CURRENCY_OPTIONS,
@@ -70,6 +78,7 @@ function EditForm({ record, onSaved, onCancel }: { record: BackendListing; onSav
   const locations = useCompanyLocations(sellerCompanyId);
   const unit = describeUnit(form.unit);
   const hasSds = documents.some((d) => d.documentTypeCode === "sds");
+  const demo = readDemoEstimates(form.description);
 
   useEffect(() => { setDocuments(record.documents ?? []); }, [record.documents]);
   // SDS-request notifications link to #sds; the form mounts after the listing loads.
@@ -79,6 +88,10 @@ function EditForm({ record, onSaved, onCancel }: { record: BackendListing; onSav
   const toggleClaim = (c: string) => setField("claims", form.claims.includes(c) ? form.claims.filter((x) => x !== c) : [...form.claims, c]);
 
   const handleSave = async () => {
+    if (!listingStatusAllowedWithDemo(status, demo)) {
+      setError(`${DEMO_LISTING_SUBMIT_BLOCKED} Choose Draft to save your edits.`);
+      return;
+    }
     const wantsReview = status === "pending_review" && record.listingStatusCode !== "pending_review";
     const issues = wantsReview ? validateForSubmission(form, hasSds) : validateDraft(form);
     if (issues.length > 0) {
@@ -146,9 +159,15 @@ function EditForm({ record, onSaved, onCancel }: { record: BackendListing; onSav
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Select label="Quantity unit" id="unit" options={unitOptionsFor(form.unit)} value={form.unit} onChange={(e) => setField("unit", e.target.value)} />
                 <Select label="Currency" id="currency" options={CURRENCY_OPTIONS} value={form.currencyCode} onChange={(e) => setField("currencyCode", e.target.value)} />
-                <Input label={`Unit price (${form.currencyCode || "currency"} per ${form.unit ? unit.singular : "unit"})`} id="price" inputMode="decimal" value={form.price} onChange={(e) => setField("price", e.target.value)} />
+                <div>
+                  <Input label={`Unit price (${form.currencyCode || "currency"} per ${form.unit ? unit.singular : "unit"})`} id="price" inputMode="decimal" value={form.price} onChange={(e) => setField("price", e.target.value)} />
+                  {demo.price && <div className="mt-1"><DemoEstimateBadge label={DEMO_PRICE_ESTIMATE_LABEL} /></div>}
+                </div>
                 <Input label={`Minimum Order Quantity (MOQ) in ${form.unit ? unit.plural : "the chosen unit"}`} id="moq" inputMode="decimal" value={form.moq} onChange={(e) => setField("moq", e.target.value)} />
-                <Input label={`Quantity available in ${form.unit ? unit.plural : "the chosen unit"}`} id="qty" inputMode="decimal" value={form.qty} onChange={(e) => setField("qty", e.target.value)} />
+                <div>
+                  <Input label={`${demo.volume ? "Quantity" : "Quantity available"} in ${form.unit ? unit.plural : "the chosen unit"}`} id="qty" inputMode="decimal" value={form.qty} onChange={(e) => setField("qty", e.target.value)} />
+                  {demo.volume && <div className="mt-1"><DemoEstimateBadge label={DEMO_VOLUME_ESTIMATE_LABEL} /></div>}
+                </div>
               </div>
               {(() => { const q = parseOptionalNumber(form.qty); const m = parseOptionalNumber(form.moq); return q !== null && m !== null && m > q ? <p className="mt-2 text-xs text-red-700">MOQ cannot exceed the available quantity.</p> : null; })()}
               <p className="mt-2 text-xs text-neutral-500">Blank price means no price yet; enter 0 only if the material is offered at no charge.</p>
@@ -241,12 +260,13 @@ function EditForm({ record, onSaved, onCancel }: { record: BackendListing; onSav
               <div className="flex flex-col gap-2">
                 {statusChoices.map((s) => (
                   <label key={s.value} className="flex cursor-pointer items-center gap-3">
-                    <input type="radio" name="status" checked={status === s.value} onChange={() => setStatus(s.value)} className="size-4 accent-neutral-900" />
-                    <span className="text-sm text-neutral-900">{s.label}</span>
+                    <input type="radio" name="status" checked={status === s.value} onChange={() => setStatus(s.value)} disabled={!listingStatusAllowedWithDemo(s.value, demo)} className="size-4 accent-neutral-900" />
+                    <span className={`text-sm ${listingStatusAllowedWithDemo(s.value, demo) ? "text-neutral-900" : "text-neutral-400"}`}>{s.label}</span>
                   </label>
                 ))}
               </div>
               <p className="mt-3 text-xs text-neutral-500">Only EcoGlobe admins can publish. Submitting requires an SDS on file.</p>
+              {demo.marker && <p className="mt-2 text-xs text-amber-800" role="status">{DEMO_LISTING_SUBMIT_BLOCKED} Drafts can still be saved.</p>}
             </section>
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-4 text-lg font-semibold text-neutral-900">Ships from</h2>

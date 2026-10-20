@@ -1,7 +1,8 @@
 import { CircleCheck, CircleDashed, CircleHelp, ShieldCheck, ShieldOff } from "lucide-react";
+import { isDemoEstimateCitation } from "@eco-globe/shared";
 import {
   addressPurposeLabel,
-  fieldStatusLabel,
+  researchFieldStatusLabel,
   sourceCheckedLabel,
   sourceRecordTypeLabel,
   type AddressPurpose,
@@ -51,9 +52,12 @@ export function SourceCheckedBadge({ checked }: { checked: boolean | null }) {
 export function FieldStatusBadge({
   field,
   status,
+  citation,
 }: {
   field?: string;
   status: MarketFieldStatus;
+  /** Price/volume citation; the demo fallback citation changes the label. */
+  citation?: string | null;
 }) {
   const Icon = status === "confirmed" ? CircleCheck : status === "estimated" ? CircleDashed : CircleHelp;
   const tone =
@@ -66,7 +70,7 @@ export function FieldStatusBadge({
     <span className={`${pill} ${tone}`}>
       <Icon className="size-3.5" aria-hidden="true" />
       {field ? `${field}: ` : ""}
-      {fieldStatusLabel(status)}
+      {researchFieldStatusLabel(status, isDemoEstimateCitation(citation))}
     </span>
   );
 }

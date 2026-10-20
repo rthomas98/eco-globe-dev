@@ -1,3 +1,4 @@
+import { hasDemoEstimateMarker } from "../../shared/src/demo-estimates.mjs";
 import { usableListingDocumentSql } from "./listing-safety.js";
 import { enqueueListingReview, auditListingLifecycle } from "./staff-alerts.js";
 import { handleListingSdsRequestRoute } from "./listing-sds-requests.js";
@@ -334,6 +335,8 @@ async function save(
         throw new ApiError(403, "Only admins may publish.");
       status = "pending_review";
     }
+    if (!["draft", "closed"].includes(status) && hasDemoEstimateMarker(merged.description))
+      throw new ApiError(400, "Replace demo estimates and remove the demo estimate note before submitting this listing.");
     const locationId = merged.locationId == null ? null : id(merged.locationId);
     if (locationId === null && !["draft", "closed"].includes(status))
       throw new ApiError(400, "Submission requires an owned pickup location.");

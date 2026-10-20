@@ -22,6 +22,13 @@ import {
   type RfqFormState,
 } from "@/lib/rfq-request";
 import { isViewOnlyMember } from "@/lib/wanted-listing-format";
+import {
+  DEMO_PRICE_ESTIMATE_LABEL,
+  DEMO_REQUEST_POST_BLOCKED,
+  DEMO_VOLUME_ESTIMATE_LABEL,
+  readDemoEstimates,
+} from "@/lib/demo-estimates";
+import { DemoEstimateBadge } from "@/components/shared/demo-estimate-badges";
 import { formatCompanyLocation, useCompanyLocations } from "@/lib/use-company-locations";
 
 const RECURRENCE = ["One-time", "Weekly", "Bi-weekly", "Monthly", "Bi-monthly", "Quarterly", "Semi-annually"];
@@ -52,6 +59,7 @@ export function BuyerRfqForm({ existing }: { existing?: ApiWantedListing }) {
   const categories = rfqCategoryOptions(existing);
   const [form, setForm] = useState<RfqFormState>(() => initialRfqFormState(existing));
   const chosenFacility = savedFacilities.find((l) => String(l.id) === form.facilityChoice);
+  const demo = readDemoEstimates(form.notes);
 
   const setField = <K extends keyof RfqFormState>(k: K, v: RfqFormState[K]) => {
     setForm((prev) => ({ ...prev, [k]: v }));
@@ -59,6 +67,11 @@ export function BuyerRfqForm({ existing }: { existing?: ApiWantedListing }) {
 
   const save = async (mode: "draft" | "publish") => {
     if (busy) return;
+    if (mode === "publish" && demo.marker) {
+      setError(DEMO_REQUEST_POST_BLOCKED);
+      setNotice(null);
+      return;
+    }
     const checked = validateRfqForm(rfqFormInput(form, categories, chosenFacility), mode);
     if (!checked.ok) {
       setError(checked.error);
@@ -188,6 +201,7 @@ export function BuyerRfqForm({ existing }: { existing?: ApiWantedListing }) {
                   value={form.quantity}
                   onChange={(e) => setField("quantity", e.target.value)}
                 />
+                {demo.volume && <div><DemoEstimateBadge label={DEMO_VOLUME_ESTIMATE_LABEL} /></div>}
               </Field>
               <Field label="Unit" htmlFor="rfq-unit">
                 <select
@@ -280,6 +294,7 @@ export function BuyerRfqForm({ existing }: { existing?: ApiWantedListing }) {
                   value={form.budget}
                   onChange={(e) => setField("budget", e.target.value)}
                 />
+                {demo.price && <div><DemoEstimateBadge label={DEMO_PRICE_ESTIMATE_LABEL} /></div>}
               </Field>
               <Field label="Currency" htmlFor="rfq-currency">
                 <select
@@ -306,6 +321,11 @@ export function BuyerRfqForm({ existing }: { existing?: ApiWantedListing }) {
               A draft is private to your company and can be resumed later. Submitting posts the request to
               the marketplace; it needs a quantity and unit, a currency, a delivery country and a need-by date.
             </p>
+            {demo.marker && (
+              <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {DEMO_REQUEST_POST_BLOCKED} You can still save it as a draft.
+              </p>
+            )}
             {error && (
               <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}
@@ -331,8 +351,8 @@ export function BuyerRfqForm({ existing }: { existing?: ApiWantedListing }) {
               size="md"
               className="w-full"
               onClick={() => void save("publish")}
-              disabled={busy !== null}
-              style={busy !== null ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+              disabled={busy !== null || demo.marker}
+              style={busy !== null || demo.marker ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
             >
               <Send className="size-4" />
               {busy === "publish" ? "Submitting…" : "Submit request for quote"}

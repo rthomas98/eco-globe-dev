@@ -19,7 +19,6 @@ import {
 } from "@/lib/api-market-records";
 import {
   describeResearchPrice,
-  describeResearchVolume,
   formatAddressLine,
   formatReviewStamp,
   safeHttpUrl,
@@ -33,6 +32,7 @@ import {
   SourceCheckedBadge,
   SourceRecordTypeBadge,
 } from "./market-record-badges";
+import { researchPriceText, researchVolumeText } from "@/lib/market-record-estimates";
 import { diffMarketRecordInput, recordToInput } from "./market-record-draft";
 import { MarketRecordForm } from "./market-record-form";
 import { MarketRecordHistory } from "./market-record-history";
@@ -87,7 +87,7 @@ function Section({
         {review && (
           <>
             <Row label="Review status">
-              <FieldStatusBadge status={review.value.status} />
+              <FieldStatusBadge status={review.value.status} citation={review.field === "Address" ? null : review.value.citation} />
             </Row>
             <Row label="Reviewed by">
               {formatReviewStamp(review.value.reviewedByUserName, review.value.reviewedAt)}
@@ -187,7 +187,6 @@ function RecordView({ initial, onReload }: { initial: MarketRecord; onReload: ()
     );
 
   const price = describeResearchPrice(record.price);
-  const volume = describeResearchVolume(record.volume);
   const title = record.facilityName ? `${record.companyName} · ${record.facilityName}` : record.companyName;
 
   return (
@@ -287,13 +286,13 @@ function RecordView({ initial, onReload }: { initial: MarketRecord; onReload: ()
             </Row>
           </Section>
 
-          <Section title="Annual volume" review={{ field: "Volume", value: record.volume }} action={reviewAction("volume")}>
-            <Row label="Annual volume">{volume.label}</Row>
+          <Section title="Volume" review={{ field: "Volume", value: record.volume }} action={reviewAction("volume")}>
+            <Row label="Volume">{researchVolumeText(record.volume)}</Row>
           </Section>
 
           <Section title="Research price" review={{ field: "Price", value: record.price }} action={reviewAction("price")}>
             <Row label="Research price">
-              {price.label}
+              {researchPriceText(record.price)}
               {price.kind === "gate_fee" && (
                 <p className="mt-1 text-xs text-neutral-500">The seller pays to dispose of this material.</p>
               )}

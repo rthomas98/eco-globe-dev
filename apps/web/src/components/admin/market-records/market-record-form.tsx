@@ -279,7 +279,7 @@ export function MarketRecordForm({
       </fieldset>
 
       <fieldset className={fieldset} style={border} disabled={busy}>
-        <legend className={legend}>Annual volume</legend>
+        <legend className={legend}>Volume</legend>
         <p className="mt-1 text-sm text-neutral-500">
           Annual capacity or estimate, not available stock. Leave blank if unknown; 0 means a known zero.
         </p>

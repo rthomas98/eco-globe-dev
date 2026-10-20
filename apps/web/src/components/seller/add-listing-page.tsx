@@ -23,6 +23,13 @@ import {
 } from "@/lib/custom-listings";
 import { describeBackendError } from "@/lib/backend-client";
 import {
+  DEMO_LISTING_SUBMIT_BLOCKED,
+  DEMO_PRICE_ESTIMATE_LABEL,
+  DEMO_VOLUME_ESTIMATE_LABEL,
+  readDemoEstimates,
+} from "@/lib/demo-estimates";
+import { DemoEstimateBadge } from "@/components/shared/demo-estimate-badges";
+import {
   createListing,
   updateListing,
   type BackendListing,
@@ -373,7 +380,13 @@ export function AddListingPage() {
     }
   };
 
+  const demo = readDemoEstimates(form.description);
+
   const handleSubmit = async () => {
+    if (demo.marker) {
+      setNotice({ tone: "error", text: DEMO_LISTING_SUBMIT_BLOCKED });
+      return;
+    }
     const issues = validateForSubmission(form, hasSds);
     if (issues.length > 0) {
       const saved = await persistDraft("draft");
@@ -813,6 +826,7 @@ export function AddListingPage() {
                 className="w-full rounded-lg px-4 py-3 text-sm outline-none placeholder:text-neutral-400"
                 style={{ border: "1px solid #E0E0E0" }}
               />
+              {demo.price && <div className="mt-1"><DemoEstimateBadge label={DEMO_PRICE_ESTIMATE_LABEL} /></div>}
               <p className="mt-1 text-xs text-neutral-500">
                 Blank means no price yet; enter 0 only if the material is
                 offered at no charge. Currency and unit must be chosen
@@ -853,9 +867,10 @@ export function AddListingPage() {
                 htmlFor="qty"
                 className="mb-1.5 block text-sm font-medium text-neutral-900"
               >
-                Quantity available in{" "}
+                {demo.volume ? "Quantity" : "Quantity available"} in{" "}
                 {form.unit ? unit.plural : "the chosen unit"}
               </label>
+              {demo.volume && <div className="mb-1"><DemoEstimateBadge label={DEMO_VOLUME_ESTIMATE_LABEL} /></div>}
               <div className="flex">
                 <input
                   id="qty"
@@ -1369,6 +1384,11 @@ export function AddListingPage() {
             {noticeNode && (
               <div className="px-4 pt-3 sm:px-6">{noticeNode}</div>
             )}
+            {demo.marker && (
+              <p className="px-4 pt-3 text-sm text-amber-800 sm:px-6" role="status">
+                {DEMO_LISTING_SUBMIT_BLOCKED} You can still save it as a draft.
+              </p>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
               <Button
                 variant="secondary"
@@ -1382,7 +1402,8 @@ export function AddListingPage() {
                 variant="primary"
                 size="md"
                 onClick={() => void handleSubmit()}
-                disabled={busy}
+                disabled={busy || demo.marker}
+                title={demo.marker ? DEMO_LISTING_SUBMIT_BLOCKED : undefined}
                 className="min-w-[160px]"
               >
                 {busy ? "Saving…" : "Submit for review"}

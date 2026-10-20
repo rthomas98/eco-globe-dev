@@ -20,14 +20,14 @@ import {
   FIELD_STATUS_LABELS,
   SOURCE_RECORD_TYPE_LABELS,
   csvCell,
-  describeResearchPrice,
-  describeResearchVolume,
   fieldStatusLabel,
   formatAddressLine,
+  researchFieldStatusLabel,
   sourceCheckedLabel,
   sourceRecordTypeLabel,
   type MarketFieldStatus,
 } from "@/lib/market-record-format";
+import { isDemoEstimateCitation } from "@eco-globe/shared";
 import { DataBoundary, LoadingState, useBackendData } from "@/components/shared/data-state";
 import {
   AddressPurposeBadge,
@@ -37,6 +37,7 @@ import {
   SourceCheckedBadge,
   SourceRecordTypeBadge,
 } from "./market-record-badges";
+import { researchPriceText, researchVolumeText } from "@/lib/market-record-estimates";
 import { MarketRecordShell } from "./market-record-shell";
 
 const PAGE_SIZE = 50;
@@ -90,7 +91,7 @@ function downloadCsv(records: MarketRecord[]) {
     "Address",
     "Address role",
     "Address review",
-    "Annual volume",
+    "Volume",
     "Volume unit",
     "Volume review",
     "Research price (signed; negative = gate fee)",
@@ -98,6 +99,9 @@ function downloadCsv(records: MarketRecord[]) {
     "Price per",
     "Price review",
     "Status",
+    "Volume period",
+    "Volume citation",
+    "Price citation",
   ];
   const rows = records.map((r) => [
     r.id,
@@ -114,12 +118,16 @@ function downloadCsv(records: MarketRecord[]) {
     // Decimal strings are exported as text (exactly as stored) with formula escaping.
     r.volume.value,
     r.volume.unit,
-    fieldStatusLabel(r.volume.status),
+    researchFieldStatusLabel(r.volume.status, isDemoEstimateCitation(r.volume.citation)),
     r.price.value,
     r.price.currencyCode,
     r.price.perUnit,
-    fieldStatusLabel(r.price.status),
+    researchFieldStatusLabel(r.price.status, isDemoEstimateCitation(r.price.citation)),
     r.status,
+    // Appended so existing column positions are unchanged; citations keep fallback provenance and workbook ranges.
+    r.volume.period,
+    r.volume.citation,
+    r.price.citation,
   ]);
   const text = [header, ...rows].map((cells) => cells.map((cell) => csvCell(cell)).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
@@ -148,13 +156,13 @@ function RecordCard({ record }: { record: MarketRecord }) {
         <dd className="min-w-0 break-words">{record.feedstock}</dd>
         <dt className="text-neutral-500">Location</dt>
         <dd className="min-w-0 break-words">{formatAddressLine(record.address)}</dd>
-        <dt className="text-neutral-500">Annual volume</dt>
+        <dt className="text-neutral-500">Volume</dt>
         <dd>
-          {describeResearchVolume(record.volume).label} <FieldStatusBadge status={record.volume.status} />
+          {researchVolumeText(record.volume)} <FieldStatusBadge status={record.volume.status} citation={record.volume.citation} />
         </dd>
         <dt className="text-neutral-500">Research price</dt>
         <dd>
-          {describeResearchPrice(record.price).label} <FieldStatusBadge status={record.price.status} />
+          {researchPriceText(record.price)} <FieldStatusBadge status={record.price.status} citation={record.price.citation} />
         </dd>
       </dl>
     </li>
@@ -174,7 +182,7 @@ function RecordsTable({ records, total }: { records: MarketRecord[]; total: numb
             <th scope="col" className="px-4 py-3">Side</th>
             <th scope="col" className="px-4 py-3">Feedstock</th>
             <th scope="col" className="px-4 py-3">Location</th>
-            <th scope="col" className="px-4 py-3">Annual volume</th>
+            <th scope="col" className="px-4 py-3">Volume</th>
             <th scope="col" className="px-4 py-3">Research price</th>
             <th scope="col" className="px-4 py-3">Record type</th>
             <th scope="col" className="px-4 py-3">Source check claim</th>
@@ -209,15 +217,15 @@ function RecordsTable({ records, total }: { records: MarketRecord[]; total: numb
                 </div>
               </td>
               <td className="px-4 py-3">
-                {describeResearchVolume(record.volume).label}
+                {researchVolumeText(record.volume)}
                 <div className="mt-1">
-                  <FieldStatusBadge status={record.volume.status} />
+                  <FieldStatusBadge status={record.volume.status} citation={record.volume.citation} />
                 </div>
               </td>
               <td className="px-4 py-3">
-                {describeResearchPrice(record.price).label}
+                {researchPriceText(record.price)}
                 <div className="mt-1">
-                  <FieldStatusBadge status={record.price.status} />
+                  <FieldStatusBadge status={record.price.status} citation={record.price.citation} />
                 </div>
               </td>
               <td className="px-4 py-3">

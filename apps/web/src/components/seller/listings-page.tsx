@@ -13,6 +13,8 @@ import { useListings } from "@/lib/use-listings";
 import { removeLocalListingDraft, useLocalListingDrafts } from "@/lib/custom-listings";
 import { statusLabel } from "@/lib/listing-view";
 import { formatQuantity } from "@/lib/listing-format";
+import { readDemoEstimates } from "@/lib/demo-estimates";
+import { DemoEstimateBadges } from "@/components/shared/demo-estimate-badges";
 import { isRespondable } from "@/lib/wanted-listing-format";
 import {
   LISTING_LIFECYCLE_FILTERS,
@@ -70,6 +72,7 @@ function CardView({ listings, onSelect }: { listings: Listing[]; onSelect: (l: L
             <h3 className="mb-1 line-clamp-2 text-sm font-semibold text-neutral-900">{l.title}</h3>
             <p className="mb-2 text-xs text-neutral-500">{l.location || "No facility"} · <SdsIndicator listing={l} /></p>
             <span className="mb-3 inline-block rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">{formatQuantity(l.qtyNum, l.quantityUnit) ?? "Quantity not set"}</span>
+            <DemoEstimateBadges fields={readDemoEstimates(l.description)} className="mb-3 ml-1" />
             <div className="flex items-center justify-between">
               <p className="text-lg font-bold text-neutral-900">{l.price} {l.priceNum !== null && <span className="text-xs font-normal text-neutral-400">{l.unit}</span>}</p>
               <StatusBadge status={l.statusCode} />
@@ -261,7 +264,7 @@ export function ListingsPage() {
               <tr className="text-left" style={{ borderBottom: "1px solid #F0F0F0" }}>
                 <th className="pb-3 text-sm font-medium text-neutral-500">Listing Name</th>
                 <th className="pb-3 text-sm font-medium text-neutral-500">Category</th>
-                <th className="pb-3 text-sm font-medium text-neutral-500">Available</th>
+                <th className="pb-3 text-sm font-medium text-neutral-500">Quantity</th>
                 <th className="pb-3 text-sm font-medium text-neutral-500">Price</th>
                 <th className="pb-3 text-sm font-medium text-neutral-500">SDS</th>
                 <th className="pb-3 text-sm font-medium text-neutral-500">Status</th>
@@ -273,7 +276,7 @@ export function ListingsPage() {
                   <td className="py-3.5">
                     <div className="flex items-center gap-3">
                       <div className="size-10 shrink-0 overflow-hidden rounded-lg"><Thumb listing={l} /></div>
-                      <div><p className="max-w-[300px] truncate text-sm font-medium text-neutral-900">{l.title}</p><p className="text-xs text-neutral-400">#{l.id} · {l.slug}</p></div>
+                      <div><p className="max-w-[300px] truncate text-sm font-medium text-neutral-900">{l.title}</p><p className="text-xs text-neutral-400">#{l.id} · {l.slug}</p><DemoEstimateBadges fields={readDemoEstimates(l.description)} className="mt-1" /></div>
                     </div>
                   </td>
                   <td className="py-3.5 text-sm text-neutral-700">{l.category}</td>

@@ -18,6 +18,8 @@ import {
   isViewOnlyMember,
   wantedStatus,
 } from "@/lib/wanted-listing-format";
+import { DEMO_REQUEST_POST_BLOCKED, readDemoEstimates, type DemoEstimateFields } from "@/lib/demo-estimates";
+import { DemoEstimateBadges } from "@/components/shared/demo-estimate-badges";
 
 type RFQStatus = "Draft" | "Open" | "Closed";
 
@@ -31,6 +33,7 @@ interface RFQ {
   status: RFQStatus;
   created: string;
   notes?: string | null;
+  demo: DemoEstimateFields;
   location: string;
   targetPrice: string;
   needBy: string;
@@ -50,6 +53,7 @@ function toRfq(w: ApiWantedListing): RFQ {
     wantedId: w.id,
     responses: w.responseCount ?? null,
     notes: w.notes,
+    demo: readDemoEstimates(w.notes),
     location: describeWantedRegion(w),
     targetPrice: describeWantedTargetPrice(w),
     needBy: describeNeedBy(w),
@@ -154,6 +158,7 @@ export function BuyerRfqPage() {
                   <p className="mt-0.5 text-xs text-neutral-500">
                     {r.quantity} · {r.status === "Draft" ? "created" : "submitted"} {r.created}
                   </p>
+                  <DemoEstimateBadges fields={r.demo} className="mt-1" />
                 </div>
                 {r.status !== "Draft" && r.responses !== null && (
                   <span className="text-sm text-neutral-700">
@@ -170,11 +175,13 @@ export function BuyerRfqPage() {
                       <div key={label} className="min-w-0"><dt className="text-neutral-500">{label}</dt><dd className="mt-1 break-words font-medium">{value}</dd></div>
                     ))}
                   </dl>
+                  <DemoEstimateBadges fields={r.demo} className="mt-3" />
                   <h3 className="mt-6 font-semibold">Requirements and notes</h3>
                   <p className="mt-2 whitespace-pre-wrap break-words text-sm text-neutral-700">{r.notes || 'No additional requirements provided.'}</p>
                   {r.status === "Draft" ? (
                     <div className="mt-6 flex flex-wrap items-center gap-3">
                       <p className="text-sm text-neutral-600">Private draft — not visible to sellers until it is submitted.</p>
+                      {r.demo.marker && <p className="w-full text-sm text-amber-800">{DEMO_REQUEST_POST_BLOCKED}</p>}
                       {!viewOnly && (
                         <Link href={`/buyer/rfq/${r.wantedId}/edit`}>
                           <Button variant="primary" size="md">Resume draft</Button>

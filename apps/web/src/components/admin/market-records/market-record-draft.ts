@@ -135,7 +135,7 @@ export const LABELS: Record<FieldKey, string> = {
   postalCode: "Postal code",
   countryCode: "Country code",
   addressPurpose: "Address role",
-  volumeValue: "Annual volume",
+  volumeValue: "Volume",
   volumeUnit: "Volume unit",
   volumePeriod: "Volume period",
   volumeCitation: "Volume citation",

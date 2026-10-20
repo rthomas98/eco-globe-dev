@@ -11,6 +11,15 @@ import { useListing } from "@/lib/use-listings";
 import { formatLocationAddress } from "@/lib/listing-view";
 import { formatQuantity, formatQuantityWithUnitName } from "@/lib/listing-format";
 import { describeBackendError } from "@/lib/backend-client";
+import {
+  DEMO_LISTING_SUBMIT_BLOCKED,
+  DEMO_PRICE_ESTIMATE_LABEL,
+  DEMO_VOLUME_ESTIMATE_LABEL,
+  listingQuantityLabel,
+  readDemoEstimates,
+  type DemoEstimateFields,
+} from "@/lib/demo-estimates";
+import { DemoEstimateBadge, DemoEstimateBadges } from "@/components/shared/demo-estimate-badges";
 import { closeListing, updateListing } from "@/lib/listings-api";
 import {
   CLOSE_LISTING_CONFIRMATION,
@@ -94,6 +103,8 @@ export function SellerListingDetailPage({ id }: { id: string }) {
   const confirmClose = () => runMutation(() => closeListing(record.id), "The listing could not be closed.");
   const restoreToDraft = () => runMutation(() => updateListing(record.id, { listingStatusCode: "draft" }), "The listing could not be restored.");
 
+  const demo = readDemoEstimates(record.description);
+
   return (
     <SellerLayout title="Listing detail">
       <div className="px-4 py-6 sm:px-8 sm:py-8">
@@ -101,13 +112,13 @@ export function SellerListingDetailPage({ id }: { id: string }) {
           <Link href="/seller/listings" className="inline-flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-neutral-900"><ArrowLeft className="size-4" />Back to listings</Link>
           <div className="flex flex-wrap items-center gap-2">
             {listing.statusCode === "draft" && (
-              <Button variant="secondary" size="md" disabled={busy || !listing.sdsDocument || !record.locationId} onClick={() => void changeStatus("pending_review")} title={!record.locationId ? "Choose a facility before submitting" : listing.sdsDocument ? undefined : "Upload the SDS before submitting"}>Submit for review</Button>
+              <Button variant="secondary" size="md" disabled={busy || !listing.sdsDocument || !record.locationId || demo.marker} onClick={() => void changeStatus("pending_review")} title={demo.marker ? DEMO_LISTING_SUBMIT_BLOCKED : !record.locationId ? "Choose a facility before submitting" : listing.sdsDocument ? undefined : "Upload the SDS before submitting"}>Submit for review</Button>
             )}
             {listing.statusCode === "published" && (
               <Button variant="secondary" size="md" disabled={busy} onClick={() => void changeStatus("paused")}>Pause</Button>
             )}
             {listing.statusCode === "paused" && (
-              <Button variant="secondary" size="md" disabled={busy || !record.locationId} onClick={() => void changeStatus("pending_review")} title={record.locationId ? undefined : "Choose a facility before resubmitting"}>Resubmit</Button>
+              <Button variant="secondary" size="md" disabled={busy || !record.locationId || demo.marker} onClick={() => void changeStatus("pending_review")} title={demo.marker ? DEMO_LISTING_SUBMIT_BLOCKED : record.locationId ? undefined : "Choose a facility before resubmitting"}>Resubmit</Button>
             )}
             {canRestoreListing(listing.statusCode) && (
               <Button variant="secondary" size="md" disabled={busy} onClick={() => void restoreToDraft()}><RotateCcw className="size-4" />{busy ? "Restoring…" : "Restore to draft"}</Button>
@@ -134,6 +145,9 @@ export function SellerListingDetailPage({ id }: { id: string }) {
         {isClosedListing(listing.statusCode) && (
           <p className="mb-4 flex items-start gap-2 rounded-lg bg-neutral-100 px-4 py-3 text-sm text-neutral-700" role="status"><Archive className="mt-0.5 size-4 shrink-0" />{CLOSED_LISTING_NOTICE}</p>
         )}
+        {demo.marker && (
+          <p className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status"><Info className="mt-0.5 size-4 shrink-0" />{DEMO_LISTING_SUBMIT_BLOCKED} You can still edit and save it as a draft.</p>
+        )}
         {actionError && <p className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700" role="alert">{actionError}</p>}
 
         <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
@@ -145,11 +159,12 @@ export function SellerListingDetailPage({ id }: { id: string }) {
             <div className="flex flex-wrap items-center gap-3 text-sm text-neutral-500">
               <span>{listing.location || "No facility"}</span>
               <span>·</span>
-              <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs">{formatQuantity(listing.qtyNum, listing.quantityUnit) ?? "Quantity not set"} available</span>
+              <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs">{listingQuantityLabel(formatQuantity(listing.qtyNum, listing.quantityUnit), demo)}</span>
               <span>·</span>
               <span className="font-semibold text-neutral-900">{listing.price}{listing.priceNum !== null ? listing.unit : ""}</span>
               <span>·</span>
               <span>#{listing.id} · {listing.slug}</span>
+              <DemoEstimateBadges fields={demo} />
             </div>
             {!listing.sdsDocument && <p className="flex items-center gap-2 text-xs text-amber-700"><AlertTriangle className="size-3" />No SDS uploaded. Buyers cannot purchase and the listing cannot be submitted for review.</p>}
           </div>
@@ -163,7 +178,7 @@ export function SellerListingDetailPage({ id }: { id: string }) {
           ))}
         </div>
 
-        {tab === "overview" && <OverviewTab listing={listing} record={record} />}
+        {tab === "overview" && <OverviewTab listing={listing} record={record} demo={demo} />}
         {tab === "documents" && (
           <div className="flex flex-col gap-3">
             {(record.documents ?? []).length === 0 ? (
@@ -183,7 +198,7 @@ export function SellerListingDetailPage({ id }: { id: string }) {
   );
 }
 
-function OverviewTab({ listing, record }: { listing: Listing; record: BackendListing }) {
+function OverviewTab({ listing, record, demo }: { listing: Listing; record: BackendListing; demo: DemoEstimateFields }) {
   const specs = Object.entries(listing.specifications);
   const mapListing: MapListing | null =
     listing.lng !== null && listing.lat !== null
@@ -213,9 +228,9 @@ function OverviewTab({ listing, record }: { listing: Listing; record: BackendLis
           <div className="rounded-xl bg-white p-5" style={{ border: "1px solid #F0F0F0" }}>
             <div className="mb-4 grid grid-cols-2 gap-y-4">
               <div><p className="text-xs font-semibold text-neutral-500">Listing category</p><p className="text-sm text-neutral-900">{listing.category}</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Listing price</p><p className="text-sm text-neutral-900">{listing.price}{listing.priceNum !== null ? ` ${listing.unit}` : ""}{currencyCode ? ` (${currencyCode})` : ""}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">Listing price</p><p className="text-sm text-neutral-900">{listing.price}{listing.priceNum !== null ? ` ${listing.unit}` : ""}{currencyCode ? ` (${currencyCode})` : ""}</p>{demo.price && <DemoEstimateBadge label={DEMO_PRICE_ESTIMATE_LABEL} />}</div>
               <div><p className="text-xs font-semibold text-neutral-500">Minimum Order Quantity (MOQ)</p><p className="text-sm text-neutral-900">{formatQuantityWithUnitName(listing.moqNum, listing.quantityUnit) ?? "Not set"}</p></div>
-              <div><p className="text-xs font-semibold text-neutral-500">Available quantity</p><p className="text-sm text-neutral-900">{formatQuantityWithUnitName(listing.qtyNum, listing.quantityUnit) ?? "Not set"}</p></div>
+              <div><p className="text-xs font-semibold text-neutral-500">{demo.volume ? "Quantity" : "Available quantity"}</p><p className="text-sm text-neutral-900">{formatQuantityWithUnitName(listing.qtyNum, listing.quantityUnit) ?? "Not set"}</p>{demo.volume && <DemoEstimateBadge label={DEMO_VOLUME_ESTIMATE_LABEL} />}</div>
             </div>
             {listing.images.length > 0 ? (
               <div className="flex gap-3 overflow-x-auto">{listing.images.map((img) => <div key={img} className="size-20 shrink-0 overflow-hidden rounded-lg"><img src={img} alt="" className="size-full object-cover" /></div>)}</div>

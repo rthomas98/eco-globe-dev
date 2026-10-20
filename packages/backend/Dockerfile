@@ -16,6 +16,7 @@ COPY packages/shared/src/market-references-api.d.ts packages/shared/src/market-r
 COPY packages/shared/src/market-portfolios-api.d.ts packages/shared/src/market-portfolios-api.d.ts
 COPY packages/shared/src/listing-sds-api.d.ts packages/shared/src/listing-sds-api.d.ts
 COPY packages/shared/src/wanted-listing-api.d.ts packages/shared/src/wanted-listing-api.d.ts
+COPY packages/shared/src/demo-estimates.mjs packages/shared/src/demo-estimates.d.mts packages/shared/src/
 COPY packages/typescript-config packages/typescript-config
 
 RUN pnpm --filter=@eco-globe/backend build
@@ -32,6 +33,7 @@ COPY --from=build /workspace/node_modules ./node_modules
 COPY --from=build /workspace/packages/backend/package.json ./packages/backend/package.json
 COPY --from=build /workspace/packages/backend/node_modules ./packages/backend/node_modules
 COPY --from=build /workspace/packages/backend/dist ./packages/backend/dist
+COPY --from=build /workspace/packages/shared/src/demo-estimates.mjs ./packages/shared/src/demo-estimates.mjs
 
 WORKDIR /workspace/packages/backend
 

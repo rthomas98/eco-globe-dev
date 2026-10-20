@@ -122,6 +122,28 @@ export function fieldStatusLabel(status: MarketFieldStatus | null | undefined) {
   return status ? FIELD_STATUS_LABELS[status] ?? "Not confirmed" : "Not confirmed";
 }
 
+/** Shown instead of "Estimate" when a value came from the demo fallback citation. */
+export const DEMO_ESTIMATE_STATUS_LABEL = "Demo estimate, not verified";
+
+/**
+ * Review label for a price or volume. `demoCitation` is the shared
+ * isDemoEstimateCitation() result; it never overrides a confirmed value, and
+ * an ordinary workbook estimate keeps the plain "Estimate" label.
+ */
+export function researchFieldStatusLabel(status: MarketFieldStatus | null | undefined, demoCitation: boolean) {
+  return demoCitation && status !== "confirmed" ? DEMO_ESTIMATE_STATUS_LABEL : fieldStatusLabel(status);
+}
+
+/**
+ * Value text for a price or volume. When the number is unknown but the
+ * citation preserved a workbook range, the range is shown as written rather
+ * than collapsed to a midpoint.
+ */
+export function researchValueLabel(described: { label: string }, value: string | null, workbookRange: string | null) {
+  if (isDecimalString(value) || !workbookRange) return described.label;
+  return `Workbook range ${workbookRange} (unverified)`;
+}
+
 export type ResearchPriceKind = "unknown" | "zero" | "price" | "gate_fee";
 
 /** Describes a research price. Negative values are gate fees paid by the seller. */

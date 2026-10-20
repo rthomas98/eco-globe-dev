@@ -9,7 +9,7 @@ import { FIELD_STATUS_LABELS } from "@/lib/market-record-format";
 const FIELD_LABELS: Record<MarketReviewField, string> = {
   address: "address",
   price: "research price",
-  volume: "annual volume",
+  volume: "volume",
 };
 
 /**
