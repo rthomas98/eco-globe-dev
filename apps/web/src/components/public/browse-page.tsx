@@ -105,6 +105,7 @@ function ListingCard({
               portal="buyer"
               variant="ghost"
               label="Footprint"
+              returnTo="public-browse"
             />
           </div>
         </>

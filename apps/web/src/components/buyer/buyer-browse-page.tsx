@@ -95,6 +95,7 @@ function ListingCard({
           portal="buyer"
           variant="primary"
           label="Open Carbon Calculator"
+          returnTo="buyer-browse"
         />
       </div>
     </div>

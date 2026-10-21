@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   X,
   ChevronRight,
@@ -22,6 +23,7 @@ import { describeUnit } from "@/lib/listing-format";
 import { hasCoordinates, type Listing } from "@/components/public/browse-listings";
 import { useListing, useListings } from "@/lib/use-listings";
 import { recordListingInterest } from "@/lib/api-listings";
+import type { CalculatorOrigin } from "@/lib/calculator-origin";
 import { CarbonGauge } from "./carbon-gauge";
 import { ListingMap, type MapListing } from "@/components/public/listing-map";
 import { generateCarbonReport, type ReportScenario } from "./carbon-report";
@@ -194,10 +196,12 @@ interface Props {
   /** Buyer-selected quantity in the listing's pricing unit. */
   initialQuantity?: number;
   startAt?: CalculatorStart;
+  /** The listing the user opened the calculator from; fixed across scenario changes. */
+  origin?: CalculatorOrigin | null;
   onClose: () => void;
 }
 
-export function CarbonCalculatorModal({ open, listing, initialListingId, portal, initialQuantity, startAt, onClose }: Props) {
+export function CarbonCalculatorModal({ open, listing, initialListingId, portal, initialQuantity, startAt, origin, onClose }: Props) {
   const user = useDemoUser();
   const activePortal: CalculatorPortal = portal ?? (user?.role === "seller" ? "seller" : "buyer");
   // Facilities come from persisted company locations, never from browser-only
@@ -288,13 +292,35 @@ export function CarbonCalculatorModal({ open, listing, initialListingId, portal,
     </button>
   );
 
+  const originClass =
+    "inline-flex max-w-[45vw] items-center gap-1 rounded-full px-2 py-1.5 text-sm font-semibold text-neutral-900 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 sm:max-w-xs";
+  const originContent = origin && (
+    <>
+      <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />
+      <span className="truncate">{origin.label}</span>
+    </>
+  );
+  const originControl = !origin ? null : origin.kind === "link" ? (
+    <Link href={origin.href} title={origin.label} className={originClass}>
+      {originContent}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClose} title={origin.label} className={originClass}>
+      {originContent}
+    </button>
+  );
+
   // No seeded listing yet: loading, not found, or a picker over persisted listings.
   if (scenarios.length === 0 || !initial) {
     const loading = (initialListingId && seeded.status === "loading") || catalogue.status === "loading";
     return (
       <div className="fixed inset-0 z-[80] flex flex-col bg-neutral-50">
-        <header className="flex items-center justify-between bg-white px-8 py-4" style={{ borderBottom: "1px solid #F0F0F0" }}>
-          <div className="flex items-center gap-3"><TrendingDown className="size-6 text-neutral-900" /><h1 className="text-lg font-bold text-neutral-900">Carbon Calculator</h1></div>
+        <header className="flex items-center justify-between gap-3 bg-white px-4 py-4 sm:px-8" style={{ borderBottom: "1px solid #F0F0F0" }}>
+          <div className="flex min-w-0 items-center gap-3">
+            {originControl}
+            <TrendingDown className="size-6 shrink-0 text-neutral-900" />
+            <h1 className="text-lg font-bold text-neutral-900">Carbon Calculator</h1>
+          </div>
           {closeButton}
         </header>
         <main className="mx-auto w-full max-w-[720px] px-8 py-10">
@@ -419,10 +445,11 @@ export function CarbonCalculatorModal({ open, listing, initialListingId, portal,
 
   return (
     <div className="fixed inset-0 z-[80] flex flex-col bg-neutral-50">
-      <header className="flex items-center justify-between bg-white px-4 py-4 sm:px-8" style={{ borderBottom: "1px solid #F0F0F0" }}>
-        <div className="flex items-center gap-3">
-          <TrendingDown className="size-6 text-neutral-900" />
-          <div>
+      <header className="flex items-center justify-between gap-3 bg-white px-4 py-4 sm:px-8" style={{ borderBottom: "1px solid #F0F0F0" }}>
+        <div className="flex min-w-0 items-center gap-3">
+          {originControl}
+          <TrendingDown className="hidden size-6 shrink-0 text-neutral-900 sm:block" />
+          <div className="min-w-0">
             <h1 className="text-lg font-bold text-neutral-900">Carbon Calculator</h1>
             <p className="text-xs text-neutral-500">{activePortal === "seller" ? "Seller view: transport footprint and value recovery" : "Buyer view: transport footprint and savings"}</p>
           </div>
@@ -509,7 +536,7 @@ export function CarbonCalculatorModal({ open, listing, initialListingId, portal,
       <footer className="flex items-center justify-between bg-white px-4 py-4 sm:px-8" style={{ borderTop: "1px solid #F0F0F0" }}>
         <Button variant="secondary" size="md" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0} style={step === 0 ? { opacity: 0.4, cursor: "not-allowed" } : undefined}>
           <ChevronLeft className="size-4" />
-          Back
+          Previous step
         </Button>
         <p className="text-xs text-neutral-500">Step {step + 1} of {STEPS.length}: {STEPS[step]}</p>
         {step < STEPS.length - 1 ? (

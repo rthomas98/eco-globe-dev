@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { TrendingDown, Coins } from "lucide-react";
 import type { Listing } from "@/components/public/browse-listings";
+import { calculatorOrigin, type CalculatorReturnTo } from "@/lib/calculator-origin";
 import { CarbonCalculatorModal, type CalculatorPortal, type CalculatorStart } from "./carbon-calculator-modal";
 
 interface Props {
@@ -19,6 +20,8 @@ interface Props {
   /** `block` is the full-width purchase-card treatment. */
   variant?: "primary" | "ghost" | "icon" | "block";
   label?: string;
+  /** Where "Back to <listing>" goes: close on detail pages, link from Browse cards. */
+  returnTo?: CalculatorReturnTo;
 }
 
 export function CarbonCalculatorButton({
@@ -29,6 +32,7 @@ export function CarbonCalculatorButton({
   startAt,
   variant = "ghost",
   label = "Calculate footprint",
+  returnTo,
 }: Props) {
   const [open, setOpen] = useState(false);
   const Icon = startAt === "value-recovery" ? Coins : TrendingDown;
@@ -63,6 +67,7 @@ export function CarbonCalculatorButton({
         portal={portal}
         initialQuantity={initialQuantity}
         startAt={startAt}
+        origin={calculatorOrigin(listing, returnTo)}
         onClose={() => setOpen(false)}
       />
     </>
