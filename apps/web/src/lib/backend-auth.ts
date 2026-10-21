@@ -10,6 +10,7 @@ import {
   type DemoUser,
   type UserRole,
 } from "./demo-user";
+import { ROLE_SWITCH_COMPANY_CHANGED, isRoleSwitchVerified } from "./company-draft-shortcuts";
 
 type BackendUser = {
   id: number;
@@ -303,12 +304,31 @@ export async function switchBackendRole(role: "buyer" | "seller") {
   return refreshBackendSession(undefined, role);
 }
 
-export async function refreshBackendSession(token?: string, preferredRole?: UserRole) {
+/**
+ * Switches role while keeping the given active company. The raw session is
+ * checked before the client session is written, so a switch that lands on
+ * another company or role throws without changing local state.
+ */
+export async function switchBackendRoleForCompany(role: "buyer" | "seller", companyId: number) {
+  await apiFetch<SessionResponse>("/auth/switch-role", {
+    method: "POST",
+    token: COOKIE_SESSION_TOKEN,
+    body: JSON.stringify({ role }),
+  });
+  return refreshBackendSession(undefined, role, (session) => isRoleSwitchVerified(companyId, role, session));
+}
+
+export async function refreshBackendSession(
+  token?: string,
+  preferredRole?: UserRole,
+  acceptSession?: (session: BackendUser) => boolean,
+) {
   const existingUser = readDemoUser();
   const response = await apiFetch<SessionResponse>("/auth/session", {
     method: "GET",
     token: token ?? COOKIE_SESSION_TOKEN,
   });
+  if (acceptSession && !acceptSession(response.user)) throw new Error(ROLE_SWITCH_COMPANY_CHANGED);
   const authorizedRoles = rolesFromBackend(response.user, []);
   const pendingRoles =
     response.user.companies.length === 0 ? (existingUser?.roles ?? []) : [];

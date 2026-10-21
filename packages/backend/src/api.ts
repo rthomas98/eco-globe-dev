@@ -1,4 +1,5 @@
 import { handlePilotAcknowledgementRoute } from "./pilot-acknowledgements.js";
+import { handleDemoPresentationRoute } from "./demo-presentation-routes.js";
 import { handleStaffAlertRoute } from './staff-alerts.js';
 import { parseWantedWrite, wantedStatus, type WantedState } from "./wanted-listing-domain.js";
 import { handleMarketRecordRoute } from "./market-record-routes.js";
@@ -6686,6 +6687,7 @@ export async function handleApiRoute(
   response: ServerResponse,
   requestUrl: URL,
 ) {
+  if (await handleDemoPresentationRoute(request,response,requestUrl)) return true;
   if (await handlePilotAcknowledgementRoute(request,response,requestUrl)) return true;
   if (await handleStaffAlertRoute(request,response,requestUrl)) return true;
   if (await handleMarketPortfolioRoute(request,response,requestUrl)) return true;

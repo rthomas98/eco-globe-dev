@@ -26,6 +26,8 @@ import { formatQuantity } from "@/lib/listing-format";
 import { RefreshCw } from "lucide-react";
 import { filterByRadius, formatMiles } from "@/lib/radius-filter";
 import { FeedstockIqPrompt } from "@/components/feedstock-iq/feedstock-iq-prompt";
+import { CompanyDraftShortcuts } from "@/components/shared/company-draft-shortcuts";
+import { DemoFeedstocksLink } from "@/components/shared/demo-feedstocks-link";
 
 function ListingCard({
   listing,
@@ -397,6 +399,8 @@ export function BrowsePage() {
       <div className="flex flex-col lg:flex-row flex-1 min-h-0">
         {/* Listings panel */}
         <div className="w-full lg:w-[55%] overflow-y-auto p-6">
+          <DemoFeedstocksLink />
+          <CompanyDraftShortcuts />
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-neutral-900">
               {urlQuery || urlLocation || filters.categories.length || urlTag ? (

@@ -2,7 +2,13 @@
 
 import { useDemoUser } from "@/lib/demo-user";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  DRAFT_STATUS_PARAM,
+  isDraftStatusParam,
+  withDraftStatusParam,
+} from "@/lib/company-draft-shortcuts";
 import { fetchWantedListings, type ApiWantedListing } from "@/lib/api-portal";
 import { ErrorState, LoadingState, useBackendData } from "@/components/shared/data-state";
 import Link from "next/link";
@@ -66,8 +72,29 @@ function toRfq(w: ApiWantedListing): RFQ {
 }
 
 export function BuyerRfqPage() {
+  return (
+    <Suspense>
+      <BuyerRfqContent />
+    </Suspense>
+  );
+}
+
+function BuyerRfqContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [selected, setSelected] = useState<string | null>(null);
-  const [filter, setFilter] = useState<RFQStatus | "All">("All");
+  // `?status=draft` keeps the Draft view across reload and Back.
+  const draftOnly = isDraftStatusParam(searchParams.get(DRAFT_STATUS_PARAM));
+  const [chosenFilter, setChosenFilter] = useState<Exclude<RFQStatus, "Draft"> | "All">("All");
+  const filter = draftOnly ? "Draft" : chosenFilter;
+  const setFilter = (next: RFQStatus | "All") => {
+    if (next !== "Draft") setChosenFilter(next);
+    if ((next === "Draft") !== draftOnly)
+      router.replace(`${pathname}${withDraftStatusParam(searchParams.toString(), next === "Draft")}`, {
+        scroll: false,
+      });
+  };
   const user = useDemoUser();
   const companyId = user?.activeCompanyId;
   const viewOnly = isViewOnlyMember(user);
@@ -107,6 +134,8 @@ export function BuyerRfqPage() {
           {FILTERS.map((f) => (
             <button
               key={f}
+              type="button"
+              aria-pressed={filter === f}
               onClick={() => setFilter(f)}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 filter === f

@@ -14,6 +14,7 @@ import {
 } from "./database.js";
 import { sendEcoGlobeEmail } from "./email.js";
 import { ApiError, type AuthContext } from "./http.js";
+import { selectSessionRoleCompany } from "./session-role-company.js";
 
 const pbkdf2 = promisify(pbkdf2Callback);
 
@@ -1082,7 +1083,7 @@ export async function switchSessionRole(token: string | undefined, role: string)
   if ((role !== "buyer" && role !== "seller") || !getAuthorizedRoles(user, user.companies).has(role)) {
     throw new ApiError(403, "This account does not have the requested marketplace role.");
   }
-  const company = user.companies.find((item) => item.companyTypeCode === role || item.companyTypeCode === "both");
+  const company = selectSessionRoleCompany(user, role);
   if (!company) throw new ApiError(403, "No active company is available for this role.");
   await queryRowsWithParams(`
     UPDATE dbo.UserSessions

@@ -23,6 +23,8 @@ import {
 import { hasCoordinates, type Listing } from "../public/browse-listings";
 import { useListings } from "@/lib/use-listings";
 import { CarbonCalculatorButton } from "./carbon-calculator-button";
+import { CompanyDraftShortcuts } from "@/components/shared/company-draft-shortcuts";
+import { DemoFeedstocksLink } from "@/components/shared/demo-feedstocks-link";
 import { BuyerLayout } from "./buyer-layout";
 import { useViewerLocation } from "@/lib/viewer-location";
 import { filterByRadius, formatMiles } from "@/lib/radius-filter";
@@ -395,6 +397,8 @@ function BuyerBrowseContent() {
           {/* Listings panel */}
           {!mapExpanded && (
             <div className="w-full overflow-y-auto p-6 lg:w-[55%]">
+              <DemoFeedstocksLink />
+              <CompanyDraftShortcuts />
               <div className="mb-4">
                 <FeedstockIqCard />
               </div>

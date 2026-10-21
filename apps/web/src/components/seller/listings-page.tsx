@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  DRAFT_STATUS_PARAM,
+  draftListingsOnly,
+  isDraftStatusParam,
+  withDraftStatusParam,
+} from "@/lib/company-draft-shortcuts";
 import { Search, LayoutGrid, List, Info, ChevronRight, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { BuyerRequestRow } from "./buyer-request-row";
@@ -85,7 +91,21 @@ function CardView({ listings, onSelect }: { listings: Listing[]; onSelect: (l: L
 }
 
 export function ListingsPage() {
+  return (
+    <Suspense>
+      <ListingsContent />
+    </Suspense>
+  );
+}
+
+function ListingsContent() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // Only an explicit `?status=draft` narrows to drafts; otherwise lifecycle filters apply as before.
+  const draftOnly = isDraftStatusParam(searchParams.get(DRAFT_STATUS_PARAM));
+  const showAllStatuses = () =>
+    router.replace(`${pathname}${withDraftStatusParam(searchParams.toString(), false)}`, { scroll: false });
   const user = useDemoUser();
   const [view, setView] = useState<"list" | "card">("list");
   const [searchQuery, setSearchQuery] = useState("");
@@ -119,12 +139,16 @@ export function ListingsPage() {
 
   const [lifecycle, setLifecycle] = useState<ListingLifecycleFilter>("active");
   const lifecycleCounts = useMemo(() => countListingsByLifecycle(owned.listings), [owned.listings]);
+  const draftCount = useMemo(() => draftListingsOnly(owned.listings).length, [owned.listings]);
   const filtered = useMemo(
     () =>
-      filterListingsByLifecycle(owned.listings, lifecycle).filter(
+      (draftOnly
+        ? draftListingsOnly(owned.listings)
+        : filterListingsByLifecycle(owned.listings, lifecycle)
+      ).filter(
         (l) => !searchQuery.trim() || l.title.toLowerCase().includes(searchQuery.toLowerCase()),
       ),
-    [owned.listings, lifecycle, searchQuery],
+    [owned.listings, draftOnly, lifecycle, searchQuery],
   );
   const pendingCount = owned.listings.filter((l) => l.statusCode === "pending_review").length;
   const open = (l: Listing) => router.push(`/seller/listings/${l.id}`);
@@ -221,18 +245,35 @@ export function ListingsPage() {
             <button
               key={option.value}
               type="button"
-              aria-pressed={lifecycle === option.value}
-              onClick={() => setLifecycle(option.value)}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium ${lifecycle === option.value ? "bg-neutral-900 text-white" : "bg-white text-neutral-700"}`}
-              style={lifecycle === option.value ? undefined : { border: "1px solid #E0E0E0" }}
+              aria-pressed={!draftOnly && lifecycle === option.value}
+              onClick={() => {
+                setLifecycle(option.value);
+                if (draftOnly) showAllStatuses();
+              }}
+              className={`rounded-full px-3 py-1.5 text-sm font-medium ${!draftOnly && lifecycle === option.value ? "bg-neutral-900 text-white" : "bg-white text-neutral-700"}`}
+              style={!draftOnly && lifecycle === option.value ? undefined : { border: "1px solid #E0E0E0" }}
             >
               {option.label} ({lifecycleCounts[option.value]})
             </button>
           ))}
-          {lifecycle === "active" && lifecycleCounts.closed > 0 && (
+          {draftOnly && (
+            <span className="rounded-full bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white" aria-current="true">
+              Drafts ({draftCount})
+            </span>
+          )}
+          {!draftOnly && lifecycle === "active" && lifecycleCounts.closed > 0 && (
             <span className="text-xs text-neutral-500">Closed listings are kept on record; choose Closed to see or restore them.</span>
           )}
         </div>
+      )}
+
+      {user && draftOnly && (
+        <p role="status" className="mb-5 flex flex-wrap items-center gap-2 rounded-xl bg-neutral-50 px-4 py-3 text-sm text-neutral-700 sm:px-5">
+          Showing only your company&apos;s private draft listings. Drafts are not visible to buyers until submitted and published.
+          <button type="button" onClick={showAllStatuses} className="font-semibold underline">
+            Show all listings
+          </button>
+        </p>
       )}
 
       {pendingCount > 0 && (
@@ -253,8 +294,8 @@ export function ListingsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl bg-white p-10 text-center">
-          <p className="text-base font-semibold text-neutral-900">{owned.listings.length === 0 ? "No listings yet" : searchQuery.trim() ? "No listings match your search" : lifecycle === "closed" ? "No closed listings" : "No active listings"}</p>
-          <p className="mt-1 text-sm text-neutral-500">{owned.listings.length === 0 ? "Create your first listing to start receiving buyer interest." : searchQuery.trim() ? "Try a different keyword or status filter." : lifecycle === "closed" ? "Listings you close appear here and can be restored to draft." : "All of your listings are closed. Choose Closed to see or restore them."}</p>
+          <p className="text-base font-semibold text-neutral-900">{owned.listings.length === 0 ? "No listings yet" : searchQuery.trim() ? "No listings match your search" : draftOnly ? "No draft listings" : lifecycle === "closed" ? "No closed listings" : "No active listings"}</p>
+          <p className="mt-1 text-sm text-neutral-500">{owned.listings.length === 0 ? "Create your first listing to start receiving buyer interest." : searchQuery.trim() ? "Try a different keyword or status filter." : draftOnly ? "Your company has no saved draft listings. Choose Show all listings to see the rest." : lifecycle === "closed" ? "Listings you close appear here and can be restored to draft." : "All of your listings are closed. Choose Closed to see or restore them."}</p>
           {owned.listings.length === 0 && <Link href="/seller/listings/add" className="mt-4 inline-block"><Button variant="primary" size="md">Add Listing</Button></Link>}
         </div>
       ) : view === "list" ? (
