@@ -54,7 +54,7 @@ Fresh anonymous HTTP reads returned the public gallery and both frontend proxy p
 
 All 21 existing business/source tables matched before FUEL and after ALL, including accounts, passwords, companies, private drafts, commercial listings, orders, payments, samples, research records, references and portfolios. `CompanyLocations` was absent before and after. The legacy 29-item presentation API exactly matches the baseline JSON. The signed-in marketplace still displays 18 listings, the demo-gallery link remains available, and the removed private Browse panel remains absent. Calculator return-control source was untouched; that older workflow was not re-executed in this release.
 
-The user approved temporarily setting Orca Keep computer awake from Agent to On for this run. The Mac locked again before restoration; the coordinator requested a manual unlock to restore Agent. Restoration remains pending until that UI change is observed. Password and lock settings remain unchanged.
+The user approved temporarily setting Orca Keep computer awake from Agent to On for this run. After the user unlocked the Mac, the coordinator restored Agent and observed “Keep computer awake, Agent · Inactive” in Orca’s accessibility state on 2026-10-21T21:05:45.713614+00:00. Password and lock settings remain unchanged.
 
 ## Remaining data verification
 
