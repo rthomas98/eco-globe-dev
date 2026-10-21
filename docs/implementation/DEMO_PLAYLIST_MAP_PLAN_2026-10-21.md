@@ -1,6 +1,6 @@
 # FUEL and ALL demo playlists and map plan
 
-Status: reviewed implementation integrated; combined source checks and local SQL passed. Live release acceptance remains pending. See docs/verification/2026-10-21-demo-playlists-progress.md. Audit date: 21 October 2026.
+Status: implemented and verified on development, FUEL first and ALL second. See docs/verification/2026-10-21-demo-playlists-progress.md for exact deployment and evidence limits. Audit date: 21 October 2026.
 
 Ana needs a presentation catalogue that shows each company with the materials it buys and sells, using the familiar marketplace cards and map. Deliver FUEL first, then ALL. The user confirmed that ALL, including customer names, may appear in the public demo. Public examples must remain labelled as presentations, with commercial verification and purchasing handled by the existing marketplace.
 
