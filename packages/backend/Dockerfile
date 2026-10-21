@@ -15,6 +15,7 @@ COPY packages/shared/src/market-records-api.d.ts packages/shared/src/market-reco
 COPY packages/shared/src/market-references-api.d.ts packages/shared/src/market-references-api.d.ts
 COPY packages/shared/src/market-portfolios-api.d.ts packages/shared/src/market-portfolios-api.d.ts
 COPY packages/shared/src/demo-presentations-api.d.ts packages/shared/src/demo-presentations-api.d.ts
+COPY packages/shared/src/demo-playlists-api.d.ts packages/shared/src/demo-playlists-api.d.ts
 COPY packages/shared/src/listing-sds-api.d.ts packages/shared/src/listing-sds-api.d.ts
 COPY packages/shared/src/wanted-listing-api.d.ts packages/shared/src/wanted-listing-api.d.ts
 COPY packages/shared/src/demo-estimates.mjs packages/shared/src/demo-estimates.d.mts packages/shared/src/

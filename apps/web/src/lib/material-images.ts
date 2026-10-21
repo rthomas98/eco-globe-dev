@@ -43,7 +43,10 @@ const ANA_MATERIAL_IMAGES: Record<string, readonly string[]> = {
     "Spent caustic (sodium hydroxide)",
   ],
   "/images/materials/ana/black-gypsum.webp": ["Black gypsum"],
-  "/images/materials/ana/bagasse-boiler-ash.webp": ["Bagasse boiler ash"],
+  "/images/materials/ana/bagasse-boiler-ash.webp": [
+    "Bagasse boiler ash",
+    "Sugarcane bagasse ash",
+  ],
   "/images/materials/ana/mineral-slurry.webp": [
     "Alumina trihydrate (ATH)",
     "Spent vibratory finishing media",
@@ -105,10 +108,22 @@ const ANA_MATERIAL_IMAGES: Record<string, readonly string[]> = {
     "Off-spec Naphta",
     "Naphtha slops",
   ],
-  "/images/materials/ana/carbon-dioxide.webp": ["CO₂", "CO2", "High-purity CO2"],
+  "/images/materials/ana/carbon-dioxide.webp": [
+    "CO₂",
+    "CO2",
+    "High-purity CO2",
+    "Captured CO2",
+  ],
   "/images/materials/ana/green-hydrogen.webp": ["Green hydrogen"],
   "/images/materials/ana/used-uniforms.webp": ["Used uniforms"],
-  "/images/materials/ana/geopolymer-cement.webp": ["Geopolymer cement"],
+  // Reviewed playlist titles for alkali-activated geopolymer cements.
+  "/images/materials/ana/geopolymer-cement.webp": [
+    "Geopolymer cement",
+    "Geopolymer / alkali-activated construction and infrastructure material",
+    "Geopolymer / alkali-activated well cement",
+    "Geopolymer construction / pipe-rehab material",
+    "Geopolymer well cement",
+  ],
   "/images/materials/ana/co2-derived-propylene.webp": [
     "CO₂-derived propylene",
     "CO2-derived propylene",
