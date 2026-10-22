@@ -108,11 +108,28 @@ const ANA_MATERIAL_IMAGES: Record<string, readonly string[]> = {
     "Off-spec Naphta",
     "Naphtha slops",
   ],
+  // Ana's deck uses one CO2 picture for CO2 and every CO2-derived product
+  // title; the dedicated propylene/acrylonitrile files are kept but unused.
   "/images/materials/ana/carbon-dioxide.webp": [
     "CO₂",
     "CO2",
     "High-purity CO2",
     "Captured CO2",
+    "CO2 as feedstock for ethanol, ethylene and acetic acid via electrolyzers",
+    "CO2 as feedstock for propylene and acrylonitrile",
+    "CO₂-derived propylene",
+    "CO2-derived propylene",
+    "Propylene (CO2-derived)",
+    "CO₂-derived acrylonitrile",
+    "CO2-derived acrylonitrile",
+    "CO2-derived acrylonitrile (ACN)",
+    "Acrylonitrile (CO2-derived)",
+    "CO2-derived acetic acid",
+    "Acetic acid (from CO2)",
+    "CO2-derived ethylene",
+    "Ethylene (from CO2)",
+    "CO2-derived renewable ethanol",
+    "Low-carbon / e-ethanol (from byproduct CO2)",
   ],
   "/images/materials/ana/green-hydrogen.webp": ["Green hydrogen"],
   "/images/materials/ana/used-uniforms.webp": ["Used uniforms"],
@@ -123,17 +140,6 @@ const ANA_MATERIAL_IMAGES: Record<string, readonly string[]> = {
     "Geopolymer / alkali-activated well cement",
     "Geopolymer construction / pipe-rehab material",
     "Geopolymer well cement",
-  ],
-  "/images/materials/ana/co2-derived-propylene.webp": [
-    "CO₂-derived propylene",
-    "CO2-derived propylene",
-    "Propylene (CO2-derived)",
-  ],
-  "/images/materials/ana/co2-derived-acrylonitrile.webp": [
-    "CO₂-derived acrylonitrile",
-    "CO2-derived acrylonitrile",
-    "CO2-derived acrylonitrile (ACN)",
-    "Acrylonitrile (CO2-derived)",
   ],
 };
 

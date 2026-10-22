@@ -7,6 +7,7 @@ import { Info, MapPinOff, RefreshCw } from "lucide-react";
 import { useBackendData } from "@/components/shared/data-state";
 import { DemoEstimateBadge } from "@/components/shared/demo-estimate-badges";
 import { MaterialImage } from "@/components/public/material-image";
+import { DemoCalculatorActions } from "@/components/public/demo-calculator-dialog";
 import { DEMO_VALUE_FORMAT, GeographyLine } from "@/components/public/demo-playlist-cards";
 import type { DemoMapPin } from "@/components/public/listing-map";
 import { fetchDemoPlaylist } from "@/lib/api-demo-playlists";
@@ -392,7 +393,10 @@ export function BrowseDemoCard({
           ))}
         </span>
       )}
-      <div className="mt-auto flex flex-wrap items-center gap-3 pt-3">
+      <div className="mt-auto pt-3">
+        <DemoCalculatorActions material={material} companyName={company.name} />
+      </div>
+      <div className="flex flex-wrap items-center gap-3 pt-3">
         {onSelect && (
           <button type="button" onClick={onSelect} className="text-sm font-semibold text-neutral-900 underline">
             Show on map

@@ -82,20 +82,48 @@ function buildDemoPopupContent(pin: DemoMapPin, onView: (key: string) => void): 
     "margin:0 0 6px;flex-shrink:0;align-self:flex-start;background:#FEF3C7;color:#78350F;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600";
   container.appendChild(notice);
 
+  // Header: a compact illustrative thumbnail (when the title has one) beside
+  // the labels, so the facts list keeps its share of the bounded height.
+  const header = document.createElement("div");
+  header.style.cssText = "display:flex;gap:8px;align-items:flex-start;margin:0 0 6px;flex-shrink:0";
+  const image = materialImage(pin.title);
+  if (image) {
+    const figure = document.createElement("div");
+    figure.style.cssText = "flex-shrink:0;width:44px;display:flex;flex-direction:column;align-items:center;gap:2px";
+    const img = document.createElement("img");
+    img.src = image;
+    img.alt = isMaterialIllustration(image) ? `Illustrative image of ${pin.title}` : pin.title;
+    img.style.cssText = "width:44px;height:44px;border-radius:6px;object-fit:cover;background:#F5F5F5";
+    img.addEventListener("error", () => figure.remove());
+    figure.appendChild(img);
+    if (isMaterialIllustration(image)) {
+      const caption = document.createElement("span");
+      caption.textContent = "Illustrative";
+      caption.style.cssText = "font-size:9px;line-height:1.2;color:#616161";
+      figure.appendChild(caption);
+    }
+    header.appendChild(figure);
+  }
+  const labels = document.createElement("div");
+  labels.style.cssText = "min-width:0;flex:1 1 auto";
+
   const role = document.createElement("p");
   role.textContent = `${pin.role === "seller" ? "Seller offer" : "Buyer need"} · Presentation only`;
-  role.style.cssText = "margin:0 0 2px;flex-shrink:0;font-size:11px;font-weight:600;text-transform:uppercase;color:#616161";
-  container.appendChild(role);
+  role.style.cssText = "margin:0 0 2px;font-size:11px;font-weight:600;text-transform:uppercase;color:#616161";
+  labels.appendChild(role);
 
   const title = document.createElement("p");
   title.textContent = pin.title;
-  title.style.cssText = "margin:0 0 2px;flex-shrink:0;font-size:14px;font-weight:600;color:#090909";
-  container.appendChild(title);
+  title.style.cssText = "margin:0 0 2px;font-size:14px;font-weight:600;color:#090909;overflow-wrap:anywhere";
+  labels.appendChild(title);
 
   const company = document.createElement("p");
   company.textContent = pin.company;
-  company.style.cssText = "margin:0 0 6px;flex-shrink:0;font-size:12px;color:#616161";
-  container.appendChild(company);
+  company.style.cssText = "margin:0;font-size:12px;color:#616161;overflow-wrap:anywhere";
+  labels.appendChild(company);
+
+  header.appendChild(labels);
+  container.appendChild(header);
 
   // Keyboard-scrollable region so every fact and uncertainty label stays reachable.
   const facts = document.createElement("dl");

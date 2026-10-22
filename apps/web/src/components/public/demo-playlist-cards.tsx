@@ -3,6 +3,7 @@
 import { MapPin, MapPinOff } from "lucide-react";
 import { DemoEstimateBadge } from "@/components/shared/demo-estimate-badges";
 import { MaterialImage } from "@/components/public/material-image";
+import { DemoCalculatorActions } from "@/components/public/demo-calculator-dialog";
 import { describeMaterialType } from "@/lib/demo-presentations";
 import { describeUnit, formatMoney } from "@/lib/listing-format";
 import {
@@ -111,15 +112,14 @@ export function DemoMaterialCard({
           ))}
         </span>
       )}
-      {item.geography.kind === "point" && (
-        <button
-          type="button"
-          onClick={onShowOnMap}
-          className="mt-auto self-start pt-3 text-sm font-semibold text-neutral-900 underline"
-        >
-          Show on map
-        </button>
-      )}
+      <div className="mt-auto flex flex-col items-start gap-3 pt-3">
+        <DemoCalculatorActions material={item} companyName={companyName} />
+        {item.geography.kind === "point" && (
+          <button type="button" onClick={onShowOnMap} className="text-sm font-semibold text-neutral-900 underline">
+            Show on map
+          </button>
+        )}
+      </div>
     </li>
   );
 }
