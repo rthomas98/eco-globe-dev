@@ -63,32 +63,47 @@ const DEMO_PIN_COLORS: Record<DemoMapPin["role"], { fill: string; selected: stri
 };
 
 function buildDemoPopupContent(pin: DemoMapPin, onView: (key: string) => void): HTMLDivElement {
+  // Bounded so the popup fits a 390px-wide phone map: the labels and the
+  // gallery button never shrink; only the facts list scrolls.
   const container = document.createElement("div");
-  Object.assign(container.style, { width: "240px", fontFamily: "Inter, sans-serif", padding: "8px 4px 4px" });
+  Object.assign(container.style, {
+    width: "240px",
+    maxHeight: "240px",
+    boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
+    fontFamily: "Inter, sans-serif",
+    padding: "8px 4px 4px",
+  });
 
   const notice = document.createElement("p");
   notice.textContent = "Demo — not available for purchase";
   notice.style.cssText =
-    "margin:0 0 6px;display:inline-block;background:#FEF3C7;color:#78350F;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600";
+    "margin:0 0 6px;flex-shrink:0;align-self:flex-start;background:#FEF3C7;color:#78350F;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600";
   container.appendChild(notice);
 
   const role = document.createElement("p");
   role.textContent = `${pin.role === "seller" ? "Seller offer" : "Buyer need"} · Presentation only`;
-  role.style.cssText = "margin:0 0 2px;font-size:11px;font-weight:600;text-transform:uppercase;color:#616161";
+  role.style.cssText = "margin:0 0 2px;flex-shrink:0;font-size:11px;font-weight:600;text-transform:uppercase;color:#616161";
   container.appendChild(role);
 
   const title = document.createElement("p");
   title.textContent = pin.title;
-  title.style.cssText = "margin:0 0 2px;font-size:14px;font-weight:600;color:#090909";
+  title.style.cssText = "margin:0 0 2px;flex-shrink:0;font-size:14px;font-weight:600;color:#090909";
   container.appendChild(title);
 
   const company = document.createElement("p");
   company.textContent = pin.company;
-  company.style.cssText = "margin:0 0 6px;font-size:12px;color:#616161";
+  company.style.cssText = "margin:0 0 6px;flex-shrink:0;font-size:12px;color:#616161";
   container.appendChild(company);
 
+  // Keyboard-scrollable region so every fact and uncertainty label stays reachable.
   const facts = document.createElement("dl");
-  facts.style.cssText = "margin:0 0 8px;font-size:11px;line-height:1.4;color:#424242";
+  facts.tabIndex = 0;
+  facts.setAttribute("role", "region");
+  facts.setAttribute("aria-label", `Details for demo example ${pin.title}`);
+  facts.style.cssText =
+    "margin:0;flex:1 1 auto;min-height:0;overflow-y:auto;font-size:11px;line-height:1.4;color:#424242";
   for (const fact of [...pin.facts, ...(pin.distance ? [{ label: "Distance", value: pin.distance }] : [])]) {
     const row = document.createElement("div");
     const term = document.createElement("dt");
@@ -106,7 +121,7 @@ function buildDemoPopupContent(pin: DemoMapPin, onView: (key: string) => void): 
   open.type = "button";
   open.textContent = "Open in demo gallery";
   open.style.cssText =
-    "width:100%;padding:8px 12px;background:#FFFFFF;color:#090909;border:1px solid #BDBDBD;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer";
+    "flex-shrink:0;margin-top:8px;width:100%;padding:8px 12px;background:#FFFFFF;color:#090909;border:1px solid #BDBDBD;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer";
   open.addEventListener("click", (e) => {
     e.stopPropagation();
     onView(pin.key);
@@ -647,6 +662,12 @@ export function ListingMap({
       const popup = new maplibregl.Popup({ offset: 14, closeButton: false, maxWidth: "260px" })
         .setLngLat([pin.lng, pin.lat])
         .setDOMContent(buildDemoPopupContent(pin, (key) => viewDemoRef.current?.(key)));
+      // The map's status/notice overlays (z-10 or later in the DOM) would
+      // otherwise sit over an open popup and take its clicks on small maps.
+      // Raise only this popup, only while it is open; controls elsewhere keep working.
+      popup.on("open", () => {
+        popup.getElement()?.style.setProperty("z-index", "20");
+      });
       const marker = new maplibregl.Marker({ element: el }).setLngLat([pin.lng, pin.lat]).addTo(mapInstance);
       el.addEventListener("click", (e) => {
         e.stopPropagation();

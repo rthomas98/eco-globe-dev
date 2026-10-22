@@ -1,6 +1,6 @@
 # Demo feedstocks in Browse: verification
 
-Status: reviewed implementation and local FE/BE acceptance complete. Development deployment and live acceptance are pending.
+Status: reviewed implementation and local FE/BE acceptance complete. Development promotion and live acceptance are pending.
 
 ## Scope and baseline
 
@@ -39,4 +39,6 @@ Source-only external staging resumed after the interrupted copy in `/Volumes/Ext
 
 ## Release and acceptance
 
-Pending. Only the existing EcoGlobe development web project is in scope for frontend deployment; its project ID, owner and `apps/web` root were inspected. The current hosted Node24 setting is retained. Local checks use the project-required Node22 runtime. Backend runtime deployment is unnecessary if the final backend diff remains test-only.
+The initial source commit `b223c00e928e08c8a823cefbb90b2a77d0317375` was pushed and staged as `dpl_89JpvDYng8T1zy5y55SxNQ6Shuv8`, but was not promoted to the primary development alias. A 390px screenshot caught a clipped popup CTA. A bounded popup/facts layout fixed the clipping; actual mouse testing then caught a location-status overlay intercepting the CTA. The frontend owner added demo-only popup layering, with fresh independent review and browser retesting required. Both intermediate receipts remain preserved. The final popup-layer manifest (`77e30d1bfe3fcccde1705de1a4a5f52058d8bbf9014af1b5a48856eba4209141`) received independent source approval. All 328 library tests, both TypeScript configurations, changed lint and web/admin production builds passed again. At 390×844 the gallery CTA fit within the viewport, DOM hit-testing returned the button itself, and one actual mouse click opened the correct Encore CO₂ gallery example with the original Browse filters and selected item in its return link. Keyboard navigation also passed in the preceding layout test; no route logic changed in the layering correction.
+
+Pending final promotion and live acceptance. Only the existing EcoGlobe development web project is in scope for frontend deployment; its project ID, owner and `apps/web` root were inspected. The current hosted Node24 setting is retained. Local checks use the project-required Node22 runtime. Backend runtime deployment is unnecessary if the final backend diff remains test-only.
