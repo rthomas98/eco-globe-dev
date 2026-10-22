@@ -417,4 +417,10 @@ test("URL state: FUEL default, playlist change clears company, legacy company na
   assert.equal(withDemoPlaylistParams("company=c-encore&kind=buyer", { playlist: "all" }), "?kind=buyer&playlist=all");
   assert.equal(withDemoPlaylistParams("", { kind: "all", query: "  ", network: false }), "");
   assert.equal(withDemoPlaylistParams("", { query: " co2 ", network: true }), "?q=co2&network=1");
+  // A Browse deep link's material is playlist-specific; its return path is kept.
+  assert.equal(
+    withDemoPlaylistParams("material=m-1&from=%2Fbrowse&company=c-1", { playlist: "all" }),
+    "?from=%2Fbrowse&playlist=all",
+  );
+  assert.equal(withDemoPlaylistParams("material=m-1", { kind: "buyer" }), "?material=m-1&kind=buyer");
 });

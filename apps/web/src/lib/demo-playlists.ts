@@ -46,6 +46,8 @@ export const DEMO_PLAYLIST_COMPANY_PARAM = "company";
 export const DEMO_PLAYLIST_KIND_PARAM = "kind";
 export const DEMO_PLAYLIST_QUERY_PARAM = "q";
 export const DEMO_PLAYLIST_NETWORK_PARAM = "network";
+/** Material example to select and scroll to, e.g. when opened from Browse. */
+export const DEMO_PLAYLIST_MATERIAL_PARAM = "material";
 
 export type DemoPlaylistKindFilter = DemoPlaylistMaterial["kind"] | "all";
 
@@ -353,7 +355,8 @@ export function parseDemoKindFilter(value: string | null | undefined): DemoPlayl
 /**
  * Query string (leading "?" when non-empty) with the given params changed.
  * Empty/default values are removed so the default view has a clean URL.
- * Changing the playlist clears the company, whose ids are playlist-specific.
+ * Changing the playlist clears the company and selected material, whose ids
+ * are playlist-specific.
  */
 export function withDemoPlaylistParams(
   search: string,
@@ -364,6 +367,7 @@ export function withDemoPlaylistParams(
   if ("playlist" in patch) {
     set(DEMO_PLAYLIST_PARAM, patch.playlist ?? null);
     if (!("company" in patch)) params.delete(DEMO_PLAYLIST_COMPANY_PARAM);
+    params.delete(DEMO_PLAYLIST_MATERIAL_PARAM);
   }
   if ("company" in patch) set(DEMO_PLAYLIST_COMPANY_PARAM, patch.company ?? null);
   if ("kind" in patch) set(DEMO_PLAYLIST_KIND_PARAM, patch.kind && patch.kind !== "all" ? patch.kind : null);

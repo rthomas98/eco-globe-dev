@@ -37,6 +37,19 @@ import {
   shouldClearPortfolioAfterCompanyChange,
   withPortfolioParam,
 } from "@/lib/market-portfolio-format";
+import {
+  BrowseDemoSection,
+  BrowseMobileViewToggle,
+  BrowseSourceControls,
+  useBrowseDemoView,
+  type BrowseMobileView,
+} from "../public/browse-demo-results";
+import {
+  BROWSE_PLAYLIST_PARAM,
+  BROWSE_SOURCE_PARAM,
+  normalizeBrowseQuery,
+  publishedMarketplaceListings,
+} from "@/lib/browse-results";
 
 function ListingCard({
   listing,
@@ -132,8 +145,11 @@ function useDemoPortfolioSelection() {
     "Demo portfolios could not be loaded.",
   );
 
+  // Changing the portfolio also clears the selected Browse result.
   const select = (id: number | null) => {
-    router.replace(`${pathname}${withPortfolioParam(searchParams.toString(), id)}`, {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("selected");
+    router.replace(`${pathname}${withPortfolioParam(params.toString(), id)}`, {
       scroll: false,
     });
   };
@@ -171,6 +187,8 @@ export function BuyerBrowsePage() {
 
 function BuyerBrowseContent() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const portfolio = useDemoPortfolioSelection();
   const selectedPortfolioId =
     portfolio.selected.kind === "valid" ? portfolio.selected.id : undefined;
@@ -182,20 +200,56 @@ function BuyerBrowseContent() {
     assignedPortfolios.length > 0 || portfolio.selected.kind !== "none";
   const viewer = useViewerLocation();
   const viewerLocation = viewer.location;
-  const [search, setSearch] = useState("");
-  // "0" = any distance; the list is filtered only when a radius is chosen.
-  const [radius, setRadius] = useState("0");
+  // Search and radius live in the URL so reload, Back and a demo gallery
+  // return keep them; typing is written after a short pause.
+  const urlQuery = searchParams.get("q") ?? "";
+  const [search, setSearch] = useState(urlQuery);
+  const [seenQuery, setSeenQuery] = useState(urlQuery);
+  if (urlQuery !== seenQuery) {
+    setSeenQuery(urlQuery);
+    setSearch(urlQuery);
+  }
+  const replaceParams = (update: (params: URLSearchParams) => void) => {
+    const params = new URLSearchParams(searchParams.toString());
+    update(params);
+    const query = params.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+  };
+  useEffect(() => {
+    if (search.trim() === urlQuery.trim()) return;
+    const timer = window.setTimeout(
+      () =>
+        replaceParams((params) => {
+          if (search.trim()) params.set("q", search.trim());
+          else params.delete("q");
+          params.delete("selected");
+        }),
+      300,
+    );
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, urlQuery]);
+  // "Any"/absent = any distance; the list is filtered only when a radius is chosen.
+  const parsedRadius = parseFloat(searchParams.get("distance") ?? "");
+  const radiusMiles =
+    Number.isFinite(parsedRadius) && parsedRadius > 0 ? parsedRadius : 0;
+  const setRadius = (miles: string) =>
+    replaceParams((params) => {
+      if (miles === "0") params.delete("distance");
+      else params.set("distance", `${miles} mi`);
+    });
   const [manualOrigin, setManualOrigin] = useState<{
     lng: number;
     lat: number;
     label: string;
   }>();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Below lg only one of results/map is shown; desktop shows both.
+  const [mobileView, setMobileView] = useState<BrowseMobileView>("results");
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapExpanded, setMapExpanded] = useState(false);
 
-  const q = search.trim().toLowerCase();
+  const q = normalizeBrowseQuery(urlQuery);
   const priceMin = filters.priceMin ? parseFloat(filters.priceMin) : null;
   const priceMax = filters.priceMax ? parseFloat(filters.priceMax) : null;
   const qtyMin = filters.qtyMin ? parseFloat(filters.qtyMin) : null;
@@ -214,8 +268,35 @@ function BuyerBrowseContent() {
     enabled: portfolio.selected.kind !== "invalid",
     portfolioId: selectedPortfolioId,
   });
-  const matchingListings = published.listings.filter((l) => {
-    const haystack = `${l.title} ${l.tags.join(" ")}`.toLowerCase();
+  const fallbackOrigin = useMemo(
+    () =>
+      manualOrigin ??
+      (viewerLocation
+        ? {
+            lng: viewerLocation.lng,
+            lat: viewerLocation.lat,
+            label: viewerLocation.label,
+            approximate: viewerLocation.source === "ip",
+          }
+        : undefined),
+    [manualOrigin, viewerLocation],
+  );
+  const demoView = useBrowseDemoView({
+    query: urlQuery,
+    location: "",
+    radiusMiles,
+    commercialOrigin: undefined,
+    fallbackOrigin,
+  });
+  const showMarketplace = demoView.state.source !== "demo";
+  // The listings read is shared with admin and may include other statuses.
+  const marketplaceListings = useMemo(
+    () => publishedMarketplaceListings(published.listings),
+    [published.listings],
+  );
+
+  const matchingListings = marketplaceListings.filter((l) => {
+    const haystack = normalizeBrowseQuery(`${l.title} ${l.tags.join(" ")}`);
     if (q && !haystack.includes(q)) return false;
     if (
       filters.categories.length > 0 &&
@@ -254,17 +335,39 @@ function BuyerBrowseContent() {
     return true;
   });
 
-  const radiusMiles = parseInt(radius, 10) || 0;
-  const origin = manualOrigin ?? viewerLocation ?? undefined;
+  const origin = demoView.origin;
   // Without completed onboarding, listings are teasers with no facility coordinates.
   const locationsRedacted =
-    published.listings.length > 0 && published.listings.every((item) => item.teaser);
+    marketplaceListings.length > 0 && marketplaceListings.every((item) => item.teaser);
   const radiusResult = filterByRadius(
     matchingListings,
     locationsRedacted ? null : origin,
     radiusMiles,
   );
-  const visibleListings = radiusResult.items;
+  const visibleListings = useMemo(
+    () => (showMarketplace ? radiusResult.items : []),
+    [showMarketplace, radiusResult.items],
+  );
+  // Selection lives in the URL (see useBrowseDemoView).
+  const selectedId = demoView.selectedId;
+  // Changing marketplace filters clears the selection, like other filters.
+  const changeFilters = (next: FilterState) => {
+    setFilters(next);
+    demoView.select(null);
+  };
+  const clearAll = () => {
+    setFilters(defaultFilters);
+    setSearch("");
+    // Keep the dataset choice and any authorized portfolio; drop the rest.
+    const current = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams();
+    for (const key of [PORTFOLIO_PARAM, BROWSE_SOURCE_PARAM, BROWSE_PLAYLIST_PARAM]) {
+      const value = current.get(key);
+      if (value) params.set(key, value);
+    }
+    const query = params.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+  };
 
   const mapListings: MapListing[] = useMemo(
     () =>
@@ -285,7 +388,7 @@ function BuyerBrowseContent() {
 
   const pricingUnavailable = published.status === "ready" && locationsRedacted;
   const mapNotice =
-    published.status !== "ready" || mapListings.length > 0
+    !showMarketplace || published.status !== "ready" || mapListings.length > 0
       ? undefined
       : locationsRedacted
         ? "Facility locations appear once your company onboarding is complete."
@@ -331,7 +434,6 @@ function BuyerBrowseContent() {
                 aria-label="Demo portfolio"
                 value={selectedPortfolioId ? String(selectedPortfolioId) : ""}
                 onChange={(e) => {
-                  setSelectedId(null);
                   portfolio.select(e.target.value ? Number(e.target.value) : null);
                 }}
                 className="max-w-[240px] rounded-full bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none"
@@ -357,7 +459,7 @@ function BuyerBrowseContent() {
 
             <select
               aria-label="Search radius"
-              value={radius}
+              value={String(radiusMiles)}
               onChange={(e) => {
                 setRadius(e.target.value);
               }}
@@ -392,15 +494,25 @@ function BuyerBrowseContent() {
           </div>
         </header>
 
+        <BrowseMobileViewToggle
+          view={mobileView}
+          onChange={(next) => {
+            setMobileView(next);
+            if (next === "results") setMapExpanded(false);
+          }}
+          pins={mapListings.length + demoView.pins.length}
+        />
+
         {/* Body */}
         <div className="flex flex-1 overflow-hidden">
           {/* Listings panel */}
           {!mapExpanded && (
-            <div className="w-full overflow-y-auto p-6 lg:w-[55%]">
+            <div className={`w-full overflow-y-auto p-6 lg:w-[55%] ${mobileView === "map" ? "hidden lg:block" : ""}`}>
               <DemoFeedstocksLink />
               <div className="mb-4">
                 <FeedstockIqCard />
               </div>
+              <BrowseSourceControls view={demoView} />
               {portfolio.selected.kind !== "none" && (
                 <p role="status" className="mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-neutral-50 p-4 text-sm text-neutral-700">
                   {portfolio.selected.kind === "invalid"
@@ -409,7 +521,6 @@ function BuyerBrowseContent() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedId(null);
                       portfolio.select(null);
                     }}
                     className="font-semibold underline"
@@ -418,8 +529,13 @@ function BuyerBrowseContent() {
                   </button>
                 </p>
               )}
+              {showMarketplace ? (
+              <section aria-labelledby="buyer-browse-marketplace-heading">
+              <h2 id="buyer-browse-marketplace-heading" className="mb-1 text-base font-semibold text-neutral-900">
+                Marketplace listings
+              </h2>
               <p className="mb-4 text-sm text-neutral-700">
-                {visibleListings.length} listing{visibleListings.length === 1 ? "" : "s"}
+                {visibleListings.length} marketplace listing{visibleListings.length === 1 ? "" : "s"}
               </p>
               {published.status === "ready" && radiusMiles > 0 && (
                 <p role="status" className="mb-4 rounded-xl bg-neutral-50 p-4 text-sm text-neutral-700">
@@ -430,7 +546,7 @@ function BuyerBrowseContent() {
                       {radiusResult.unlocated > 0 &&
                         ` ${radiusResult.unlocated} without a saved facility location hidden.`}{" "}
                       <button type="button" onClick={() => setRadius("0")} className="font-semibold underline">
-                        Show any distance
+                        Show all distances
                       </button>
                     </>
                   ) : locationsRedacted ? (
@@ -464,7 +580,7 @@ function BuyerBrowseContent() {
               ) : visibleListings.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 rounded-xl bg-neutral-50 py-16 text-center">
                   <p className="text-base font-semibold text-neutral-900">
-                    {published.listings.length === 0
+                    {marketplaceListings.length === 0
                       ? selectedPortfolioId
                         ? "No listings from this demo portfolio are available to you"
                         : "No published listings yet"
@@ -474,14 +590,9 @@ function BuyerBrowseContent() {
                     Try a different keyword, loosen the filters, or clear
                     everything to see all listings.
                   </p>
-                  {published.listings.length > 0 && <FeedstockIqPrompt context="search" />}
+                  {marketplaceListings.length > 0 && <FeedstockIqPrompt context="search" />}
                   <button
-                    onClick={() => {
-                      setSelectedId(null);
-                      setFilters(defaultFilters);
-                      setSearch("");
-                      setRadius("0");
-                    }}
+                    onClick={clearAll}
                     className="mt-2 rounded-full bg-neutral-900 px-5 py-2 text-sm font-medium text-white"
                   >
                     Clear all
@@ -495,21 +606,34 @@ function BuyerBrowseContent() {
                       listing={listing}
                       distanceMiles={radiusResult.distances.get(listing.id)}
                       selected={selectedId === listing.id}
-                      onSelect={() =>
-                        setSelectedId((curr) =>
-                          curr === listing.id ? null : listing.id,
-                        )
-                      }
+                      onSelect={() => {
+                        demoView.select(listing.id);
+                        setMobileView("map");
+                      }}
                     />
                   ))}
                 </div>
               )}
+              </section>
+              ) : (
+                <p className="mb-4 text-sm text-neutral-700">
+                  Marketplace listings hidden — showing demo examples only.
+                </p>
+              )}
+              <BrowseDemoSection
+                view={demoView}
+                location=""
+                radiusMiles={radiusMiles}
+                onShowAllDistances={() => setRadius("0")}
+                onRevealMap={() => setMobileView("map")}
+                marketplaceOnlyFilters={activeFilterCount}
+              />
             </div>
           )}
 
           {/* Map panel */}
           <div
-            className={`relative ${mapExpanded ? "w-full" : "hidden lg:block lg:w-[45%]"} bg-neutral-100`}
+            className={`relative ${mapExpanded ? "w-full" : `${mobileView === "map" ? "w-full" : "hidden"} lg:block lg:w-[45%]`} bg-neutral-100`}
           >
             <ListingMap
               selectionRadius
@@ -519,9 +643,7 @@ function BuyerBrowseContent() {
               listings={mapListings}
               onView={(id) => router.push(`/buyer/browse/${id}`)}
               selectedId={selectedId}
-              onSelect={(id) =>
-                setSelectedId((curr) => (curr === id ? null : id))
-              }
+              onSelect={(id) => demoView.toggleSelect(id)}
               origin={origin}
               radiusFitListings={false}
               radiusMiles={radiusMiles || undefined}
@@ -529,6 +651,11 @@ function BuyerBrowseContent() {
               onOriginChange={setManualOrigin}
               viewer={viewer}
               focusViewer
+              demoPins={demoView.pins}
+              onViewDemo={(key) => {
+                const result = demoView.byKey.get(key);
+                if (result) demoView.openInGallery(result);
+              }}
             />
             <button
               type="button"
@@ -555,10 +682,11 @@ function BuyerBrowseContent() {
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
         filters={filters}
-        onChange={setFilters}
-        onReset={() => setFilters(defaultFilters)}
+        onChange={changeFilters}
+        onReset={() => changeFilters(defaultFilters)}
         pricingUnavailable={pricingUnavailable}
         listingCount={visibleListings.length}
+        marketplaceOnly
       />
     </BuyerLayout>
   );

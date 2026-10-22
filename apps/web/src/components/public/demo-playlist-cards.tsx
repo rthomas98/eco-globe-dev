@@ -38,7 +38,7 @@ export function demoNetworkElementId(companyId: string) {
   return `demo-network-${companyId}`;
 }
 
-function GeographyLine({ geography }: { geography: DemoGeography }) {
+export function GeographyLine({ geography }: { geography: DemoGeography }) {
   const label = demoGeographyLabel(geography);
   const Icon = label.pending ? MapPinOff : MapPin;
   return (

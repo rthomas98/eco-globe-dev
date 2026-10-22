@@ -26,8 +26,22 @@ import { formatQuantity } from "@/lib/listing-format";
 import { RefreshCw } from "lucide-react";
 import { filterByRadius, formatMiles } from "@/lib/radius-filter";
 import { FeedstockIqPrompt } from "@/components/feedstock-iq/feedstock-iq-prompt";
-import { CompanyDraftShortcuts } from "@/components/shared/company-draft-shortcuts";
 import { DemoFeedstocksLink } from "@/components/shared/demo-feedstocks-link";
+import {
+  BrowseDemoSection,
+  BrowseMobileViewToggle,
+  BrowseSourceControls,
+  useBrowseDemoView,
+  type BrowseMobileView,
+} from "./browse-demo-results";
+import {
+  BROWSE_PLAYLIST_PARAM,
+  BROWSE_SOURCE_PARAM,
+  browseSearchCarryOver,
+  normalizeBrowseQuery,
+  publishedMarketplaceListings,
+  withAllDistances,
+} from "@/lib/browse-results";
 
 function ListingCard({
   listing,
@@ -129,10 +143,6 @@ function ListingCard({
   );
 }
 
-function normalizeListingSearch(value: string) {
-  return value.toLowerCase().replaceAll("₂", "2").replace(/\s+/g, " ").trim();
-}
-
 export function BrowsePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -145,11 +155,12 @@ export function BrowsePage() {
   const isMember = !!user;
 
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Below lg only one of results/map is shown; desktop shows both.
+  const [mobileView, setMobileView] = useState<BrowseMobileView>("results");
   const [filters, setFilters] = useState<FilterState>(() => ({
     ...defaultFilters,
     categories: urlCategory ? [urlCategory] : [],
   }));
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   // The radius filters only when the visitor chose one ("Any"/absent = off).
   const parsedRadius = parseFloat(searchParams.get("distance") ?? "");
   const radiusMiles =
@@ -161,7 +172,11 @@ export function BrowsePage() {
   }>();
 
   const published = useListings("public");
-  const allListings = published.listings;
+  // The listings read is shared with admin and may include other statuses.
+  const allListings = useMemo(
+    () => publishedMarketplaceListings(published.listings),
+    [published.listings],
+  );
   const searchedLocation = allListings.find(
     (item) =>
       hasCoordinates(item) &&
@@ -173,7 +188,7 @@ export function BrowsePage() {
   // browser location, falling back to a saved company facility.
   const viewer = useViewerLocation();
   const viewerLocation = viewer.location;
-  const mapOrigin = useMemo(
+  const commercialOrigin = useMemo(
     () =>
       searchedLocation && hasCoordinates(searchedLocation)
         ? {
@@ -181,37 +196,64 @@ export function BrowsePage() {
             lat: searchedLocation.lat,
             label: `Search location: ${searchedLocation.location}`,
           }
-        : manualOrigin
-          ? manualOrigin
-          : viewerLocation
+        : undefined,
+    [searchedLocation],
+  );
+  const fallbackOrigin = useMemo(
+    () =>
+      manualOrigin
+        ? manualOrigin
+        : viewerLocation
           ? {
               lng: viewerLocation.lng,
               lat: viewerLocation.lat,
               label: viewerLocation.label,
+              approximate: viewerLocation.source === "ip",
             }
           : undefined,
-    [viewerLocation, searchedLocation, manualOrigin],
+    [viewerLocation, manualOrigin],
   );
+  const demoView = useBrowseDemoView({
+    query: urlQuery,
+    location: urlLocation,
+    radiusMiles,
+    commercialOrigin,
+    fallbackOrigin,
+  });
+  const mapOrigin = demoView.origin;
+  const showMarketplace = demoView.state.source !== "demo";
 
   useEffect(() => {
-    setSelectedId(null);
     setFilters((current) => ({
       ...current,
       categories: urlCategory ? [urlCategory] : [],
     }));
   }, [urlCategory]);
 
+  // A new search keeps the chosen source, playlist, demo company and role.
   const handleSearch = (query: string, location: string, radius: string) => {
-    const params = new URLSearchParams();
+    const params = browseSearchCarryOver(searchParams.toString());
     if (query) params.set("q", query);
     if (location) params.set("location", location);
     if (radius) params.set("distance", radius);
     router.push(`/browse${params.toString() ? `?${params}` : ""}`);
   };
 
-  const q = normalizeListingSearch(urlQuery);
-  const loc = normalizeListingSearch(urlLocation);
-  const tag = normalizeListingSearch(urlTag);
+  // Clearing filters keeps the dataset choice (source and playlist).
+  const clearAll = () => {
+    setFilters(defaultFilters);
+    const current = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams();
+    for (const key of [BROWSE_SOURCE_PARAM, BROWSE_PLAYLIST_PARAM]) {
+      const value = current.get(key);
+      if (value) params.set(key, value);
+    }
+    router.push(`/browse${params.toString() ? `?${params}` : ""}`);
+  };
+
+  const q = normalizeBrowseQuery(urlQuery);
+  const loc = normalizeBrowseQuery(urlLocation);
+  const tag = normalizeBrowseQuery(urlTag);
 
   const priceMin = filters.priceMin ? parseFloat(filters.priceMin) : null;
   const priceMax = filters.priceMax ? parseFloat(filters.priceMax) : null;
@@ -242,18 +284,18 @@ export function BrowsePage() {
   };
 
   const matchingListings = allListings.filter((l) => {
-    const haystack = normalizeListingSearch(
+    const haystack = normalizeBrowseQuery(
       `${l.title} ${l.tags.join(" ")} ${l.category}`,
     );
     if (q && !haystack.includes(q)) return false;
     if (tag) {
       const matchesTag = l.tags.some((listingTag) => {
-        const normalizedTag = normalizeListingSearch(listingTag);
+        const normalizedTag = normalizeBrowseQuery(listingTag);
         return normalizedTag.includes(tag) || tag.includes(normalizedTag);
       });
       if (!matchesTag) return false;
     }
-    if (loc && !normalizeListingSearch(l.location).includes(loc)) return false;
+    if (loc && !normalizeBrowseQuery(l.location).includes(loc)) return false;
     if (
       filters.categories.length > 0 &&
       !filters.categories.some((category) =>
@@ -299,11 +341,21 @@ export function BrowsePage() {
     locationsRedacted ? null : mapOrigin,
     radiusMiles,
   );
-  const visibleListings = radius.items;
+  const visibleListings = useMemo(
+    () => (showMarketplace ? radius.items : []),
+    [showMarketplace, radius.items],
+  );
+  // Also clears Where (and a chosen demo origin): a Where search alone still
+  // narrows results to that place, which would keep outside matches hidden.
   const showAllDistances = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("distance", "Any");
-    router.replace(`/browse?${params.toString()}`, { scroll: false });
+    router.replace(`/browse${withAllDistances(searchParams.toString())}`, { scroll: false });
+  };
+  // Selection lives in the URL (see useBrowseDemoView).
+  const selectedId = demoView.selectedId;
+  // Changing marketplace filters clears the selection, like other filters.
+  const changeFilters = (next: FilterState) => {
+    setFilters(next);
+    demoView.select(null);
   };
 
   const mapListings: MapListing[] = useMemo(
@@ -325,7 +377,7 @@ export function BrowsePage() {
 
   const pricingUnavailable = published.status === "ready" && locationsRedacted;
   const mapNotice =
-    published.status !== "ready" || mapListings.length > 0 ? undefined : locationsRedacted ? (
+    !showMarketplace || published.status !== "ready" || mapListings.length > 0 ? undefined : locationsRedacted ? (
       <>
         Facility locations are shown to signed-in members.{" "}
         {!isMember && (
@@ -396,17 +448,55 @@ export function BrowsePage() {
         </div>
       </header>
 
+      {/* Below sm the header has no room for search: same SearchBar and Filters in their own row. */}
+      <div
+        className="flex shrink-0 flex-col gap-2 bg-white px-4 py-3 sm:hidden"
+        style={{ borderBottom: "1px solid #F0F0F0" }}
+      >
+        <SearchBar
+          initialQuery={urlQuery}
+          initialLocation={urlLocation}
+          initialRadius={urlDistance}
+          onSearch={(q, loc, radius) => handleSearch(q, loc, radius)}
+        />
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(true)}
+          className="flex min-h-10 items-center gap-2 self-start rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-900"
+          style={{ border: "1px solid #E0E0E0" }}
+        >
+          <SlidersHorizontal className="size-4" aria-hidden="true" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span
+              className="flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+              style={{ backgroundColor: "#378853" }}
+            >
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      <BrowseMobileViewToggle
+        view={mobileView}
+        onChange={setMobileView}
+        pins={mapListings.length + demoView.pins.length}
+      />
+
       {/* Content */}
       <div className="flex flex-col lg:flex-row flex-1 min-h-0">
         {/* Listings panel */}
-        <div className="w-full lg:w-[55%] overflow-y-auto p-6">
+        <div className={`w-full lg:w-[55%] overflow-y-auto p-6 ${mobileView === "map" ? "hidden lg:block" : ""}`}>
           <DemoFeedstocksLink />
-          <CompanyDraftShortcuts />
+          <BrowseSourceControls view={demoView} />
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-neutral-900">
-              {urlQuery || urlLocation || filters.categories.length || urlTag ? (
+              {!showMarketplace ? (
+                <>Marketplace listings hidden — showing demo examples only</>
+              ) : urlQuery || urlLocation || filters.categories.length || urlTag ? (
                 <>
-                  {visibleListings.length} listing
+                  {visibleListings.length} marketplace listing
                   {visibleListings.length === 1 ? "" : "s"}{" "}
                   {filters.categories.length > 0 && (
                     <>
@@ -437,13 +527,17 @@ export function BrowsePage() {
                   )}
                 </>
               ) : (
-                <>{visibleListings.length} listings</>
+                <>
+                  {visibleListings.length} marketplace listing{visibleListings.length === 1 ? "" : "s"}
+                </>
               )}
             </p>
             {(urlQuery ||
               urlLocation ||
               urlCategory ||
               urlTag ||
+              demoView.state.company ||
+              demoView.state.kind !== "all" ||
               activeFilterCount > 0) && (
               <span className="flex items-center gap-4">
                 {user && (urlQuery || urlTag) && (
@@ -460,11 +554,7 @@ export function BrowsePage() {
                   </button>
                 )}
                 <button
-                  onClick={() => {
-                    setSelectedId(null);
-                    setFilters(defaultFilters);
-                    router.push("/browse");
-                  }}
+                  onClick={clearAll}
                   className="text-sm font-medium text-neutral-900 underline"
                 >
                   Clear all
@@ -472,6 +562,11 @@ export function BrowsePage() {
               </span>
             )}
           </div>
+          {showMarketplace && (
+          <section aria-labelledby="browse-marketplace-heading">
+          <h2 id="browse-marketplace-heading" className="mb-3 text-base font-semibold text-neutral-900">
+            Marketplace listings
+          </h2>
           {pricingUnavailable && user && (
             <p
               role="status"
@@ -504,7 +599,7 @@ export function BrowsePage() {
                     </>
                   )}{" "}
                   <button type="button" onClick={showAllDistances} className="font-semibold underline">
-                    Show all distances
+                    {urlLocation.trim() ? `Show all distances (clears “${urlLocation.trim()}”)` : "Show all distances"}
                   </button>
                 </>
               ) : locationsRedacted ? (
@@ -516,6 +611,18 @@ export function BrowsePage() {
                     </Link>
                   )}
                 </>
+              ) : urlLocation.trim() ? (
+                demoView.resolution.kind === "ambiguous" ? (
+                  <>
+                    Distance filter not applied: &ldquo;{urlLocation}&rdquo; matches several published demo locations.
+                    Choose one in the demo examples section below.
+                  </>
+                ) : (
+                  <>
+                    Distance filter not applied: &ldquo;{urlLocation}&rdquo; does not match a published demo location
+                    or a saved listing location. Free-form addresses are not geocoded.
+                  </>
+                )
               ) : (
                 "Allow location access, search a location, or use the map center to filter by distance."
               )}
@@ -555,11 +662,7 @@ export function BrowsePage() {
               </p>
               {allListings.length > 0 && <FeedstockIqPrompt context="search" />}
               <button
-                onClick={() => {
-                  setSelectedId(null);
-                  setFilters(defaultFilters);
-                  router.push("/browse");
-                }}
+                onClick={clearAll}
                 className="mt-2 rounded-full bg-neutral-900 px-5 py-2 text-sm font-medium text-white"
               >
                 Clear all
@@ -574,25 +677,33 @@ export function BrowsePage() {
                   selected={selectedId === listing.id}
                   isMember={isMember}
                   distanceMiles={radius.distances.get(listing.id)}
-                  onSelect={() =>
-                    setSelectedId((curr) =>
-                      curr === listing.id ? null : listing.id,
-                    )
-                  }
+                  onSelect={() => demoView.toggleSelect(listing.id)}
                 />
               ))}
             </div>
           )}
+          </section>
+          )}
+          <BrowseDemoSection
+            view={demoView}
+            location={urlLocation}
+            radiusMiles={radiusMiles}
+            onShowAllDistances={showAllDistances}
+            onRevealMap={() => setMobileView("map")}
+            marketplaceOnlyFilters={activeFilterCount}
+          />
         </div>
 
         {/* Map panel */}
-        <div className="relative hidden lg:block lg:w-[45%] h-full p-2">
+        <div
+          className={`relative min-h-0 w-full flex-1 p-2 lg:block lg:h-full lg:w-[45%] lg:flex-none ${mobileView === "map" ? "block" : "hidden"}`}
+        >
           {
             <div
               className="absolute right-4 top-4 z-10 flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs shadow"
               style={{ border: "1px solid #E0E0E0" }}
             >
-              <span className="font-semibold text-neutral-700">
+              <span className="hidden font-semibold text-neutral-700 sm:inline">
                 Search radius
               </span>
               <select
@@ -628,7 +739,7 @@ export function BrowsePage() {
             )}
             listings={mapListings}
             selectedId={selectedId}
-            onSelect={(id) => setSelectedId(id)}
+            onSelect={(id) => demoView.select(id)}
             onView={(id) => router.push(`/browse/${id}`)}
             origin={mapOrigin}
             radiusMiles={radiusMiles > 0 ? radiusMiles : undefined}
@@ -638,6 +749,11 @@ export function BrowsePage() {
             onOriginChange={setManualOrigin}
             viewer={viewer}
             focusViewer
+            demoPins={demoView.pins}
+            onViewDemo={(key) => {
+              const result = demoView.byKey.get(key);
+              if (result) demoView.openInGallery(result);
+            }}
           />
         </div>
       </div>
@@ -647,10 +763,11 @@ export function BrowsePage() {
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
         filters={filters}
-        onChange={setFilters}
-        onReset={() => setFilters(defaultFilters)}
+        onChange={changeFilters}
+        onReset={() => changeFilters(defaultFilters)}
         pricingUnavailable={pricingUnavailable}
         listingCount={visibleListings.length}
+        marketplaceOnly
       />
     </div>
   );

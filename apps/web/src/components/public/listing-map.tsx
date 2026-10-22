@@ -37,7 +37,83 @@ export interface MapListing {
   approximate?: boolean;
 }
 
+/**
+ * A presentation-only demo material example. Kept apart from MapListing so a
+ * demo key can never reach a marketplace detail route: its popup's only
+ * action is `onViewDemo`.
+ */
+export interface DemoMapPin {
+  /** Namespaced demo result key, e.g. "demo:fuel-lsu:<id>". */
+  key: string;
+  title: string;
+  company: string;
+  role: "seller" | "buyer";
+  lng: number;
+  lat: number;
+  facts: Array<{ label: string; value: string }>;
+  distance?: string;
+}
+
 const EMPTY_LISTINGS: MapListing[] = [];
+const EMPTY_DEMO_PINS: DemoMapPin[] = [];
+
+const DEMO_PIN_COLORS: Record<DemoMapPin["role"], { fill: string; selected: string }> = {
+  seller: { fill: "#D97706", selected: "#92400E" },
+  buyer: { fill: "#7C3AED", selected: "#4C1D95" },
+};
+
+function buildDemoPopupContent(pin: DemoMapPin, onView: (key: string) => void): HTMLDivElement {
+  const container = document.createElement("div");
+  Object.assign(container.style, { width: "240px", fontFamily: "Inter, sans-serif", padding: "8px 4px 4px" });
+
+  const notice = document.createElement("p");
+  notice.textContent = "Demo — not available for purchase";
+  notice.style.cssText =
+    "margin:0 0 6px;display:inline-block;background:#FEF3C7;color:#78350F;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600";
+  container.appendChild(notice);
+
+  const role = document.createElement("p");
+  role.textContent = `${pin.role === "seller" ? "Seller offer" : "Buyer need"} · Presentation only`;
+  role.style.cssText = "margin:0 0 2px;font-size:11px;font-weight:600;text-transform:uppercase;color:#616161";
+  container.appendChild(role);
+
+  const title = document.createElement("p");
+  title.textContent = pin.title;
+  title.style.cssText = "margin:0 0 2px;font-size:14px;font-weight:600;color:#090909";
+  container.appendChild(title);
+
+  const company = document.createElement("p");
+  company.textContent = pin.company;
+  company.style.cssText = "margin:0 0 6px;font-size:12px;color:#616161";
+  container.appendChild(company);
+
+  const facts = document.createElement("dl");
+  facts.style.cssText = "margin:0 0 8px;font-size:11px;line-height:1.4;color:#424242";
+  for (const fact of [...pin.facts, ...(pin.distance ? [{ label: "Distance", value: pin.distance }] : [])]) {
+    const row = document.createElement("div");
+    const term = document.createElement("dt");
+    term.textContent = `${fact.label}: `;
+    term.style.cssText = "display:inline;font-weight:600";
+    const value = document.createElement("dd");
+    value.textContent = fact.value;
+    value.style.cssText = "display:inline;margin:0";
+    row.append(term, value);
+    facts.appendChild(row);
+  }
+  container.appendChild(facts);
+
+  const open = document.createElement("button");
+  open.type = "button";
+  open.textContent = "Open in demo gallery";
+  open.style.cssText =
+    "width:100%;padding:8px 12px;background:#FFFFFF;color:#090909;border:1px solid #BDBDBD;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer";
+  open.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onView(pin.key);
+  });
+  container.appendChild(open);
+  return container;
+}
 
 function buildPopupContent(
   listing: MapListing,
@@ -220,6 +296,10 @@ interface ListingMapProps {
    * Recenter / Show all controls. Other maps stay centred on their listings.
    */
   focusViewer?: boolean;
+  /** Presentation-only demo examples; selected by `selectedId` === pin key. */
+  demoPins?: DemoMapPin[];
+  /** Opens a demo pin's example in the demo gallery. */
+  onViewDemo?: (key: string) => void;
 }
 
 function applyCameraPlan(map: maplibregl.Map, plan: CameraPlan) {
@@ -339,6 +419,8 @@ export function ListingMap({
   onOriginChange,
   viewer,
   focusViewer = false,
+  demoPins = EMPTY_DEMO_PINS,
+  onViewDemo,
 }: ListingMapProps = {}) {
   const city = useCityLocation(unlocatedSelection?.cityLocation);
   const data = useMemo(() => {
@@ -399,10 +481,12 @@ export function ListingMap({
   const [mapError, setMapError] = useState(false);
   const selectRef = useRef(onSelect);
   const viewRef = useRef(onView);
+  const viewDemoRef = useRef(onViewDemo);
   useEffect(() => {
     selectRef.current = onSelect;
     viewRef.current = onView;
-  }, [onSelect, onView]);
+    viewDemoRef.current = onViewDemo;
+  }, [onSelect, onView, onViewDemo]);
   const ownViewer = useViewerLocation({ enabled: !viewer });
   const { location: viewerLocation, status: viewerStatus } = viewer ?? ownViewer;
   // "auto" follows the viewer/listings, "all" fits every listing, and "manual"
@@ -418,6 +502,12 @@ export function ListingMap({
     Map<
       string,
       { marker: maplibregl.Marker; popup: maplibregl.Popup; el: HTMLDivElement }
+    >
+  >(new globalThis.Map());
+  const demoMarkersRef = useRef<
+    Map<
+      string,
+      { marker: maplibregl.Marker; popup: maplibregl.Popup; el: HTMLDivElement; pin: DemoMapPin }
     >
   >(new globalThis.Map());
   const originMarkerRef = useRef<maplibregl.Marker | null>(null);
@@ -528,6 +618,53 @@ export function ListingMap({
     });
   }, [data, activeId]);
 
+  // Demo pins: a distinct diamond marker per role and a demo-only popup.
+  // Each run owns the markers/popups it allocates in `owned`; its cleanup
+  // (new pins or unmount) removes exactly those and releases the shared ref
+  // only if it still points at them.
+  useEffect(() => {
+    const mapInstance = mapRef.current;
+    if (!mapInstance) return;
+    const owned: typeof demoMarkersRef.current = new globalThis.Map();
+    demoMarkersRef.current = owned;
+
+    demoPins.forEach((pin) => {
+      const el = document.createElement("div");
+      el.setAttribute("role", "button");
+      el.setAttribute(
+        "aria-label",
+        `Demo ${pin.role === "seller" ? "seller offer" : "buyer need"}, not available for purchase: ${pin.title} — ${pin.company}`,
+      );
+      el.tabIndex = 0;
+      el.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          el.click();
+        }
+      });
+      el.style.cssText = `width:18px;height:18px;transform:rotate(45deg);border-radius:3px;background:${DEMO_PIN_COLORS[pin.role].fill};border:2.5px solid white;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.25);`;
+
+      const popup = new maplibregl.Popup({ offset: 14, closeButton: false, maxWidth: "260px" })
+        .setLngLat([pin.lng, pin.lat])
+        .setDOMContent(buildDemoPopupContent(pin, (key) => viewDemoRef.current?.(key)));
+      const marker = new maplibregl.Marker({ element: el }).setLngLat([pin.lng, pin.lat]).addTo(mapInstance);
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        selectRef.current?.(pin.key);
+      });
+      owned.set(pin.key, { marker, popup, el, pin });
+    });
+
+    return () => {
+      owned.forEach(({ marker, popup }) => {
+        popup.remove();
+        marker.remove();
+      });
+      owned.clear();
+      if (demoMarkersRef.current === owned) demoMarkersRef.current = new globalThis.Map();
+    };
+  }, [demoPins]);
+
   // Keep camera fitting independent of asynchronous style/overlay loading.
   const context = cameraContext(selectedId, radiusMiles);
   useEffect(() => {
@@ -537,7 +674,7 @@ export function ListingMap({
   const cameraPlan = useMemo(
     () =>
       planCamera({
-        points: data.map(({ lng, lat }) => ({ lng, lat })),
+        points: [...data, ...demoPins].map(({ lng, lat }) => ({ lng, lat })),
         origin: origin && { lng: origin.lng, lat: origin.lat },
         radiusMiles,
         radiusFitListings,
@@ -553,6 +690,7 @@ export function ListingMap({
       }),
     [
       data,
+      demoPins,
       origin,
       radiusMiles,
       radiusFitListings,
@@ -574,6 +712,33 @@ export function ListingMap({
     lastCameraKeyRef.current = key;
     applyCameraPlan(map, cameraPlan);
   }, [cameraPlan, camera.nonce]);
+
+  // On small screens the map can be hidden (display:none) behind the results
+  // while a selection is made. When it becomes visible again, resize and
+  // re-apply the camera: centre on a selected demo pin, otherwise the plan.
+  const revealRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    revealRef.current = () => {
+      const map = mapRef.current;
+      if (!map) return;
+      map.resize();
+      const pin = selectedId ? demoPins.find((item) => item.key === selectedId) : undefined;
+      if (pin) map.jumpTo({ center: [pin.lng, pin.lat], zoom: 9 });
+      else applyCameraPlan(map, cameraPlan);
+    };
+  }, [selectedId, demoPins, cameraPlan]);
+  useEffect(() => {
+    const container = mapContainer.current;
+    if (!container) return;
+    let hidden = container.clientWidth === 0 || container.clientHeight === 0;
+    const observer = new ResizeObserver(() => {
+      const nowHidden = container.clientWidth === 0 || container.clientHeight === 0;
+      if (hidden && !nowHidden) revealRef.current();
+      hidden = nowHidden;
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   const recenterOnViewer = () => {
     if (!viewerLocation) return;
@@ -751,8 +916,23 @@ export function ListingMap({
         popup.remove();
       }
     });
+    demoMarkersRef.current.forEach(({ el, popup, pin }, key) => {
+      const colors = DEMO_PIN_COLORS[pin.role];
+      if (key === selectedId) {
+        el.style.background = colors.selected;
+        popup.addTo(mapInstance);
+      } else {
+        el.style.background = colors.fill;
+        popup.remove();
+      }
+    });
 
     if (selectedId) {
+      const demoTarget = demoPins.find((pin) => pin.key === selectedId);
+      if (demoTarget) {
+        mapInstance.flyTo({ center: [demoTarget.lng, demoTarget.lat], zoom: 9, duration: 900, essential: true });
+        return;
+      }
       const target = data.find((l) => l.id === selectedId);
       if (target && !selectionRadius) {
         mapInstance.flyTo({
@@ -763,7 +943,7 @@ export function ListingMap({
         });
       }
     }
-  }, [selectedId, data, origin, radiusMiles, viewerLocation, selectionRadius]);
+  }, [selectedId, data, demoPins, origin, radiusMiles, viewerLocation, selectionRadius]);
 
   return (
     <div className="relative h-full w-full">
@@ -842,11 +1022,27 @@ export function ListingMap({
           <button
             type="button"
             onClick={showAllListings}
-            disabled={data.length === 0}
+            disabled={data.length + demoPins.length === 0}
             className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-neutral-900 shadow disabled:cursor-not-allowed disabled:text-neutral-400"
           >
             Show all listings
           </button>
+        </div>
+      )}
+      {demoPins.length > 0 && (
+        <div className="absolute right-3 top-14 z-10 flex flex-col gap-1 rounded-md bg-white/95 px-2 py-1.5 text-[11px] font-medium text-neutral-700 shadow-sm">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block size-2.5 rounded-full" style={{ background: "#378853" }} aria-hidden="true" />
+            Marketplace listing
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block size-2.5 rotate-45 rounded-[2px]" style={{ background: DEMO_PIN_COLORS.seller.fill }} aria-hidden="true" />
+            Demo seller offer (not for sale)
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block size-2.5 rotate-45 rounded-[2px]" style={{ background: DEMO_PIN_COLORS.buyer.fill }} aria-hidden="true" />
+            Demo buyer need
+          </span>
         </div>
       )}
       <div

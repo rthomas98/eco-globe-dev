@@ -65,12 +65,36 @@ test("real HTTP routes enforce public read-only contract for anonymous and other
     for (const method of ["POST", "PUT", "DELETE", "PATCH", "HEAD"]) assert.equal((await fetch(`${base}/api/demo-playlists/fuel-lsu`, { method })).status, 405);
   } finally { server.closeAllConnections(); await new Promise<void>((resolve,reject) => server.close(error => error ? reject(error) : resolve())); }
 });
-test("output boundary fails closed when a store returns private data", async () => {
-  const fixture = playlistFixture();
-  const handler = createDemoPlaylistHandler(async () => [], async () => Object.assign(fixture, { sourceIds: [1] }));
+test("HTTP output boundary rejects private nested fields, wrong playlist and store errors without leaks", async () => {
+  const marker = "private-provenance-sentinel";
+  let output: unknown;
+  const handler = createDemoPlaylistHandler(async () => [], async () => {
+    if (output instanceof Error) throw output;
+    return output as ReturnType<typeof playlistFixture>;
+  });
   const server = createServer((req,res) => { void handler(req,res,new URL(req.url ?? "/", "http://localhost")); });
   server.listen(0, "127.0.0.1"); await new Promise<void>(resolve => server.once("listening",resolve));
   const address = server.address(); assert(address && typeof address !== "string");
-  try { const response = await fetch(`http://127.0.0.1:${address.port}/api/demo-playlists/fuel-lsu`); assert.equal(response.status,500); assert.equal((await response.text()).includes("sourceIds"),false); }
+  try {
+    const fixture = playlistFixture();
+    const contaminated = [
+      { ...fixture, sourceIds: [marker] },
+      { ...fixture, materials: [{ ...fixture.materials[0], provenance: marker }] },
+      { ...fixture, companies: fixture.companies.map((company, i) => i === 0 ? { ...company, privateNotes: marker } : company) },
+      { ...fixture, relationships: fixture.relationships.map(relationship => ({ ...relationship, sourceCitation: marker })) },
+      { ...fixture, playlist: { slug: "all", name: "Wrong playlist" } },
+      new Error(marker),
+    ];
+    const url = `http://127.0.0.1:${address.port}/api/demo-playlists/fuel-lsu`;
+    for (const value of contaminated) {
+      output = value;
+      const response = await fetch(url);
+      assert.equal(response.status, 500);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      assert.deepEqual(await response.json(), { ok: false, error: "Demo playlists are unavailable." });
+    }
+    output = fixture;
+    assert.deepEqual(await (await fetch(url)).json(), fixture);
+  }
   finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });

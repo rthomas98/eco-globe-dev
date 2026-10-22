@@ -121,6 +121,7 @@ export function FiltersPanel({
   onReset,
   listingCount,
   pricingUnavailable = false,
+  marketplaceOnly = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -129,6 +130,8 @@ export function FiltersPanel({
   onReset: () => void;
   listingCount: number;
   pricingUnavailable?: boolean;
+  /** Browse also shows demo examples, which these filters never apply to. */
+  marketplaceOnly?: boolean;
 }) {
   const activeCount =
     filters.categories.length +
@@ -183,6 +186,12 @@ export function FiltersPanel({
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
+          {marketplaceOnly && (
+            <p role="note" className="mx-6 mt-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+              These filters apply to marketplace listings only. Demo examples use different currencies, units and
+              annual volumes, so they are not filtered by category, price, quantity, grade or carbon.
+            </p>
+          )}
           {/* Product Category */}
           <div
             className="px-6 py-6"
@@ -344,7 +353,7 @@ export function FiltersPanel({
             Reset
           </button>
           <Button variant="primary" size="lg" onClick={onClose}>
-            Show {listingCount} Listings
+            Show {listingCount} {marketplaceOnly ? "Marketplace Listings" : "Listings"}
           </Button>
         </div>
       </div>

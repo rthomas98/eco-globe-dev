@@ -19,9 +19,11 @@ import {
   demoNetworkElementId,
 } from "@/components/public/demo-playlist-cards";
 import { fetchDemoPlaylist, fetchDemoPlaylists } from "@/lib/api-demo-playlists";
+import { DEMO_GALLERY_RETURN_PARAM, safeBrowseReturnPath } from "@/lib/browse-results";
 import {
   DEMO_PLAYLIST_COMPANY_PARAM,
   DEMO_PLAYLIST_KIND_PARAM,
+  DEMO_PLAYLIST_MATERIAL_PARAM,
   DEMO_PLAYLIST_NETWORK_PARAM,
   DEMO_PLAYLIST_PARAM,
   DEMO_PLAYLIST_QUERY_PARAM,
@@ -65,10 +67,20 @@ function DemoFeedstocksContent() {
   const searchParams = useSearchParams();
   const playlists = useBackendData(fetchDemoPlaylists, [], "Demo playlists could not be loaded.");
   const slug = resolveDemoPlaylistSlug(searchParams.get(DEMO_PLAYLIST_PARAM), playlists.data ?? []);
+  // Only an exact public or buyer Browse path is ever offered as the way back.
+  const browseReturn = safeBrowseReturnPath(searchParams.get(DEMO_GALLERY_RETURN_PARAM));
 
   return (
     <section className="pb-16 pt-24 lg:pt-32">
       <div className="mx-auto max-w-[1400px] px-4 sm:px-8">
+        {browseReturn && (
+          <Link
+            href={browseReturn}
+            className="mb-3 inline-flex min-h-10 items-center text-sm font-semibold text-neutral-900 underline"
+          >
+            ← Back to Browse results
+          </Link>
+        )}
         <h1 className="text-2xl font-bold text-neutral-900 sm:text-4xl">Demo feedstocks</h1>
         <p
           role="note"
@@ -181,7 +193,13 @@ function PlaylistContent({
   const totalCounts = countDemoMaterials(data.materials);
 
   const [view, setView] = useState<"list" | "map">("list");
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // A material deep link (e.g. from Browse) starts selected when it is in this playlist.
+  const linkedMaterial = searchParams.get(DEMO_PLAYLIST_MATERIAL_PARAM);
+  const linkedKey =
+    linkedMaterial && data.materials.some((item) => item.id === linkedMaterial)
+      ? demoMapPointKey("material", linkedMaterial)
+      : null;
+  const [selectedKey, setSelectedKey] = useState<string | null>(linkedKey);
   const [focusNonce, setFocusNonce] = useState(0);
 
   const showOnMap = (key: string) => {
@@ -192,7 +210,7 @@ function PlaylistContent({
 
   // A list target may not exist yet: a profile card renders only once the
   // company filter reaches the URL. Retry after each render until it does.
-  const scrollTargetRef = useRef<string | null>(null);
+  const scrollTargetRef = useRef<string | null>(linkedMaterial && linkedKey ? demoMaterialElementId(linkedMaterial) : null);
   const [scrollRequest, setScrollRequest] = useState(0);
   const scrollTo = (elementId: string) => {
     scrollTargetRef.current = elementId;
@@ -205,6 +223,35 @@ function PlaylistContent({
     scrollTargetRef.current = null;
     element.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [scrollRequest, filterKey, view]);
+
+  // A later same-playlist material link (Back/Forward between examples A and
+  // B, or a new deep link) selects and scrolls to that example too. When the
+  // link is removed or no longer valid, only the state it created is undone:
+  // its selection (if the visitor has not picked something else since) and
+  // its pending scroll.
+  const appliedLinkRef = useRef<{ key: string | null; elementId: string | null }>({
+    key: linkedKey,
+    elementId: linkedKey && linkedMaterial ? demoMaterialElementId(linkedMaterial) : null,
+  });
+  useEffect(() => {
+    const previous = appliedLinkRef.current;
+    if (linkedKey === previous.key) return;
+    if (previous.key) {
+      const staleKey = previous.key;
+      setSelectedKey((current) => (current === staleKey ? null : current));
+      if (scrollTargetRef.current === previous.elementId) scrollTargetRef.current = null;
+    }
+    if (!linkedKey || !linkedMaterial) {
+      appliedLinkRef.current = { key: null, elementId: null };
+      return;
+    }
+    const elementId = demoMaterialElementId(linkedMaterial);
+    appliedLinkRef.current = { key: linkedKey, elementId };
+    setSelectedKey(linkedKey);
+    setView("list");
+    scrollTo(elementId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedKey]);
 
   const showInList = (point: DemoMapPoint) => {
     setSelectedKey(point.key);
