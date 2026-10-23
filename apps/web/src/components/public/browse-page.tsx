@@ -148,7 +148,8 @@ export function BrowsePage() {
   const router = useRouter();
   const urlQuery = searchParams.get("q") || "";
   const urlLocation = searchParams.get("location") || "";
-  const urlDistance = searchParams.get("distance") || "100 mi";
+  // Absent or "Any" means radius Off, matching the map select; a search then keeps it off.
+  const urlDistance = searchParams.get("distance") || "Any";
   const urlCategory = searchParams.get("category") || "";
   const urlTag = searchParams.get("tag") || "";
   const user = useDemoUser();
@@ -518,7 +519,7 @@ export function BrowsePage() {
                   {urlLocation && (
                     <span className="font-semibold">{urlLocation}</span>
                   )}
-                  {urlLocation && (
+                  {urlLocation && radiusMiles > 0 && (
                     <>
                       {" "}
                       within{" "}
