@@ -635,7 +635,7 @@ function BillingPickerModal({
             key={b.id}
             icon={MapPin}
             title={b.name}
-            subtitle={`${b.street}, ${b.city}, ${b.state} ${b.zip}, ${b.country}`}
+            subtitle={[b.street, b.city, [b.state, b.zip].filter(Boolean).join(" "), b.country].filter(Boolean).join(", ")}
             selected={b.id === selectedId}
             onChoose={() => { onSelect(b.id); onClose(); }}
             onEdit={() => onEdit(b.id)}

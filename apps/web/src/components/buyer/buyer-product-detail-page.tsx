@@ -21,6 +21,7 @@ import { describeBackendError } from "@/lib/backend-client";
 import { recordListingInterest } from "@/lib/api-listings";
 import { documentTypeLabel } from "@/components/seller/listing-documents";
 import { SdsRequestNotice } from "@/components/listings/sds-request-notice";
+import { activeMembership, purchaseBlock, purchaseBlockMessage } from "@/lib/purchase-eligibility";
 
 export function BuyerProductDetailPage() {
   const params = useParams<{ id?: string }>();
@@ -32,7 +33,7 @@ export function BuyerProductDetailPage() {
   useEffect(() => {
     if (!openingCheckout) buyNowStarted.current = false;
   }, [openingCheckout]);
-  const { addItem, setIsOpen } = useCart();
+  const { items: cartItems, addItem, setIsOpen } = useCart();
   const id = typeof params.id === "string" ? params.id : undefined;
   const detail = useListing(id, "public");
   const listing = detail.listing;
@@ -111,16 +112,32 @@ export function BuyerProductDetailPage() {
     if (product.available !== null) value = Math.min(value, Math.max(product.minOrder, product.available));
     return value;
   };
-  const buyDisabled = !priceKnown || !hasSds || exceedsStock;
   const isOwner = !!user?.activeCompanyId && user.activeCompanyId === listing.sellerCompanyId;
+  const eligibility = {
+    signedIn: !!user,
+    membership: activeMembership(user?.companies, user?.activeCompanyId),
+    roles: user?.roles ?? (user ? [user.role] : []),
+    ownListing: isOwner,
+    unitPrice: product.price,
+    currencyCode: product.currencyCode,
+    hasSds,
+    available: product.available,
+  };
+  // Buy Now checks out exactly the selected quantity; Add to Cart adds to any quantity already in the cart.
+  const inCart = cartItems.find((item) => item.id === product.id)?.quantity ?? 0;
+  const block = purchaseBlock({ ...eligibility, quantity: qty });
+  const cartBlock = purchaseBlock({ ...eligibility, quantity: inCart + qty });
+  const buyDisabled = block !== null;
+  const addDisabled = cartBlock !== null;
+  const blockMessage = purchaseBlockMessage(block)
+    ?? (cartBlock === "exceeds-stock" && block === null
+      ? `Your cart already has ${inCart} ${unit.plural}; adding ${qty} more would exceed the ${product.available} available.`
+      : purchaseBlockMessage(cartBlock));
   const canRequest = !!user?.activeCompanyId && !isOwner;
   const labListing = { id: listing.backendId, title: product.title, sellerCompanyName: product.seller.name, location: product.location };
   // TDS / SDS / COA and certifications; photos are shown in the gallery.
   const attachments = product.documents.filter((doc) => doc.typeCode !== "photo");
-  const handleBuyNow = () => {
-    if (buyDisabled || !priceKnown || openingCheckout || buyNowStarted.current) return;
-    buyNowStarted.current = true;
-    addItem({
+  const cartItem = () => ({
       id: product.id,
       title: product.title,
       location: product.location,
@@ -133,8 +150,17 @@ export function BuyerProductDetailPage() {
       sellerName: product.seller.name,
       image: product.images[0] ?? null,
       quantity: qty,
-      // Buy Now checks out exactly the selected quantity, even if the listing is already in the cart.
-    }, { exactQuantity: true });
+  });
+  const handleAddToCart = () => {
+    if (addDisabled || !priceKnown) return;
+    addItem(cartItem());
+    recordListingInterest(backendId, "cart_add");
+  };
+  const handleBuyNow = () => {
+    if (buyDisabled || !priceKnown || openingCheckout || buyNowStarted.current) return;
+    buyNowStarted.current = true;
+    // Buy Now checks out exactly the selected quantity, even if the listing is already in the cart.
+    addItem(cartItem(), { exactQuantity: true });
     recordListingInterest(backendId, "cart_add");
     setIsOpen(false);
     // Keep the button visibly busy while checkout loads so one click is enough.
@@ -293,6 +319,8 @@ export function BuyerProductDetailPage() {
           </div>
 
           <Button variant="primary" size="lg" className="w-full" onClick={handleBuyNow} disabled={buyDisabled || openingCheckout} aria-busy={openingCheckout} style={buyDisabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}>{openingCheckout ? "Opening checkout…" : "Buy Now"}</Button>
+          <Button variant="secondary" size="lg" className="mt-2.5 w-full" onClick={handleAddToCart} disabled={addDisabled || openingCheckout} style={addDisabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}>Add to Cart</Button>
+          {blockMessage && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700" role="note"><AlertTriangle className="mt-0.5 size-3 shrink-0" />{blockMessage}</p>}
           {canRequest && sampleConfigError && <p className="mt-3 text-sm text-amber-800">{sampleConfigError} <button className="underline" onClick={()=>setSampleConfigVersion(v=>v+1)}>Retry</button> · <Link href="/contact" className="underline">Ask EcoGlobe about a sample</Link></p>}
           {canRequest && !sampleConfigError && sampleConfig?.eligibility.code !== "disabled" && (
             <button type="button" disabled={!sampleConfig} onClick={() => setSampleOpen(true)} className="mt-3 w-full rounded-full bg-white py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-900/40" style={{ border: "1px solid #E0E0E0" }}>

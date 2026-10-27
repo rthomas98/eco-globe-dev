@@ -8,23 +8,60 @@ import Link from "next/link";
 import { formatMoney } from "@/lib/listing-format";
 import { MaterialImage } from "@/components/public/material-image";
 
+/** Cart lines, not summed quantities: 100 t of one listing is one item. */
+function cartLabel(lines: number) {
+  return lines === 0 ? "Cart, empty" : `Cart, ${lines} ${lines === 1 ? "item" : "items"}`;
+}
+
+function CartBadge({ lines, className }: { lines: number; className: string }) {
+  if (lines === 0) return null;
+  return (
+    <span aria-hidden className={className} style={{ backgroundColor: "#378853" }}>
+      {lines > 99 ? "99+" : lines}
+    </span>
+  );
+}
+
 export function CartButton() {
-  const { itemCount, setIsOpen } = useCart();
+  const { items, setIsOpen } = useCart();
 
   return (
     <button
+      type="button"
+      aria-label={cartLabel(items.length)}
       onClick={() => setIsOpen(true)}
       className="relative flex size-10 items-center justify-center rounded-full text-neutral-700 transition-colors hover:bg-neutral-100"
     >
       <ShoppingBag className="size-5" />
-      {itemCount > 0 && (
-        <span
-          className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
-          style={{ backgroundColor: "#378853" }}
-        >
-          {itemCount > 99 ? "99+" : itemCount}
-        </span>
-      )}
+      <CartBadge
+        lines={items.length}
+        className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+      />
+    </button>
+  );
+}
+
+/** Cart entry styled as a portal sidebar row (next to Notifications). */
+export function CartNavButton() {
+  const { items, isOpen, setIsOpen } = useCart();
+
+  return (
+    <button
+      type="button"
+      aria-label={cartLabel(items.length)}
+      onClick={() => setIsOpen(true)}
+      className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+        isOpen ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100"
+      }`}
+    >
+      <div className="relative">
+        <ShoppingBag className="size-5" />
+        <CartBadge
+          lines={items.length}
+          className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+        />
+      </div>
+      Cart
     </button>
   );
 }
@@ -60,7 +97,7 @@ export function CartPanel() {
               )}
             </h2>
           </div>
-          <button onClick={() => setIsOpen(false)} className="text-neutral-500 hover:text-neutral-900">
+          <button type="button" aria-label="Close cart" onClick={() => setIsOpen(false)} className="text-neutral-500 hover:text-neutral-900">
             <X className="size-5" />
           </button>
         </div>
@@ -93,20 +130,24 @@ export function CartPanel() {
                         <p className="text-sm font-medium leading-5 text-neutral-900">{item.title}</p>
                         <p className="mt-0.5 text-xs text-neutral-500">{item.location}</p>
                       </div>
-                      <button onClick={() => removeItem(item.id)} className="text-neutral-400 hover:text-red-500">
+                      <button type="button" aria-label={`Remove ${item.title} from cart`} onClick={() => removeItem(item.id)} className="text-neutral-400 hover:text-red-500">
                         <Trash2 className="size-4" />
                       </button>
                     </div>
                     <div className="mt-auto flex items-center justify-between pt-2">
                       <div className="flex items-center rounded-full" style={{ border: "1px solid #E0E0E0" }}>
                         <button
+                          type="button"
+                          aria-label={`Decrease ${item.title} quantity`}
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
                           className="flex size-7 items-center justify-center text-neutral-600"
                         >
                           <Minus className="size-3" />
                         </button>
-                        <span className="w-6 text-center text-xs font-semibold">{item.quantity}</span>
+                        <span className="min-w-6 px-1 text-center text-xs font-semibold">{item.quantity}</span>
                         <button
+                          type="button"
+                          aria-label={`Increase ${item.title} quantity`}
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
                           className="flex size-7 items-center justify-center text-neutral-600"
                         >

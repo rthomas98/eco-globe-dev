@@ -23,6 +23,7 @@ import { recordListingInterest } from "@/lib/api-listings";
 import { fetchFavorites, setFavorite } from "@/lib/api-account";
 import { documentTypeLabel } from "@/components/seller/listing-documents";
 import { SdsRequestNotice } from "@/components/listings/sds-request-notice";
+import { activeMembership, purchaseBlock, purchaseBlockMessage } from "@/lib/purchase-eligibility";
 
 const FAVORITES_KEY = "ecoglobe.favoriteListings";
 
@@ -56,7 +57,7 @@ export function ProductDetailPage() {
   const detail = useListing(id, "public");
   const user = useDemoUser();
   const isMember = !!user;
-  const { addItem } = useCart();
+  const { items: cartItems, addItem } = useCart();
   const listing = detail.listing;
   const product = useMemo(() => (listing ? buildProductDetail(listing) : null), [listing]);
 
@@ -155,7 +156,6 @@ export function ProductDetailPage() {
   const hasSds = !!product.sdsUrl;
   const priceKnown = product.price !== null;
   const exceedsStock = product.available !== null && qty > product.available;
-  const purchaseDisabled = !isMember || !hasSds || !priceKnown || exceedsStock;
   const itemSubtotal = priceKnown ? product.price! * qty : null;
   const money = (n: number | null) => (n === null ? "—" : (formatMoney(n, product.currencyCode) ?? "—"));
   const clampQty = (next: number) => {
@@ -164,13 +164,30 @@ export function ProductDetailPage() {
     return value;
   };
   const isOwner = !!user?.activeCompanyId && user.activeCompanyId === listing.sellerCompanyId;
+  // Add to Cart adds to any quantity of this listing already in the cart.
+  const inCart = cartItems.find((item) => item.id === product.id)?.quantity ?? 0;
+  const block = purchaseBlock({
+    signedIn: isMember,
+    membership: activeMembership(user?.companies, user?.activeCompanyId),
+    roles: user?.roles ?? (user ? [user.role] : []),
+    ownListing: isOwner,
+    unitPrice: product.price,
+    currencyCode: product.currencyCode,
+    hasSds,
+    quantity: inCart + qty,
+    available: product.available,
+  });
+  const purchaseDisabled = block !== null;
+  const blockMessage = block === "exceeds-stock" && inCart > 0 && !exceedsStock
+    ? `Your cart already has ${inCart} ${unit.plural}; adding ${qty} more would exceed the ${product.available} available.`
+    : purchaseBlockMessage(block);
   const canRequest = !!user?.activeCompanyId && !isOwner;
   const labListing = { id: listing.backendId, title: product.title, sellerCompanyName: product.seller.name, location: product.location };
   // TDS / SDS / COA and certifications buyers can download; photos are shown in the gallery.
   const attachments = product.documents.filter((doc) => doc.typeCode !== "photo");
 
   const handleAddToCart = () => {
-    if (!priceKnown) return;
+    if (purchaseDisabled || !priceKnown) return;
     addItem({
       id: product.id,
       title: product.title,
@@ -397,6 +414,7 @@ export function ProductDetailPage() {
 
             <Button variant="primary" size="lg" className="w-full" onClick={handleAddToCart} disabled={purchaseDisabled} style={purchaseDisabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}>Add to Cart</Button>
             {!isMember && <p className="mt-2 flex items-center justify-center gap-1 text-xs text-neutral-500"><Lock className="size-3" /><Link href="/login" className="font-medium text-neutral-900 underline">Sign in</Link> to purchase</p>}
+            {blockMessage && <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700" role="note"><AlertTriangle className="mt-0.5 size-3 shrink-0" />{blockMessage}</p>}
             {canRequest && (
               <button type="button" onClick={() => setSampleOpen(true)} className="mt-3 w-full rounded-full bg-white py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-900/40" style={{ border: "1px solid #E0E0E0" }}>
                 Request a Sample (5–10 lb)

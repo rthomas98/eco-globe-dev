@@ -38,6 +38,7 @@ import {
   FlaskConical,
 } from "lucide-react";
 import { NotificationsPanel } from "../seller/notifications-panel";
+import { CartButton, CartNavButton } from "@/components/cart/cart-panel";
 import {
   useDemoUser,
   readDemoUser,
@@ -452,6 +453,7 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="flex flex-col gap-1 px-3 pb-4">
+          <CartNavButton />
           <button
             type="button"
             aria-label="Notifications"
@@ -526,6 +528,9 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
               priority
             />
           </Link>
+          <div className="ml-auto">
+            <CartButton />
+          </div>
         </header>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
           {children}
