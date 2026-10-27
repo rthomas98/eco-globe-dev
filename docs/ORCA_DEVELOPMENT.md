@@ -1,5 +1,7 @@
 # Eco Globe development with Orca
 
+> Orchestration has moved to T3 Code; see [T3_DEVELOPMENT.md](T3_DEVELOPMENT.md). The runtime, SQL and verification sections below still apply to T3 worktrees. Orca-specific dispatch and setup-hook steps are historical.
+
 Codex owns backend/API/SQL and tooling; Claude owns web/admin/mobile. Use `.agents/skills/eco-globe-agent-pair/SKILL.md` for supervised implementation and reciprocal review.
 
 ## Baseline and models

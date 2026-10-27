@@ -103,6 +103,6 @@ pnpm --filter=@eco-globe/backend start
 - **Shared core reuse**: Auth, search, workflow, reporting, and notification services are centralized — do not duplicate across portals
 - Do not reset the database when adding a new feature or fixing issues
 
-## Orca collaboration
+## T3 Code collaboration
 
-For paired development, read `.agents/skills/eco-globe-agent-pair/SKILL.md` and `docs/ORCA_DEVELOPMENT.md`. Codex owns backend, Claude owns frontend; require reciprocal review and objective checks. Astra uses medium reasoning and Standard service.
+For paired development, read `.agents/skills/eco-globe-agent-pair/SKILL.md` and `docs/T3_DEVELOPMENT.md` (orchestration via T3 Code `delegate_task`); runtime and SQL helper details remain in `docs/ORCA_DEVELOPMENT.md`. Codex owns backend, Claude owns frontend; require reciprocal review and objective checks. Codex uses `gpt-6.1-sol`, medium reasoning and Standard service.
