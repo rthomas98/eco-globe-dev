@@ -30,14 +30,14 @@ Additive migration `packages/backend/db/migrations/20261028_listing_imports.sql`
 
 ## Commits (branch `t3/bulk-listing-import-frontend`)
 
-- `16e5330`, `05aeaa7`, `9dd55c1`, `eea3b2a`, `3d3b837`, `1bb3e62` and the operation-lock fix — frontend (Claude)
+- `16e5330`, `05aeaa7`, `9dd55c1`, `eea3b2a`, `3d3b837`, `1bb3e62`, `2e98899` — frontend (Claude)
 - `b099379` (= Codex `0743106`), `2e6f12d` (= `adc9a39`) — backend (Codex)
 - `8bb2c16` — parser slot reservation and pending-preview index (Claude, from backend review)
 
 ## Reviews
 
 - Backend round 1 (Claude): two P2 (unbounded parse workers, unbounded preview table) and six P3; all fixed by Codex in `adc9a39`. Round 2: no P1/P2; two P3 fixed in `8bb2c16`, one informational (limits are per API process; some Excel-native re-saves with direct-range drop-downs are still refused as formulas).
-- Frontend round 1 (Codex): three P2 (admin edit link had no editor, no recovery from an expired preview, start-over during commit) — fixed in `eea3b2a`. Round 2: two P2 (duplicate responsive forms, concurrent saves) — fixed in `1bb3e62`. Round 3: one P2 (the save lock only worked in one direction) — fixed with a single page-wide operation lock that only its owner releases; round 4 pending.
+- Frontend round 1 (Codex): three P2 (admin edit link had no editor, no recovery from an expired preview, start-over during commit) — fixed in `eea3b2a`. Round 2: two P2 (duplicate responsive forms, concurrent saves) — fixed in `1bb3e62`. Round 3: one P2 (the save lock only worked in one direction) — fixed in `2e98899` with a single page-wide operation lock that only its owner releases. Round 4: no actionable findings (`git diff 1bb3e62..2e98899 -- apps` digest `9bd61ebb7f9ffe5bc6f695ae156694e174bf694f5436f5ce401bcd659413b95c`).
 
 ## Checks
 
