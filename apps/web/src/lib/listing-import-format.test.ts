@@ -134,7 +134,7 @@ test("the complete-details form applies the backend submit rules", () => {
   assert.deepEqual(parseDetailsDraft({ ...filled, quantity: "0" }), { error: "Enter a quantity greater than 0." });
   assert.deepEqual(parseDetailsDraft({ ...filled, minimumOrderQuantity: "5000" }), { error: "The minimum order cannot be more than the quantity." });
   assert.deepEqual(parseDetailsDraft({ ...filled, pricePerUnit: "" }), { error: "Enter a price per unit." });
-  assert.deepEqual(parseDetailsDraft({ ...filled, pricePerUnit: "0" }).hasOwnProperty("body"), true);
+  assert.ok("body" in parseDetailsDraft({ ...filled, pricePerUnit: "0" }));
   assert.deepEqual(parseDetailsDraft({ ...filled, currencyCode: "US" }), { error: "Enter a three-letter currency code, such as USD." });
   assert.deepEqual(parseDetailsDraft({ ...filled, locationId: "" }), { error: "Choose a facility." });
   assert.deepEqual(parseDetailsDraft({ ...filled, quantityUnit: "bags" }), { error: "Choose a unit." });
