@@ -130,7 +130,11 @@ type XmlInspection = {
   links: Map<string, string>;
   references: Map<string, string>;
 };
-function inspectXml(name: string, bytes: Buffer): XmlInspection {
+function inspectXml(
+  name: string,
+  bytes: Buffer,
+  profile: "market" | "listing",
+): XmlInspection {
   const source = bytes.toString("utf8");
   if (source.includes("\ufffd") || /<!DOCTYPE|<!ENTITY/iu.test(source))
     unsafe("DTD, entities and invalid UTF-8 are unsupported.");
@@ -143,6 +147,7 @@ function inspectXml(name: string, bytes: Buffer): XmlInspection {
   let inText = 0;
   let sheetNames = 0;
   let filterRange: string | null = null;
+  let validationFormula: string | null = null;
   const result: XmlInspection = { links: new Map(), references: new Map() };
   parser.on("doctype", () => unsafe("Document types are unsupported."));
   parser.on("opentag", (tag) => {
@@ -151,10 +156,22 @@ function inspectXml(name: string, bytes: Buffer): XmlInspection {
     );
     if (tag.local === "f" || tag.local === "formula")
       unsafe("Formulas are unsupported.");
+    if (profile === "listing" && tag.local === "formula1")
+      validationFormula = "";
+    if (profile === "listing" && tag.local === "formula2")
+      unsafe("Calculation formulas are unsupported.");
     if (tag.local === "definedName") {
       if (
-        attrs.name !== "_xlnm._FilterDatabase" ||
-        !["0", "1"].includes(attrs.localSheetId ?? "") ||
+        (profile === "listing"
+          ? ![
+              "ListingImportMaterials",
+              "ListingImportUnits",
+              "ListingImportCurrencies",
+              "ListingImportFacilities",
+            ].includes(attrs.name ?? "")
+          : attrs.name !== "_xlnm._FilterDatabase") ||
+        (profile === "market" &&
+          !["0", "1"].includes(attrs.localSheetId ?? "")) ||
         (attrs.function && !["false", "0"].includes(attrs.function)) ||
         (attrs.vbProcedure && !["false", "0"].includes(attrs.vbProcedure))
       )
@@ -166,6 +183,8 @@ function inspectXml(name: string, bytes: Buffer): XmlInspection {
         attrs.Type ===
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink";
       if (hyperlink) {
+        if (profile === "listing")
+          unsafe("Hyperlinks are unsupported in listing imports.");
         if (
           attrs.TargetMode !== "External" ||
           !attrs.Id ||
@@ -191,7 +210,12 @@ function inspectXml(name: string, bytes: Buffer): XmlInspection {
       result.references.set(attrs.id, attrs.ref!);
     }
     if (tag.local === "sheet")
-      bound(++sheetNames > 2, "Only Sellers and Buyers sheets are supported.");
+      bound(
+        ++sheetNames > (profile === "listing" ? 3 : 2),
+        profile === "listing"
+          ? "Only Listings, Instructions and Lists sheets are supported."
+          : "Only Sellers and Buyers sheets are supported.",
+      );
     if (tag.local === "row") {
       const ref = Number(attrs.r);
       if (
@@ -229,19 +253,47 @@ function inspectXml(name: string, bytes: Buffer): XmlInspection {
       unsafe("Unsafe worksheet dimension.");
   });
   parser.on("text", (value) => {
+    if (validationFormula !== null) {
+      validationFormula += value;
+      if (validationFormula.length > 80)
+        unsafe("Unsupported validation formula.");
+    }
     if (filterRange !== null) {
       filterRange += value;
       bound(filterRange.length > 80, "Filter range is too long.");
     }
     if (inText) {
       textLength += value.length;
-      bound(textLength > importLimits.text, "Cell text is too long.");
+      bound(
+        textLength > (profile === "listing" ? 20000 : importLimits.text),
+        "Cell text is too long.",
+      );
     }
   });
   parser.on("closetag", (tag) => {
+    if (profile === "listing" && tag.local === "formula1") {
+      if (
+        ![
+          "ListingImportMaterials",
+          "ListingImportUnits",
+          "ListingImportCurrencies",
+          "ListingImportFacilities",
+        ].includes(validationFormula ?? "")
+      )
+        unsafe("Only template dropdown references are supported.");
+      validationFormula = null;
+    }
     if (tag.local === "t" || tag.local === "v") inText--;
     if (tag.local === "definedName") {
-      if (
+      if (profile === "listing") {
+        if (
+          !/^'?Lists'?!\$([A-D])\$2(?::\$\1\$[1-9]\d{0,3})?$/u.test(
+            filterRange ?? "",
+          ) ||
+          Number(filterRange?.split("$").pop()) > importLimits.rows + 10
+        )
+          unsafe("Only bounded listing template list ranges are supported.");
+      } else if (
         !/^(?:Sellers|Buyers)!\$A\$1:\$R\$[1-9]\d{0,3}$/u.test(
           filterRange ?? "",
         ) ||
@@ -254,7 +306,10 @@ function inspectXml(name: string, bytes: Buffer): XmlInspection {
   parser.write(source).close();
   return result;
 }
-export async function preflightXlsx(bytes: Buffer): Promise<void> {
+export async function preflightXlsx(
+  bytes: Buffer,
+  profile: "market" | "listing" = "market",
+): Promise<void> {
   bound(
     bytes.length > importLimits.compressed,
     "Workbook exceeds 2 MiB. Split the workbook and retry.",
@@ -358,7 +413,7 @@ export async function preflightXlsx(bytes: Buffer): Promise<void> {
             )
           )
             unsafe("Macro-enabled workbooks are unsupported.");
-          parts.set(name, inspectXml(name, content));
+          parts.set(name, inspectXml(name, content, profile));
           zip.readEntry();
         })().catch(reject);
       });
@@ -634,24 +689,25 @@ export async function parseWorkbookBytes(
   return result;
 }
 /** Parse off the API event loop; terminate even synchronous parser work at the deadline. */
-export async function parseXlsx(
+export async function workbookWorker<T>(
   bytes: Buffer,
-): Promise<{ rows: MarketPreviewRow[]; fileSha256: string }> {
+  moduleUrl: string,
+  exportName: string,
+): Promise<T> {
   bound(
     bytes.length > importLimits.compressed,
     "Workbook exceeds 2 MiB. Split the workbook and retry.",
   );
-  const moduleUrl = import.meta.url;
   const loader = moduleUrl.endsWith(".ts")
     ? pathToFileURL(createRequire(import.meta.url).resolve("tsx/esm/api")).href
     : null;
-  const rows = await new Promise<MarketPreviewRow[]>((resolve, reject) => {
+  const rows = await new Promise<T>((resolve, reject) => {
     const worker = new Worker(
       `const {parentPort,workerData}=require('node:worker_threads');
-      (async()=>{try {const m=workerData.loader ? await (await import(workerData.loader)).tsImport(workerData.moduleUrl,workerData.moduleUrl) : await import(workerData.moduleUrl);parentPort.postMessage({rows:await m.parseWorkbookBytes(Buffer.from(workerData.bytes))});}catch(e){parentPort.postMessage({error:{message:e.message,status:e.status||400,code:e.code||'unsupported_format'}});}})();`,
+      (async()=>{try {const m=workerData.loader ? await (await import(workerData.loader)).tsImport(workerData.moduleUrl,workerData.moduleUrl) : await import(workerData.moduleUrl);parentPort.postMessage({rows:await m[workerData.exportName](Buffer.from(workerData.bytes))});}catch(e){parentPort.postMessage({error:{message:e.message,status:e.status||400,code:e.code||'unsupported_format'}});}})();`,
       {
         eval: true,
-        workerData: { bytes, moduleUrl, loader },
+        workerData: { bytes, moduleUrl, loader, exportName },
         resourceLimits: {
           maxOldGenerationSizeMb: 128,
           maxYoungGenerationSizeMb: 32,
@@ -671,7 +727,7 @@ export async function parseXlsx(
     worker.once(
       "message",
       (message: {
-        rows?: MarketPreviewRow[];
+        rows?: T;
         error?: { message: string; status: number; code: string };
       }) => {
         clearTimeout(timer);
@@ -716,5 +772,15 @@ export async function parseXlsx(
       );
     });
   });
+  return rows;
+}
+export async function parseXlsx(
+  bytes: Buffer,
+): Promise<{ rows: MarketPreviewRow[]; fileSha256: string }> {
+  const rows = await workbookWorker<MarketPreviewRow[]>(
+    bytes,
+    import.meta.url,
+    "parseWorkbookBytes",
+  );
   return { rows, fileSha256: createHash("sha256").update(bytes).digest("hex") };
 }

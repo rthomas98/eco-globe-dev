@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
-    "test": "node --import tsx --test src/demo-playlists.test.ts src/demo-presentations.test.ts src/session-role-company.test.ts src/demo-estimates.test.ts src/stripe-webhook.test.ts src/stripe-setup.test.ts src/email.test.ts src/docusign.test.ts src/listing-routes.test.ts src/lab-routes.test.ts src/pilot-routes.test.ts src/sample-shipping-domain.test.ts src/sample-shipping-provider.test.ts src/demo-order-domain.test.ts src/logistics-routes.test.ts src/mvp.test.ts src/fedex-sandbox-provider.test.ts src/refund-domain.test.ts src/quantity-units.test.ts src/payment-receipt.test.ts src/rfq-regression.test.ts src/market-records.test.ts src/market-references.test.ts src/market-portfolios.test.ts src/listing-sds-requests.test.ts src/wanted-listing-domain.test.ts src/staff-alerts.test.ts src/pilot-acknowledgements.test.ts",
+    "test": "node --import tsx --test src/demo-playlists.test.ts src/demo-presentations.test.ts src/session-role-company.test.ts src/demo-estimates.test.ts src/stripe-webhook.test.ts src/stripe-setup.test.ts src/email.test.ts src/docusign.test.ts src/listing-routes.test.ts src/listing-imports.test.ts src/lab-routes.test.ts src/pilot-routes.test.ts src/sample-shipping-domain.test.ts src/sample-shipping-provider.test.ts src/demo-order-domain.test.ts src/logistics-routes.test.ts src/mvp.test.ts src/fedex-sandbox-provider.test.ts src/refund-domain.test.ts src/quantity-units.test.ts src/payment-receipt.test.ts src/rfq-regression.test.ts src/market-records.test.ts src/market-references.test.ts src/market-portfolios.test.ts src/listing-sds-requests.test.ts src/wanted-listing-domain.test.ts src/staff-alerts.test.ts src/pilot-acknowledgements.test.ts",
     "db:migrate": "tsx src/apply-schema.ts",
     "db:seed": "tsx src/seed-demo-data.ts",
     "db:migrate:docusign": "tsx src/apply-schema.ts ../db/migrations/20260818_docusign.sql",
@@ -23,7 +23,9 @@
     "test:staff-alerts": "node --import tsx --test src/staff-alerts.test.ts",
     "test:staff-alerts:sql": "node --import tsx src/staff-alerts-sql-smoke.ts",
     "test:pilot-acknowledgements": "node --import tsx --test src/pilot-acknowledgements.test.ts",
-    "test:pilot-acknowledgements:sql": "node --import tsx src/pilot-acknowledgements-sql-smoke.ts"
+    "test:pilot-acknowledgements:sql": "node --import tsx src/pilot-acknowledgements-sql-smoke.ts",
+    "test:listing-imports": "node --import tsx --test src/listing-imports.test.ts",
+    "test:listing-imports:sql": "node --import tsx src/listing-import-sql-smoke.ts"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.33.0",

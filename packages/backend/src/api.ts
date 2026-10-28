@@ -1,3 +1,4 @@
+import { handleListingImportRoute } from "./listing-import-routes.js";
 import { handlePilotAcknowledgementRoute } from "./pilot-acknowledgements.js";
 import { handleDemoPresentationRoute } from "./demo-presentation-routes.js";
 import { handleDemoPlaylistRoute } from "./demo-playlist-routes.js";
@@ -6693,6 +6694,7 @@ export async function handleApiRoute(
   if (await handlePilotAcknowledgementRoute(request,response,requestUrl)) return true;
   if (await handleStaffAlertRoute(request,response,requestUrl)) return true;
   if (await handleMarketPortfolioRoute(request,response,requestUrl)) return true;
+  if (await handleListingImportRoute(request, response, requestUrl)) return true;
   if (await handleMarketRecordRoute(request,response,requestUrl)) return true;
   // The modular handlers own listing/sample CRUD. Legacy core implementations below
   // remain for reference; only explicitly forwarded marketplace/moderation paths reach them.

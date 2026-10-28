@@ -1,10 +1,14 @@
+import { insertDraftListing, listingSlug } from "./listing-write.js";
+import { seller } from "./listing-seller.js";
+import { listingText as text, listingNumeric as numeric, validateSpecifications } from "./listing-validation.js";
+export { validateSpecifications } from "./listing-validation.js";
 import { hasDemoEstimateMarker } from "../../shared/src/demo-estimates.mjs";
 import { usableListingDocumentSql } from "./listing-safety.js";
 import { enqueueListingReview, auditListingLifecycle } from "./staff-alerts.js";
 import { handleListingSdsRequestRoute } from "./listing-sds-requests.js";
 import { portfolioId } from "./market-portfolio-domain.js";
 import { requirePortfolioAccess } from "./market-portfolio-store.js";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { getOptionalSessionAuth, requireSessionAuth } from "./auth.js";
 import { parseListingRadius, withinListingRadius } from "./listing-radius.js";
@@ -43,108 +47,10 @@ function object(value: unknown): Record<string, unknown> {
     throw new ApiError(400, "Expected an object.");
   return value as Record<string, unknown>;
 }
-function text(value: unknown, key: string, max = 240): string | null {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value !== "string" || value.length > max)
-    throw new ApiError(400, `${key} must be text up to ${max} characters.`);
-  return value.trim() || null;
-}
 function id(value: unknown): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0)
     throw new ApiError(400, "A positive numeric ID is required.");
   return value;
-}
-function numeric(value: unknown, key: string, scale: number): number | null {
-  if (value === null || value === undefined || value === "") return null;
-  if (
-    typeof value !== "number" ||
-    !Number.isFinite(value) ||
-    value < 0 ||
-    value > 999999999999 ||
-    Math.abs(value * 10 ** scale - Math.round(value * 10 ** scale)) > 0.001
-  )
-    throw new ApiError(
-      400,
-      `${key} must be a nonnegative number with at most ${scale} decimals.`,
-    );
-  return value;
-}
-const specKeys = [
-  "category",
-  "material",
-  "listingType",
-  "grade",
-  "color",
-  "shelfLife",
-  "storage",
-  "packaging",
-  "weight",
-  "usage",
-  "origin",
-  "quality",
-  "composition",
-  "frequency",
-  "state",
-  "availabilityFrom",
-  "availabilityTo",
-  "sustainabilityNotes",
-  "originLocation",
-];
-export function validateSpecifications(input: unknown) {
-  const source = input == null ? {} : object(input);
-  const result: Record<string, unknown> = {};
-  for (const key of Object.keys(source))
-    if (
-      ![...specKeys, "sameAsCompany", "claims", "additionalSpecs"].includes(key)
-    )
-      throw new ApiError(400, `Unknown specification ${key}.`);
-  for (const key of specKeys) result[key] = text(source[key], key, 4000);
-  for (const key of ["availabilityFrom", "availabilityTo"]) {
-    const date = result[key];
-    if (
-      date &&
-      (typeof date !== "string" ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-        !Number.isFinite(Date.parse(date)) ||
-        new Date(date).toISOString().slice(0, 10) !== date)
-    )
-      throw new ApiError(400, `${key} must be a valid date.`);
-  }
-  if (
-    typeof result.availabilityFrom === "string" &&
-    typeof result.availabilityTo === "string" &&
-    result.availabilityFrom > result.availabilityTo
-  )
-    throw new ApiError(400, "Availability end precedes start.");
-  if (
-    source.sameAsCompany !== undefined &&
-    typeof source.sameAsCompany !== "boolean"
-  )
-    throw new ApiError(400, "sameAsCompany must be boolean.");
-  result.sameAsCompany = source.sameAsCompany ?? false;
-  const claims = source.claims ?? [];
-  if (!Array.isArray(claims) || claims.length > 50)
-    throw new ApiError(400, "claims must be an array of at most 50 strings.");
-  result.claims = claims.map((value) => {
-    const claim = text(value, "claim");
-    if (!claim) throw new ApiError(400, "Empty claim.");
-    return claim;
-  });
-  const specs = source.additionalSpecs ?? [];
-  if (!Array.isArray(specs) || specs.length > 50)
-    throw new ApiError(
-      400,
-      "additionalSpecs must be an array of at most 50 rows.",
-    );
-  result.additionalSpecs = specs.map((value) => {
-    const row = object(value);
-    const label = text(row.label, "label");
-    const valueText = text(row.value, "value", 4000);
-    if (!label || !valueText)
-      throw new ApiError(400, "Specification label and value required.");
-    return { label, value: valueText };
-  });
-  return result;
 }
 const selectListing = `SELECT l.Id AS id,l.SellerCompanyId AS sellerCompanyId,c.LegalName AS sellerCompanyName,
  vs.Code AS sellerVerificationStatusCode,l.LocationId AS locationId,l.Title AS title,l.Slug AS slug,
@@ -263,19 +169,6 @@ async function readListing(
     : await query(statement, parameters);
   if (!rows[0]) throw new ApiError(404, "Listing not found.");
   return rows[0];
-}
-async function seller(auth: AuthContext, companyId: number) {
-  if (auth.isAdmin) return;
-  if (auth.companyId !== companyId)
-    throw new ApiError(403, "Seller company access required.");
-  const rows = await query(
-    `SELECT cm.Id FROM dbo.CompanyMembers cm JOIN dbo.MemberRoles mr ON mr.Id=cm.MemberRoleId
-    JOIN dbo.AccountStatuses ms ON ms.Id=cm.MemberStatusId JOIN dbo.SellerProfiles sp ON sp.CompanyId=cm.CompanyId
-    WHERE cm.CompanyId=@companyId AND cm.UserId=@userId AND ms.Code='active' AND mr.Code IN ('owner','admin','seller_operator')`,
-    [int("companyId", companyId), int("userId", auth.userId)],
-  );
-  if (!rows.length)
-    throw new ApiError(403, "Active seller membership required.");
 }
 async function save(
   request: IncomingMessage,
@@ -402,10 +295,7 @@ async function save(
       str(
         "slug",
         previous?.slug ??
-          `${title
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .slice(0, 130)}-${randomUUID()}`,
+          listingSlug(title),
       ),
       int("materialId", lookups[0].materialId),
       int("statusId", lookups[0].statusId),
@@ -423,6 +313,7 @@ async function save(
       int("userId", auth.userId),
       int("id", previous?.id),
     ];
+    if (!previous && status === "draft") return insertDraftListing(transaction, params, auth);
     const rows = await queryRowsWithParamsInTransaction(
       transaction,
       previous
