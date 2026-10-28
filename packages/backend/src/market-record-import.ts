@@ -736,23 +736,32 @@ export async function parseWorkbookBytes(
   return result;
 }
 let activeWorkbookWorkers = 0;
+let activeListingWorkers = 0;
+/** At most 3 parses at once; seller listing imports may hold only 2, so an admin market import always has a slot. */
+const workbookWorkerLimits = { total: 3, listing: 2 };
+export type WorkbookPool = "market" | "listing";
 /** Parse off the API event loop; terminate even synchronous parser work at the deadline. */
 export async function workbookWorker<T>(
   bytes: Buffer,
   moduleUrl: string,
   exportName: string,
+  pool: WorkbookPool = "market",
 ): Promise<T> {
   bound(
     bytes.length > importLimits.compressed,
     "Workbook exceeds 2 MiB. Split the workbook and retry.",
   );
-  if (activeWorkbookWorkers >= 3)
+  if (
+    activeWorkbookWorkers >= workbookWorkerLimits.total ||
+    (pool === "listing" && activeListingWorkers >= workbookWorkerLimits.listing)
+  )
     throw new MarketRecordError(
       503,
       "parser_busy",
       "Workbook parser is busy, retry shortly.",
     );
   activeWorkbookWorkers++;
+  if (pool === "listing") activeListingWorkers++;
   let runningWorker: Worker | undefined;
   try {
     const loader = moduleUrl.endsWith(".ts")
@@ -837,6 +846,7 @@ export async function workbookWorker<T>(
       if (runningWorker) await runningWorker.terminate();
     } finally {
       activeWorkbookWorkers--;
+      if (pool === "listing") activeListingWorkers--;
     }
   }
 }

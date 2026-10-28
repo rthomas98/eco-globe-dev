@@ -168,6 +168,7 @@ export async function parseListingXlsx(bytes: Buffer): Promise<WorkbookRow[]> {
       bytes,
       import.meta.url,
       "parseListingWorkbookBytes",
+      "listing",
     );
   } catch (error) {
     if (error instanceof MarketRecordError)

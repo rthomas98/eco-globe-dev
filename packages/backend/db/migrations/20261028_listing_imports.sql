@@ -19,6 +19,10 @@ BEGIN
     CREATE INDEX IX_ListingImportPreviews_OwnerExpiry ON dbo.ListingImportPreviews(CreatedByUserId,SellerCompanyId,ExpiresAt);
 END;
 GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_ListingImportPreviews_PendingExpiry' AND object_id=OBJECT_ID(N'dbo.ListingImportPreviews'))
+    -- Supports the expired-preview cleanup that runs on every preview upload.
+    CREATE INDEX IX_ListingImportPreviews_PendingExpiry ON dbo.ListingImportPreviews(ExpiresAt) WHERE CommittedAt IS NULL;
+GO
 IF NOT EXISTS(SELECT 1 FROM dbo.RecordTypes WHERE Code='listing_import')
     INSERT dbo.RecordTypes(Code,Name,Description,SortOrder)
     VALUES('listing_import','Listing import','Bulk draft listing import batch.',160);

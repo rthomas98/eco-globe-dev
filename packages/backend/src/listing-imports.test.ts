@@ -605,6 +605,26 @@ test("shared worker cap rejects saturation and recovers after parser failures", 
   assert.equal((await parseListingXlsx(bytes)).length, 1);
 });
 
+test("listing imports cannot take the last parser slot from market imports", async () => {
+  const { workbookWorker } = await import("./market-record-import.js");
+  const bytes = await workbook([cells()]);
+  const moduleUrl = new URL("./listing-import-workbook.ts", import.meta.url)
+    .href;
+  const listingJobs = Array.from({ length: 2 }, () =>
+    workbookWorker(bytes, moduleUrl, "parseListingWorkbookBytes", "listing"),
+  );
+  await assert.rejects(parseListingXlsx(bytes), status(503));
+  // The reserved slot still serves a market (admin) parse.
+  const market = await workbookWorker<unknown[]>(
+    bytes,
+    moduleUrl,
+    "parseListingWorkbookBytes",
+  );
+  assert.equal(market.length, 1);
+  await Promise.all(listingJobs);
+  assert.equal((await parseListingXlsx(bytes)).length, 1);
+});
+
 test("resaved template permits AutoFilter, bounded print names, quoted and plain dropdown ranges", async () => {
   for (const sheetName of ["Lists", "'Lists'"]) {
     const book = new ExcelJS.Workbook();
