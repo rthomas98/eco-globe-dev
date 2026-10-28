@@ -147,6 +147,7 @@ function inspectXml(
   let inText = 0;
   let sheetNames = 0;
   let filterRange: string | null = null;
+  let definedName = "";
   let validationFormula: string | null = null;
   const result: XmlInspection = { links: new Map(), references: new Map() };
   parser.on("doctype", () => unsafe("Document types are unsupported."));
@@ -161,6 +162,7 @@ function inspectXml(
     if (profile === "listing" && tag.local === "formula2")
       unsafe("Calculation formulas are unsupported.");
     if (tag.local === "definedName") {
+      definedName = attrs.name ?? "";
       if (
         (profile === "listing"
           ? ![
@@ -168,6 +170,9 @@ function inspectXml(
               "ListingImportUnits",
               "ListingImportCurrencies",
               "ListingImportFacilities",
+              "_xlnm._FilterDatabase",
+              "_xlnm.Print_Titles",
+              "_xlnm.Print_Area",
             ].includes(attrs.name ?? "")
           : attrs.name !== "_xlnm._FilterDatabase") ||
         (profile === "market" &&
@@ -278,7 +283,8 @@ function inspectXml(
           "ListingImportUnits",
           "ListingImportCurrencies",
           "ListingImportFacilities",
-        ].includes(validationFormula ?? "")
+        ].includes(validationFormula ?? "") &&
+        !boundedListingRange(validationFormula ?? "", true)
       )
         unsafe("Only template dropdown references are supported.");
       validationFormula = null;
@@ -287,12 +293,13 @@ function inspectXml(
     if (tag.local === "definedName") {
       if (profile === "listing") {
         if (
-          !/^'?Lists'?!\$([A-D])\$2(?::\$\1\$[1-9]\d{0,3})?$/u.test(
+          !boundedListingRange(
             filterRange ?? "",
-          ) ||
-          Number(filterRange?.split("$").pop()) > importLimits.rows + 10
+            !definedName.startsWith("_xlnm."),
+            definedName === "_xlnm.Print_Titles",
+          )
         )
-          unsafe("Only bounded listing template list ranges are supported.");
+          unsafe("Only bounded listing template ranges are supported.");
       } else if (
         !/^(?:Sellers|Buyers)!\$A\$1:\$R\$[1-9]\d{0,3}$/u.test(
           filterRange ?? "",
@@ -305,6 +312,46 @@ function inspectXml(
   });
   parser.write(source).close();
   return result;
+}
+function boundedListingRange(
+  value: string,
+  listsOnly: boolean,
+  printTitles = false,
+): boolean {
+  if (printTitles) {
+    if (value.includes(","))
+      return value
+        .split(",")
+        .every((part) => boundedListingRange(part, false, true));
+    // Print metadata may repeat bounded rows/columns; it never supplies cell data.
+    const rows =
+      /^(?:Lists|'Lists'|Listings|'Listings')!\$?([1-9]\d{0,3}):\$?([1-9]\d{0,3})$/u.exec(
+        value,
+      );
+    if (rows)
+      return Number(rows[1]) <= Number(rows[2]) && Number(rows[2]) <= 501;
+    const columns =
+      /^(?:Lists|'Lists'|Listings|'Listings')!\$?([A-L]):\$?([A-L])$/u.exec(
+        value,
+      );
+    if (columns) return columns[1]! <= columns[2]!;
+  }
+  const match =
+    /^(Lists|'Lists'|Listings|'Listings')!\$?([A-L])\$?([1-9]\d{0,3})(?::\$?([A-L])\$?([1-9]\d{0,3}))?$/u.exec(
+      value,
+    );
+  if (!match) return false;
+  const sheet = match[1]!.replaceAll("'", "");
+  const firstRow = Number(match[3]),
+    lastRow = Number(match[5] ?? match[3]);
+  const firstCol = match[2]!,
+    lastCol = match[4] ?? firstCol;
+  return (
+    (!listsOnly || (sheet === "Lists" && firstCol <= "D" && lastCol <= "D")) &&
+    firstRow <= lastRow &&
+    firstCol <= lastCol &&
+    lastRow <= (sheet === "Lists" ? importLimits.rows + 10 : 501)
+  );
 }
 export async function preflightXlsx(
   bytes: Buffer,
@@ -688,6 +735,7 @@ export async function parseWorkbookBytes(
   }
   return result;
 }
+let activeWorkbookWorkers = 0;
 /** Parse off the API event loop; terminate even synchronous parser work at the deadline. */
 export async function workbookWorker<T>(
   bytes: Buffer,
@@ -698,81 +746,99 @@ export async function workbookWorker<T>(
     bytes.length > importLimits.compressed,
     "Workbook exceeds 2 MiB. Split the workbook and retry.",
   );
-  const loader = moduleUrl.endsWith(".ts")
-    ? pathToFileURL(createRequire(import.meta.url).resolve("tsx/esm/api")).href
-    : null;
-  const rows = await new Promise<T>((resolve, reject) => {
-    const worker = new Worker(
-      `const {parentPort,workerData}=require('node:worker_threads');
+  if (activeWorkbookWorkers >= 3)
+    throw new MarketRecordError(
+      503,
+      "parser_busy",
+      "Workbook parser is busy, retry shortly.",
+    );
+  activeWorkbookWorkers++;
+  let runningWorker: Worker | undefined;
+  try {
+    const loader = moduleUrl.endsWith(".ts")
+      ? pathToFileURL(createRequire(import.meta.url).resolve("tsx/esm/api"))
+          .href
+      : null;
+    const rows = await new Promise<T>((resolve, reject) => {
+      const worker = new Worker(
+        `const {parentPort,workerData}=require('node:worker_threads');
       (async()=>{try {const m=workerData.loader ? await (await import(workerData.loader)).tsImport(workerData.moduleUrl,workerData.moduleUrl) : await import(workerData.moduleUrl);parentPort.postMessage({rows:await m[workerData.exportName](Buffer.from(workerData.bytes))});}catch(e){parentPort.postMessage({error:{message:e.message,status:e.status||400,code:e.code||'unsupported_format'}});}})();`,
-      {
-        eval: true,
-        workerData: { bytes, moduleUrl, loader, exportName },
-        resourceLimits: {
-          maxOldGenerationSizeMb: 128,
-          maxYoungGenerationSizeMb: 32,
+        {
+          eval: true,
+          workerData: { bytes, moduleUrl, loader, exportName },
+          resourceLimits: {
+            maxOldGenerationSizeMb: 128,
+            maxYoungGenerationSizeMb: 32,
+          },
         },
-      },
-    );
-    const timer = setTimeout(() => {
-      void worker.terminate();
-      reject(
-        new MarketRecordError(
-          413,
-          "file_too_large",
-          "Workbook parsing exceeded its deadline.",
-        ),
       );
-    }, importLimits.deadlineMs);
-    worker.once(
-      "message",
-      (message: {
-        rows?: T;
-        error?: { message: string; status: number; code: string };
-      }) => {
-        clearTimeout(timer);
+      runningWorker = worker;
+      const timer = setTimeout(() => {
         void worker.terminate();
-        if (message.error)
-          reject(
-            new MarketRecordError(
-              message.error.status,
-              message.error.code,
-              message.error.message,
-            ),
-          );
-        else if (message.rows) resolve(message.rows);
-        else
-          reject(
-            new MarketRecordError(
-              400,
-              "unsupported_format",
-              "Workbook could not be parsed.",
-            ),
-          );
-      },
-    );
-    worker.once("error", (error) => {
-      clearTimeout(timer);
-      reject(
-        new MarketRecordError(
-          400,
-          "unsupported_format",
-          `Workbook parser failed: ${error.name}.`,
-        ),
+        reject(
+          new MarketRecordError(
+            413,
+            "file_too_large",
+            "Workbook parsing exceeded its deadline.",
+          ),
+        );
+      }, importLimits.deadlineMs);
+      worker.once(
+        "message",
+        (message: {
+          rows?: T;
+          error?: { message: string; status: number; code: string };
+        }) => {
+          clearTimeout(timer);
+          void worker.terminate();
+          if (message.error)
+            reject(
+              new MarketRecordError(
+                message.error.status,
+                message.error.code,
+                message.error.message,
+              ),
+            );
+          else if (message.rows) resolve(message.rows);
+          else
+            reject(
+              new MarketRecordError(
+                400,
+                "unsupported_format",
+                "Workbook could not be parsed.",
+              ),
+            );
+        },
       );
+      worker.once("error", (error) => {
+        clearTimeout(timer);
+        reject(
+          new MarketRecordError(
+            400,
+            "unsupported_format",
+            `Workbook parser failed: ${error.name}.`,
+          ),
+        );
+      });
+      worker.once("exit", () => {
+        clearTimeout(timer);
+        reject(
+          new MarketRecordError(
+            400,
+            "unsupported_format",
+            "Workbook parser stopped before completing.",
+          ),
+        );
+      });
     });
-    worker.once("exit", () => {
-      clearTimeout(timer);
-      reject(
-        new MarketRecordError(
-          400,
-          "unsupported_format",
-          "Workbook parser stopped before completing.",
-        ),
-      );
-    });
-  });
-  return rows;
+    return rows;
+  } finally {
+    try {
+      if (runningWorker) await runningWorker.terminate();
+    } finally {
+      activeWorkbookWorkers--;
+    }
+  }
 }
 export async function parseXlsx(
   bytes: Buffer,

@@ -63,16 +63,23 @@ export async function listingImportReferences(
   companyId: number,
   sellerCompanyName: string,
   tx?: sql.Transaction,
+  locationIds?: number[],
 ): Promise<ImportReferences> {
   const lock = tx ? " WITH(HOLDLOCK)" : "";
   const materials = await query(
     tx,
-    `SELECT Id,Code,Name FROM dbo.MaterialTypes${lock} ORDER BY SortOrder,Id`,
+    "SELECT Id,Code,Name FROM dbo.MaterialTypes WHERE IsActive=1 ORDER BY SortOrder,Id",
   );
+  const ids = [...new Set(locationIds ?? [])];
+  const locationPredicate = tx
+    ? ids.length
+      ? ` AND Id IN (${ids.map((_, i) => `@location${i}`).join(",")})`
+      : " AND 1=0"
+    : "";
   const locations = await query(
     tx,
-    `SELECT Id,Name FROM dbo.Locations${lock} WHERE CompanyId=@company ORDER BY Id`,
-    [int("company", companyId)],
+    `SELECT Id,Name FROM dbo.Locations${lock} WHERE CompanyId=@company${locationPredicate} ORDER BY Id`,
+    [int("company", companyId), ...ids.map((id, i) => int(`location${i}`, id))],
   );
   const titles = tx
     ? []
@@ -115,19 +122,41 @@ export async function saveListingImportPreview(
     counts: listingImportCounts(rows),
     rows,
   };
+  // Finish global cleanup before acquiring owner locks to avoid cross-owner lock cycles.
   await query(
     undefined,
-    "INSERT dbo.ListingImportPreviews(Id,SellerCompanyId,CreatedByUserId,FileSha256,RowsJson,CreatedAt,ExpiresAt) VALUES(@id,@company,@user,@hash,@rows,@created,@expires)",
-    [
-      str("id", preview.previewId),
-      int("company", companyId),
-      int("user", auth.userId),
-      str("hash", preview.fileSha256),
-      str("rows", JSON.stringify(preview)),
-      str("created", preview.createdAt),
-      str("expires", preview.expiresAt),
-    ],
+    "DELETE TOP (100) FROM dbo.ListingImportPreviews WHERE CommittedAt IS NULL AND ExpiresAt<=SYSUTCDATETIME()",
   );
+  await runInTransaction(async (tx) => {
+    // Serialize retention for this owner, including the initially empty range.
+    await query(
+      tx,
+      "SELECT Id FROM dbo.ListingImportPreviews WITH(UPDLOCK,HOLDLOCK) WHERE CreatedByUserId=@user AND SellerCompanyId=@company",
+      [int("user", auth.userId), int("company", companyId)],
+    );
+    await query(
+      tx,
+      `WITH OldPreviews AS (
+      SELECT Id,ROW_NUMBER() OVER(ORDER BY CreatedAt DESC,Id DESC) AS Position
+      FROM dbo.ListingImportPreviews WHERE CreatedByUserId=@user AND SellerCompanyId=@company
+      AND CommittedAt IS NULL AND ExpiresAt>SYSUTCDATETIME())
+      DELETE FROM OldPreviews WHERE Position>=10`,
+      [int("user", auth.userId), int("company", companyId)],
+    );
+    await query(
+      tx,
+      "INSERT dbo.ListingImportPreviews(Id,SellerCompanyId,CreatedByUserId,FileSha256,RowsJson,CreatedAt,ExpiresAt) VALUES(@id,@company,@user,@hash,@rows,@created,@expires)",
+      [
+        str("id", preview.previewId),
+        int("company", companyId),
+        int("user", auth.userId),
+        str("hash", preview.fileSha256),
+        str("rows", JSON.stringify(preview)),
+        str("created", preview.createdAt),
+        str("expires", preview.expiresAt),
+      ],
+    );
+  });
   return preview;
 }
 async function storedPreview(
@@ -157,7 +186,7 @@ export async function getListingImportPreview(
   id: string,
 ): Promise<ListingImportPreview> {
   const row = await storedPreview(auth, companyId, id);
-  if (expired(row))
+  if (row.CommittedAt == null && expired(row))
     throw new ApiError(404, "Listing import preview not found.");
   const preview = JSON.parse(String(row.RowsJson)) as ListingImportPreview;
   return {
@@ -177,8 +206,6 @@ export async function commitListingImport(
   return runInTransaction(async (tx) => {
     const row = await storedPreview(auth, companyId, id, tx);
     const companyName = await authorizeListingImport(auth, companyId, tx);
-    if (expired(row))
-      throw new ApiError(410, "Preview expired. Upload the workbook again.");
     if (row.CommittedAt != null) {
       if (String(row.IdempotencyKey).toLowerCase() !== key.toLowerCase())
         throw new ApiError(
@@ -187,16 +214,25 @@ export async function commitListingImport(
         );
       return JSON.parse(String(row.ResultJson)) as ListingImportResult;
     }
+    if (expired(row))
+      throw new ApiError(410, "Preview expired. Upload the workbook again.");
     const preview = JSON.parse(String(row.RowsJson)) as ListingImportPreview;
     if (
       preview.counts.error > 0 ||
       preview.rows.some((r) => r.status === "error")
     )
       throw new ApiError(409, "Fix the rows with errors and upload again.");
-    const refs = await listingImportReferences(companyId, companyName, tx);
+    const refs = await listingImportReferences(
+      companyId,
+      companyName,
+      tx,
+      preview.rows.flatMap((r) =>
+        r.listing.locationId == null ? [] : [r.listing.locationId],
+      ),
+    );
     const status = await query(
       tx,
-      "SELECT Id FROM dbo.ListingStatuses WITH(HOLDLOCK) WHERE Code='draft'",
+      "SELECT Id FROM dbo.ListingStatuses WHERE Code='draft'",
     );
     if (!status[0])
       throw new ApiError(409, "Draft listing status is unavailable.");
@@ -269,7 +305,7 @@ export async function commitListingImport(
       VALUES(@user,@company,(SELECT Id FROM dbo.ActorTypes WHERE Code=@actor),(SELECT Id FROM dbo.AuditActionTypes WHERE Code='created'),(SELECT Id FROM dbo.RecordTypes WHERE Code='listing_import'),NULL,@result,'Bulk listing import created draft listings.',@user,@user)`,
       [
         int("user", auth.userId),
-        int("company", companyId),
+        int("company", auth.companyId ?? null),
         str("actor", auth.isAdmin ? "admin" : "user"),
         str("result", JSON.stringify(result)),
       ],

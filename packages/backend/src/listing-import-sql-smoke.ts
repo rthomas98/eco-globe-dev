@@ -266,6 +266,24 @@ try {
     { idempotencyKey: randomUUID() },
     409,
   );
+  await query(
+    "UPDATE dbo.ListingImportPreviews SET ExpiresAt=DATEADD(day,-1,SYSUTCDATETIME()) WHERE Id=@id",
+    [param("id", preview.previewId)],
+  );
+  assert.deepEqual(
+    await (
+      await call(`/${preview.previewId}/commit`, "POST", {
+        idempotencyKey: key,
+      })
+    ).json(),
+    result,
+  );
+  await call(
+    `/${preview.previewId}/commit`,
+    "POST",
+    { idempotencyKey: randomUUID() },
+    409,
+  );
   const committed = (await (
     await call(`/${preview.previewId}`)
   ).json()) as ListingImportPreview;
@@ -297,10 +315,32 @@ try {
   );
   assert.equal(listings[1]!.Quantity, null);
   const audited = await query(
-    "SELECT a.Id FROM dbo.AuditLogs a JOIN dbo.RecordTypes r ON r.Id=a.RecordTypeId WHERE r.Code='listing_import' AND JSON_VALUE(a.NewValue,'$.importId')=@id",
+    "SELECT a.Id,a.ActorCompanyId FROM dbo.AuditLogs a JOIN dbo.RecordTypes r ON r.Id=a.RecordTypeId WHERE r.Code='listing_import' AND JSON_VALUE(a.NewValue,'$.importId')=@id",
     [param("id", preview.previewId)],
   );
   assert.equal(audited.length, 1);
+  assert.equal(audited[0]!.ActorCompanyId, seller);
+  const adminPreview = (await (
+    await call("/preview", "POST", bytes, 201, adminToken, seller)
+  ).json()) as ListingImportPreview;
+  await call(
+    `/${adminPreview.previewId}/commit`,
+    "POST",
+    { idempotencyKey: randomUUID() },
+    200,
+    adminToken,
+    seller,
+  );
+  const adminAudit = await query(
+    "SELECT ActorCompanyId,NewValue FROM dbo.AuditLogs WHERE JSON_VALUE(NewValue,'$.importId')=@id",
+    [param("id", adminPreview.previewId)],
+  );
+  assert.equal(adminAudit.length, 1);
+  assert.equal(adminAudit[0]!.ActorCompanyId, adminCompany);
+  assert.equal(
+    JSON.parse(String(adminAudit[0]!.NewValue)).sellerCompanyId,
+    seller,
+  );
   // Existing save() still requires SDS before submission; single-listing draft creation also works.
   let response = await fetch(`${base}/api/listings/${first.Id}`, {
     method: "PATCH",
@@ -394,6 +434,30 @@ try {
     { idempotencyKey: randomUUID() },
     410,
   );
+  const oldest = await upload();
+  for (let i = 0; i < 11; i++) await upload();
+  await call(`/${oldest.previewId}`, "GET", undefined, 404);
+  const retained = await query<{ n: number }>(
+    "SELECT COUNT(*) n FROM dbo.ListingImportPreviews WHERE CreatedByUserId=@user AND SellerCompanyId=@company AND CommittedAt IS NULL AND ExpiresAt>SYSUTCDATETIME()",
+    [int("user", user), int("company", seller)],
+  );
+  assert.equal(retained[0]!.n, 10);
+  assert.equal(
+    (
+      await query("SELECT Id FROM dbo.ListingImportPreviews WHERE Id=@id", [
+        param("id", expired.previewId),
+      ])
+    ).length,
+    0,
+  );
+  assert.equal(
+    (
+      (await (
+        await call(`/${preview.previewId}`)
+      ).json()) as ListingImportPreview
+    ).committed,
+    true,
+  );
   const revoked = await upload();
   await query(
     "UPDATE dbo.CompanyMembers SET MemberRoleId=(SELECT Id FROM dbo.MemberRoles WHERE Code='viewer') WHERE UserId=@user AND CompanyId=@company",
@@ -414,6 +478,8 @@ try {
       previewId: preview.previewId,
       drafts: result.created.length,
       concurrentReplay: true,
+      expiredCommittedReplay: true,
+      previewRetention: true,
       atomicRevalidation: true,
       sdsGate: true,
       singleSave: true,

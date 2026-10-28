@@ -49,5 +49,6 @@ export interface ListingImportPreview {
   rows: ListingImportRow[];
 }
 export interface ListingImportCommitRequest {
+  /** UUID generated for this commit attempt; reuse it for retries. */
   idempotencyKey: string;
 }

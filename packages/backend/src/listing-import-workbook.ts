@@ -172,7 +172,7 @@ export async function parseListingXlsx(bytes: Buffer): Promise<WorkbookRow[]> {
   } catch (error) {
     if (error instanceof MarketRecordError)
       throw new ApiError(
-        bytes.length > 2 * 1024 * 1024 ? 413 : 400,
+        /deadline/iu.test(error.message) ? 422 : error.status,
         error.message,
       );
     throw error;

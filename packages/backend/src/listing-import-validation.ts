@@ -107,7 +107,26 @@ export function validateListingImportRows(
       : [];
     if (!materialName) error(1, "Material type is required.");
     else if (materials.length !== 1)
-      error(1, "Unknown or ambiguous material type. Use its code.");
+      error(
+        1,
+        materials.length
+          ? `Ambiguous material type. ${materials
+              .map((m) => {
+                const unique = (value: string) =>
+                  refs.materials.filter(
+                    (candidate) =>
+                      normalized(candidate.code) === normalized(value) ||
+                      normalized(candidate.label) === normalized(value),
+                  ).length === 1;
+                return unique(m.code)
+                  ? `Use code "${m.code}" for "${m.label}"`
+                  : unique(m.label)
+                    ? `Use label "${m.label}" for code "${m.code}"`
+                    : `Rename the conflicting label for code "${m.code}"`;
+              })
+              .join("; ")}.`
+          : "Unknown material type. Use a code or label from the template.",
+      );
     const material = materials.length === 1 ? materials[0] : null;
     const quantity = check(2, () => numericCell(cells[2], "Quantity", 3, true));
     let unit = stringCell(cells[3])?.toLowerCase() ?? null;

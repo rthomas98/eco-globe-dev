@@ -331,15 +331,43 @@ test("preview persistence, commit/replay, conflict, expiry, authorization, and r
     async function (this: sql.Request, statement: string) {
       const p = (key: string) => this.parameters[key]?.value;
       let rows: Record<string, unknown>[] = [];
-      if (statement.includes("FROM dbo.CompanyMembers"))
+      if (statement.startsWith("DELETE TOP (100)")) {
+        assert.match(statement, /CommittedAt IS NULL/);
+        for (const [id] of [...previews]
+          .filter(
+            ([, r]) =>
+              r.CommittedAt == null &&
+              new Date(String(r.ExpiresAt)).getTime() <= Date.now(),
+          )
+          .slice(0, 100))
+          previews.delete(id);
+      } else if (statement.startsWith("WITH OldPreviews")) {
+        assert.match(
+          statement,
+          /CommittedAt IS NULL AND ExpiresAt>SYSUTCDATETIME/,
+        );
+        const owned = [...previews]
+          .filter(
+            ([, r]) =>
+              r.CreatedByUserId === p("user") &&
+              r.SellerCompanyId === p("company") &&
+              r.CommittedAt == null,
+          )
+          .reverse();
+        for (const [id] of owned.slice(9)) previews.delete(id);
+      } else if (statement.includes("FROM dbo.CompanyMembers"))
         rows = member ? [{ Id: 1 }] : [];
       else if (statement.includes("SELECT c.LegalName"))
         rows = [{ LegalName: refs.sellerCompanyName }];
-      else if (statement.includes("FROM dbo.MaterialTypes"))
+      else if (statement.includes("FROM dbo.MaterialTypes")) {
+        assert.match(statement, /WHERE IsActive=1/);
+        assert.ok(!statement.includes("HOLDLOCK"));
         rows = material ? [{ Id: 1, Code: "wood", Name: "Wood chips" }] : [];
-      else if (statement.includes("FROM dbo.Locations"))
+      } else if (statement.includes("FROM dbo.Locations")) {
+        assert.match(statement, /Id IN \(@location0\)/);
+        assert.equal(p("location0"), 7);
         rows = locations ? [{ Id: 7, Name: "Mill" }] : [];
-      else if (statement.includes("FROM dbo.ListingStatuses"))
+      } else if (statement.includes("FROM dbo.ListingStatuses"))
         rows = [{ Id: 1 }];
       else if (statement.startsWith("INSERT dbo.ListingImportPreviews"))
         previews.set(String(p("id")), {
@@ -359,7 +387,10 @@ test("preview persistence, commit/replay, conflict, expiry, authorization, and r
           found.CreatedByUserId === p("user")
         )
           rows = [found];
-        assert.match(statement, /WITH\(UPDLOCK,HOLDLOCK\)/);
+        if (statement.includes("WHERE Id=@id")) {
+          if (statement.includes("UPDLOCK"))
+            assert.match(statement, /WITH\(UPDLOCK,HOLDLOCK\)/);
+        } else assert.match(statement, /WITH\(UPDLOCK,HOLDLOCK\)/);
       } else if (statement.startsWith("INSERT dbo.Listings(")) {
         inserts++;
         assert.equal(p("statusId"), 1);
@@ -375,8 +406,13 @@ test("preview persistence, commit/replay, conflict, expiry, authorization, and r
           IdempotencyKey: p("key"),
           ResultJson: p("result"),
         });
-      } else if (statement.startsWith("INSERT dbo.AuditLogs")) audit++;
-      else throw new Error(`Unexpected SQL: ${statement}`);
+      } else if (statement.startsWith("INSERT dbo.AuditLogs")) {
+        if (statement.includes("listing_import")) {
+          assert.equal(p("company"), 2);
+          assert.equal(JSON.parse(String(p("result"))).sellerCompanyId, 2);
+        }
+        audit++;
+      } else throw new Error(`Unexpected SQL: ${statement}`);
       return { recordset: rows };
     },
   );
@@ -409,7 +445,19 @@ test("preview persistence, commit/replay, conflict, expiry, authorization, and r
     result,
   );
   assert.equal(inserts, 1);
-  assert.equal(commit.mock.calls.length, 2);
+  assert.equal(commit.mock.calls.length, 3);
+  previews.get(preview.previewId)!.ExpiresAt = new Date(0);
+  assert.deepEqual(
+    await store.commitListingImport(auth, 2, preview.previewId, key),
+    result,
+  );
+  const committedPreview = await store.getListingImportPreview(
+    auth,
+    2,
+    preview.previewId,
+  );
+  assert.equal(committedPreview.committed, true);
+  assert.deepEqual(committedPreview.result, result);
   await assert.rejects(
     store.commitListingImport(auth, 2, preview.previewId, randomUUID()),
     status(409),
@@ -461,6 +509,33 @@ test("preview persistence, commit/replay, conflict, expiry, authorization, and r
   );
   assert.equal(inserts, 1);
   assert.ok(rollback.mock.calls.length >= 6);
+  const expiredId = stale.previewId;
+  const otherAuth = { ...auth, userId: 3 };
+  const other = await store.saveListingImportPreview(
+    otherAuth,
+    2,
+    refs.sellerCompanyName,
+    [validate()],
+    Buffer.from("other"),
+  );
+  for (let i = 0; i < 12; i++) await save();
+  assert.equal(previews.has(expiredId), false);
+  assert.equal(
+    previews.has(preview.previewId),
+    true,
+    "committed previews survive cleanup",
+  );
+  assert.equal(
+    previews.has(other.previewId),
+    true,
+    "another owner survives the cap",
+  );
+  assert.equal(
+    [...previews.values()].filter(
+      (r) => r.CreatedByUserId === 1 && r.CommittedAt == null,
+    ).length,
+    10,
+  );
 });
 test("HTTP authentication, company access, body validation and no-store headers", async (t) => {
   // Wrong-company denial happens before database access or body parsing.
@@ -503,4 +578,148 @@ test("HTTP authentication, company access, body validation and no-store headers"
     (error: unknown) =>
       error instanceof Error && "status" in error && error.status === 413,
   );
+});
+
+test("shared worker cap rejects saturation and recovers after parser failures", async () => {
+  const { workbookWorker, MarketRecordError } = {
+    ...(await import("./market-record-import.js")),
+    ...(await import("./market-record-domain.js")),
+  };
+  const bytes = await workbook([cells()]);
+  const moduleUrl = new URL("./listing-import-workbook.ts", import.meta.url)
+    .href;
+  const jobs = Array.from({ length: 3 }, () =>
+    workbookWorker(bytes, moduleUrl, "parseListingWorkbookBytes"),
+  );
+  await assert.rejects(
+    parseListingXlsx(bytes),
+    (e: unknown) =>
+      status(503)(e) && /busy.*retry/iu.test((e as Error).message),
+  );
+  await assert.rejects(
+    workbookWorker(bytes, moduleUrl, "parseListingWorkbookBytes"),
+    (e: unknown) => e instanceof MarketRecordError && e.status === 503,
+  );
+  await Promise.all(jobs);
+  await assert.rejects(parseListingXlsx(Buffer.from("bad")), status(400));
+  assert.equal((await parseListingXlsx(bytes)).length, 1);
+});
+
+test("resaved template permits AutoFilter, bounded print names, quoted and plain dropdown ranges", async () => {
+  for (const sheetName of ["Lists", "'Lists'"]) {
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(
+      new Uint8Array(await listingImportTemplate(refs)).buffer,
+    );
+    const sheet = book.getWorksheet("Listings")!;
+    sheet.getRow(2).values = cells();
+    sheet.autoFilter = "A1:L2";
+    book.definedNames.add("Listings!$A$1:$L$2", "_xlnm._FilterDatabase");
+    sheet.pageSetup.printArea = "A1:L2";
+    sheet.pageSetup.printTitlesRow = "1:1";
+    sheet.pageSetup.printTitlesColumn = "A:B";
+    sheet.getCell("B2").dataValidation = {
+      type: "list",
+      formulae: [`${sheetName}!$A$2:$A$2`],
+    };
+    const bytes = Buffer.from(await book.xlsx.writeBuffer());
+    assert.equal((await parseListingXlsx(bytes)).length, 1);
+    sheet.getCell("B2").dataValidation.formulae = ["'Lists'!$A$2:$A$999999"];
+    await assert.rejects(
+      parseListingXlsx(Buffer.from(await book.xlsx.writeBuffer())),
+      status(400),
+    );
+  }
+});
+
+test("ambiguous materials name unambiguous codes or labels without selecting the wrong material", () => {
+  const references = {
+    ...refs,
+    materials: [
+      ...refs.materials,
+      { id: 2, code: "chips", label: "wood" },
+      { id: 3, code: "other", label: "Wood chips" },
+    ],
+  };
+  const values = cells();
+  values[1] = "wood";
+  assert.equal(validate(values, references).status, "error");
+  assert.match(
+    validate(values, references).diagnostics[0]!.message,
+    /code "chips"/,
+  );
+  values[1] = "Wood chips";
+  assert.match(
+    validate(values, references).diagnostics[0]!.message,
+    /code "other"/,
+  );
+});
+
+test("preview in-flight limit is per user across handler instances and releases on failure", async (t) => {
+  const pool = new sql.ConnectionPool("Server=127.0.0.1;Database=synthetic");
+  t.mock.method(sql, "connect", async () => pool);
+  t.mock.method(pool, "request", () => new sql.Request());
+  t.mock.method(sql.Request.prototype, "query", async () => ({
+    recordset: [{ LegalName: "Synthetic" }],
+  }));
+  const { ServerResponse } = await import("node:http");
+  const request = new Readable({
+    read() {
+      reading();
+    },
+  }) as IncomingMessage;
+  request.method = "POST";
+  request.headers = { "content-type": XLSX_MIME };
+  const url = new URL(
+    "http://local/api/listing-imports/preview?sellerCompanyId=2",
+  );
+  let reading!: () => void;
+  const started = new Promise<void>((resolve) => {
+    reading = resolve;
+  });
+
+  const auth = async () => ({ userId: 1, companyId: 2, isAdmin: true });
+  const first = createListingImportHandler(auth)(
+    request,
+    new ServerResponse(request),
+    url,
+  );
+  await started;
+  async function attempt(userId: number) {
+    const req = Readable.from([Buffer.from("bad")]) as IncomingMessage;
+    req.method = "POST";
+    req.headers = { "content-type": XLSX_MIME };
+    const res = new ServerResponse(req);
+    await createListingImportHandler(async () => ({
+      userId,
+      companyId: 2,
+      isAdmin: true,
+    }))(req, res, url);
+    return res.statusCode;
+  }
+  assert.equal(await attempt(1), 429);
+  assert.equal(await attempt(2), 400, "different user reaches parser");
+  request.push(Buffer.from("bad"));
+  request.push(null);
+  await first;
+  assert.equal(await attempt(1), 400, "failed preview releases user slot");
+});
+
+test("expanded cell limits retain HTTP 413", async () => {
+  const values = cells();
+  values[8] = "x".repeat(20001);
+  await assert.rejects(parseListingXlsx(await workbook([values])), status(413));
+});
+
+test("listing parser deadlines return a clear HTTP 422 and release the worker slot", async (t) => {
+  const bytes = await workbook([cells()]);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const parsed = parseListingXlsx(bytes);
+  t.mock.timers.tick(10001);
+  await assert.rejects(
+    parsed,
+    (e: unknown) => status(422)(e) && /deadline/iu.test((e as Error).message),
+  );
+  t.mock.timers.reset();
+  assert.equal((await parseListingXlsx(bytes)).length, 1);
 });

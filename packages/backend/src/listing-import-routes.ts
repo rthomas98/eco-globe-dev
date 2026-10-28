@@ -17,6 +17,8 @@ import {
 import { validateListingImportRows } from "./listing-import-validation.js";
 import * as store from "./listing-import-store.js";
 
+const activePreviews = new Set<number>();
+
 export function listingImportUuid(value: unknown): string {
   if (
     typeof value !== "string" ||
@@ -83,22 +85,32 @@ export function createListingImportHandler(
         parts[0] === "preview" &&
         request.method === "POST"
       ) {
-        const bytes = await readWorkbookBody(request);
-        const source = await parseListingXlsx(bytes);
-        const refs = await store.listingImportReferences(companyId, name);
-        const rows = validateListingImportRows(source, refs);
-        sendJson(
-          response,
-          201,
-          await store.saveListingImportPreview(
-            auth,
-            companyId,
-            name,
-            rows,
-            bytes,
-          ),
-        );
-        return true;
+        if (activePreviews.has(auth.userId))
+          throw new ApiError(
+            429,
+            "A listing preview is already in progress. Retry shortly.",
+          );
+        activePreviews.add(auth.userId);
+        try {
+          const bytes = await readWorkbookBody(request);
+          const source = await parseListingXlsx(bytes);
+          const refs = await store.listingImportReferences(companyId, name);
+          const rows = validateListingImportRows(source, refs);
+          sendJson(
+            response,
+            201,
+            await store.saveListingImportPreview(
+              auth,
+              companyId,
+              name,
+              rows,
+              bytes,
+            ),
+          );
+          return true;
+        } finally {
+          activePreviews.delete(auth.userId);
+        }
       }
       if (parts.length === 1 && request.method === "GET") {
         sendJson(
