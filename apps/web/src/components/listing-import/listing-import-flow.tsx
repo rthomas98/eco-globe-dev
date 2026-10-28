@@ -508,8 +508,24 @@ function ImportedTable({
   const targetStatus = mode === "admin" ? "published" : "pending_review";
   const submitVerb = mode === "admin" ? "Publish" : "Submit for review";
 
-  const run = async (label: string, work: () => Promise<{ done: string[]; failed: string[] }>) => {
+  // One operation at a time across rows, bulk actions and the details form.
+  // The ref is checked synchronously, so two clicks in one tick cannot both
+  // start; only the operation holding the lock may release it.
+  const lock = useRef<string | null>(null);
+  const acquire = (label: string) => {
+    if (lock.current !== null) return false;
+    lock.current = label;
     setBusy(label);
+    return true;
+  };
+  const release = (label: string) => {
+    if (lock.current !== label) return;
+    lock.current = null;
+    setBusy(null);
+  };
+
+  const run = async (label: string, work: () => Promise<{ done: string[]; failed: string[] }>) => {
+    if (!acquire(label)) return;
     setMessages([]);
     setErrors([]);
     try {
@@ -517,7 +533,7 @@ function ImportedTable({
       setMessages(done);
       setErrors(failed);
     } finally {
-      setBusy(null);
+      release(label);
       reload();
     }
   };
@@ -706,7 +722,9 @@ function ImportedTable({
             title={editingListing.title}
             state={liveState(editingListing)}
             locations={locations}
-            onSavingChange={(saving) => setBusy(saving ? `details-${editingListing.id}` : null)}
+            locked={busy !== null && busy !== `details-${editingListing.id}`}
+            onSaveStart={() => acquire(`details-${editingListing.id}`)}
+            onSaveEnd={() => release(`details-${editingListing.id}`)}
             onCancel={() => setEditing(null)}
             onSaved={(savedId) => {
               // Only close the form that was saved; editing cannot switch

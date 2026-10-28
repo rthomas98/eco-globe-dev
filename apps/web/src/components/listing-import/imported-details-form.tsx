@@ -26,7 +26,9 @@ export function ImportedDetailsForm({
   state,
   locations,
   onSaved,
-  onSavingChange,
+  locked,
+  onSaveStart,
+  onSaveEnd,
   onCancel,
 }: {
   listingId: number;
@@ -34,8 +36,12 @@ export function ImportedDetailsForm({
   state: ImportedListingState;
   locations: CompanyLocation[];
   onSaved: (listingId: number) => void;
-  /** Lets the page lock other row actions (and switching forms) while saving. */
-  onSavingChange: (saving: boolean) => void;
+  /** Another page action is running; saving waits for it. */
+  locked: boolean;
+  /** Takes the page-wide operation lock; false when another action holds it. */
+  onSaveStart: () => boolean;
+  /** Releases the lock taken by onSaveStart. */
+  onSaveEnd: () => void;
   onCancel: () => void;
 }) {
   const id = useId();
@@ -52,17 +58,20 @@ export function ImportedDetailsForm({
       setError(parsed.error);
       return;
     }
+    if (!onSaveStart()) {
+      setError("Another action is still running. Save again when it finishes.");
+      return;
+    }
     setBusy(true);
-    onSavingChange(true);
     setError(null);
     try {
       await updateListing(listingId, parsed.body);
-      onSavingChange(false);
+      onSaveEnd();
       onSaved(listingId);
     } catch (caught) {
       setError(describeBackendError(caught, "The details could not be saved."));
       setBusy(false);
-      onSavingChange(false);
+      onSaveEnd();
     }
   };
 
@@ -119,7 +128,7 @@ export function ImportedDetailsForm({
         <Button type="button" variant="secondary" size="sm" className="rounded-full bg-white px-4 py-2" style={border} disabled={busy} onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" size="sm" className="rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={busy} aria-busy={busy}>
+        <Button type="submit" size="sm" className="rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={busy || locked} aria-busy={busy}>
           {busy && <Loader2 className="size-4 animate-spin" aria-hidden />}
           {busy ? "Saving…" : "Save details"}
         </Button>
