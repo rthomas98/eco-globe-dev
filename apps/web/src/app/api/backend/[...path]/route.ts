@@ -4,6 +4,7 @@ import {
   MARKET_RECORD_IMPORT_DEADLINE_MS,
   isLongMarketRecordWrite,
 } from "@/lib/market-record-proxy";
+import { isListingImportWrite } from "@/lib/listing-import-format";
 
 const BACKEND_URL =
   process.env.ECOGLOBE_API_BASE_URL?.replace(/\/$/, "") ??
@@ -57,7 +58,8 @@ function upstreamDeadline(pathname: string, method: string) {
     return UPLOAD_UPSTREAM_DEADLINE_MS;
   }
   // Workbook preview/commit and reference PDF uploads (base64 JSON).
-  if (isLongMarketRecordWrite(pathname, method)) {
+  // Spreadsheet listing import: server-side XLSX parse and a 500-row transaction.
+  if (isLongMarketRecordWrite(pathname, method) || isListingImportWrite(pathname, method)) {
     return MARKET_RECORD_IMPORT_DEADLINE_MS;
   }
   return DEFAULT_UPSTREAM_DEADLINE_MS;

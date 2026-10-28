@@ -16,6 +16,7 @@ import { LabPanelsPage } from "@/components/admin/lab-panels-page";
 import { LabTestingQueuePage } from "@/components/admin/lab-testing-queue-page";
 import { AdminListingDetailPage } from "@/components/admin/listing-detail-page";
 import { AdminListingsPage } from "@/components/admin/listings-page";
+import { AdminListingImportPage } from "@/components/admin/listing-import-page";
 import { MarketPortfolioCreatePage } from "@/components/admin/market-portfolios/market-portfolio-create-page";
 import { MarketPortfolioDetailPage } from "@/components/admin/market-portfolios/market-portfolio-detail-page";
 import { MarketPortfoliosPage } from "@/components/admin/market-portfolios/market-portfolios-page";
@@ -156,6 +157,7 @@ export default async function Page({ params }: PageProps) {
     return second ? <AdminSaleDetailPage id={second} /> : <SalesPage />;
   }
   if (section === "listings") {
+    if (second === "import") return <AdminListingImportPage />;
     return second ? (
       <AdminListingDetailPage id={second} />
     ) : (

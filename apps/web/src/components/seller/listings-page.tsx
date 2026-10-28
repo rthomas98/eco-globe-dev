@@ -217,6 +217,7 @@ function ListingsContent() {
           <button type="button" onClick={() => setView(view === "list" ? "card" : "list")} className="flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium text-neutral-700" style={{ border: "1px solid #F0F0F0" }}>
             {view === "list" ? <><LayoutGrid className="size-4" /> Card View</> : <><List className="size-4" /> List View</>}
           </button>
+          <Link href="/seller/listings/import" className="w-full sm:w-auto"><Button variant="secondary" size="md" className="w-full sm:w-auto">Import from spreadsheet</Button></Link>
           <Link href="/seller/listings/add" className="w-full sm:w-auto"><Button variant="primary" size="md" className="w-full sm:w-auto">Add Listing</Button></Link>
         </div>
       </div>

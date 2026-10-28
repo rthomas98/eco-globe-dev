@@ -4,6 +4,7 @@ import {
   MARKET_RECORD_IMPORT_DEADLINE_MS,
   isLongMarketRecordWrite,
 } from "@/lib/market-record-proxy";
+import { isListingImportWrite } from "@/lib/listing-import-format";
 
 const BACKEND_URL =
   process.env.ECOGLOBE_API_BASE_URL?.replace(/\/$/, "") ??
@@ -52,9 +53,10 @@ async function proxy(request: Request, { params }: RouteContext) {
   const body = ["GET", "HEAD"].includes(request.method)
     ? undefined
     : await request.arrayBuffer();
-  // Only market record workbook preview/commit and reference PDF uploads get an
-  // explicit bound; other admin calls keep their existing behaviour.
-  const signal = isLongMarketRecordWrite(pathname, request.method)
+  // Only market record workbook preview/commit, reference PDF uploads and
+  // listing spreadsheet imports get an explicit bound; other admin calls keep
+  // their existing behaviour.
+  const signal = isLongMarketRecordWrite(pathname, request.method) || isListingImportWrite(pathname, request.method)
     ? AbortSignal.timeout(MARKET_RECORD_IMPORT_DEADLINE_MS)
     : undefined;
   let backendResponse: Response;

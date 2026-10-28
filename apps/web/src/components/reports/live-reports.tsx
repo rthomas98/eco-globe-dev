@@ -330,10 +330,13 @@ export function LiveProductsReport({
   scope,
   title = "Product Performance",
   rowHref,
+  actions,
 }: {
   scope: ReportScope;
   title?: string;
   rowHref?: (listing: BackendListing) => string;
+  /** Extra header controls, e.g. the admin "Import from spreadsheet" link. */
+  actions?: React.ReactNode;
 }) {
   const router = useRouter();
   const companyId = scope.kind === "seller" ? scope.companyId : undefined;
@@ -468,6 +471,7 @@ export function LiveProductsReport({
             columns={[{ key: "id", label: "Listing ID" }, { key: "name", label: "Product" }, { key: "seller", label: "Seller" }, { key: "status", label: "Status" }, { key: "orders", label: "Orders" }, { key: "revenue", label: "Order value" }]}
             data={rows.map((r) => ({ id: `LS-${r.listing.id}`, name: r.listing.title, seller: r.listing.sellerCompanyName ?? "", status: r.listing.listingStatusCode, orders: r.orders, revenue: r.revenue }))}
           />
+          {actions}
         </>
       }
     >
