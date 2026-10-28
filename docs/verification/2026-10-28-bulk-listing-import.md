@@ -61,7 +61,7 @@ Seller (GulfStar Chemicals): template download; error workbook showed three bloc
 - **API**: ACR build `ca1h` (`ca1g` failed on the missing Dockerfile copy, fixed in `f93bab8`), image `acrecoglobe7c180adf.azurecr.io/ecoglobe-backend:listing-import-f93bab8`, digest `sha256:a8d06acd700916e592affc683ba82f1f48fb82121e7d284756779e80a19d9e40`; revision `ecoglobe-backend-dev--import-f93bab8` Healthy, 100% traffic; `/health` reports SQL connected.
 - **Web**: branch `codex/deploy-ecoglobe-backend` pushed `45630b8..f93bab8`; clean `git archive` of `f93bab8` deployed to `eco-globe-dev-web` production target `dpl_G6FBKzeDMsAktAZpDS3MXQ1hb3LM`, Ready, aliased to `eco-globe-dev-web.vercel.app`. `/seller/listings/import` and `/admin/listings/import` return 200; the proxied health is connected; unauthenticated import routes return 401.
 - **Live check** (dev seller account, Greenfield Biomass LLC): template downloaded with the company's facility; a two-row preview returned one ready row and one error row (unknown material, minimum order above quantity). Not committed; no listings were created. The test session was signed out.
-- The separate `eco-globe-dev-admin` Vercel project was not redeployed; the admin import page is live in the web app at `/admin/listings/import`.
+- **Admin app** (approved separately): clean `git archive` of `f4e8270` deployed to `eco-globe-dev-admin` production target `dpl_2Q9XJCwjq2DEbJG3yppfnHdTPcTE`, Ready, aliased to `eco-globe-dev-admin.vercel.app`; `/admin/listings/import` returns 200, proxied health is connected, the unauthenticated import route returns 401.
 
 ## Open
 
