@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, FileUp, Loader2, Upload, XCircle } from "lucide-react";
 import { Button } from "@eco-globe/ui";
 import { DataBoundary, useBackendData } from "@/components/shared/data-state";
+import { useCompanyLocations } from "@/lib/use-company-locations";
+import { ImportedDetailsForm } from "./imported-details-form";
 import { describeBackendError } from "@/lib/backend-client";
 import { handBlobToBrowser } from "@/lib/browser-download";
 import { formatMoney, formatQuantity } from "@/lib/listing-format";
-import { fetchListings, updateListing, uploadListingDocument, type BackendListing } from "@/lib/listings-api";
+import { fetchListings, updateListing, uploadListingDocument, type BackendListing, type CompanyLocation } from "@/lib/listings-api";
 import {
   commitListingImport,
   downloadListingImportTemplate,
@@ -44,7 +46,7 @@ export interface ListingImportFlowProps {
   previewId: string | null;
   /** URL for this page with (or without) a preview, e.g. `/seller/listings/import?preview=…`. */
   hrefFor: (previewId: string | null) => string;
-  /** Where to edit one imported listing. */
+  /** Where to open one imported listing (seller edit page, admin listing page). */
   editHref: (listingId: number) => string;
   listingsHref: string;
 }
@@ -182,6 +184,14 @@ function StoredPreview(
   );
   if (committed) return <ImportedListings {...props} result={committed} />;
   return (
+    <>
+    {state.status === "error" && (
+      <div className="mb-3 flex justify-end">
+        <Button type="button" size="sm" className="rounded-full px-4 py-2" onClick={props.onStartOver}>
+          <FileSpreadsheet className="size-4" aria-hidden /> Start a new import
+        </Button>
+      </div>
+    )}
     <DataBoundary state={state} empty={{ title: "Import not found" }} loadingLabel="Loading import…">
       {(preview) =>
         preview.committed && preview.result ? (
@@ -191,6 +201,7 @@ function StoredPreview(
         )
       }
     </DataBoundary>
+    </>
   );
 }
 
@@ -221,6 +232,18 @@ function PreviewReview({
     try {
       onCommitted(await commitListingImport(preview.sellerCompanyId, preview.previewId, importCommitKey(preview.previewId)));
     } catch (caught) {
+      // A lost response (timeout, network) may hide a commit that succeeded:
+      // read the preview back before reporting failure. Retrying reuses the
+      // same idempotency key, so it can never create the listings twice.
+      try {
+        const stored = await fetchListingImport(preview.sellerCompanyId, preview.previewId);
+        if (stored.committed && stored.result) {
+          onCommitted(stored.result);
+          return;
+        }
+      } catch {
+        // Fall through to the original error.
+      }
       setError(describeBackendError(caught, "The listings could not be imported. Nothing was saved; please try again."));
       setBusy(false);
     }
@@ -241,7 +264,7 @@ function PreviewReview({
             For {preview.sellerCompanyName}. This check expires {new Date(preview.expiresAt).toLocaleString()}.
           </p>
         </div>
-        <Button type="button" variant="secondary" size="sm" className="rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40" style={border} onClick={onStartOver}>
+        <Button type="button" variant="secondary" size="sm" className="rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40" style={border} disabled={busy} onClick={onStartOver}>
           <FileSpreadsheet className="size-4" aria-hidden /> Upload a different file
         </Button>
       </div>
@@ -420,6 +443,7 @@ function ImportedListings({
     [sellerCompanyId, result.importId],
     "The imported listings could not be loaded.",
   );
+  const locations = useCompanyLocations(sellerCompanyId);
   return (
     <section aria-labelledby="import-done" className="rounded-2xl bg-white p-4 sm:p-6" style={border}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -443,7 +467,7 @@ function ImportedListings({
       </div>
       <div className="mt-4">
         <DataBoundary state={listings} empty={{ title: "No imported listings found" }} isEmpty={(rows) => rows.length === 0} loadingLabel="Loading imported listings…">
-          {(rows) => <ImportedTable mode={mode} rows={rows} result={result} editHref={editHref} reload={listings.reload} />}
+          {(rows) => <ImportedTable mode={mode} rows={rows} result={result} editHref={editHref} locations={locations.locations} reload={listings.reload} />}
         </DataBoundary>
       </div>
     </section>
@@ -455,14 +479,33 @@ function ImportedTable({
   rows,
   result,
   editHref,
+  locations,
   reload,
 }: {
   mode: ListingImportMode;
   rows: BackendListing[];
   result: ListingImportResult;
   editHref: (listingId: number) => string;
+  locations: CompanyLocation[];
   reload: () => void;
 }) {
+  const [editing, setEditing] = useState<number | null>(null);
+  const detailsForm = (listing: BackendListing) =>
+    editing === listing.id ? (
+      <ImportedDetailsForm
+        listingId={listing.id}
+        title={listing.title}
+        state={liveState(listing)}
+        locations={locations}
+        onCancel={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null);
+          setMessages([`Details saved for ${listing.title}.`]);
+          setErrors([]);
+          reload();
+        }}
+      />
+    ) : null;
   const rowNumber = useMemo(() => new Map(result.created.map((c) => [c.listingId, c.rowNumber])), [result]);
   const ordered = useMemo(() => [...rows].sort((a, b) => (rowNumber.get(a.id) ?? 0) - (rowNumber.get(b.id) ?? 0)), [rows, rowNumber]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -609,12 +652,13 @@ function ImportedTable({
                   next={next}
                   busy={busy}
                   submitVerb={submitVerb}
-                  editHref={editHref}
                   onSds={(file) => void uploadSds(listing, file)}
                   onSubmit={() => void submit([listing])}
+                  onEdit={() => setEditing(listing.id)}
                   inputSuffix="card"
                 />
               </div>
+              {editing === listing.id && <div className="mt-3">{detailsForm(listing)}</div>}
             </li>
           );
         })}
@@ -635,7 +679,8 @@ function ImportedTable({
               const state = liveState(listing);
               const next = importedListingNext(state);
               return (
-                <tr key={listing.id} style={{ borderBottom: "1px solid #F0F0F0" }}>
+                <Fragment key={listing.id}>
+                <tr style={{ borderBottom: "1px solid #F0F0F0" }}>
                   <td className="py-3 pr-3 text-neutral-500">{rowNumber.get(listing.id) ?? "—"}</td>
                   <td className="max-w-[260px] py-3 pr-3">
                     <Link href={editHref(listing.id)} className="font-medium text-neutral-900 underline-offset-2 hover:underline">
@@ -652,12 +697,18 @@ function ImportedTable({
                       next={next}
                       busy={busy}
                       submitVerb={submitVerb}
-                      editHref={editHref}
                       onSds={(file) => void uploadSds(listing, file)}
                       onSubmit={() => void submit([listing])}
+                      onEdit={() => setEditing(listing.id)}
                     />
                   </td>
                 </tr>
+                {editing === listing.id && (
+                  <tr>
+                    <td colSpan={4} className="pb-4">{detailsForm(listing)}</td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>
@@ -677,18 +728,18 @@ function RowAction({
   next,
   busy,
   submitVerb,
-  editHref,
   onSds,
   onSubmit,
+  onEdit,
   inputSuffix = "row",
 }: {
   listing: BackendListing;
   next: ReturnType<typeof importedListingNext>;
   busy: string | null;
   submitVerb: string;
-  editHref: (listingId: number) => string;
   onSds: (file: File) => void;
   onSubmit: () => void;
+  onEdit: () => void;
   /** Phone cards and table rows both render; keeps their file inputs distinct. */
   inputSuffix?: string;
 }) {
@@ -696,9 +747,9 @@ function RowAction({
   const pill = "rounded-full px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40";
   if (next === "complete-details")
     return (
-      <Link href={editHref(listing.id)} className="text-sm font-medium text-neutral-900 underline">
-        Edit listing
-      </Link>
+      <Button type="button" variant="secondary" size="sm" className={pill} style={border} disabled={busy !== null} onClick={onEdit}>
+        Complete details
+      </Button>
     );
   if (next === "add-sds")
     return (

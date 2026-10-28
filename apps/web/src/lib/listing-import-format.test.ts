@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   canCommitImport,
+  detailsDraftFrom,
+  parseDetailsDraft,
   filterImportRows,
   importSummary,
   importedListingNext,
@@ -120,4 +122,20 @@ test("SDS files match imported listings by title, never by guess", () => {
   assert.deepEqual(result.ambiguous, [2]);
   assert.deepEqual(result.unmatched, [3, 4]);
   assert.equal(sdsMatchKey("MSDS_Refined UCO.pdf"), "refined uco");
+});
+
+test("the complete-details form applies the backend submit rules", () => {
+  const draft = detailsDraftFrom({ ...complete, quantity: null, pricePerUnit: null, currencyCode: null, locationId: null });
+  assert.deepEqual(draft, { quantity: "", quantityUnit: "tonnes", minimumOrderQuantity: "5", pricePerUnit: "", currencyCode: "USD", locationId: "" });
+  const filled = { ...draft, quantity: "1,200", pricePerUnit: "$45.50", currencyCode: "usd", locationId: "7" };
+  assert.deepEqual(parseDetailsDraft(filled), {
+    body: { quantity: 1200, quantityUnit: "tonnes", minimumOrderQuantity: 5, pricePerUnit: 45.5, currencyCode: "USD", locationId: 7 },
+  });
+  assert.deepEqual(parseDetailsDraft({ ...filled, quantity: "0" }), { error: "Enter a quantity greater than 0." });
+  assert.deepEqual(parseDetailsDraft({ ...filled, minimumOrderQuantity: "5000" }), { error: "The minimum order cannot be more than the quantity." });
+  assert.deepEqual(parseDetailsDraft({ ...filled, pricePerUnit: "" }), { error: "Enter a price per unit." });
+  assert.deepEqual(parseDetailsDraft({ ...filled, pricePerUnit: "0" }).hasOwnProperty("body"), true);
+  assert.deepEqual(parseDetailsDraft({ ...filled, currencyCode: "US" }), { error: "Enter a three-letter currency code, such as USD." });
+  assert.deepEqual(parseDetailsDraft({ ...filled, locationId: "" }), { error: "Choose a facility." });
+  assert.deepEqual(parseDetailsDraft({ ...filled, quantityUnit: "bags" }), { error: "Choose a unit." });
 });

@@ -188,3 +188,63 @@ export function matchSdsFiles(fileNames: readonly string[], listings: ReadonlyAr
   });
   return result;
 }
+
+/** Text inputs of the inline "complete details" form for one imported draft. */
+export interface ImportedDetailsDraft {
+  quantity: string;
+  quantityUnit: string;
+  minimumOrderQuantity: string;
+  pricePerUnit: string;
+  currencyCode: string;
+  locationId: string;
+}
+
+export interface ImportedDetailsBody {
+  quantity: number;
+  quantityUnit: string;
+  minimumOrderQuantity: number;
+  pricePerUnit: number;
+  currencyCode: string;
+  locationId: number;
+}
+
+const DETAIL_UNITS = ["ton", "tons", "tonne", "tonnes", "kg", "lb", "unit", "units"];
+
+function amount(text: string): number | null {
+  const cleaned = text.trim().replace(/^\$/, "").replace(/,/g, "");
+  if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
+  return Number(cleaned);
+}
+
+/** Pre-fills the form from the live listing; blanks stay blank. */
+export function detailsDraftFrom(listing: ImportedListingState): ImportedDetailsDraft {
+  return {
+    quantity: listing.quantity === null ? "" : String(listing.quantity),
+    quantityUnit: listing.quantityUnit ?? "tonnes",
+    minimumOrderQuantity: listing.minimumOrderQuantity === null ? "" : String(listing.minimumOrderQuantity),
+    pricePerUnit: listing.pricePerUnit === null ? "" : String(listing.pricePerUnit),
+    currencyCode: listing.currencyCode ?? "USD",
+    locationId: listing.locationId === null ? "" : String(listing.locationId),
+  };
+}
+
+/**
+ * Checks the form against the same rules the backend applies on submit
+ * (positive quantity and minimum order, minimum ≤ quantity, a price, a
+ * three-letter currency, a known unit and an owned facility).
+ */
+export function parseDetailsDraft(draft: ImportedDetailsDraft): { body: ImportedDetailsBody } | { error: string } {
+  const quantity = amount(draft.quantity);
+  const moq = amount(draft.minimumOrderQuantity);
+  const price = amount(draft.pricePerUnit);
+  const currency = draft.currencyCode.trim().toUpperCase();
+  const locationId = Number(draft.locationId);
+  if (quantity === null || quantity <= 0) return { error: "Enter a quantity greater than 0." };
+  if (!DETAIL_UNITS.includes(draft.quantityUnit)) return { error: "Choose a unit." };
+  if (moq === null || moq <= 0) return { error: "Enter a minimum order greater than 0." };
+  if (moq > quantity) return { error: "The minimum order cannot be more than the quantity." };
+  if (price === null) return { error: "Enter a price per unit." };
+  if (!/^[A-Z]{3}$/.test(currency)) return { error: "Enter a three-letter currency code, such as USD." };
+  if (!Number.isInteger(locationId) || locationId <= 0) return { error: "Choose a facility." };
+  return { body: { quantity, quantityUnit: draft.quantityUnit, minimumOrderQuantity: moq, pricePerUnit: price, currencyCode: currency, locationId } };
+}
