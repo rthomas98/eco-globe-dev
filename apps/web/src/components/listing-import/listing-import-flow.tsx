@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, FileUp, Loader2, Upload, XCircle } from "lucide-react";
@@ -489,23 +489,13 @@ function ImportedTable({
   locations: CompanyLocation[];
   reload: () => void;
 }) {
+  // One details form for both layouts (phone cards and table), so its draft
+  // survives a breakpoint change and there is only ever one Save button.
   const [editing, setEditing] = useState<number | null>(null);
-  const detailsForm = (listing: BackendListing) =>
-    editing === listing.id ? (
-      <ImportedDetailsForm
-        listingId={listing.id}
-        title={listing.title}
-        state={liveState(listing)}
-        locations={locations}
-        onCancel={() => setEditing(null)}
-        onSaved={() => {
-          setEditing(null);
-          setMessages([`Details saved for ${listing.title}.`]);
-          setErrors([]);
-          reload();
-        }}
-      />
-    ) : null;
+  const detailsPanel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (editing !== null) detailsPanel.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [editing]);
   const rowNumber = useMemo(() => new Map(result.created.map((c) => [c.listingId, c.rowNumber])), [result]);
   const ordered = useMemo(() => [...rows].sort((a, b) => (rowNumber.get(a.id) ?? 0) - (rowNumber.get(b.id) ?? 0)), [rows, rowNumber]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -514,6 +504,7 @@ function ImportedTable({
   const bulkInput = useRef<HTMLInputElement>(null);
   const progress = importedProgress(ordered.map(liveState));
   const ready = ordered.filter((l) => importedListingNext(liveState(l)) === "submit");
+  const editingListing = editing === null ? null : ordered.find((l) => l.id === editing) ?? null;
   const targetStatus = mode === "admin" ? "published" : "pending_review";
   const submitVerb = mode === "admin" ? "Publish" : "Submit for review";
 
@@ -658,7 +649,6 @@ function ImportedTable({
                   inputSuffix="card"
                 />
               </div>
-              {editing === listing.id && <div className="mt-3">{detailsForm(listing)}</div>}
             </li>
           );
         })}
@@ -679,8 +669,7 @@ function ImportedTable({
               const state = liveState(listing);
               const next = importedListingNext(state);
               return (
-                <Fragment key={listing.id}>
-                <tr style={{ borderBottom: "1px solid #F0F0F0" }}>
+                <tr key={listing.id} style={{ borderBottom: "1px solid #F0F0F0" }}>
                   <td className="py-3 pr-3 text-neutral-500">{rowNumber.get(listing.id) ?? "—"}</td>
                   <td className="max-w-[260px] py-3 pr-3">
                     <Link href={editHref(listing.id)} className="font-medium text-neutral-900 underline-offset-2 hover:underline">
@@ -703,17 +692,33 @@ function ImportedTable({
                     />
                   </td>
                 </tr>
-                {editing === listing.id && (
-                  <tr>
-                    <td colSpan={4} className="pb-4">{detailsForm(listing)}</td>
-                  </tr>
-                )}
-                </Fragment>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      {editingListing && (
+        <div ref={detailsPanel} className="mt-4 scroll-mt-4">
+          <ImportedDetailsForm
+            key={editingListing.id}
+            listingId={editingListing.id}
+            title={editingListing.title}
+            state={liveState(editingListing)}
+            locations={locations}
+            onSavingChange={(saving) => setBusy(saving ? `details-${editingListing.id}` : null)}
+            onCancel={() => setEditing(null)}
+            onSaved={(savedId) => {
+              // Only close the form that was saved; editing cannot switch
+              // while a save runs, but never discard another draft.
+              setEditing((current) => (current === savedId ? null : current));
+              setMessages([`Details saved for ${editingListing.title}.`]);
+              setErrors([]);
+              reload();
+            }}
+          />
+        </div>
+      )}
     </>
   );
 }

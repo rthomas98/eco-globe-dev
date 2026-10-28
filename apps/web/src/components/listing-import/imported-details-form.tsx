@@ -26,13 +26,16 @@ export function ImportedDetailsForm({
   state,
   locations,
   onSaved,
+  onSavingChange,
   onCancel,
 }: {
   listingId: number;
   title: string;
   state: ImportedListingState;
   locations: CompanyLocation[];
-  onSaved: () => void;
+  onSaved: (listingId: number) => void;
+  /** Lets the page lock other row actions (and switching forms) while saving. */
+  onSavingChange: (saving: boolean) => void;
   onCancel: () => void;
 }) {
   const id = useId();
@@ -50,13 +53,16 @@ export function ImportedDetailsForm({
       return;
     }
     setBusy(true);
+    onSavingChange(true);
     setError(null);
     try {
       await updateListing(listingId, parsed.body);
-      onSaved();
+      onSavingChange(false);
+      onSaved(listingId);
     } catch (caught) {
       setError(describeBackendError(caught, "The details could not be saved."));
       setBusy(false);
+      onSavingChange(false);
     }
   };
 
@@ -68,6 +74,7 @@ export function ImportedDetailsForm({
 
   return (
     <form onSubmit={(event) => void save(event)} aria-label={`Complete details for ${title}`} className="rounded-xl bg-neutral-50 p-3">
+      <h3 className="mb-3 text-sm font-semibold text-neutral-900">Complete details: {title}</h3>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div>
           {label("quantity", "Quantity")}
