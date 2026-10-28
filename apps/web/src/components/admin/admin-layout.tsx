@@ -110,6 +110,8 @@ export function AdminLayout({
 
 /** Breadcrumb labels whose brand casing title-case would get wrong. */
 const PAGE_LABEL_OVERRIDES: Record<string, string> = { "fedex-sandbox": "FedEx Sandbox" };
+/** Second-level pages that are words, not record ids (ids are shown upper-case). */
+const DETAIL_LABEL_OVERRIDES: Record<string, string> = { import: "Import" };
 
 function AdminTopNavigation({
   pathname,
@@ -128,7 +130,7 @@ function AdminTopNavigation({
         .replaceAll("-", " ")
         .replace(/\b\w/g, (letter) => letter.toUpperCase())
     : "Dashboard";
-  const detailLabel = segments[1]?.toUpperCase();
+  const detailLabel = segments[1] ? DETAIL_LABEL_OVERRIDES[segments[1]] ?? segments[1].toUpperCase() : undefined;
   const results = adminSearchLinks.filter((item) =>
     `${item.label} ${item.keywords}`
       .toLowerCase()

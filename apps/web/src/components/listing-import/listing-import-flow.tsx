@@ -118,7 +118,7 @@ function StartStep({ sellerCompanyId, onPreview }: ListingImportFlowProps & { on
           One row per listing. The template has drop-down lists for material type, unit, currency and your facilities, and an
           Instructions sheet. Up to {LISTING_IMPORT_MAX_ROWS} listings per file.
         </p>
-        <Button type="button" variant="secondary" size="sm" className="mt-4 rounded-full px-4 py-2" style={border} disabled={busy !== null} aria-busy={busy === "template"} onClick={() => void template()}>
+        <Button type="button" variant="secondary" size="sm" className="mt-4 rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40" style={border} disabled={busy !== null} aria-busy={busy === "template"} onClick={() => void template()}>
           {busy === "template" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Download className="size-4" aria-hidden />}
           {busy === "template" ? "Preparing template…" : "Download template (.xlsx)"}
         </Button>
@@ -143,7 +143,7 @@ function StartStep({ sellerCompanyId, onPreview }: ListingImportFlowProps & { on
           className="block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium"
         />
         <div className="mt-4 flex justify-end">
-          <Button type="button" size="sm" className="rounded-full px-4 py-2" disabled={!file || busy !== null} aria-busy={busy === "upload"} onClick={() => void upload()}>
+          <Button type="button" size="sm" className="rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={!file || busy !== null} aria-busy={busy === "upload"} onClick={() => void upload()}>
             {busy === "upload" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Upload className="size-4" aria-hidden />}
             {busy === "upload" ? "Checking spreadsheet…" : "Check spreadsheet"}
           </Button>
@@ -241,7 +241,7 @@ function PreviewReview({
             For {preview.sellerCompanyName}. This check expires {new Date(preview.expiresAt).toLocaleString()}.
           </p>
         </div>
-        <Button type="button" variant="secondary" size="sm" className="rounded-full px-4 py-2" style={border} onClick={onStartOver}>
+        <Button type="button" variant="secondary" size="sm" className="rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40" style={border} onClick={onStartOver}>
           <FileSpreadsheet className="size-4" aria-hidden /> Upload a different file
         </Button>
       </div>
@@ -268,7 +268,14 @@ function PreviewReview({
         ))}
       </div>
 
-      <div className="mt-4 overflow-x-auto">
+      <ul className="mt-4 space-y-3 sm:hidden" aria-label="Spreadsheet rows">
+        {rows.map((row) => (
+          <PreviewCard key={row.rowNumber} row={row} />
+        ))}
+        {rows.length === 0 && <li className="py-6 text-center text-sm text-neutral-500">No rows in this view.</li>}
+      </ul>
+
+      <div className="mt-4 hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[860px] text-left text-sm">
           <thead className="text-xs uppercase tracking-wide text-neutral-500">
             <tr style={{ borderBottom: "1px solid #E0E0E0" }}>
@@ -304,7 +311,7 @@ function PreviewReview({
         {!importable && preview.counts.error > 0 && (
           <p className="text-sm text-neutral-600">Fix the rows with errors in your spreadsheet, then upload it again.</p>
         )}
-        <Button type="button" size="md" className="rounded-full px-5 py-2.5" disabled={!importable || busy} aria-busy={busy} onClick={() => void commit()}>
+        <Button type="button" size="md" className="rounded-full px-5 py-2.5 disabled:cursor-not-allowed disabled:opacity-40" disabled={!importable || busy} aria-busy={busy} onClick={() => void commit()}>
           {busy && <Loader2 className="size-4 animate-spin" aria-hidden />}
           {busy ? "Importing…" : `Import ${preview.counts.total} ${preview.counts.total === 1 ? "listing" : "listings"} as drafts`}
         </Button>
@@ -313,37 +320,74 @@ function PreviewReview({
   );
 }
 
-function PreviewRow({ row }: { row: ListingImportPreviewRow }) {
+function quantityText(amount: number | null, unit: string | null) {
+  return amount === null ? "—" : formatQuantity(amount, unit) ?? String(amount);
+}
+
+function RowCheck({ row }: { row: ListingImportPreviewRow }) {
   const style = STATUS_STYLE[row.status];
   const Icon = style.icon;
+  return (
+    <>
+      <span className={`inline-flex items-center gap-1.5 font-medium ${style.tone}`}>
+        <Icon className="size-4" aria-hidden /> {style.label}
+      </span>
+      {row.diagnostics.length > 0 && (
+        <ul className="mt-1 space-y-0.5 text-xs text-neutral-700">
+          {row.diagnostics.map((d, index) => (
+            <li key={index} className={d.severity === "error" ? "text-red-800" : "text-amber-900"}>
+              {d.field ? <strong>{d.field}: </strong> : null}
+              {d.message}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+function RowTitle({ row }: { row: ListingImportPreviewRow }) {
+  const l = row.listing;
+  return (
+    <>
+      <p className="font-medium text-neutral-900">{l.title ?? <span className="text-neutral-400">No title</span>}</p>
+      <p className="text-xs text-neutral-500">{l.materialTypeLabel ?? l.materialTypeCode ?? "No material type"}</p>
+    </>
+  );
+}
+
+function PreviewRow({ row }: { row: ListingImportPreviewRow }) {
   const l = row.listing;
   return (
     <tr className="align-top" style={{ borderBottom: "1px solid #F0F0F0" }}>
       <td className="py-3 pr-3 text-neutral-500">{row.rowNumber}</td>
-      <td className="max-w-[240px] py-3 pr-3">
-        <p className="font-medium text-neutral-900">{l.title ?? <span className="text-neutral-400">No title</span>}</p>
-        <p className="text-xs text-neutral-500">{l.materialTypeLabel ?? l.materialTypeCode ?? "No material type"}</p>
-      </td>
-      <td className="py-3 pr-3">{l.quantity === null ? "—" : formatQuantity(l.quantity, l.quantityUnit) ?? String(l.quantity)}</td>
-      <td className="py-3 pr-3">{l.minimumOrderQuantity === null ? "—" : formatQuantity(l.minimumOrderQuantity, l.quantityUnit) ?? String(l.minimumOrderQuantity)}</td>
+      <td className="max-w-[240px] py-3 pr-3"><RowTitle row={row} /></td>
+      <td className="py-3 pr-3">{quantityText(l.quantity, l.quantityUnit)}</td>
+      <td className="py-3 pr-3">{quantityText(l.minimumOrderQuantity, l.quantityUnit)}</td>
       <td className="py-3 pr-3">{money(l.pricePerUnit, l.currencyCode)}</td>
       <td className="py-3 pr-3">{l.locationName ?? "—"}</td>
-      <td className="py-3">
-        <span className={`inline-flex items-center gap-1.5 font-medium ${style.tone}`}>
-          <Icon className="size-4" aria-hidden /> {style.label}
-        </span>
-        {row.diagnostics.length > 0 && (
-          <ul className="mt-1 space-y-0.5 text-xs text-neutral-700">
-            {row.diagnostics.map((d, index) => (
-              <li key={index} className={d.severity === "error" ? "text-red-800" : "text-amber-900"}>
-                {d.field ? <strong>{d.field}: </strong> : null}
-                {d.message}
-              </li>
-            ))}
-          </ul>
-        )}
-      </td>
+      <td className="py-3"><RowCheck row={row} /></td>
     </tr>
+  );
+}
+
+/** Phone layout of one spreadsheet row. */
+function PreviewCard({ row }: { row: ListingImportPreviewRow }) {
+  const l = row.listing;
+  return (
+    <li className="rounded-xl p-3 text-sm" style={border}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0"><RowTitle row={row} /></div>
+        <span className="shrink-0 text-xs text-neutral-500">Row {row.rowNumber}</span>
+      </div>
+      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+        <dt className="text-neutral-500">Quantity</dt><dd>{quantityText(l.quantity, l.quantityUnit)}</dd>
+        <dt className="text-neutral-500">Min. order</dt><dd>{quantityText(l.minimumOrderQuantity, l.quantityUnit)}</dd>
+        <dt className="text-neutral-500">Price</dt><dd>{money(l.pricePerUnit, l.currencyCode)}</dd>
+        <dt className="text-neutral-500">Facility</dt><dd>{l.locationName ?? "—"}</dd>
+      </dl>
+      <div className="mt-2"><RowCheck row={row} /></div>
+    </li>
   );
 }
 
@@ -389,11 +433,11 @@ function ImportedListings({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" size="sm" className="rounded-full px-4 py-2" style={border} onClick={onStartOver}>
+          <Button type="button" variant="secondary" size="sm" className="rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40" style={border} onClick={onStartOver}>
             <FileSpreadsheet className="size-4" aria-hidden /> Import another file
           </Button>
           <Link href={listingsHref}>
-            <Button type="button" variant="secondary" size="sm" className="rounded-full px-4 py-2" style={border}>Go to listings</Button>
+            <Button type="button" variant="secondary" size="sm" className="rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40" style={border}>Go to listings</Button>
           </Link>
         </div>
       </div>
@@ -519,11 +563,11 @@ function ImportedTable({
               if (files.length) void uploadMany(files);
             }}
           />
-          <Button type="button" variant="secondary" size="sm" className="rounded-full bg-white px-4 py-2" style={border} disabled={busy !== null || progress.addSds === 0} aria-busy={busy === "sds-bulk"} onClick={() => bulkInput.current?.click()}>
+          <Button type="button" variant="secondary" size="sm" className="rounded-full bg-white px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40" style={border} disabled={busy !== null || progress.addSds === 0} aria-busy={busy === "sds-bulk"} onClick={() => bulkInput.current?.click()}>
             {busy === "sds-bulk" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <FileUp className="size-4" aria-hidden />}
             Upload SDS files
           </Button>
-          <Button type="button" size="sm" className="rounded-full px-4 py-2" disabled={busy !== null || ready.length === 0} aria-busy={busy === "submit-all"} onClick={() => void submit(ready)}>
+          <Button type="button" size="sm" className="rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={busy !== null || ready.length === 0} aria-busy={busy === "submit-all"} onClick={() => void submit(ready)}>
             {busy === "submit-all" && <Loader2 className="size-4 animate-spin" aria-hidden />}
             {submitVerb} all ready ({ready.length})
           </Button>
@@ -545,7 +589,38 @@ function ImportedTable({
         </div>
       )}
 
-      <div className="mt-4 overflow-x-auto">
+      <ul className="mt-4 space-y-3 sm:hidden" aria-label="Imported listings">
+        {ordered.map((listing) => {
+          const state = liveState(listing);
+          const next = importedListingNext(state);
+          return (
+            <li key={listing.id} className="rounded-xl p-3 text-sm" style={border}>
+              <div className="flex items-start justify-between gap-3">
+                <Link href={editHref(listing.id)} className="min-w-0 font-medium text-neutral-900 underline-offset-2 hover:underline">
+                  {listing.title}
+                </Link>
+                <span className="shrink-0 text-xs text-neutral-500">Row {rowNumber.get(listing.id) ?? "—"}</span>
+              </div>
+              <p className="text-xs text-neutral-500">{state.hasSds ? "SDS on file" : "No SDS yet"}</p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <span className={nextTone(next)}>{importedNextLabel(next, missingSubmissionFields(state))}</span>
+                <RowAction
+                  listing={listing}
+                  next={next}
+                  busy={busy}
+                  submitVerb={submitVerb}
+                  editHref={editHref}
+                  onSds={(file) => void uploadSds(listing, file)}
+                  onSubmit={() => void submit([listing])}
+                  inputSuffix="card"
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="mt-4 hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="text-xs uppercase tracking-wide text-neutral-500">
             <tr style={{ borderBottom: "1px solid #E0E0E0" }}>
@@ -568,7 +643,7 @@ function ImportedTable({
                     </Link>
                     <p className="text-xs text-neutral-500">{state.hasSds ? "SDS on file" : "No SDS yet"}</p>
                   </td>
-                  <td className={`py-3 pr-3 ${next === "submit" ? "text-green-800" : next === "complete-details" || next === "add-sds" ? "text-amber-900" : "text-neutral-700"}`}>
+                  <td className={`py-3 pr-3 ${nextTone(next)}`}>
                     {importedNextLabel(next, missingSubmissionFields(state))}
                   </td>
                   <td className="py-3 text-right">
@@ -592,6 +667,11 @@ function ImportedTable({
   );
 }
 
+function nextTone(next: ReturnType<typeof importedListingNext>) {
+  if (next === "submit") return "text-green-800";
+  return next === "complete-details" || next === "add-sds" ? "text-amber-900" : "text-neutral-700";
+}
+
 function RowAction({
   listing,
   next,
@@ -600,6 +680,7 @@ function RowAction({
   editHref,
   onSds,
   onSubmit,
+  inputSuffix = "row",
 }: {
   listing: BackendListing;
   next: ReturnType<typeof importedListingNext>;
@@ -608,9 +689,11 @@ function RowAction({
   editHref: (listingId: number) => string;
   onSds: (file: File) => void;
   onSubmit: () => void;
+  /** Phone cards and table rows both render; keeps their file inputs distinct. */
+  inputSuffix?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
-  const pill = "rounded-full px-3 py-1.5";
+  const pill = "rounded-full px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40";
   if (next === "complete-details")
     return (
       <Link href={editHref(listing.id)} className="text-sm font-medium text-neutral-900 underline">
@@ -626,6 +709,7 @@ function RowAction({
           accept="application/pdf"
           hidden
           aria-label={`SDS PDF for ${listing.title}`}
+          data-input={inputSuffix}
           onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = "";
