@@ -1,7 +1,7 @@
 "use client";
 
 import { apiFetch, apiFetchBlob } from "./backend-client";
-import type { ListingImportCounts, ListingImportDiagnostic, ListingImportRowStatus } from "./listing-import-format";
+import type { ListingImportPreview, ListingImportResult } from "@eco-globe/shared/listing-import-api";
 
 /*
  * Spreadsheet listing import. The server parses the .xlsx into a preview bound
@@ -10,49 +10,12 @@ import type { ListingImportCounts, ListingImportDiagnostic, ListingImportRowStat
  * replay-safe: the same idempotency key returns the stored result.
  */
 
-export interface ListingImportRowListing {
-  title: string | null;
-  materialTypeCode: string | null;
-  materialTypeLabel: string | null;
-  quantity: number | null;
-  quantityUnit: string | null;
-  minimumOrderQuantity: number | null;
-  pricePerUnit: number | null;
-  currencyCode: string | null;
-  locationId: number | null;
-  locationName: string | null;
-  description: string | null;
-  carbonIntensityKgCo2e: number | null;
-  availabilityFrom: string | null;
-  availabilityTo: string | null;
-}
-
-export interface ListingImportPreviewRow {
-  rowNumber: number;
-  status: ListingImportRowStatus;
-  listing: ListingImportRowListing;
-  diagnostics: ListingImportDiagnostic[];
-}
-
-export interface ListingImportResult {
-  importId: string;
-  sellerCompanyId: number;
-  committedAt: string;
-  created: Array<{ rowNumber: number; listingId: number; slug: string; title: string }>;
-}
-
-export interface ListingImportPreview {
-  previewId: string;
-  sellerCompanyId: number;
-  sellerCompanyName: string;
-  fileSha256: string;
-  createdAt: string;
-  expiresAt: string;
-  committed: boolean;
-  result: ListingImportResult | null;
-  counts: ListingImportCounts;
-  rows: ListingImportPreviewRow[];
-}
+export type {
+  ListingImportListing as ListingImportRowListing,
+  ListingImportPreview,
+  ListingImportResult,
+  ListingImportRow as ListingImportPreviewRow,
+} from "@eco-globe/shared/listing-import-api";
 
 const BASE = "/api/listing-imports";
 const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
