@@ -1,6 +1,6 @@
 # Bulk listing import from a spreadsheet — 2026-10-28
 
-Status: built, reviewed and browser-tested against an isolated local SQL runtime. Not yet migrated, deployed or pushed.
+Status: released to [development](https://eco-globe-dev-web.vercel.app) on 2026-10-28 (dev database migrated, API and web deployed, branch pushed).
 
 ## What it does
 
@@ -33,6 +33,7 @@ Additive migration `packages/backend/db/migrations/20261028_listing_imports.sql`
 - `16e5330`, `05aeaa7`, `9dd55c1`, `eea3b2a`, `3d3b837`, `1bb3e62`, `2e98899` — frontend (Claude)
 - `b099379` (= Codex `0743106`), `2e6f12d` (= `adc9a39`) — backend (Codex)
 - `8bb2c16` — parser slot reservation and pending-preview index (Claude, from backend review)
+- `f93bab8` — Dockerfile copies `listing-import-api.d.ts` (found by the first image build; no local check builds the image)
 
 ## Reviews
 
@@ -54,8 +55,15 @@ Additive migration `packages/backend/db/migrations/20261028_listing_imports.sql`
 
 Seller (GulfStar Chemicals): template download; error workbook showed three blocking rows and disabled import; valid workbook (thousands separators, `$`, `t`, case-insensitive facility) imported five drafts; bulk SDS matched two files and refused an ambiguous and an unknown name; per-row SDS; **Submit for review all ready** moved three listings to pending review; reload resumed the import. Admin: picked the seller, imported, uploaded an SDS and published; Complete details refused a missing price, then saved price, currency and facility (read back from the API); a foreign or expired preview offered **Start a new import**; a draft typed at 1280 px survived resizing to 390 px; row actions locked while saving; with an SDS upload's response held back, Save on another listing's form stayed disabled, a forced click was refused without sending a request, and Save re-enabled once the upload finished. 390 px: card layout, no horizontal overflow. API: same-key replay returns the stored result, a different key 409, four concurrent previews by one user → one 201 and three 429; existing listings kept after the local migration.
 
+## Release
+
+- **Dev database** (`sqldb-ecoglobe-dev`): applied only `20261028_listing_imports.sql` with `sqlcmd`. Before: 117 `dbo` tables, 41 listings, no import table. After: 118 tables, 41 listings, `dbo.ListingImportPreviews` with `IX_ListingImportPreviews_OwnerExpiry` and `IX_ListingImportPreviews_PendingExpiry`, record type `listing_import`. Nothing reset.
+- **API**: ACR build `ca1h` (`ca1g` failed on the missing Dockerfile copy, fixed in `f93bab8`), image `acrecoglobe7c180adf.azurecr.io/ecoglobe-backend:listing-import-f93bab8`, digest `sha256:a8d06acd700916e592affc683ba82f1f48fb82121e7d284756779e80a19d9e40`; revision `ecoglobe-backend-dev--import-f93bab8` Healthy, 100% traffic; `/health` reports SQL connected.
+- **Web**: branch `codex/deploy-ecoglobe-backend` pushed `45630b8..f93bab8`; clean `git archive` of `f93bab8` deployed to `eco-globe-dev-web` production target `dpl_G6FBKzeDMsAktAZpDS3MXQ1hb3LM`, Ready, aliased to `eco-globe-dev-web.vercel.app`. `/seller/listings/import` and `/admin/listings/import` return 200; the proxied health is connected; unauthenticated import routes return 401.
+- **Live check** (dev seller account, Greenfield Biomass LLC): template downloaded with the company's facility; a two-row preview returned one ready row and one error row (unknown material, minimum order above quantity). Not committed; no listings were created. The test session was signed out.
+- The separate `eco-globe-dev-admin` Vercel project was not redeployed; the admin import page is live in the web app at `/admin/listings/import`.
+
 ## Open
 
-- Apply the migration to the development database, deploy the API and the web app (awaiting approval).
 - Not tested in desktop Excel, LibreOffice or Google Sheets.
 - Limits are per API process.
