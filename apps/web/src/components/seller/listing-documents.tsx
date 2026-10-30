@@ -104,7 +104,8 @@ export function DocumentRow({
 
 /**
  * Upload, list and remove one type of listing document against a saved listing.
- * Requires the listing to exist on the backend first.
+ * Requires the listing to exist on the backend first. `onMutationStart` fires before an
+ * upload or delete request begins and `onMutationSettled` once it finishes, success or not.
  */
 export function ListingDocumentUploader({
   listingId,
@@ -116,6 +117,8 @@ export function ListingDocumentUploader({
   title,
   hint,
   required,
+  onMutationStart,
+  onMutationSettled,
 }: {
   listingId: number | null;
   ensureListing?: () => Promise<number>;
@@ -126,6 +129,8 @@ export function ListingDocumentUploader({
   title?: string;
   hint?: string;
   required?: boolean;
+  onMutationStart?: () => void;
+  onMutationSettled?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -137,6 +142,7 @@ export function ListingDocumentUploader({
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const selectedFiles = Array.from(files);
+    onMutationStart?.();
     setBusy(true);
     setError("");
     const uploaded: ListingDocument[] = [];
@@ -162,10 +168,12 @@ export function ListingDocumentUploader({
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
+      onMutationSettled?.();
     }
   };
 
   const handleDelete = async (doc: ListingDocument) => {
+    onMutationStart?.();
     setBusy(true);
     setError("");
     try {
@@ -175,6 +183,7 @@ export function ListingDocumentUploader({
       setError(describeBackendError(err, "The document could not be removed."));
     } finally {
       setBusy(false);
+      onMutationSettled?.();
     }
   };
 

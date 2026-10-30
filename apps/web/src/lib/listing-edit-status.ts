@@ -82,7 +82,7 @@ export function reconcileServerStatus({
 
 /**
  * - `idle`: the baseline matches the last confirmed server status, so Save may run.
- * - `pending`: a document change is being re-read; Save is blocked until it confirms.
+ * - `pending`: a document change is in flight or being re-read; Save is blocked until it confirms.
  * - `failed`: the newest re-read failed; Save stays blocked until a retry confirms.
  */
 export type StatusSync = "idle" | "pending" | "failed";
@@ -101,8 +101,10 @@ export type StatusSaveDecision =
 /**
  * Keeps the editor's status baseline in step with server-side status moves caused by
  * document changes. Every change bumps a generation; only the newest generation's re-read
- * can settle the sync state, so an older response resolving late is ignored. Save is only
- * decided against a confirmed baseline.
+ * can settle the sync state, so an older response resolving late is ignored. A document
+ * mutation blocks Save from the moment its request starts (`beginMutation`) until the
+ * re-read that follows it (`endMutation`) confirms, whether the mutation succeeded or not.
+ * Save is only decided against a confirmed baseline.
  */
 export function createListingStatusSync({
   initialStatus,
@@ -122,6 +124,8 @@ export function createListingStatusSync({
 }) {
   let state: ListingStatusState = { serverStatus: initialStatus, selected: initialStatus, notice: null, sync: "idle" };
   let generation = 0;
+  // Document mutations whose requests have not finished; no re-read settles while any remain.
+  let inFlight = 0;
   const set = (next: ListingStatusState) => {
     state = next;
     onChange?.(state);
@@ -137,7 +141,7 @@ export function createListingStatusSync({
     } catch {
       nextServer = null;
     }
-    if (request !== generation) return;
+    if (request !== generation || inFlight > 0) return;
     if (!nextServer) {
       set({ ...state, sync: "failed" });
       return;
@@ -152,6 +156,19 @@ export function createListingStatusSync({
     });
     // An unchanged status keeps any earlier explanation (e.g. the move to Draft).
     set({ ...result, notice: result.notice ?? state.notice, sync: "idle" });
+  };
+
+  /** A document upload or delete request is starting; Save stays blocked until it settles and re-reads. */
+  const beginMutation = () => {
+    inFlight += 1;
+    generation += 1;
+    set({ ...state, sync: "pending" });
+  };
+
+  /** The mutation request finished (successfully or not); re-read the status it may have moved. */
+  const endMutation = () => {
+    inFlight = Math.max(0, inFlight - 1);
+    return refresh();
   };
 
   /** Pick a status; ignored until the baseline is confirmed (the radios are disabled then). */
@@ -170,5 +187,5 @@ export function createListingStatusSync({
     };
   };
 
-  return { getState: () => state, refresh, select, decideSave };
+  return { getState: () => state, refresh, beginMutation, endMutation, select, decideSave };
 }

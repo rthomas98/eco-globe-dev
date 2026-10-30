@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type SetStateAction } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, FileText } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";
@@ -81,8 +81,8 @@ export function ListingEditForm({
   const [documents, setDocuments] = useState<ListingDocument[]>(record.documents ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  // Document uploads and removals can change the listing status server-side; the sync re-reads
-  // it after each change and blocks Save until the newest re-read confirms the baseline.
+  // Document uploads and removals can change the listing status server-side; the sync blocks
+  // Save from the start of each request until the re-read after it confirms the baseline.
   const [statusState, setStatusState] = useState<ListingStatusState | null>(null);
   const [statusSync] = useState(() =>
     createListingStatusSync({
@@ -110,9 +110,12 @@ export function ListingEditForm({
   const setField = <K extends keyof ListingForm>(k: K, v: ListingForm[K]) => setForm((prev) => ({ ...prev, [k]: v }));
 
   // Unsaved form fields are left untouched; only the status baseline is re-read.
-  const handleDocumentsChange = (action: SetStateAction<ListingDocument[]>) => {
-    setDocuments(action);
-    void statusSync.refresh();
+  const documentUploaderProps = {
+    listingId: record.id,
+    documents,
+    onChange: setDocuments,
+    onMutationStart: statusSync.beginMutation,
+    onMutationSettled: () => void statusSync.endMutation(),
   };
   const toggleClaim = (c: string) => setField("claims", form.claims.includes(c) ? form.claims.filter((x) => x !== c) : [...form.claims, c]);
 
@@ -230,7 +233,7 @@ export function ListingEditForm({
             <section id="sds" className="scroll-mt-6 rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-neutral-900"><FileText className="size-5" />Safety Data Sheet (SDS)</h2>
               <p className="mb-4 text-xs text-neutral-600">Required before the listing can be submitted for review or purchased.</p>
-              <ListingDocumentUploader listingId={record.id} typeCode="sds" documents={documents} onChange={handleDocumentsChange} multiple={false} required />
+              <ListingDocumentUploader {...documentUploaderProps} typeCode="sds" multiple={false} required />
             </section>
 
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
@@ -251,7 +254,7 @@ export function ListingEditForm({
                 </ul>
               )}
               {form.claims.includes("Others") && <div className="mt-3"><Input label="Describe the other claim" id="other-claim" value={form.otherClaim} onChange={(e) => setField("otherClaim", e.target.value)} /></div>}
-              <div className="mt-4"><ListingDocumentUploader listingId={record.id} typeCode="certification" documents={documents} onChange={handleDocumentsChange} title="Certifications" /></div>
+              <div className="mt-4"><ListingDocumentUploader {...documentUploaderProps} typeCode="certification" title="Certifications" /></div>
               <div className="mt-4">
                 <label htmlFor="sustain-notes" className="mb-1.5 block text-sm font-medium text-neutral-900">Sustainability notes</label>
                 <textarea id="sustain-notes" rows={3} value={form.sustainNotes} onChange={(e) => setField("sustainNotes", e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none" style={{ border: "1px solid #E0E0E0" }} />
@@ -262,14 +265,14 @@ export function ListingEditForm({
               <h2 className="mb-2 text-lg font-semibold text-neutral-900">Technical documents</h2>
               <p className="mb-4 text-xs text-neutral-600">Optional TDS and COA files buyers can download from the product page.</p>
               <div className="flex flex-col gap-4">
-                <ListingDocumentUploader listingId={record.id} typeCode="tds" documents={documents} onChange={handleDocumentsChange} multiple={false} title="Technical Data Sheet (TDS)" />
-                <ListingDocumentUploader listingId={record.id} typeCode="coa" documents={documents} onChange={handleDocumentsChange} multiple={false} title="Certificate of Analysis (COA)" />
+                <ListingDocumentUploader {...documentUploaderProps} typeCode="tds" multiple={false} title="Technical Data Sheet (TDS)" />
+                <ListingDocumentUploader {...documentUploaderProps} typeCode="coa" multiple={false} title="Certificate of Analysis (COA)" />
               </div>
             </section>
 
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-5 text-lg font-semibold text-neutral-900">Photos</h2>
-              <ListingDocumentUploader listingId={record.id} typeCode="photo" documents={documents} onChange={handleDocumentsChange} />
+              <ListingDocumentUploader {...documentUploaderProps} typeCode="photo" />
             </section>
           </div>
 
