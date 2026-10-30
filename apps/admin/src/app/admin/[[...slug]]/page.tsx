@@ -159,7 +159,7 @@ export default async function Page({ params }: PageProps) {
     return second ? <AdminSaleDetailPage id={second} /> : <SalesPage />;
   }
   if (section === "listings") {
-    if (second === "import") return <AdminListingImportPage />;
+    if (second === "import") return third ? notFound() : <AdminListingImportPage />;
     // "new" is a reserved segment, never a listing id.
     if (second === "new") return third ? notFound() : <AdminListingCreatePage />;
     if (second && third === "edit" && !slug[3]) return <AdminListingEditPage id={second} />;

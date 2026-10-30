@@ -106,6 +106,7 @@ export function AdminListingEditPage({ id }: { id: string }) {
         statusChoices={ADMIN_STATUS_CHOICES}
         writableStatuses={ADMIN_WRITABLE_STATUSES}
         submissionStatuses={ADMIN_SUBMISSION_STATUSES}
+        submissionValidation="always"
         statusHelp="Admins may publish directly. Publishing or submitting requires an SDS on file and complete pricing, supply and location."
         className=""
       />

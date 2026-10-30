@@ -203,7 +203,7 @@ export function ListingDocumentUploader({
       )}
       {canAdd && (
         <label
-          className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-white py-3 text-sm font-medium text-neutral-900 ${
+          className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-white py-3 text-sm font-medium text-neutral-900 focus-within:ring-2 focus-within:ring-neutral-900 focus-within:ring-offset-2 ${
             listingId === null && !ensureListing ? "opacity-60" : ""
           }`}
           style={{ border: "1px dashed #D0D0D0" }}
@@ -215,7 +215,8 @@ export function ListingDocumentUploader({
             type="file"
             accept={accept}
             multiple={multiple}
-            className="hidden"
+            aria-label={`Upload ${TYPE_LABEL[typeCode]}`}
+            className="sr-only"
             disabled={busy}
             onChange={(e) => void handleFiles(e.target.files)}
           />

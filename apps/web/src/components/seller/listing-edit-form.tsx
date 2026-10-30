@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type SetStateAction } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, FileText } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";
 import { describeBackendError } from "@/lib/backend-client";
-import { updateListing, type BackendListing, type ListingDocument, type ListingStatusCode } from "@/lib/listings-api";
+import { fetchListing, updateListing, type BackendListing, type ListingDocument, type ListingStatusCode } from "@/lib/listings-api";
 import { describeUnit, parseOptionalNumber } from "@/lib/listing-format";
+import {
+  reconcileServerStatus,
+  requiresSubmissionValidation,
+  statusToWrite,
+  type SubmissionValidationPolicy,
+} from "@/lib/listing-edit-status";
 import {
   DEMO_LISTING_SUBMIT_BLOCKED,
   DEMO_PRICE_ESTIMATE_LABEL,
@@ -47,6 +53,8 @@ export interface ListingEditFormProps {
   writableStatuses: readonly ListingStatusCode[];
   /** Moving into one of these statuses runs the full submission checks (including the SDS). */
   submissionStatuses: readonly ListingStatusCode[];
+  /** When the submission checks run; defaults to only on a move into a submission status. */
+  submissionValidation?: SubmissionValidationPolicy;
   statusHelp: string;
   /** Header back link; omit when the surrounding page already provides one. */
   backLink?: { href: string; label: string };
@@ -63,6 +71,7 @@ export function ListingEditForm({
   statusChoices,
   writableStatuses,
   submissionStatuses,
+  submissionValidation = "on-change",
   statusHelp,
   backLink,
   title,
@@ -72,7 +81,10 @@ export function ListingEditForm({
   const [documents, setDocuments] = useState<ListingDocument[]>(record.documents ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [status, setStatus] = useState<string>(record.listingStatusCode);
+  // serverStatus is the last status the backend reported; document changes can move it.
+  const [statusState, setStatusState] = useState({ serverStatus: record.listingStatusCode as string, selected: record.listingStatusCode as string, notice: null as string | null });
+  const { serverStatus, selected: status, notice: statusNotice } = statusState;
+  const statusRefresh = useRef(0);
   // Owned listings are never teasers, so the seller company id is always present.
   const sellerCompanyId = record.sellerCompanyId ?? undefined;
   const locations = useCompanyLocations(sellerCompanyId);
@@ -85,6 +97,34 @@ export function ListingEditForm({
   useEffect(() => { if (window.location.hash === "#sds") document.getElementById("sds")?.scrollIntoView({ block: "start" }); }, []);
 
   const setField = <K extends keyof ListingForm>(k: K, v: ListingForm[K]) => setForm((prev) => ({ ...prev, [k]: v }));
+  const setStatus = (value: string) => setStatusState((prev) => ({ ...prev, selected: value, notice: null }));
+
+  // Document uploads and removals can change the listing status server-side, so re-read it
+  // after each change and reconcile; unsaved form fields are left untouched.
+  const refreshServerStatus = async () => {
+    const request = ++statusRefresh.current;
+    try {
+      const latest = await fetchListing(String(record.id), "owned");
+      if (!latest || request !== statusRefresh.current) return;
+      setStatusState((prev) =>
+        reconcileServerStatus({
+          previousServer: prev.serverStatus,
+          nextServer: latest.listingStatusCode,
+          selected: prev.selected,
+          choices: statusChoices,
+          writableStatuses,
+          submissionStatuses,
+        }),
+      );
+    } catch {
+      if (request !== statusRefresh.current) return;
+      setStatusState((prev) => ({ ...prev, notice: "Could not confirm the listing status after the document change. Reload the page before changing the status." }));
+    }
+  };
+  const handleDocumentsChange = (action: SetStateAction<ListingDocument[]>) => {
+    setDocuments(action);
+    void refreshServerStatus();
+  };
   const toggleClaim = (c: string) => setField("claims", form.claims.includes(c) ? form.claims.filter((x) => x !== c) : [...form.claims, c]);
 
   const handleSave = async () => {
@@ -92,7 +132,7 @@ export function ListingEditForm({
       setError(`${DEMO_LISTING_SUBMIT_BLOCKED} Choose Draft to save your edits.`);
       return;
     }
-    const submitting = status !== record.listingStatusCode && submissionStatuses.includes(status as ListingStatusCode);
+    const submitting = requiresSubmissionValidation({ target: status, serverStatus, submissionStatuses, policy: submissionValidation });
     const issues = submitting ? validateForSubmission(form, hasSds) : validateDraft(form);
     if (issues.length > 0) {
       setError(issues.map((i) => i.message).join(" "));
@@ -101,10 +141,7 @@ export function ListingEditForm({
     setSaving(true);
     setError("");
     try {
-      const nextStatus =
-        status !== record.listingStatusCode && writableStatuses.includes(status as ListingStatusCode)
-          ? (status as ListingStatusCode)
-          : undefined;
+      const nextStatus = statusToWrite({ target: status, serverStatus, writableStatuses }) as ListingStatusCode | undefined;
       const body = formToWriteBody(form, { listingStatusCode: nextStatus });
       onSaved(await updateListing(record.id, body));
     } catch (err) {
@@ -189,8 +226,8 @@ export function ListingEditForm({
                 <div className="flex flex-col gap-2">
                   {form.additionalSpecs.map((spec, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <input type="text" placeholder="Label" value={spec.label} onChange={(e) => setField("additionalSpecs", form.additionalSpecs.map((s, idx) => (idx === i ? { ...s, label: e.target.value } : s)))} className="flex-1 rounded-lg px-3 py-2 text-sm outline-none" style={{ border: "1px solid #E0E0E0" }} />
-                      <input type="text" placeholder="Value" value={spec.value} onChange={(e) => setField("additionalSpecs", form.additionalSpecs.map((s, idx) => (idx === i ? { ...s, value: e.target.value } : s)))} className="flex-1 rounded-lg px-3 py-2 text-sm outline-none" style={{ border: "1px solid #E0E0E0" }} />
+                      <input type="text" placeholder="Label" aria-label={`Spec ${i + 1} label`} value={spec.label} onChange={(e) => setField("additionalSpecs", form.additionalSpecs.map((s, idx) => (idx === i ? { ...s, label: e.target.value } : s)))} className="flex-1 rounded-lg px-3 py-2 text-sm outline-none" style={{ border: "1px solid #E0E0E0" }} />
+                      <input type="text" placeholder="Value" aria-label={`Spec ${i + 1} value`} value={spec.value} onChange={(e) => setField("additionalSpecs", form.additionalSpecs.map((s, idx) => (idx === i ? { ...s, value: e.target.value } : s)))} className="flex-1 rounded-lg px-3 py-2 text-sm outline-none" style={{ border: "1px solid #E0E0E0" }} />
                       <button type="button" aria-label="Remove spec" onClick={() => setField("additionalSpecs", form.additionalSpecs.filter((_, idx) => idx !== i))} className="flex size-9 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100"><Trash2 className="size-4" /></button>
                     </div>
                   ))}
@@ -202,7 +239,7 @@ export function ListingEditForm({
             <section id="sds" className="scroll-mt-6 rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-neutral-900"><FileText className="size-5" />Safety Data Sheet (SDS)</h2>
               <p className="mb-4 text-xs text-neutral-600">Required before the listing can be submitted for review or purchased.</p>
-              <ListingDocumentUploader listingId={record.id} typeCode="sds" documents={documents} onChange={setDocuments} multiple={false} required />
+              <ListingDocumentUploader listingId={record.id} typeCode="sds" documents={documents} onChange={handleDocumentsChange} multiple={false} required />
             </section>
 
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
@@ -223,7 +260,7 @@ export function ListingEditForm({
                 </ul>
               )}
               {form.claims.includes("Others") && <div className="mt-3"><Input label="Describe the other claim" id="other-claim" value={form.otherClaim} onChange={(e) => setField("otherClaim", e.target.value)} /></div>}
-              <div className="mt-4"><ListingDocumentUploader listingId={record.id} typeCode="certification" documents={documents} onChange={setDocuments} title="Certifications" /></div>
+              <div className="mt-4"><ListingDocumentUploader listingId={record.id} typeCode="certification" documents={documents} onChange={handleDocumentsChange} title="Certifications" /></div>
               <div className="mt-4">
                 <label htmlFor="sustain-notes" className="mb-1.5 block text-sm font-medium text-neutral-900">Sustainability notes</label>
                 <textarea id="sustain-notes" rows={3} value={form.sustainNotes} onChange={(e) => setField("sustainNotes", e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none" style={{ border: "1px solid #E0E0E0" }} />
@@ -234,14 +271,14 @@ export function ListingEditForm({
               <h2 className="mb-2 text-lg font-semibold text-neutral-900">Technical documents</h2>
               <p className="mb-4 text-xs text-neutral-600">Optional TDS and COA files buyers can download from the product page.</p>
               <div className="flex flex-col gap-4">
-                <ListingDocumentUploader listingId={record.id} typeCode="tds" documents={documents} onChange={setDocuments} multiple={false} title="Technical Data Sheet (TDS)" />
-                <ListingDocumentUploader listingId={record.id} typeCode="coa" documents={documents} onChange={setDocuments} multiple={false} title="Certificate of Analysis (COA)" />
+                <ListingDocumentUploader listingId={record.id} typeCode="tds" documents={documents} onChange={handleDocumentsChange} multiple={false} title="Technical Data Sheet (TDS)" />
+                <ListingDocumentUploader listingId={record.id} typeCode="coa" documents={documents} onChange={handleDocumentsChange} multiple={false} title="Certificate of Analysis (COA)" />
               </div>
             </section>
 
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-5 text-lg font-semibold text-neutral-900">Photos</h2>
-              <ListingDocumentUploader listingId={record.id} typeCode="photo" documents={documents} onChange={setDocuments} />
+              <ListingDocumentUploader listingId={record.id} typeCode="photo" documents={documents} onChange={handleDocumentsChange} />
             </section>
           </div>
 
@@ -256,6 +293,7 @@ export function ListingEditForm({
                   </label>
                 ))}
               </div>
+              {statusNotice && <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">{statusNotice}</p>}
               <p className="mt-3 text-xs text-neutral-500">{statusHelp}</p>
               {demo.marker && <p className="mt-2 text-xs text-amber-800" role="status">{DEMO_LISTING_SUBMIT_BLOCKED} Drafts can still be saved.</p>}
             </section>
