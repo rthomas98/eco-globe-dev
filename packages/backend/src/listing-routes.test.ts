@@ -147,6 +147,25 @@ test("facility validation preserves full address and clears stale coordinates wh
     assert.throws(() => validateLocationFields(patch, true), ApiError);
 });
 
+test("deleting an already-deleted document returns 404 without starting a transaction", async (t) => {
+  const pool = new sql.ConnectionPool("Server=127.0.0.1;Database=synthetic");
+  t.mock.method(sql, "connect", async () => pool);
+  t.mock.method(sql.ConnectionPool.prototype, "request", () => new sql.Request());
+  const begin = t.mock.method(sql.Transaction.prototype, "begin", async () => undefined);
+  t.mock.method(sql.Request.prototype, "query", async (statement: string) => {
+    assert.match(statement, /FROM dbo.ListingDocuments WHERE Id=@id AND DeletedAt IS NULL$/);
+    return { recordset: [] };
+  });
+  const request = Readable.from([]) as IncomingMessage;
+  request.method = "DELETE";
+  request.headers = { authorization: "Bearer synthetic" };
+  await assert.rejects(
+    handleListingRoute(request, {} as import("node:http").ServerResponse, new URL("http://local/api/listing-documents/42")),
+    (error: unknown) => error instanceof ApiError && error.status === 404,
+  );
+  assert.equal(begin.mock.callCount(), 0);
+});
+
 // These handler tests assert emitted SQL/parameters, not SQL Server CASE execution.
 for (const scenario of [
   { name: "admin upload keeps published", admin: true, method: "POST", before: "published", after: "published" },
@@ -166,11 +185,11 @@ for (const scenario of [
     const pool = new sql.ConnectionPool("Server=127.0.0.1;Database=synthetic");
     t.mock.method(sql, "connect", async () => pool);
     t.mock.method(sql.ConnectionPool.prototype, "request", () => new sql.Request());
-    t.mock.method(sql.Transaction.prototype, "request", () => new sql.Request());
+    const transactionRequest = t.mock.method(sql.Transaction.prototype, "request", () => new sql.Request());
     t.mock.method(sql.Transaction.prototype, "begin", async () => undefined);
     const commit = t.mock.method(sql.Transaction.prototype, "commit", async () => undefined);
     t.mock.method(sql.Transaction.prototype, "rollback", async () => undefined);
-    let mutated = false, inserted = false, deleted = false, updates = 0, alerts = 0;
+    let mutated = false, inserted = false, deleted = false, updates = 0, alerts = 0, locked = false;
     t.mock.method(sql.Request.prototype, "query", async function (this: sql.Request, statement: string) {
       const p = (key: string) => this.parameters[key]?.value;
       let rows: Record<string, unknown>[] = [];
@@ -180,17 +199,27 @@ for (const scenario of [
         // Session activity is synthetic too.
       } else if (statement.includes("FROM dbo.CompanyMembers cm")) {
         rows = [{ id: 2, companyTypeCode: "seller", memberRoleCode: scenario.admin ? "admin" : "owner", permissionTierCode: scenario.admin ? "admin_override" : "standard" }];
+      } else if (statement === "SELECT Id FROM dbo.Listings WITH (UPDLOCK, HOLDLOCK) WHERE Id=@id") {
+        assert.equal(transactionRequest.mock.callCount(), 1, "parent lock is the first transaction statement");
+        assert.equal(p("id"), 11);
+        assert.equal(locked, false);
+        locked = true;
+        rows = [{ Id: 11 }];
       } else if (statement.startsWith("SELECT l.Id")) {
+        if (transactionRequest.mock.callCount()) assert.ok(locked, "status read follows parent lock");
         rows = [{ id: 11, sellerCompanyId: 2, listingStatusCode: mutated ? scenario.after : scenario.before }];
       } else if (statement.startsWith("SELECT ListingId AS listingId")) {
+        assert.match(statement, /WHERE Id=@id AND DeletedAt IS NULL$/);
         rows = [{ listingId: 11, documentTypeCode: scenario.type }];
       } else if (statement.startsWith("INSERT dbo.ListingDocuments")) {
+        assert.ok(locked);
         assert.match(statement, /Code='pending_verification'/);
         assert.equal(p("type"), "sds");
         assert.equal(p("listingId"), 11);
         inserted = true;
         rows = [{ id: 42 }];
       } else if (statement.startsWith("UPDATE dbo.ListingDocuments")) {
+        assert.ok(locked);
         assert.equal(p("id"), 42);
         deleted = true;
       } else if (statement.startsWith("UPDATE dbo.Listings")) {
@@ -236,6 +265,7 @@ for (const scenario of [
     await handleListingRoute(req, response, new URL(`http://local/api/listing-documents${scenario.method === "DELETE" ? "/42" : ""}`));
     assert.equal(status, scenario.method === "POST" ? 201 : 200);
     assert.equal(updates, 1);
+    assert.ok(locked);
     assert.equal(commit.mock.callCount(), 1);
     assert.equal(alerts, scenario.before !== "pending_review" && scenario.after === "pending_review" ? 1 : 0);
   });

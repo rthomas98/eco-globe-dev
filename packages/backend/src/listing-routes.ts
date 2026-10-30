@@ -393,6 +393,10 @@ async function upload(request: IncomingMessage, response: ServerResponse) {
   await seller(auth, id(listing.sellerCompanyId));
   const file = validateUpload(body);
   const rows = await runInTransaction(async (tx) => {
+    // Serialize document writers before reading status, including under RCSI.
+    await queryRowsWithParamsInTransaction(tx,
+      "SELECT Id FROM dbo.Listings WITH (UPDLOCK, HOLDLOCK) WHERE Id=@id",
+      [int("id", listingId)]);
     const before = await readListing(String(listingId), auth, tx);
     const rows = await queryRowsWithParamsInTransaction(
       tx,
@@ -598,6 +602,10 @@ export async function handleListingRoute(
           listing = await readListing(String(doc.listingId), auth);
         await seller(auth, id(listing.sellerCompanyId));
         await runInTransaction(async (tx) => {
+          // The last-SDS check must observe earlier document writers' commits.
+          await queryRowsWithParamsInTransaction(tx,
+            "SELECT Id FROM dbo.Listings WITH (UPDLOCK, HOLDLOCK) WHERE Id=@id",
+            [int("id", doc.listingId)]);
           const before = await readListing(String(doc.listingId), auth, tx);
           await queryRowsWithParamsInTransaction(
             tx,
