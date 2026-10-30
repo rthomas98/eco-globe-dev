@@ -233,7 +233,7 @@ export function ListingEditForm({
                 <Input label="Usage" id="usage" value={form.usage} onChange={(e) => setField("usage", e.target.value)} />
                 <Input label="Place of origin" id="origin" value={form.origin} onChange={(e) => setField("origin", e.target.value)} />
               </div>
-              <div id="additional-specs" tabIndex={-1} className="mt-4 scroll-mt-6 outline-none">
+              <div id="additional-specs" tabIndex={-1} className="mt-4 scroll-mt-6 outline-none focus-visible:ring-2 focus-visible:ring-neutral-900">
                 <p className="mb-2 text-sm font-medium text-neutral-900">Additional specs</p>
                 <div className="flex flex-col gap-2">
                   {form.additionalSpecs.map((spec, i) => (
@@ -248,7 +248,7 @@ export function ListingEditForm({
               </div>
             </section>
 
-            <section id="sds" className="scroll-mt-6 rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
+            <section id="sds" tabIndex={-1} className="scroll-mt-6 rounded-xl bg-white p-6 outline-none focus-visible:ring-2 focus-visible:ring-neutral-900" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-neutral-900"><FileText className="size-5" />Safety Data Sheet (SDS)</h2>
               <p className="mb-4 text-xs text-neutral-600">Required before the listing can be submitted for review or purchased.</p>
               <ListingDocumentUploader {...documentUploaderProps} typeCode="sds" multiple={false} required />
@@ -316,7 +316,7 @@ export function ListingEditForm({
               <p className="mt-3 text-xs text-neutral-500">{statusHelp}</p>
               {demo.marker && <p className="mt-2 text-xs text-amber-800" role="status">{DEMO_LISTING_SUBMIT_BLOCKED} Drafts can still be saved.</p>}
             </section>
-            <section id="ships-from" tabIndex={-1} className="scroll-mt-6 rounded-xl bg-white p-6 outline-none" style={{ border: "1px solid #F0F0F0" }}>
+            <section id="ships-from" tabIndex={-1} className="scroll-mt-6 rounded-xl bg-white p-6 outline-none focus-visible:ring-2 focus-visible:ring-neutral-900" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-4 text-lg font-semibold text-neutral-900">Ships from</h2>
               <ListingLocationPicker companyId={sellerCompanyId} value={form.locationId} onChange={(id) => setField("locationId", id)} locations={locations} />
             </section>
