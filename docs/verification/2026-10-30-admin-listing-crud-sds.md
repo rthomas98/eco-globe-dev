@@ -77,3 +77,23 @@ Two checks did not run: `pnpm orca:verify` and executed-SQL smoke checks in the 
 - The "Ships from" picker still says "your company" when an admin uses it.
 - The listings table loads every listing on the client, with no server paging, and search runs only over the loaded rows.
 - LS-98 remains on development as a closed test listing.
+
+## Follow-up: edit from the moderation queue
+
+- Commit `c3ac9af` adds two links to each `/admin/moderation` card. **Edit** opens `/admin/listings/LS-{id}/edit`. The SDS line reads "SDS on file · Manage" or "No SDS · Add SDS" and opens the same page at `#sds`. `ApiAdminListing` gains an optional `documents` field.
+- **Review:** Codex approved with no findings.
+- **Checks** on identical tree `9ca1e9a3`:
+
+  | Check | Result |
+  | --- | --- |
+  | Web and admin type-checks | Pass |
+  | ESLint | 0 errors; 1 `<img>` warning that predates this change |
+  | Web library tests | 400/400 |
+  | Web and admin builds | Pass |
+
+- **Deployed:** web `dpl_3mDY5oMMZy3coTiBeoiwUAdMM8xi` and admin `dpl_7zBcuCPjPievoR6WThKdkQHS2ohX`, both Ready on the production target. The API is unchanged.
+- **Live as demo admin:**
+  - The Pending queue shows LS-31 (CO2) with "SDS on file · Manage", Review and Edit.
+  - Under All, there are 96 Edit links, 78 cards with an SDS on file and 18 without.
+  - Edit opened the LS-31 editor naming the seller. Nothing was saved.
+- **Note:** a browser that still had the app's saved sign-in state after the server session ended showed every card as "No SDS". The API correctly treated it as anonymous and returned no documents. Signing in again fixed it. The admin app's client-side session check can disagree with the server session; that is outside this change.
