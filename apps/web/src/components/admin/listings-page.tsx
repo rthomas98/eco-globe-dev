@@ -1,20 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { LiveProductsReport } from "@/components/reports/live-reports";
+import { AdminListingsTable } from "./admin-listings-table";
 
-/** Admin listings: every listing with its recorded order activity. */
+/** Admin listings: every listing in every status, with its order activity and lifecycle actions. */
 export function AdminListingsPage() {
-  return (
-    <LiveProductsReport
-      scope={{ kind: "admin" }}
-      title="Listings"
-      rowHref={(listing) => `/admin/listings/LS-${listing.id}`}
-      actions={
-        <Link href="/admin/listings/import" className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white">
-          Import from spreadsheet
-        </Link>
-      }
-    />
-  );
+  return <AdminListingsTable />;
 }

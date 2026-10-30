@@ -2,6 +2,9 @@
 
 import { describeBackendError } from "@/lib/backend-client";
 import { PaymentReceiptLinks } from "@/components/payments/payment-receipt-links";
+import { adminListingActions } from "@/lib/admin-listings";
+import { closeListing, reopenListing } from "@/lib/listings-api";
+import { CloseListingDialog } from "./close-listing-dialog";
 
 import Link from "next/link";
 
@@ -232,9 +235,12 @@ export function LiveListingCard({ uiId }: { uiId: string }) {
   const { record: listing, error, reload } = useRecord(id, fetchListingById);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmingClose, setConfirmingClose] = useState(false);
+  const [closeError, setCloseError] = useState<string | null>(null);
 
   if (!listing) return <CardFallback error={error} />;
   const status = String(listing.listingStatusCode);
+  const { canClose, canReopen } = adminListingActions(status);
   const documents = Array.isArray(listing.documents)
     ? (listing.documents as Array<{ documentTypeCode?: unknown }>)
     : [];
@@ -250,6 +256,34 @@ export function LiveListingCard({ uiId }: { uiId: string }) {
       reload();
     } catch (err) {
       setActionError(describeBackendError(err, "The moderation decision was not saved."));
+    }
+    setBusy(false);
+  };
+
+  const close = async () => {
+    if (!id || busy) return;
+    setBusy(true);
+    setCloseError(null);
+    try {
+      await closeListing(id);
+      setConfirmingClose(false);
+      setActionError(null);
+      reload();
+    } catch (err) {
+      setCloseError(describeBackendError(err, "The listing could not be closed."));
+    }
+    setBusy(false);
+  };
+
+  const reopen = async () => {
+    if (!id || busy) return;
+    setBusy(true);
+    try {
+      setActionError(null);
+      await reopenListing(id);
+      reload();
+    } catch (err) {
+      setActionError(describeBackendError(err, "The listing could not be reopened."));
     }
     setBusy(false);
   };
@@ -303,11 +337,42 @@ export function LiveListingCard({ uiId }: { uiId: string }) {
               </Button>
             </>
           )}
+          {canClose && (
+            <Button
+              variant="secondary"
+              size="md"
+              disabled={busy}
+              onClick={() => { setCloseError(null); setConfirmingClose(true); }}
+            >
+              Close listing
+            </Button>
+          )}
+          {canReopen && (
+            <Button
+              variant="secondary"
+              size="md"
+              disabled={busy}
+              onClick={() => void reopen()}
+            >
+              {busy ? "Working..." : "Reopen as draft"}
+            </Button>
+          )}
           <ActionError message={actionError} />
+          {confirmingClose && (
+            <CloseListingDialog
+              listingLabel={`LS-${listing.id}`}
+              busy={busy}
+              error={closeError}
+              onConfirm={() => void close()}
+              onClose={() => setConfirmingClose(false)}
+            />
+          )}
         </>
       }
       warning={
-        hasSds
+        status === "closed"
+          ? "This listing is closed and hidden from the marketplace. Its order history is kept; reopen it as a draft to edit and publish again."
+          : hasSds
           ? undefined
           : "No Safety Data Sheet (SDS) is on file. The listing cannot be published or purchased until one is added."
       }

@@ -270,6 +270,11 @@ export async function closeListing(id: number) {
   return response.listing;
 }
 
+/** Move a closed listing back to draft; the backend accepts exactly this body for a reopen. */
+export async function reopenListing(id: number) {
+  return updateListing(id, { listingStatusCode: "draft" });
+}
+
 export async function fetchListingDocuments(listingId: number, scope: ListingScope) {
   const response = await apiFetch<{ ok: true; documents: ListingDocument[] }>(
     `/api/listing-documents${scopeQuery(scope, { listingId: String(listingId) })}`,

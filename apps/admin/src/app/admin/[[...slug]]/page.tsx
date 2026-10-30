@@ -14,6 +14,7 @@ import { AdminFedexSandboxPage } from "@/components/admin/fedex-sandbox/fedex-sa
 import { AdminKycPage } from "@/components/admin/kyc-page";
 import { LabPanelsPage } from "@/components/admin/lab-panels-page";
 import { LabTestingQueuePage } from "@/components/admin/lab-testing-queue-page";
+import { AdminListingCreatePage } from "@/components/admin/listing-create-page";
 import { AdminListingDetailPage } from "@/components/admin/listing-detail-page";
 import { AdminListingEditPage } from "@/components/admin/listing-edit-page";
 import { AdminListingsPage } from "@/components/admin/listings-page";
@@ -159,6 +160,8 @@ export default async function Page({ params }: PageProps) {
   }
   if (section === "listings") {
     if (second === "import") return <AdminListingImportPage />;
+    // "new" is a reserved segment, never a listing id.
+    if (second === "new") return third ? notFound() : <AdminListingCreatePage />;
     if (second && third === "edit" && !slug[3]) return <AdminListingEditPage id={second} />;
     if (third) notFound();
     return second ? (
