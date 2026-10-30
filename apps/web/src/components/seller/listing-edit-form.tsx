@@ -33,7 +33,10 @@ import {
   formToWriteBody,
   validateForSubmission,
   validateDraft,
+  partitionIssues,
+  ISSUE_FIELD_ELEMENT_IDS,
   type ListingForm,
+  type ValidationIssue,
 } from "./listing-form";
 import { ListingDocumentUploader } from "./listing-documents";
 import { ListingLocationPicker, useCompanyLocations } from "./listing-location-picker";
@@ -55,6 +58,8 @@ export interface ListingEditFormProps {
   submissionStatuses: readonly ListingStatusCode[];
   /** When the submission checks run; defaults to only on a move into a submission status. */
   submissionValidation?: SubmissionValidationPolicy;
+  /** Submission checks reported as recommendations instead of blocking the save. */
+  advisoryFields?: readonly ValidationIssue["field"][];
   statusHelp: string;
   /** Header back link; omit when the surrounding page already provides one. */
   backLink?: { href: string; label: string };
@@ -72,6 +77,7 @@ export function ListingEditForm({
   writableStatuses,
   submissionStatuses,
   submissionValidation = "on-change",
+  advisoryFields = NO_ADVISORY_FIELDS,
   statusHelp,
   backLink,
   title,
@@ -81,6 +87,7 @@ export function ListingEditForm({
   const [documents, setDocuments] = useState<ListingDocument[]>(record.documents ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [issues, setIssues] = useState<ValidationIssue[]>([]);
   // Document uploads and removals can change the listing status server-side; the sync blocks
   // Save from the start of each request until the re-read after it confirms the baseline.
   const [statusState, setStatusState] = useState<ListingStatusState | null>(null);
@@ -102,6 +109,7 @@ export function ListingEditForm({
   const unit = describeUnit(form.unit);
   const hasSds = documents.some((d) => d.documentTypeCode === "sds");
   const demo = readDemoEstimates(form.description);
+  const invalid = new Set(issues.map((issue) => issue.field));
 
   useEffect(() => { setDocuments(record.documents ?? []); }, [record.documents]);
   // SDS-request notifications link to #sds; the form mounts after the listing loads.
@@ -124,17 +132,20 @@ export function ListingEditForm({
     if (!decision.ok) return;
     const { target, serverStatus, listingStatusCode } = decision;
     if (!listingStatusAllowedWithDemo(target, demo)) {
+      setIssues([]);
       setError(`${DEMO_LISTING_SUBMIT_BLOCKED} Choose Draft to save your edits.`);
       return;
     }
     const submitting = requiresSubmissionValidation({ target, serverStatus, submissionStatuses, policy: submissionValidation });
-    const issues = submitting ? validateForSubmission(form, hasSds) : validateDraft(form);
-    if (issues.length > 0) {
-      setError(issues.map((i) => i.message).join(" "));
+    const { blocking } = partitionIssues(submitting ? validateForSubmission(form, hasSds) : validateDraft(form), advisoryFields);
+    if (blocking.length > 0) {
+      setError("");
+      setIssues(blocking);
       return;
     }
     setSaving(true);
     setError("");
+    setIssues([]);
     try {
       const body = formToWriteBody(form, { listingStatusCode: listingStatusCode as ListingStatusCode | undefined });
       onSaved(await updateListing(record.id, body));
@@ -155,6 +166,7 @@ export function ListingEditForm({
           </div>
         </div>
         {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
+        {issues.length > 0 && <IssueList issues={issues} />}
 
         {title && <h1 className="mb-6 text-3xl font-bold text-neutral-900">{title}</h1>}
 
@@ -163,12 +175,12 @@ export function ListingEditForm({
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-5 text-lg font-semibold text-neutral-900">Basics</h2>
               <div className="flex flex-col gap-4">
-                <Input label="Listing name" id="name" value={form.name} onChange={(e) => setField("name", e.target.value)} />
+                <Input label="Listing name" id="name" aria-invalid={invalid.has("name")} value={form.name} onChange={(e) => setField("name", e.target.value)} />
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Select label="Category" id="category" options={CATEGORY_OPTIONS} value={form.category} onChange={(e) => setField("category", e.target.value)} />
-                  <Select label="Material type" id="material-type" options={MATERIAL_TYPE_OPTIONS} value={form.materialTypeCode} onChange={(e) => setField("materialTypeCode", e.target.value)} />
+                  <Select label="Category" id="category" aria-invalid={invalid.has("category")} options={CATEGORY_OPTIONS} value={form.category} onChange={(e) => setField("category", e.target.value)} />
+                  <Select label="Material type" id="material-type" aria-invalid={invalid.has("materialTypeCode")} options={MATERIAL_TYPE_OPTIONS} value={form.materialTypeCode} onChange={(e) => setField("materialTypeCode", e.target.value)} />
                 </div>
-                {form.category === "Others" && <Input label="Describe the material" id="material-other" value={form.material} onChange={(e) => setField("material", e.target.value)} />}
+                {form.category === "Others" && <Input label="Describe the material" id="material-other" aria-invalid={invalid.has("material")} value={form.material} onChange={(e) => setField("material", e.target.value)} />}
                 <div>
                   <label htmlFor="description" className="mb-1.5 block text-sm font-medium text-neutral-900">Description</label>
                   <textarea id="description" rows={5} value={form.description} onChange={(e) => setField("description", e.target.value)} className="w-full rounded-lg px-4 py-3 text-sm outline-none" style={{ border: "1px solid #E0E0E0" }} />
@@ -179,15 +191,15 @@ export function ListingEditForm({
             <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-5 text-lg font-semibold text-neutral-900">Pricing & supply</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Select label="Quantity unit" id="unit" options={unitOptionsFor(form.unit)} value={form.unit} onChange={(e) => setField("unit", e.target.value)} />
-                <Select label="Currency" id="currency" options={CURRENCY_OPTIONS} value={form.currencyCode} onChange={(e) => setField("currencyCode", e.target.value)} />
+                <Select label="Quantity unit" id="unit" aria-invalid={invalid.has("unit")} options={unitOptionsFor(form.unit)} value={form.unit} onChange={(e) => setField("unit", e.target.value)} />
+                <Select label="Currency" id="currency" aria-invalid={invalid.has("currencyCode")} options={CURRENCY_OPTIONS} value={form.currencyCode} onChange={(e) => setField("currencyCode", e.target.value)} />
                 <div>
-                  <Input label={`Unit price (${form.currencyCode || "currency"} per ${form.unit ? unit.singular : "unit"})`} id="price" inputMode="decimal" value={form.price} onChange={(e) => setField("price", e.target.value)} />
+                  <Input label={`Unit price (${form.currencyCode || "currency"} per ${form.unit ? unit.singular : "unit"})`} id="price" aria-invalid={invalid.has("price")} inputMode="decimal" value={form.price} onChange={(e) => setField("price", e.target.value)} />
                   {demo.price && <div className="mt-1"><DemoEstimateBadge label={DEMO_PRICE_ESTIMATE_LABEL} /></div>}
                 </div>
-                <Input label={`Minimum Order Quantity (MOQ) in ${form.unit ? unit.plural : "the chosen unit"}`} id="moq" inputMode="decimal" value={form.moq} onChange={(e) => setField("moq", e.target.value)} />
+                <Input label={`Minimum Order Quantity (MOQ) in ${form.unit ? unit.plural : "the chosen unit"}`} id="moq" aria-invalid={invalid.has("moq")} inputMode="decimal" value={form.moq} onChange={(e) => setField("moq", e.target.value)} />
                 <div>
-                  <Input label={`${demo.volume ? "Quantity" : "Quantity available"} in ${form.unit ? unit.plural : "the chosen unit"}`} id="qty" inputMode="decimal" value={form.qty} onChange={(e) => setField("qty", e.target.value)} />
+                  <Input label={`${demo.volume ? "Quantity" : "Quantity available"} in ${form.unit ? unit.plural : "the chosen unit"}`} id="qty" aria-invalid={invalid.has("qty")} inputMode="decimal" value={form.qty} onChange={(e) => setField("qty", e.target.value)} />
                   {demo.volume && <div className="mt-1"><DemoEstimateBadge label={DEMO_VOLUME_ESTIMATE_LABEL} /></div>}
                 </div>
               </div>
@@ -200,8 +212,14 @@ export function ListingEditForm({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input label="Composition" id="composition" value={form.composition} onChange={(e) => setField("composition", e.target.value)} />
                 <Input label="Quality" id="quality" value={form.quality} onChange={(e) => setField("quality", e.target.value)} />
-                <Select label="Feedstock state" id="state" options={[{ value: "Solid", label: "Solid" }, { value: "Liquid", label: "Liquid" }, { value: "Gas", label: "Gas" }]} value={form.state} onChange={(e) => setField("state", e.target.value)} />
-                <Select label="Frequency" id="frequency" options={["One-time", "Weekly", "Biweekly", "Monthly", "Bimonthly", "Twice a year", "Quarterly", "Yearly"].map((v) => ({ value: v, label: v }))} value={form.frequency} onChange={(e) => setField("frequency", e.target.value)} />
+                <div>
+                  <Select label="Feedstock state" id="state" aria-invalid={invalid.has("state")} options={[{ value: "Solid", label: "Solid" }, { value: "Liquid", label: "Liquid" }, { value: "Gas", label: "Gas" }]} value={form.state} onChange={(e) => setField("state", e.target.value)} />
+                  {!form.state && advisoryFields.includes("state") && <p className="mt-1 text-xs text-amber-800">Recommended. Not set yet; saving is still allowed.</p>}
+                </div>
+                <div>
+                  <Select label="Frequency" id="frequency" aria-invalid={invalid.has("frequency")} options={["One-time", "Weekly", "Biweekly", "Monthly", "Bimonthly", "Twice a year", "Quarterly", "Yearly"].map((v) => ({ value: v, label: v }))} value={form.frequency} onChange={(e) => setField("frequency", e.target.value)} />
+                  {!form.frequency && advisoryFields.includes("frequency") && <p className="mt-1 text-xs text-amber-800">Recommended. Not set yet; saving is still allowed.</p>}
+                </div>
                 <Input label="Available from" id="from" type="date" value={form.availabilityFrom} onChange={(e) => setField("availabilityFrom", e.target.value)} />
                 <Input label="Available to" id="to" type="date" value={form.availabilityTo} onChange={(e) => setField("availabilityTo", e.target.value)} />
                 <Input label="Material composition (detail)" id="material" value={form.material} onChange={(e) => setField("material", e.target.value)} />
@@ -215,7 +233,7 @@ export function ListingEditForm({
                 <Input label="Usage" id="usage" value={form.usage} onChange={(e) => setField("usage", e.target.value)} />
                 <Input label="Place of origin" id="origin" value={form.origin} onChange={(e) => setField("origin", e.target.value)} />
               </div>
-              <div className="mt-4">
+              <div id="additional-specs" tabIndex={-1} className="mt-4 scroll-mt-6 outline-none">
                 <p className="mb-2 text-sm font-medium text-neutral-900">Additional specs</p>
                 <div className="flex flex-col gap-2">
                   {form.additionalSpecs.map((spec, i) => (
@@ -253,7 +271,7 @@ export function ListingEditForm({
                   ))}
                 </ul>
               )}
-              {form.claims.includes("Others") && <div className="mt-3"><Input label="Describe the other claim" id="other-claim" value={form.otherClaim} onChange={(e) => setField("otherClaim", e.target.value)} /></div>}
+              {form.claims.includes("Others") && <div className="mt-3"><Input label="Describe the other claim" id="other-claim" aria-invalid={invalid.has("otherClaim")} value={form.otherClaim} onChange={(e) => setField("otherClaim", e.target.value)} /></div>}
               <div className="mt-4"><ListingDocumentUploader {...documentUploaderProps} typeCode="certification" title="Certifications" /></div>
               <div className="mt-4">
                 <label htmlFor="sustain-notes" className="mb-1.5 block text-sm font-medium text-neutral-900">Sustainability notes</label>
@@ -298,7 +316,7 @@ export function ListingEditForm({
               <p className="mt-3 text-xs text-neutral-500">{statusHelp}</p>
               {demo.marker && <p className="mt-2 text-xs text-amber-800" role="status">{DEMO_LISTING_SUBMIT_BLOCKED} Drafts can still be saved.</p>}
             </section>
-            <section className="rounded-xl bg-white p-6" style={{ border: "1px solid #F0F0F0" }}>
+            <section id="ships-from" tabIndex={-1} className="scroll-mt-6 rounded-xl bg-white p-6 outline-none" style={{ border: "1px solid #F0F0F0" }}>
               <h2 className="mb-4 text-lg font-semibold text-neutral-900">Ships from</h2>
               <ListingLocationPicker companyId={sellerCompanyId} value={form.locationId} onChange={(id) => setField("locationId", id)} locations={locations} />
             </section>
@@ -309,5 +327,36 @@ export function ListingEditForm({
           </aside>
         </div>
       </div>
+  );
+}
+
+const NO_ADVISORY_FIELDS: readonly ValidationIssue["field"][] = [];
+
+/** Validation summary whose messages jump to, and focus, the field they describe. */
+function IssueList({ issues }: { issues: ValidationIssue[] }) {
+  const jumpTo = (field: ValidationIssue["field"]) => {
+    const id = ISSUE_FIELD_ELEMENT_IDS[field];
+    const target = id ? document.getElementById(id) : null;
+    if (!target) return;
+    target.scrollIntoView({ block: "center", behavior: "smooth" });
+    target.focus({ preventScroll: true });
+  };
+  return (
+    <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+      <p className="font-semibold">Fix {issues.length === 1 ? "this field" : `these ${issues.length} fields`} before saving:</p>
+      <ul className="mt-1 list-disc pl-5">
+        {issues.map((issue) => (
+          <li key={`${issue.field}:${issue.message}`}>
+            {ISSUE_FIELD_ELEMENT_IDS[issue.field] ? (
+              <button type="button" onClick={() => jumpTo(issue.field)} className="text-left underline underline-offset-2 hover:text-red-900">
+                {issue.message}
+              </button>
+            ) : (
+              issue.message
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

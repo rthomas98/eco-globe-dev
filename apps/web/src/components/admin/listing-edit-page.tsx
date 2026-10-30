@@ -10,6 +10,7 @@ import { useListing } from "@/lib/use-listings";
 import { adminListingKey } from "@/lib/admin-listings";
 import type { ListingStatusCode } from "@/lib/listings-api";
 import { ListingEditForm, type ListingStatusChoice } from "@/components/seller/listing-edit-form";
+import type { ValidationIssue } from "@/components/seller/listing-form";
 import { AdminDetailPage } from "./admin-detail-page";
 
 const ADMIN_STATUS_CHOICES: ListingStatusChoice[] = [
@@ -21,6 +22,9 @@ const ADMIN_STATUS_CHOICES: ListingStatusChoice[] = [
 ];
 const ADMIN_WRITABLE_STATUSES: readonly ListingStatusCode[] = ADMIN_STATUS_CHOICES.map((choice) => choice.value);
 const ADMIN_SUBMISSION_STATUSES: readonly ListingStatusCode[] = ["pending_review", "published"];
+// The API does not require these to publish; most migrated and demo listings never recorded
+// them, so an admin correcting a price must not be blocked on them.
+const ADMIN_ADVISORY_FIELDS: readonly ValidationIssue["field"][] = ["state", "frequency"];
 
 /** Shown after /admin/listings/new redirects here with ?created=1. */
 function CreatedNotice() {
@@ -107,7 +111,8 @@ export function AdminListingEditPage({ id }: { id: string }) {
         writableStatuses={ADMIN_WRITABLE_STATUSES}
         submissionStatuses={ADMIN_SUBMISSION_STATUSES}
         submissionValidation="always"
-        statusHelp="Admins may publish directly. Publishing or submitting requires an SDS on file and complete pricing, supply and location."
+        advisoryFields={ADMIN_ADVISORY_FIELDS}
+        statusHelp="Admins may publish directly. Publishing or submitting requires an SDS on file and complete pricing, supply and location. Feedstock state and frequency are recommended."
         className=""
       />
     </>,

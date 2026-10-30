@@ -248,6 +248,39 @@ export interface ValidationIssue {
   message: string;
 }
 
+/** Element ids of the edit-form controls each issue refers to, so a message can jump to its field. */
+export const ISSUE_FIELD_ELEMENT_IDS: Partial<Record<ValidationIssue["field"], string>> = {
+  name: "name",
+  category: "category",
+  materialTypeCode: "material-type",
+  material: "material-other",
+  unit: "unit",
+  currencyCode: "currency",
+  price: "price",
+  moq: "moq",
+  qty: "qty",
+  state: "state",
+  frequency: "frequency",
+  additionalSpecs: "additional-specs",
+  otherClaim: "other-claim",
+  locationId: "ships-from",
+  sds: "sds",
+};
+
+/**
+ * Splits issues into those that block saving and recommendations the caller allows through
+ * (for example, an admin correcting a published listing that never recorded a feedstock state).
+ */
+export function partitionIssues(
+  issues: readonly ValidationIssue[],
+  advisoryFields: readonly ValidationIssue["field"][],
+): { blocking: ValidationIssue[]; advisory: ValidationIssue[] } {
+  const blocking: ValidationIssue[] = [];
+  const advisory: ValidationIssue[] = [];
+  for (const issue of issues) (advisoryFields.includes(issue.field) ? advisory : blocking).push(issue);
+  return { blocking, advisory };
+}
+
 /**
  * Minimum requirements for saving a draft. A draft may have no facility yet
  * (none is invented for it); submitting for review requires one.
