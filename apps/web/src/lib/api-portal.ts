@@ -225,6 +225,8 @@ export interface ApiAdminListing {
   pricePerUnit: number;
   currencyCode: string;
   listingStatusCode: string;
+  /** Usable listing documents; the admin list includes them so the SDS state is known. */
+  documents?: Array<{ documentTypeCode?: unknown }> | null;
 }
 
 export async function fetchAllListings() {

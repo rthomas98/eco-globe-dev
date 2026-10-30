@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Filter, Check, X, Eye, Package } from "lucide-react";
+import { Filter, Check, X, Eye, Package, Pencil, FileText, AlertTriangle } from "lucide-react";
 import { fetchAllListings, moderateListing, type ApiAdminListing } from "@/lib/api-portal";
+import { listingHasSds } from "@/lib/admin-listings";
 import { listingImageForTitle } from "@/lib/api-orders";
 import { describeBackendError } from "@/lib/backend-client";
 import { DataBoundary, useBackendData } from "@/components/shared/data-state";
@@ -106,6 +107,8 @@ export function AdminModerationPage() {
                 const status = statusOf(item) as ModStatus;
                 const image = listingImageForTitle(item.title);
                 const busy = busyId === item.id;
+                const hasSds = listingHasSds(item);
+                const editHref = `/admin/listings/LS-${item.id}/edit`;
                 return (
                   <div
                     key={item.id}
@@ -126,6 +129,13 @@ export function AdminModerationPage() {
                       <p className="text-sm font-semibold text-neutral-900 line-clamp-2">{item.title}</p>
                       <p className="mt-0.5 text-xs text-neutral-500">{item.sellerCompanyName}</p>
                       <p className="mt-0.5 font-mono text-xs text-neutral-400">LS-{item.id}</p>
+                      <Link
+                        href={`${editHref}#sds`}
+                        className={`mt-2 inline-flex items-center gap-1 text-xs font-medium hover:underline ${hasSds ? "text-green-700" : "text-amber-700"}`}
+                      >
+                        {hasSds ? <FileText className="size-3" /> : <AlertTriangle className="size-3" />}
+                        {hasSds ? "SDS on file · Manage" : "No SDS · Add SDS"}
+                      </Link>
                       <div className="mt-4 flex items-center gap-2">
                         <Link
                           href={`/admin/listings/LS-${item.id}`}
@@ -134,6 +144,15 @@ export function AdminModerationPage() {
                         >
                           <Eye className="size-3" />
                           Review
+                        </Link>
+                        <Link
+                          href={editHref}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-white py-1.5 text-xs font-medium text-neutral-900 hover:bg-neutral-100"
+                          style={{ border: "1px solid #E0E0E0" }}
+                          aria-label={`Edit ${item.title}`}
+                        >
+                          <Pencil className="size-3" />
+                          Edit
                         </Link>
                         {status !== "Draft" && (
                           <button
