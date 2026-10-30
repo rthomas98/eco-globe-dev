@@ -411,8 +411,8 @@ async function upload(request: IncomingMessage, response: ServerResponse) {
     );
     await queryRowsWithParamsInTransaction(
       tx,
-      `UPDATE dbo.Listings SET ListingStatusId=CASE WHEN ListingStatusId=(SELECT Id FROM dbo.ListingStatuses WHERE Code='published') THEN (SELECT Id FROM dbo.ListingStatuses WHERE Code='pending_review') ELSE ListingStatusId END,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id`,
-      [int("id", listingId)],
+      `UPDATE dbo.Listings SET ListingStatusId=CASE WHEN @admin=0 AND ListingStatusId=(SELECT Id FROM dbo.ListingStatuses WHERE Code='published') THEN (SELECT Id FROM dbo.ListingStatuses WHERE Code='pending_review') ELSE ListingStatusId END,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id`,
+      [int("id", listingId), int("admin", auth.isAdmin ? 1 : 0)],
     );
     const after = await readListing(String(listingId), auth, tx);
     await enqueueListingReview(tx, listingId, before.listingStatusCode, after.listingStatusCode);
@@ -606,8 +606,8 @@ export async function handleListingRoute(
           );
           await queryRowsWithParamsInTransaction(
             tx,
-            `UPDATE dbo.Listings SET ListingStatusId=CASE WHEN ListingStatusId IN (SELECT Id FROM dbo.ListingStatuses WHERE Code IN ('published','pending_review')) THEN (SELECT Id FROM dbo.ListingStatuses WHERE Code=CASE WHEN EXISTS(SELECT 1 FROM dbo.ListingDocuments d JOIN dbo.DocumentTypes dt ON dt.Id=d.DocumentTypeId WHERE d.ListingId=@id AND dt.Code='sds' AND d.DeletedAt IS NULL AND ${usableListingDocumentSql}) THEN 'pending_review' ELSE 'draft' END) ELSE ListingStatusId END,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id`,
-            [int("id", doc.listingId)],
+            `UPDATE dbo.Listings SET ListingStatusId=CASE WHEN ListingStatusId IN (SELECT Id FROM dbo.ListingStatuses WHERE Code IN ('published','pending_review')) THEN (SELECT Id FROM dbo.ListingStatuses WHERE Code=CASE WHEN EXISTS(SELECT 1 FROM dbo.ListingDocuments d JOIN dbo.DocumentTypes dt ON dt.Id=d.DocumentTypeId WHERE d.ListingId=@id AND dt.Code='sds' AND d.DeletedAt IS NULL AND ${usableListingDocumentSql}) THEN CASE WHEN @admin=1 AND ListingStatusId=(SELECT Id FROM dbo.ListingStatuses WHERE Code='published') THEN 'published' ELSE 'pending_review' END ELSE 'draft' END) ELSE ListingStatusId END,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id`,
+            [int("id", doc.listingId), int("admin", auth.isAdmin ? 1 : 0)],
           );
           const after = await readListing(String(doc.listingId), auth, tx);
           await enqueueListingReview(tx, id(doc.listingId), before.listingStatusCode, after.listingStatusCode);

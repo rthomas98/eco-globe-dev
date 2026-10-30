@@ -3,11 +3,18 @@ import test from "node:test";
 import { Readable } from "node:stream";
 import { createServer, type IncomingMessage } from "node:http";
 import { once } from "node:events";
-import { validateSpecifications, validateUpload, listingForViewer, handleListingRoute } from "./listing-routes.js";
-import { validateOnboardingPreferences } from "./onboarding-preferences.js";
+import sql from "mssql";
+
 import { ApiError, readJsonBody } from "./http.js";
 import { parseListingRadius, withinListingRadius } from "./listing-radius.js";
 import { validateLocationFields } from "./location-validation.js";
+
+// Configure before importing database consumers; all driver calls below are stubbed.
+process.env.AZURE_SQL_CONNECTION_STRING = "synthetic-test-no-network";
+process.env.SQL_CONNECTION_STRING = "synthetic-test-no-network";
+const { validateSpecifications, validateUpload, listingForViewer, handleListingRoute } = await import("./listing-routes.js");
+const { validateOnboardingPreferences } = await import("./onboarding-preferences.js");
+const { usableListingDocumentSql } = await import("./listing-safety.js");
 
 test("specifications reject impossible dates, reversed availability, arbitrary properties and malformed arrays", () => {
   for (const invalid of [
@@ -139,3 +146,97 @@ test("facility validation preserves full address and clears stale coordinates wh
   for (const patch of [{ latitude: 91, longitude: 0 }, { latitude: 0 }, { latitude: null, longitude: 0 }, { latitude: "30", longitude: -91 }, { countryCode: "1!" }, { name: null }])
     assert.throws(() => validateLocationFields(patch, true), ApiError);
 });
+
+// These handler tests assert emitted SQL/parameters, not SQL Server CASE execution.
+for (const scenario of [
+  { name: "admin upload keeps published", admin: true, method: "POST", before: "published", after: "published" },
+  { name: "seller upload submits published for review", admin: false, method: "POST", before: "published", after: "pending_review" },
+  { name: "admin upload leaves draft unchanged", admin: true, method: "POST", before: "draft", after: "draft" },
+  { name: "admin upload leaves pending review unchanged", admin: true, method: "POST", before: "pending_review", after: "pending_review" },
+  { name: "admin deletes non-SDS with SDS remaining", admin: true, method: "DELETE", type: "other", before: "published", after: "published" },
+  { name: "admin deletes one SDS with another remaining", admin: true, method: "DELETE", type: "sds", before: "published", after: "published" },
+  { name: "admin deletes last SDS from published", admin: true, method: "DELETE", type: "sds", before: "published", after: "draft" },
+  { name: "admin deletes last SDS from pending review", admin: true, method: "DELETE", type: "sds", before: "pending_review", after: "draft" },
+  { name: "admin deletes document with SDS remaining in pending review", admin: true, method: "DELETE", type: "other", before: "pending_review", after: "pending_review" },
+  { name: "seller deletes non-SDS with SDS remaining", admin: false, method: "DELETE", type: "other", before: "published", after: "pending_review" },
+  { name: "seller deletes one SDS with another remaining", admin: false, method: "DELETE", type: "sds", before: "published", after: "pending_review" },
+  { name: "seller deletes last SDS", admin: false, method: "DELETE", type: "sds", before: "published", after: "draft" },
+]) {
+  test(scenario.name, async (t) => {
+    const pool = new sql.ConnectionPool("Server=127.0.0.1;Database=synthetic");
+    t.mock.method(sql, "connect", async () => pool);
+    t.mock.method(sql.ConnectionPool.prototype, "request", () => new sql.Request());
+    t.mock.method(sql.Transaction.prototype, "request", () => new sql.Request());
+    t.mock.method(sql.Transaction.prototype, "begin", async () => undefined);
+    const commit = t.mock.method(sql.Transaction.prototype, "commit", async () => undefined);
+    t.mock.method(sql.Transaction.prototype, "rollback", async () => undefined);
+    let mutated = false, inserted = false, deleted = false, updates = 0, alerts = 0;
+    t.mock.method(sql.Request.prototype, "query", async function (this: sql.Request, statement: string) {
+      const p = (key: string) => this.parameters[key]?.value;
+      let rows: Record<string, unknown>[] = [];
+      if (statement.includes("FROM dbo.UserSessions s")) {
+        rows = [{ id: 1, userId: 7, activeCompanyId: 2, activeRoleCode: scenario.admin ? "admin" : "seller", accountStatusCode: "active" }];
+      } else if (statement.includes("UPDATE dbo.UserSessions")) {
+        // Session activity is synthetic too.
+      } else if (statement.includes("FROM dbo.CompanyMembers cm")) {
+        rows = [{ id: 2, companyTypeCode: "seller", memberRoleCode: scenario.admin ? "admin" : "owner", permissionTierCode: scenario.admin ? "admin_override" : "standard" }];
+      } else if (statement.startsWith("SELECT l.Id")) {
+        rows = [{ id: 11, sellerCompanyId: 2, listingStatusCode: mutated ? scenario.after : scenario.before }];
+      } else if (statement.startsWith("SELECT ListingId AS listingId")) {
+        rows = [{ listingId: 11, documentTypeCode: scenario.type }];
+      } else if (statement.startsWith("INSERT dbo.ListingDocuments")) {
+        assert.match(statement, /Code='pending_verification'/);
+        assert.equal(p("type"), "sds");
+        assert.equal(p("listingId"), 11);
+        inserted = true;
+        rows = [{ id: 42 }];
+      } else if (statement.startsWith("UPDATE dbo.ListingDocuments")) {
+        assert.equal(p("id"), 42);
+        deleted = true;
+      } else if (statement.startsWith("UPDATE dbo.Listings")) {
+        assert.equal(p("id"), 11);
+        if (scenario.method === "POST") {
+          assert.ok(inserted);
+          if (scenario.admin) {
+            // Admin may skip the update or guard just the status transition.
+            assert.equal(p("admin"), 1);
+            assert.match(statement, /CASE WHEN @admin=0 AND ListingStatusId=/);
+          } else {
+            assert.equal(p("admin"), 0);
+          }
+          assert.match(statement, /Code='published'\) THEN \(SELECT Id FROM dbo.ListingStatuses WHERE Code='pending_review'\) ELSE ListingStatusId END/);
+        } else {
+          assert.ok(deleted);
+          assert.equal(p("admin"), scenario.admin ? 1 : 0);
+          assert.equal(statement, `UPDATE dbo.Listings SET ListingStatusId=CASE WHEN ListingStatusId IN (SELECT Id FROM dbo.ListingStatuses WHERE Code IN ('published','pending_review')) THEN (SELECT Id FROM dbo.ListingStatuses WHERE Code=CASE WHEN EXISTS(SELECT 1 FROM dbo.ListingDocuments d JOIN dbo.DocumentTypes dt ON dt.Id=d.DocumentTypeId WHERE d.ListingId=@id AND dt.Code='sds' AND d.DeletedAt IS NULL AND ${usableListingDocumentSql}) THEN CASE WHEN @admin=1 AND ListingStatusId=(SELECT Id FROM dbo.ListingStatuses WHERE Code='published') THEN 'published' ELSE 'pending_review' END ELSE 'draft' END) ELSE ListingStatusId END,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id`);
+        }
+        updates++;
+        mutated = true;
+      } else if (statement.startsWith("INSERT dbo.StaffNotificationOutbox")) {
+        assert.equal(p("kind"), "listing_pending_review");
+        alerts++;
+      } else if (statement.startsWith("SELECT d.Id")) {
+        rows = [{ id: 42 }];
+      } else {
+        assert.fail(`Unexpected SQL: ${statement}`);
+      }
+      return { recordset: rows };
+    });
+    const req = Readable.from(scenario.method === "POST" ? [JSON.stringify({
+      listingId: 11, fileName: "sds.pdf", documentTypeCode: "sds",
+      contentType: "application/pdf", contentBase64: Buffer.from("%PDF-1.4").toString("base64"),
+    })] : []) as IncomingMessage;
+    req.method = scenario.method;
+    req.headers = { authorization: "Bearer synthetic" };
+    let status = 0;
+    const response = {
+      writeHead: (value: number) => { status = value; },
+      end: () => undefined,
+    } as unknown as import("node:http").ServerResponse;
+    await handleListingRoute(req, response, new URL(`http://local/api/listing-documents${scenario.method === "DELETE" ? "/42" : ""}`));
+    assert.equal(status, scenario.method === "POST" ? 201 : 200);
+    assert.equal(updates, 1);
+    assert.equal(commit.mock.callCount(), 1);
+    assert.equal(alerts, scenario.before !== "pending_review" && scenario.after === "pending_review" ? 1 : 0);
+  });
+}
