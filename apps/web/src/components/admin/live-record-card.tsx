@@ -78,11 +78,13 @@ function CardShell({
   rows,
   actions,
   notice,
+  warning,
 }: {
   title: string;
   rows: Array<[string, string]>;
   actions?: React.ReactNode;
   notice?: string;
+  warning?: string;
 }) {
   return (
     <div
@@ -98,6 +100,11 @@ function CardShell({
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
+      {warning && (
+        <p role="status" className="mb-4 rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          {warning}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3">
         {rows.map(([label, value]) => (
           <div key={label}>
@@ -228,6 +235,11 @@ export function LiveListingCard({ uiId }: { uiId: string }) {
 
   if (!listing) return <CardFallback error={error} />;
   const status = String(listing.listingStatusCode);
+  const documents = Array.isArray(listing.documents)
+    ? (listing.documents as Array<{ documentTypeCode?: unknown }>)
+    : [];
+  const hasSds = documents.some((doc) => doc.documentTypeCode === "sds");
+  const editHref = `/admin/listings/${listing.id}/edit`;
 
   const moderate = async (decision: "approve" | "reject") => {
     if (!id || busy) return;
@@ -259,27 +271,45 @@ export function LiveListingCard({ uiId }: { uiId: string }) {
         ["Location", String(listing.locationCity ?? "—")],
       ]}
       actions={
-        status === "pending_review" ? (
-          <>
-            <Button
-              variant="secondary"
-              size="md"
-              disabled={busy}
-              onClick={() => void moderate("reject")}
-            >
-              Reject
+        <>
+          <Link
+            href={`${editHref}#sds`}
+            className="text-sm font-semibold text-neutral-900 underline"
+          >
+            {hasSds ? "Manage SDS" : "Add SDS"}
+          </Link>
+          <Link href={editHref}>
+            <Button variant="secondary" size="md">
+              Edit listing
             </Button>
-            <Button
-              variant="primary"
-              size="md"
-              disabled={busy}
-              onClick={() => void moderate("approve")}
-            >
-              {busy ? "Working..." : "Approve & publish"}
-            </Button>
-            <ActionError message={actionError} />
-          </>
-        ) : undefined
+          </Link>
+          {status === "pending_review" && (
+            <>
+              <Button
+                variant="secondary"
+                size="md"
+                disabled={busy}
+                onClick={() => void moderate("reject")}
+              >
+                Reject
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                disabled={busy}
+                onClick={() => void moderate("approve")}
+              >
+                {busy ? "Working..." : "Approve & publish"}
+              </Button>
+            </>
+          )}
+          <ActionError message={actionError} />
+        </>
+      }
+      warning={
+        hasSds
+          ? undefined
+          : "No Safety Data Sheet (SDS) is on file. The listing cannot be published or purchased until one is added."
       }
     />
   );

@@ -15,6 +15,7 @@ import { AdminKycPage } from "@/components/admin/kyc-page";
 import { LabPanelsPage } from "@/components/admin/lab-panels-page";
 import { LabTestingQueuePage } from "@/components/admin/lab-testing-queue-page";
 import { AdminListingDetailPage } from "@/components/admin/listing-detail-page";
+import { AdminListingEditPage } from "@/components/admin/listing-edit-page";
 import { AdminListingsPage } from "@/components/admin/listings-page";
 import { AdminListingImportPage } from "@/components/admin/listing-import-page";
 import { MarketPortfolioCreatePage } from "@/components/admin/market-portfolios/market-portfolio-create-page";
@@ -158,6 +159,8 @@ export default async function Page({ params }: PageProps) {
   }
   if (section === "listings") {
     if (second === "import") return <AdminListingImportPage />;
+    if (second && third === "edit" && !slug[3]) return <AdminListingEditPage id={second} />;
+    if (third) notFound();
     return second ? (
       <AdminListingDetailPage id={second} />
     ) : (
