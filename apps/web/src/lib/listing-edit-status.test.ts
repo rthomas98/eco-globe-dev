@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { reconcileServerStatus, requiresSubmissionValidation, statusToWrite } from "./listing-edit-status.ts";
+import { createListingStatusSync, reconcileServerStatus, requiresSubmissionValidation, statusToWrite } from "./listing-edit-status.ts";
 
 const ADMIN = {
   choices: [
@@ -100,4 +100,137 @@ test("seller policy validates only when moving into a submission status", () => 
   assert.equal(requiresSubmissionValidation({ ...base, target: "pending_review", serverStatus: "pending_review" }), false);
   assert.equal(requiresSubmissionValidation({ ...base, target: "published", serverStatus: "published" }), false);
   assert.equal(requiresSubmissionValidation({ ...base, target: "draft", serverStatus: "published" }), false);
+});
+
+/** A status fetch whose responses the test resolves (or rejects) by hand, in any order. */
+function deferredFetches() {
+  const calls: { resolve: (status: string | null) => void; reject: (err: Error) => void }[] = [];
+  const fetchServerStatus = () =>
+    new Promise<string | null>((resolve, reject) => {
+      calls.push({ resolve, reject });
+    });
+  return { calls, fetchServerStatus };
+}
+
+test("admin: stalled re-reads after delete and upload block Save until the newest confirms Draft", async () => {
+  const { calls, fetchServerStatus } = deferredFetches();
+  const sync = createListingStatusSync({ initialStatus: "published", fetchServerStatus, ...ADMIN });
+
+  // Delete the last SDS (server -> draft); its re-read stalls.
+  const deleteRefresh = sync.refresh();
+  assert.equal(sync.getState().sync, "pending");
+  assert.deepEqual(sync.decideSave(), { ok: false, reason: "pending" });
+
+  // Upload a replacement; its re-read stalls too. Save stays blocked on the stale Published baseline.
+  const uploadRefresh = sync.refresh();
+  assert.deepEqual(sync.decideSave(), { ok: false, reason: "pending" });
+  // Status picks are ignored while unconfirmed (the radios are disabled).
+  sync.select("paused");
+  assert.equal(sync.getState().selected, "published");
+
+  // Newest re-read resolves first and confirms Draft.
+  calls[1]!.resolve("draft");
+  await uploadRefresh;
+  assert.equal(sync.getState().sync, "idle");
+  assert.equal(sync.getState().serverStatus, "draft");
+  assert.equal(sync.getState().selected, "draft");
+  assert.match(sync.getState().notice ?? "", /Choose Published again to republish/);
+
+  // The older re-read resolving late (with a stale value) is ignored.
+  calls[0]!.resolve("published");
+  await deleteRefresh;
+  assert.equal(sync.getState().serverStatus, "draft");
+  assert.equal(sync.getState().sync, "idle");
+
+  sync.select("published");
+  assert.deepEqual(sync.decideSave(), { ok: true, target: "published", serverStatus: "draft", listingStatusCode: "published" });
+});
+
+test("an older re-read resolving after the newer one is still pending cannot clear pending", async () => {
+  const { calls, fetchServerStatus } = deferredFetches();
+  const sync = createListingStatusSync({ initialStatus: "published", fetchServerStatus, ...ADMIN });
+  const older = sync.refresh();
+  const newer = sync.refresh();
+
+  calls[0]!.resolve("draft");
+  await older;
+  assert.equal(sync.getState().sync, "pending");
+  assert.equal(sync.getState().serverStatus, "published");
+  assert.deepEqual(sync.decideSave(), { ok: false, reason: "pending" });
+
+  calls[1]!.resolve("draft");
+  await newer;
+  assert.equal(sync.getState().serverStatus, "draft");
+  sync.select("published");
+  assert.deepEqual(sync.decideSave(), { ok: true, target: "published", serverStatus: "draft", listingStatusCode: "published" });
+});
+
+test("an older failure after a newer success does not block Save", async () => {
+  const { calls, fetchServerStatus } = deferredFetches();
+  const sync = createListingStatusSync({ initialStatus: "published", fetchServerStatus, ...ADMIN });
+  const older = sync.refresh();
+  const newer = sync.refresh();
+  calls[1]!.resolve("draft");
+  await newer;
+  calls[0]!.reject(new Error("network"));
+  await older;
+  assert.equal(sync.getState().sync, "idle");
+  assert.equal(sync.getState().serverStatus, "draft");
+});
+
+test("a failed re-read keeps Save blocked until a retry confirms the baseline", async () => {
+  const { calls, fetchServerStatus } = deferredFetches();
+  const sync = createListingStatusSync({ initialStatus: "published", fetchServerStatus, ...ADMIN });
+
+  const first = sync.refresh();
+  calls[0]!.reject(new Error("network"));
+  await first;
+  assert.equal(sync.getState().sync, "failed");
+  assert.equal(sync.getState().serverStatus, "published");
+  assert.deepEqual(sync.decideSave(), { ok: false, reason: "failed" });
+  sync.select("published");
+  assert.deepEqual(sync.decideSave(), { ok: false, reason: "failed" });
+
+  // A missing listing also counts as a failure.
+  const second = sync.refresh();
+  assert.deepEqual(sync.decideSave(), { ok: false, reason: "pending" });
+  calls[1]!.resolve(null);
+  await second;
+  assert.deepEqual(sync.decideSave(), { ok: false, reason: "failed" });
+
+  // Retry succeeds with Draft; the admin chooses Published and it is sent explicitly.
+  const retry = sync.refresh();
+  calls[2]!.resolve("draft");
+  await retry;
+  assert.equal(sync.getState().sync, "idle");
+  sync.select("published");
+  assert.deepEqual(sync.decideSave(), { ok: true, target: "published", serverStatus: "draft", listingStatusCode: "published" });
+});
+
+test("onChange mirrors every state transition", async () => {
+  const { calls, fetchServerStatus } = deferredFetches();
+  const seen: string[] = [];
+  const sync = createListingStatusSync({
+    initialStatus: "draft",
+    fetchServerStatus,
+    ...ADMIN,
+    onChange: (s) => seen.push(`${s.sync}:${s.serverStatus}:${s.selected}`),
+  });
+  sync.select("paused");
+  const refresh = sync.refresh();
+  calls[0]!.resolve("draft");
+  await refresh;
+  assert.deepEqual(seen, ["idle:draft:paused", "pending:draft:paused", "idle:draft:paused"]);
+});
+
+test("seller: unchanged status after an upload keeps the selection and seller-writable rules", async () => {
+  const { calls, fetchServerStatus } = deferredFetches();
+  const sync = createListingStatusSync({ initialStatus: "published", fetchServerStatus, ...SELLER });
+  const refresh = sync.refresh();
+  calls[0]!.resolve("pending_review");
+  await refresh;
+  assert.equal(sync.getState().selected, "pending_review");
+  assert.deepEqual(sync.decideSave(), { ok: true, target: "pending_review", serverStatus: "pending_review", listingStatusCode: undefined });
+  sync.select("published");
+  assert.deepEqual(sync.decideSave(), { ok: true, target: "published", serverStatus: "pending_review", listingStatusCode: undefined });
 });

@@ -79,3 +79,96 @@ export function reconcileServerStatus({
       : `The document change moved this listing to ${labelFor(nextServer, choices)}.`;
   return { serverStatus: nextServer, selected: nextServer, notice };
 }
+
+/**
+ * - `idle`: the baseline matches the last confirmed server status, so Save may run.
+ * - `pending`: a document change is being re-read; Save is blocked until it confirms.
+ * - `failed`: the newest re-read failed; Save stays blocked until a retry confirms.
+ */
+export type StatusSync = "idle" | "pending" | "failed";
+
+export interface ListingStatusState {
+  serverStatus: string;
+  selected: string;
+  notice: string | null;
+  sync: StatusSync;
+}
+
+export type StatusSaveDecision =
+  | { ok: false; reason: "pending" | "failed" }
+  | { ok: true; target: string; serverStatus: string; listingStatusCode: string | undefined };
+
+/**
+ * Keeps the editor's status baseline in step with server-side status moves caused by
+ * document changes. Every change bumps a generation; only the newest generation's re-read
+ * can settle the sync state, so an older response resolving late is ignored. Save is only
+ * decided against a confirmed baseline.
+ */
+export function createListingStatusSync({
+  initialStatus,
+  fetchServerStatus,
+  choices,
+  writableStatuses,
+  submissionStatuses,
+  onChange,
+}: {
+  initialStatus: string;
+  /** Resolves the listing's current status; null or a rejection counts as a failed re-read. */
+  fetchServerStatus: () => Promise<string | null | undefined>;
+  choices: readonly StatusChoiceLike[];
+  writableStatuses: readonly string[];
+  submissionStatuses: readonly string[];
+  onChange?: (state: ListingStatusState) => void;
+}) {
+  let state: ListingStatusState = { serverStatus: initialStatus, selected: initialStatus, notice: null, sync: "idle" };
+  let generation = 0;
+  const set = (next: ListingStatusState) => {
+    state = next;
+    onChange?.(state);
+  };
+
+  /** Re-read the server status after a document change (or on retry). */
+  const refresh = async () => {
+    const request = ++generation;
+    set({ ...state, sync: "pending" });
+    let nextServer: string | null | undefined;
+    try {
+      nextServer = await fetchServerStatus();
+    } catch {
+      nextServer = null;
+    }
+    if (request !== generation) return;
+    if (!nextServer) {
+      set({ ...state, sync: "failed" });
+      return;
+    }
+    const result = reconcileServerStatus({
+      previousServer: state.serverStatus,
+      nextServer,
+      selected: state.selected,
+      choices,
+      writableStatuses,
+      submissionStatuses,
+    });
+    // An unchanged status keeps any earlier explanation (e.g. the move to Draft).
+    set({ ...result, notice: result.notice ?? state.notice, sync: "idle" });
+  };
+
+  /** Pick a status; ignored until the baseline is confirmed (the radios are disabled then). */
+  const select = (value: string) => {
+    if (state.sync !== "idle") return;
+    set({ ...state, selected: value, notice: null });
+  };
+
+  const decideSave = (): StatusSaveDecision => {
+    if (state.sync !== "idle") return { ok: false, reason: state.sync };
+    return {
+      ok: true,
+      target: state.selected,
+      serverStatus: state.serverStatus,
+      listingStatusCode: statusToWrite({ target: state.selected, serverStatus: state.serverStatus, writableStatuses }),
+    };
+  };
+
+  return { getState: () => state, refresh, select, decideSave };
+}

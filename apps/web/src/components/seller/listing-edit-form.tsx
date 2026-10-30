@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type SetStateAction } from "react";
+import { useEffect, useState, type SetStateAction } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, FileText } from "lucide-react";
 import { Button, Input, Select } from "@eco-globe/ui";
@@ -8,9 +8,9 @@ import { describeBackendError } from "@/lib/backend-client";
 import { fetchListing, updateListing, type BackendListing, type ListingDocument, type ListingStatusCode } from "@/lib/listings-api";
 import { describeUnit, parseOptionalNumber } from "@/lib/listing-format";
 import {
-  reconcileServerStatus,
+  createListingStatusSync,
   requiresSubmissionValidation,
-  statusToWrite,
+  type ListingStatusState,
   type SubmissionValidationPolicy,
 } from "@/lib/listing-edit-status";
 import {
@@ -81,10 +81,21 @@ export function ListingEditForm({
   const [documents, setDocuments] = useState<ListingDocument[]>(record.documents ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  // serverStatus is the last status the backend reported; document changes can move it.
-  const [statusState, setStatusState] = useState({ serverStatus: record.listingStatusCode as string, selected: record.listingStatusCode as string, notice: null as string | null });
-  const { serverStatus, selected: status, notice: statusNotice } = statusState;
-  const statusRefresh = useRef(0);
+  // Document uploads and removals can change the listing status server-side; the sync re-reads
+  // it after each change and blocks Save until the newest re-read confirms the baseline.
+  const [statusState, setStatusState] = useState<ListingStatusState | null>(null);
+  const [statusSync] = useState(() =>
+    createListingStatusSync({
+      initialStatus: record.listingStatusCode,
+      fetchServerStatus: async () => (await fetchListing(String(record.id), "owned"))?.listingStatusCode,
+      choices: statusChoices,
+      writableStatuses,
+      submissionStatuses,
+      onChange: setStatusState,
+    }),
+  );
+  const { selected: status, notice: statusNotice, sync } = statusState ?? statusSync.getState();
+  const statusConfirmed = sync === "idle";
   // Owned listings are never teasers, so the seller company id is always present.
   const sellerCompanyId = record.sellerCompanyId ?? undefined;
   const locations = useCompanyLocations(sellerCompanyId);
@@ -97,42 +108,23 @@ export function ListingEditForm({
   useEffect(() => { if (window.location.hash === "#sds") document.getElementById("sds")?.scrollIntoView({ block: "start" }); }, []);
 
   const setField = <K extends keyof ListingForm>(k: K, v: ListingForm[K]) => setForm((prev) => ({ ...prev, [k]: v }));
-  const setStatus = (value: string) => setStatusState((prev) => ({ ...prev, selected: value, notice: null }));
 
-  // Document uploads and removals can change the listing status server-side, so re-read it
-  // after each change and reconcile; unsaved form fields are left untouched.
-  const refreshServerStatus = async () => {
-    const request = ++statusRefresh.current;
-    try {
-      const latest = await fetchListing(String(record.id), "owned");
-      if (!latest || request !== statusRefresh.current) return;
-      setStatusState((prev) =>
-        reconcileServerStatus({
-          previousServer: prev.serverStatus,
-          nextServer: latest.listingStatusCode,
-          selected: prev.selected,
-          choices: statusChoices,
-          writableStatuses,
-          submissionStatuses,
-        }),
-      );
-    } catch {
-      if (request !== statusRefresh.current) return;
-      setStatusState((prev) => ({ ...prev, notice: "Could not confirm the listing status after the document change. Reload the page before changing the status." }));
-    }
-  };
+  // Unsaved form fields are left untouched; only the status baseline is re-read.
   const handleDocumentsChange = (action: SetStateAction<ListingDocument[]>) => {
     setDocuments(action);
-    void refreshServerStatus();
+    void statusSync.refresh();
   };
   const toggleClaim = (c: string) => setField("claims", form.claims.includes(c) ? form.claims.filter((x) => x !== c) : [...form.claims, c]);
 
   const handleSave = async () => {
-    if (!listingStatusAllowedWithDemo(status, demo)) {
+    const decision = statusSync.decideSave();
+    if (!decision.ok) return;
+    const { target, serverStatus, listingStatusCode } = decision;
+    if (!listingStatusAllowedWithDemo(target, demo)) {
       setError(`${DEMO_LISTING_SUBMIT_BLOCKED} Choose Draft to save your edits.`);
       return;
     }
-    const submitting = requiresSubmissionValidation({ target: status, serverStatus, submissionStatuses, policy: submissionValidation });
+    const submitting = requiresSubmissionValidation({ target, serverStatus, submissionStatuses, policy: submissionValidation });
     const issues = submitting ? validateForSubmission(form, hasSds) : validateDraft(form);
     if (issues.length > 0) {
       setError(issues.map((i) => i.message).join(" "));
@@ -141,8 +133,7 @@ export function ListingEditForm({
     setSaving(true);
     setError("");
     try {
-      const nextStatus = statusToWrite({ target: status, serverStatus, writableStatuses }) as ListingStatusCode | undefined;
-      const body = formToWriteBody(form, { listingStatusCode: nextStatus });
+      const body = formToWriteBody(form, { listingStatusCode: listingStatusCode as ListingStatusCode | undefined });
       onSaved(await updateListing(record.id, body));
     } catch (err) {
       setError(describeBackendError(err, "The listing could not be saved. Your changes are still on screen; try again."));
@@ -157,7 +148,7 @@ export function ListingEditForm({
           {backLink && <Link href={backLink.href} className="inline-flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-neutral-900"><ArrowLeft className="size-4" />{backLink.label}</Link>}
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="md" onClick={onCancel} disabled={saving}>Cancel</Button>
-            <Button variant="primary" size="md" onClick={() => void handleSave()} disabled={saving} style={saving ? { opacity: 0.6, cursor: "not-allowed" } : undefined}>{saving ? "Saving…" : "Save changes"}</Button>
+            <Button variant="primary" size="md" onClick={() => void handleSave()} disabled={saving || !statusConfirmed} style={saving || !statusConfirmed ? { opacity: 0.6, cursor: "not-allowed" } : undefined}>{saving ? "Saving…" : "Save changes"}</Button>
           </div>
         </div>
         {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
@@ -288,11 +279,18 @@ export function ListingEditForm({
               <div className="flex flex-col gap-2">
                 {statusChoices.map((s) => (
                   <label key={s.value} className="flex cursor-pointer items-center gap-3">
-                    <input type="radio" name="status" checked={status === s.value} onChange={() => setStatus(s.value)} disabled={!listingStatusAllowedWithDemo(s.value, demo)} className="size-4 accent-neutral-900" />
+                    <input type="radio" name="status" checked={status === s.value} onChange={() => statusSync.select(s.value)} disabled={!statusConfirmed || !listingStatusAllowedWithDemo(s.value, demo)} className="size-4 accent-neutral-900" />
                     <span className={`text-sm ${listingStatusAllowedWithDemo(s.value, demo) ? "text-neutral-900" : "text-neutral-400"}`}>{s.label}</span>
                   </label>
                 ))}
               </div>
+              {sync === "pending" && <p className="mt-3 text-xs text-neutral-500" role="status">Checking listing status…</p>}
+              {sync === "failed" && (
+                <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+                  <p>Could not confirm the listing status after the document change, so saving is paused. Retry, or reload the page.</p>
+                  <button type="button" onClick={() => void statusSync.refresh()} className="mt-1 font-semibold underline">Retry</button>
+                </div>
+              )}
               {statusNotice && <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">{statusNotice}</p>}
               <p className="mt-3 text-xs text-neutral-500">{statusHelp}</p>
               {demo.marker && <p className="mt-2 text-xs text-amber-800" role="status">{DEMO_LISTING_SUBMIT_BLOCKED} Drafts can still be saved.</p>}
