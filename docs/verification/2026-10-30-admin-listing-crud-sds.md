@@ -97,3 +97,31 @@ Two checks did not run: `pnpm orca:verify` and executed-SQL smoke checks in the 
   - Under All, there are 96 Edit links, 78 cards with an SDS on file and 18 without.
   - Edit opened the LS-31 editor naming the seller. Nothing was saved.
 - **Note:** a browser that still had the app's saved sign-in state after the server session ended showed every card as "No SDS". The API correctly treated it as anonymous and returned no documents. Signing in again fixed it. The admin app's client-side session check can disagree with the server session; that is outside this change.
+
+## Fix: admin edits blocked by feedstock state and frequency
+
+- **Reported:** saving a price change on LS-97 (Brine sludge) showed "Choose the feedstock state. Choose the supply frequency." Changing Category did not help.
+- **Cause:** the admin editor runs the full submission checks on every save. Those checks require state and frequency, which sit in the Specifications section. The API does not require either field to publish, and 72 of the 73 published listings on development have neither. The message also did not say where the fields were.
+- **Fix:**
+  - Commit `ad336b6`:
+    - For admins, state and frequency are now recommended: an amber "Recommended. Not set yet; saving is still allowed." note appears instead of a block.
+    - SDS, price, quantity, MOQ, unit, currency, location, material type, name and category still block, and seller rules are unchanged.
+    - Each validation message is a link that scrolls to and focuses its field, and invalid fields get `aria-invalid`.
+  - Commit `9d08970` makes the SDS section focusable, which closes Codex's round-1 finding.
+- **Review:** Codex reviewed in two rounds and approved.
+- **Checks:**
+
+  | Check | Result |
+  | --- | --- |
+  | Web, admin and test type-checks | Pass |
+  | ESLint | Clean |
+  | Web library tests | 404/404 (4 new in `listing-form-issues.test.ts`) |
+  | Web and admin builds | Pass |
+
+- **Deployed:** web `dpl_5d2iDvqdbR2XCj9scSzH1enVWiS5`, admin `dpl_FuDmpXTcyQnpoef6vx2owytfRjd7`.
+- **Live check on LS-97:**
+  1. Both "Recommended" hints showed.
+  2. Price 99 → Save was blocked only by "Choose a listing category". The listing had no saved category.
+  3. The link focused `#category` with `aria-invalid=true`.
+  4. With Chemical Byproducts chosen, the save succeeded: published, price 99, category saved.
+- **Open:** 71 of the 73 published listings have no saved category, so each one's first admin edit asks for one.
