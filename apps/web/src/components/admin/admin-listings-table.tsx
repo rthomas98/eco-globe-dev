@@ -244,12 +244,13 @@ export function AdminListingsTable() {
         {() => (
           <>
             <div className="flex-1 overflow-x-auto px-4 sm:px-6">
-              <table className="w-full min-w-[1080px] text-left">
+              <table className="w-full min-w-[940px] text-left">
                 <thead>
                   <tr style={{ borderBottom: "1px solid #F0F0F0" }}>
-                    {["Listing", "Product", "Seller", "Status", "SDS", "Price / unit", "Available", "Orders", "Order value", "Actions"].map((h) => (
-                      <th key={h} className="pb-3 pr-4 text-sm font-medium text-neutral-500">{h}</th>
+                    {["Listing", "Product", "Seller", "Status", "SDS", "Price / unit", "Available", "Orders", "Order value"].map((h) => (
+                      <th key={h} className="pb-3 pr-3 text-sm font-medium text-neutral-500">{h}</th>
                     ))}
+                    <th className={`${STICKY_ACTIONS} pb-3 text-sm font-medium text-neutral-500`}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -305,7 +306,7 @@ function formatAvailable(l: BackendListing) {
 function SellerLink({ listing: l }: { listing: BackendListing }) {
   if (!l.sellerCompanyId) return <>{l.sellerCompanyName ?? "—"}</>;
   return (
-    <Link href={`/admin/sellers/${l.sellerCompanyId}`} className="hover:underline">
+    <Link href={`/admin/sellers/${l.sellerCompanyId}`} className="hover:underline" title={l.sellerCompanyName ?? undefined}>
       {l.sellerCompanyName ?? `Company ${l.sellerCompanyId}`}
     </Link>
   );
@@ -354,6 +355,9 @@ function RowActions({
   );
 }
 
+// Keeps View/Edit/Close/Reopen visible when the table is wider than the screen and scrolls sideways.
+const STICKY_ACTIONS = "sticky right-0 bg-white pl-3 pr-1 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]";
+
 function ListingRow({
   listing: l,
   activity,
@@ -372,28 +376,28 @@ function ListingRow({
   onReopen: () => void;
 }) {
   const view = `/admin/listings/LS-${l.id}`;
-  const td = "py-3.5 pr-4 text-sm text-neutral-700";
+  const td = "py-3.5 pr-3 text-sm text-neutral-700";
   return (
     <>
-      <tr style={{ borderBottom: error ? undefined : "1px solid #F8F8F8" }} className="hover:bg-neutral-50">
-        <td className="py-3.5 pr-4 text-sm text-neutral-900">
+      <tr style={{ borderBottom: error ? undefined : "1px solid #F8F8F8" }} className="group hover:bg-neutral-50">
+        <td className="py-3.5 pr-3 text-sm text-neutral-900">
           <Link href={view} className="font-medium hover:underline">LS-{l.id}</Link>
         </td>
-        <td className="max-w-[240px] truncate py-3.5 pr-4 text-sm text-neutral-700">
+        <td className="max-w-[200px] truncate py-3.5 pr-3 text-sm text-neutral-700">
           <Link href={view} className="hover:underline" title={l.title}>{l.title}</Link>
         </td>
-        <td className={td}><SellerLink listing={l} /></td>
-        <td className="py-3.5 pr-4">
-          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${TONE_CLASS[listingStatusTone(l.listingStatusCode)]}`}>
+        <td className={`${td} max-w-[160px] truncate`}><SellerLink listing={l} /></td>
+        <td className="py-3.5 pr-3">
+          <span className={`inline-flex whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium ${TONE_CLASS[listingStatusTone(l.listingStatusCode)]}`}>
             {listingStatusLabel(l.listingStatusCode)}
           </span>
         </td>
-        <td className="py-3.5 pr-4"><SdsIndicator listing={l} /></td>
+        <td className="py-3.5 pr-3"><SdsIndicator listing={l} /></td>
         <td className={td}>{formatPrice(l)}</td>
         <td className={td}>{formatAvailable(l)}</td>
         <td className={td}>{activity?.orders ?? "—"}</td>
-        <td className="py-3.5 pr-4 text-sm text-neutral-900">{activity?.orders ? activity.value : "—"}</td>
-        <td className="py-3.5 pr-4 text-sm">
+        <td className="py-3.5 pr-3 text-sm text-neutral-900">{activity?.orders ? activity.value : "—"}</td>
+        <td className={`${STICKY_ACTIONS} py-3.5 text-sm group-hover:bg-neutral-50`}>
           <RowActions listing={l} busy={busy} disabled={disabled} onClose={onClose} onReopen={onReopen} />
         </td>
       </tr>

@@ -15,7 +15,6 @@ import {
   Bell,
   ChevronDown,
   ChevronUp,
-  ArrowLeftRight,
   LayoutDashboard,
   Building2,
   Home,
@@ -56,6 +55,7 @@ function shortDisplayName(name: string) {
 }
 import { logoutBackendUser, switchBackendRole } from "@/lib/backend-auth";
 import { SoonPill } from "@/components/feedstock-iq/soon-pill";
+import { RoleSwitchMenuItem } from "@/components/auth/role-switch-menu-item";
 
 type NavChild = { label: string; href: string };
 type NavItem = {
@@ -156,14 +156,7 @@ function UserMenu({
           </div>
         </div>
         <div className="my-3" style={{ borderTop: "1px solid #F0F0F0" }} />
-        <button
-          type="button"
-          onClick={onSwitchToBuyer}
-          className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-        >
-          <ArrowLeftRight className="size-[18px] text-neutral-500" />
-          Switch to Buyer
-        </button>
+        <RoleSwitchMenuItem target="buyer" onSwitch={onSwitchToBuyer} onNavigate={onClose} />
         <div className="my-3" style={{ borderTop: "1px solid #F0F0F0" }} />
         <Link
           href="/seller/listings"

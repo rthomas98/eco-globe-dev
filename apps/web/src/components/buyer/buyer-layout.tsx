@@ -4,6 +4,7 @@ import { useLiveNotifications } from "@/components/notifications/use-live-notifi
 
 import { useState } from "react";
 import { SoonPill } from "@/components/feedstock-iq/soon-pill";
+import { RoleSwitchMenuItem } from "@/components/auth/role-switch-menu-item";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
@@ -16,7 +17,6 @@ import {
   Bell,
   ChevronUp,
   ChevronDown,
-  ArrowLeftRight,
   LayoutDashboard,
   Building2,
   Home,
@@ -175,14 +175,7 @@ function UserMenu({
           </div>
         </div>
         <div className="my-3" style={{ borderTop: "1px solid #F0F0F0" }} />
-        <button
-          type="button"
-          onClick={onSwitchToSeller}
-          className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-        >
-          <ArrowLeftRight className="size-[18px] text-neutral-500" />
-          Switch to Seller
-        </button>
+        <RoleSwitchMenuItem target="seller" onSwitch={onSwitchToSeller} onNavigate={onClose} />
         <div className="my-3" style={{ borderTop: "1px solid #F0F0F0" }} />
         <Link
           href="/buyer/browse"

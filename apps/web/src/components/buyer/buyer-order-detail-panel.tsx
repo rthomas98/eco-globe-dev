@@ -607,7 +607,7 @@ export function BuyerOrderDetailPanel({ order, onClose, onOrderChanged }: Props)
                     ]
                   : []),
                 {
-                  label: "Contact seller",
+                  label: "Email EcoGlobe about this order",
                   icon: Mail,
                   onClick: () => {
                     window.location.href = `mailto:info@ecoglobeworld.com?subject=Order ${order.orderId}`;
